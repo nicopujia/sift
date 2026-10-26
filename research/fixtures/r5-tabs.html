@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Account settings · Breadbox</title>
+<style>
+body{font-family:system-ui;margin:0}
+header{background:#222;color:#fff;padding:12px 24px}header a{color:#fff;margin-right:12px}
+main{max-width:720px;margin:24px auto}
+[role=tablist]{display:flex;gap:4px;border-bottom:2px solid #ccc}
+[role=tab]{border:0;background:#eee;padding:8px 14px;cursor:pointer}
+[role=tab][aria-selected=true]{background:#fff;border-bottom:3px solid #c60;font-weight:700}
+[role=tabpanel]{padding:16px 0}
+label{display:block;margin-top:10px;font-weight:600}
+input[type=text],input[type=email],select{padding:6px;width:280px}
+.spin{color:#888}
+#toast{position:fixed;top:16px;right:16px;background:#0a7d32;color:#fff;padding:10px 14px;border-radius:6px}
+#toast.err{background:#b00}
+</style></head>
+<body>
+<header><a href="/">Breadbox</a><a href="/orders">Orders</a><a href="/account">Account</a></header>
+<main>
+<h1>Account settings</h1>
+<div role="tablist" aria-label="Settings sections">
+  <button role="tab" id="t-profile" aria-selected="true" aria-controls="p-profile" tabindex="0">Profile</button>
+  <button role="tab" id="t-notif" aria-selected="false" aria-controls="p-notif" tabindex="-1">Notifications</button>
+  <button role="tab" id="t-billing" aria-selected="false" aria-controls="p-billing" tabindex="-1">Billing</button>
+</div>
+<section role="tabpanel" id="p-profile" aria-labelledby="t-profile">
+  <form id="profile" novalidate>
+    <label for="name">Display name</label><input type="text" id="name" value="Ana R.">
+    <label for="email">Email</label><input type="email" id="email" value="ana@example.com">
+    <label for="lang">Language</label><select id="lang"><option selected>English</option><option>Español</option></select>
+    <p><button type="submit">Save changes</button></p>
+  </form>
+</section>
+<section role="tabpanel" id="p-notif" aria-labelledby="t-notif" hidden></section>
+<section role="tabpanel" id="p-billing" aria-labelledby="t-billing" hidden></section>
+</main>
+<div id="toast" role="status" hidden></div>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+const tabs = [...document.querySelectorAll("[role=tab]")];
+const loaded = {};
+function toast(text, err) { const t = $("toast"); t.textContent = text; t.className = err ? "err" : ""; t.hidden = false; clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 3500); }
+function select(tab, focus) {
+  for (const t of tabs) { const on = t === tab; t.setAttribute("aria-selected", on); t.tabIndex = on ? 0 : -1; $(t.getAttribute("aria-controls")).hidden = !on; }
+  if (focus) tab.focus();
+  const panel = $(tab.getAttribute("aria-controls"));
+  __log.push("tab " + tab.textContent);
+  if (panel.id !== "p-profile" && !loaded[panel.id]) {
+    loaded[panel.id] = true;
+    panel.innerHTML = '<p class="spin">Loading…</p>';
+    setTimeout(() => {
+      if (panel.id === "p-notif") panel.innerHTML = '<form id="notif"><fieldset><legend>Email me about</legend><label><input type="checkbox" id="n-orders" checked> Order updates</label><label><input type="checkbox" id="n-offers"> Offers and discounts</label><label><input type="checkbox" id="n-news"> The weekly newsletter</label></fieldset><p><button type="submit">Save notifications</button></p></form>';
+      else panel.innerHTML = '<h2>Payment method</h2><p>Visa ending 4242, expires 08/28.</p><p><button type="button" id="card">Change card</button></p><h2>Invoices</h2><ul><li><a href="/inv/2026-10.pdf">October 2026 — $42.00</a></li><li><a href="/inv/2026-09.pdf">September 2026 — $38.50</a></li></ul>';
+      __log.push("loaded " + panel.id);
+      if (panel.id === "p-notif") $("notif").addEventListener("submit", (e) => { e.preventDefault(); __log.push("save notif offers=" + $("n-offers").checked + " news=" + $("n-news").checked); toast("Notification settings saved."); });
+      else $("card").onclick = () => __log.push("change card");
+    }, 900);
+  }
+}
+for (const t of tabs) t.addEventListener("click", () => select(t, false));
+document.querySelector("[role=tablist]").addEventListener("keydown", (e) => {
+  const i = tabs.indexOf(document.activeElement); if (i < 0) return;
+  if (e.key === "ArrowRight") { e.preventDefault(); select(tabs[(i + 1) % tabs.length], true); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); select(tabs[(i + tabs.length - 1) % tabs.length], true); }
+});
+$("profile").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!$("email").value.includes("@")) { toast("Could not save: enter a valid email.", true); __log.push("save error"); return; }
+  __log.push("save profile " + $("name").value + " " + $("email").value + " " + $("lang").value); toast("Profile saved.");
+});
+</script>
+</body></html>

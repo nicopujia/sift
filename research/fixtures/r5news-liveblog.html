@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Election night – live | The Daily Example</title>
+<style>
+  body { font: 17px/1.5 Georgia, serif; margin: 0; }
+  header.site-header { background: #052962; color: #fff; padding: 20px; }
+  header.site-header a { color: #fff; margin-right: 12px; }
+  main { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+  .lead-media img { width: 100%; height: 900px; object-fit: cover; display: block; }
+  #toast-root { position: sticky; top: 0; z-index: 5; text-align: center; }
+  .toast button { background: #052962; color: #fff; border: 0; border-radius: 18px; padding: 8px 16px; font-size: 15px; cursor: pointer; }
+  article.block { border-top: 1px solid #ccc; padding: 12px 0; }
+  article.block[hidden] { display: none; }
+  .block-time { font: bold 14px sans-serif; color: #c70000; }
+  figure img { width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<header class="site-header"><a href="/">Home</a><a href="/news">News</a><a href="/sport">Sport</a></header>
+<main>
+  <h1>Election night: results as they come in – live</h1>
+  <p class="standfirst">Polls have closed across the country and the first results are being counted. Follow the latest here.</p>
+  <div class="lead-media"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Crect width='1200' height='800' fill='%23889'/%3E%3C/svg%3E" alt="Voters queue outside a polling station"></div>
+  <div id="top-of-blog"></div>
+  <div><div id="toast-root"></div></div>
+  <section id="liveblog-body">
+    <article class="block" id="block-4"><p><a class="block-time" href="?page=with:block-4#block-4">10m ago 22.40</a></p>
+      <p>The first count of the night has finished in the north-east, where turnout was higher than at the last election, according to the returning officer.</p>
+      <figure><img loading="lazy" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='600'%3E%3Crect width='900' height='600' fill='%23a87'/%3E%3C/svg%3E" width="900" height="600" alt="Counting staff at a sports hall"><figcaption>Counting staff empty ballot boxes at a sports hall. Photograph: Example Agency</figcaption></figure>
+    </article>
+    <article class="block" id="block-3"><p><a class="block-time" href="?page=with:block-3#block-3">25m ago 22.25</a></p>
+      <p>Party officials say they expect a close race in the marginal seats, and that the result in the capital may not be known until the early hours of the morning.</p>
+    </article>
+    <article class="block" id="block-2"><p><a class="block-time" href="?page=with:block-2#block-2">40m ago 22.10</a></p>
+      <p>The exit poll suggests the governing party will lose its majority, though pollsters warn that the margin of error is wider than usual this year.</p>
+    </article>
+    <article class="block" id="block-1"><p><a class="block-time" href="?page=with:block-1#block-1">1h ago 21.55</a></p>
+      <p>Welcome to our live coverage of election night. Polls close at ten, and we will bring you every result as soon as it is declared.</p>
+    </article>
+  </section>
+</main>
+<script>
+  // New posts arrive hidden behind a "N new updates" button while the reader is
+  // away from the top of the blog, as on a news site's live page.
+  const body = document.getElementById("liveblog-body");
+  const toastRoot = document.getElementById("toast-root");
+  let atTop = false;
+  new IntersectionObserver((es) => { atTop = es[0].isIntersecting; }).observe(document.getElementById("top-of-blog"));
+  let n = 5;
+  const posts = [
+    "Breaking: the first marginal seat has been declared, and the opposition has taken it with a swing of six points.",
+    "Turnout in the capital is reported at 71%, the highest since records began in this form.",
+  ];
+  function pending() { return Array.from(body.querySelectorAll("article.block[hidden]")); }
+  function renderToast() {
+    const k = pending().length;
+    toastRoot.innerHTML = k ? `<div class="toast"><button type="button">${k} new ${k === 1 ? "update" : "updates"}</button></div>` : "";
+    const b = toastRoot.querySelector("button");
+    if (b) b.addEventListener("click", () => {
+      for (const p of pending()) p.hidden = false;
+      renderToast();
+      document.getElementById("top-of-blog").scrollIntoView();
+      window.__revealed = (window.__revealed || 0) + 1;
+    });
+  }
+  function add(text) {
+    const a = document.createElement("article");
+    a.className = "block";
+    a.id = "block-" + n;
+    a.innerHTML = `<p><a class="block-time" href="?page=with:block-${n}#block-${n}">now 22.5${n - 5}</a></p><p>${text}</p>`;
+    n++;
+    if (!atTop) a.hidden = true;
+    body.prepend(a);
+    renderToast();
+  }
+  setTimeout(() => add(posts[0]), 6000);
+  setTimeout(() => add(posts[1]), 10000);
+</script>
+</body>
+</html>

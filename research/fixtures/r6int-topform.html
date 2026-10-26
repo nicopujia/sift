@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Contact the bakery</title></head>
+<body>
+<header><nav aria-label="Main"><a href="/">Home</a> <a href="/bread">Bread</a> <a href="/cakes">Cakes</a> <a href="/shop">Shop</a> <a href="/visit">Visit us</a> <a href="/about">About</a></nav>
+<form role="search" action="/search"><input type="search" name="q" placeholder="Search the bakery" aria-label="Search the bakery"><button>Search</button></form></header>
+<main>
+<h1>Contact us</h1>
+<form id="f"><label>Your email <input type="email" id="em" required></label> <button>Send</button></form>
+<p>We answer within one day.</p>
+</main>
+<script>window.__log=[];document.getElementById('f').onsubmit=(e)=>{e.preventDefault();__log.push('sent');};</script>
+</body></html>

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Bakery news</title>
+<style>.dlg { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); width: 380px; background: #fff; border: 1px solid #999; padding: 16px; box-shadow: 0 4px 16px rgba(0,0,0,.3); }</style></head>
+<body>
+<main>
+<h1>Bakery news</h1>
+<p>Our gluten-free bakery bakes fresh bread every morning. Subscribe to hear about new loaves.</p>
+<button id="open">Subscribe</button>
+</main>
+<script>
+window.__log = [];
+document.getElementById('open').onclick = () => {
+  if (document.querySelector('.dlg')) return;
+  const d = document.createElement('div');
+  d.className = 'dlg';
+  d.setAttribute('role', 'dialog');
+  d.setAttribute('aria-label', 'Subscribe to the newsletter');
+  d.innerHTML = '<h2>Subscribe to the newsletter</h2><form id="f"><label>Your name <input name="name"></label><br><label>Your email <input type="email" name="email" id="em" required></label><br><button type="submit">Sign up</button> <button type="button" id="x">Close</button></form>';
+  document.body.appendChild(d);
+  d.querySelector('#f').onsubmit = (e) => { e.preventDefault(); __log.push('sent ' + d.querySelector('#em').value); d.remove(); };
+  d.querySelector('#x').onclick = () => d.remove();
+};
+</script>
+</body></html>

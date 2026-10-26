@@ -1,0 +1,113 @@
+[button] Skip to content
+  [input:search]  Search
+  [button] Search
+H1 Hacker News
+  [link] Hacker News
+  [link] new
+  [link] past
+  [link] comments
+  [link] ask
+  [link] show
+  [link] jobs
+  [link] submit
+  [link] login
+    [link] I Don't Understand Quantum Physics (2018)
+    p: (southampton.ac.uk) · 97 points by rramadass 2 hours ago | hide | 60 comments
+    [link] 60 comments
+    [link] OBS Studio 33
+    p: (github.com/obsproject) · 202 points by pentagrama 7 hours ago | hide | 66 comments
+    [link] 66 comments
+    [link] Kimi K3.1 Pro and K3.1 Pro Highspeed
+    p: (kimi.ai) · 945 points by Jowsey 19 hours ago | hide | 565 comments
+    [link] 565 comments
+    [link] Physicists trap a single antimatter particle for a month
+    p: (scientificamerican.com) · 90 points by mooreds 5 hours ago | hide | 33 comments
+    [link] 33 comments
+    [link] Around a dozen banking apps began specifically permitting GrapheneOS
+    p: (grapheneos.social) · 193 points by privacyishuman 11 hours ago | hide | 45 comments
+    [link] 45 comments
+    [link] Today, we hacked what we'd set out to hack: the iPhone
+    p: (calif.io) · 924 points by pavel_lishin 19 hours ago | hide | 595 comments
+    [link] 595 comments
+    [link] Twelve years of distributed SQLite
+    p: (philipotoole.com) · 236 points by otoolep 11 hours ago | hide | 36 comments
+    [link] 36 comments
+    [link] Node2Shell evolves to HTTP2Shell, blast radius affects many HTTP libs and apps
+    p: (aikido.dev) · 37 points by theanonymousone 4 hours ago | hide | 19 comments
+    [link] 19 comments
+    [link] How close can pure functional programming get to C?
+    p: (rtfeldman.com) · 143 points by stmonty 8 hours ago | hide | 23 comments
+    [link] 23 comments
+    [link] How to run a city builder on 16 MHz
+    p: (larstofus.com) · 33 points by rex64 4 hours ago | hide | 10 comments
+    [link] 10 comments
+    [link] AI-Assisted Paper on Z-Library Cites a TorrentFreak Article That Doesn't Exist
+    p: (torrentfreak.com) · 30 points by TangerineDream 59 minutes ago | hide | discuss
+    [link] discuss
+    [link] Appreciating the beauty of all your body's scars and scratches
+    p: (1000awesomethings.com) · 7 points by surprisetalk 1 hour ago | hide | 2 comments
+    [link] 2 comments
+    [link] Apple Music 404 Not Found
+    p: (music.apple.com) · 802 points by frizlab 19 hours ago | hide | 240 comments
+    [link] 240 comments
+    [link] Local Wikipedia: Wikipedia, but only for things a half hour walk from you
+    p: (edjefferson.com) · 1411 points by sohkamyung 1 day ago | hide | 237 comments
+    [link] 237 comments
+    [link] A practical guide to AI image generation, from diffusion to agents
+    p: (danielball.com) · 117 points by westsmith 9 hours ago | hide | 34 comments
+    [link] 34 comments
+    [link] Bringing uv and ty together
+    p: (astral.sh) · 185 points by Ravencentric 12 hours ago | hide | 53 comments
+    [link] 53 comments
+    [link] Dessa: Conversation Model trained only on speech
+    p: (block.xyz) · 407 points by dsr12 17 hours ago | hide | 151 comments
+    [link] 151 comments
+    [link] Apple Security Research Device
+    p: (security.apple.com) · 86 points by neom 9 hours ago | hide | 35 comments
+    [link] 35 comments
+    [link] Hacker reverses Samsung TV, finds on-board AI listening OpenAI account suspended
+    p: (reddit.com) · 235 points by testing22321 6 hours ago | hide | 67 comments
+    [link] 67 comments
+    [link] Show HN: Autonomous root for Tcl Android TV via CVE-2022-22706
+    p: (gitlab.com/c4psu13) · 4 points by t20n 1 hour ago | hide | discuss
+    [link] discuss
+    [link] Canadians are running out of time to oppose Bill C-22
+    p: (eff.org) · 430 points by hn_acker 1 day ago | hide | 227 comments
+    [link] 227 comments
+    [link] The Chalk and the Airplane
+    p: (unintendedconsequenc.es) · 8 points by paulorlando 2 hours ago | hide | discuss
+    [link] discuss
+    [link] CVE Tracker
+    p: (0xosprey.com) · 180 points by Group_B 14 hours ago | hide | 69 comments
+    [link] 69 comments
+    [link] The Real Kevin Bacon
+    p: (pudding.cool) · 326 points by xnx 21 hours ago | hide | 79 comments
+    [link] 79 comments
+    [link] C vs. C#: racing VLC's Gaussian blur
+    p: (martinfinkel.com) · 98 points by martz 12 hours ago | hide | 25 comments
+    [link] 25 comments
+    [link] The Best Monopoly Strategy, Tested on 300M Games [video]
+    p: (youtube.com) · 31 points by zdw 7 hours ago | hide | 29 comments
+    [link] 29 comments
+    [link] The Quake Fan who built the map editor everybody uses
+    p: (funcarena.com) · 136 points by klaussilveira 10 hours ago | hide | 17 comments
+    [link] 17 comments
+    [link] How Block Blast harvests its players for ad money
+    p: (ayoships.com) · 59 points by motionlessveloc 9 hours ago | hide | 26 comments
+    [link] 26 comments
+    [link] Air Purifiers as White Noise Machines
+    p: (jefftk.com) · 144 points by luu 18 hours ago | hide | 132 comments
+    [link] 132 comments
+    [link] One Man's Pan Am 747 Replica [video]
+    p: (youtube.com) · 44 points by Teever 9 hours ago | hide | 3 comments
+    [link] 3 comments
+    [link] More
+  [link] Guidelines
+  [link] FAQ
+  [link] Lists
+  [link] API
+  [link] Security
+  [link] Legal
+  [link] Apply to YC
+  [link] Contact
+[button] Sift

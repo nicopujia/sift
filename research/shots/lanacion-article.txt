@@ -1,0 +1,65 @@
+[button] Ir al contenido
+  [input:search]  Buscá en LA NACION
+  [button] Buscar
+[button] Menú
+[button] INICIAR SESIÓN
+H1 En una semana difícil para Milei, Bullrich presiona al máximo por la estrategia electoral y agita la interna
+p: Matías Moreno · 23 oct 2026, 22:01
+p: La senadora volvió a desafiar al Presidente con un spot en el que insinúa el lanzamiento de una candidatura nacional; a qué juega y los temores que genera su rebelión
+p: 23 de octubre de 2026
+p: 19:01
+p: 9 minutos de lectura
+[button] Agregar LA NACION en
+[button] Tras desafiar a Milei con un nuevo spot, Patricia Bullrich asistió a la cena de la Fundación Faro Nicolás Suárez
+  p: El Gobierno entró en ebullición en las últimas horas. Luego de una semana difícil para Javier Milei, que estuvo marcada por los indicadores negativos de la economía y la admisión del Presidente de que la actividad no cre
+    [link] un sugestivo spot
+  p: En un nuevo gesto provocador destinado a atraer la atención de la opinión pública, su equipo musicalizó la pieza con una canción de Plan B, el dúo puertorriqueño de reguetón.
+  p: El movimiento de Bullrich provocó un fuerte revuelo interno en la Casa Rosada.
+  p: Ella venía exigiendo a Milei un cambio de recetas para superar el parate de la economía y que apure el acuerdo político con los aliados para garantizar la gobernabilidad de cara al próximo período electoral. Pero esta ve
+  p: “Está equivocada. Tarde o temprano se va a ordenar, pero en el medio nos mete mucho ruido”, admite uno de los integrantes de la mesa política.
+  [link] pic.twitter.com/3oaNZ5rzET
+  [link] October 23, 2026
+  p: En las altas esferas del Ejecutivo ya no esconden su malestar con el juego propio que exhibe la jefa del bloque de senadores. Le cuestionan que desafíe la autoridad de Mileiy que contribuya a incrementar la incertidumbre
+  p: “Se impone la realidad, la micro está fría y el rebote no llegó; y ella acelera porque la cosa no mejora, está lanzada”, dice uno de los consejeros del oficialismo.
+  p: Otras figuras centrales de la administración de Milei presumen que Bullrich solo intenta fortalecerse para negociar una candidatura a vicepresidenta en 2027 y lugares para su tropa en las listas.
+  p: Quienes hablan con frecuencia con Karina Milei están convencidos de que Bullrich juega con fuego. Interpretan que sus muestras de rebeldía y sus últimos desmarques del Gobierno provocarán el enojo del núcleo duro de vota
+  [button] Javier Milei, Patricia Bullrich y Karina Milei Fabian Marelli
+  p: La senadora se siente cómoda en el tablero de las batallas internas de poder. En su entorno niegan que se haya largado a la carrera presidencial con el provocativo spot de este viernes e insisten en que no está preparand
+  H2 ¿Tensiona o rompe?
+  p: En concreto, Bullrich presiona al máximo a los Milei para que revisen su estrategia electoral y le garanticen un rol protagónico en la próxima contienda. “Está diciendo: ‘Acá estoy, puedo ser presidenta o vice, ustedes d
+  p: Recién en marzo próximo, auguran sus estrategas, la extitular de Pro definirá su futuro: “Ahí veremos cómo está la situación”, comentan.
+  p: En el último mes, la imagen positiva de Bullrich cayó en los sondeos que maneja su equipo. Pero ella lo asocia al descontento generalizado con el Gobierno por el andar de la economía.
+  p: En privado, Bullrich admite que se siente una accionista mayoritaria de La Libertad Avanza. Olfatea que el Presidente pierde capital político y, por eso, aseguran sus laderos, procura contener la sangría de votos con ges
+  p: “El Plan A es la reelección de Milei, pero ella no se va a dejar arriar como ganado o tolerar el destrato”, avisan uno de los leales de Bullrich.
+  p: Apenas abandonó su lugar en el Ejecutivo para mudarse al Congreso, sintió que intentaron marginarla y bajarle el precio. Sospechó que la hermana del Presidente y los Menem procuraron rasparla en cuanto comenzó a dar seña
+  p: Luego se produjo la sucesión de desmarquespor el tratamiento de los pliegos judiciales, el caso Adorni y los recortes en el área de discapacidad o los ataques a la prensa.
+  p: Hace dos semanas, Bullrich visitó a Milei en la quinta de Olivos. Durante una charla a solas, le anticipó queiba a mantener su estrategia para diferenciarse y concentrar la atención de la opinión pública en la interna de
+  p: “Vos sos una parte y yo, otra; si somos astutos, van a hablar de nosotros y no de otros”, le planteó. También le advirtió que no estaba dispuesta a revisar su actitud y que continuaría levantando la voz cuando no coincid
+  [button] Patricia Bullrich, en el Senado Melisa Romero / Prensa Bullrich
+  p: En el campamento de Bullrich machacan con que el spot del “Plan B” estuvo orientado a posicionarse como eventual compañera de fórmula del Presidente.
+  p: Como había hecho en septiembre, cuando difundió un video musicalizado por la artista Lali Espósito, uno de los blancos predilectos del Presidente, la exministra pretendió patear el avispero para revalorizar sus acciones.
+  H2 Desorden interno
+  p: El mensaje caló en las filas del oficialismo y profundizó el desorden interno. Entre los dirigentes que forman parte de la mesa política se instaló un clima de desconfianza.
+  p: El jefe de Gabinete, Diego Santilli, luce optimista de que conseguirá el respaldo de los gobernadores aliados para destrabar la reforma política en el Senado y avanzar con la suspensión de las PASO de 2027. La mira está 
+  p: Bullrich repite ante propios y extraños que los votos no están para suprimir las primarias. En el Gabinete intuyen que boicotea la discusión porque especula con jugar en 2027. “La mesa política toma decisiones, pero desp
+  p: Los Menem también interfieren en las tratativas de Santilli con los mandatarios. “Quieren cerrar ellos”, susurran sus detractores internos. Intentan convencer a Karina Milei de que no deben regalarse ante los gobernadore
+  p: Los primos, que controlan la botonera del partido, abogan por priorizar la expansión territorial de LLA. ¿Están pensando más allá de 2027? “Fantasean con un ejército propio, pero si perdemos la elección presidencial, eso
+  H2 Inquietud por la economía
+    [link] “una pelotudez del tamaño de una casa”
+  p: Luego llegó el día de furia de Milei en España, donde se involucró en la campaña electoral con insultos a Pedro Sánchez, a quien tildó de “dictador impresentable”, y a periodistas.
+  p: El resultado del viaje no fue el previsto: Milei solo habló por teléfono con su aliado de Vox, Santiago Abascal, y se quedó sin la reunión con el rey Felipe VI. El líder del PP y candidato a presidente, Alberto Núñez-Fei
+  p: El ataque a Sánchez, a su vez, provocó un nuevo cortocircuito diplomático con uno de los principales socios comerciales de la Argentina en la Unión Europea. En medio del raid de Milei en Madrid, el Ministerio de Relacion
+  [button] Milei, en España Captura de video
+  p: Ese día el Indec confirmó que la Argentina está al borde de entrar en recesión. La economía cayó 1,7% interanual y el crecimiento acumulado en el año se redujo a 1,2%. Fue un golpe letal al relato optimista en el oficial
+  p: No obstante, el hecho más impactante en el Gobierno se produjo el jueves cuando Milei admitió por primera vez que los indicadores económicos del país “no están evolucionando tan positivamente como esperábamos en un prime
+  p: El giro de Milei profundizó la preocupación y el debate interno en el Gabinete respecto de la necesidad de flexibilizar el programa económico. El ala política, con Bullrich a la cabeza, viene pidiendo dar señales para ap
+  p: En los mercados también hay inquietud por los datos negativos de la economía y, sobre todo, la pérdida de capital político de Milei con vistas a las próximas elecciones. Pero hasta ahora el Presidente se resiste a autori
+  p: En el Gobierno reconocen que llegarán a la elección con una economía planchada. Descartan poner en práctica “un plan platita” para reactivar el consumo -las ventas cayeron 1,2% en septiembre respecto del mismo mes de 202
+    [link] Matías Moreno
+      [link] Conforme a
+p: Más leídas de Política
+H3 Sumate a la conversación
+p: Para comentar las notas, necesitás suscribirte
+  [link] INICIAR SESIÓN
+  [link] SUSCRIBIRTE
+[button] Sift

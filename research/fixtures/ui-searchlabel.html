@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Recetario de pan</title>
+<style>body{font-family:sans-serif;margin:0} header{display:flex;gap:12px;padding:12px;background:#eee} main{max-width:700px;margin:20px auto}</style>
+</head>
+<body>
+<!-- ?icon: the search button is an icon with an English aria-label; Sift shows its own label in the page language.
+     Otherwise the button says "Encontrar"; Sift keeps the page's words. -->
+<header><a href="/">Recetario</a>
+<form role="search" id="s"><input id="q" name="q" placeholder="Buscar recetas" aria-label="Buscar recetas"><button id="b"></button></form></header>
+<main>
+<h1>Pan de campo con masa madre</h1>
+<p>El pan de campo lleva harina de trigo, agua, sal y masa madre. La masa descansa toda la noche en la heladera y se hornea por la mañana en una olla de hierro bien caliente.</p>
+<p>Para una corteza crocante, hornear tapado veinte minutos y destapado otros veinticinco. Dejar enfriar una hora antes de cortar.</p>
+</main>
+<script>
+const b = document.getElementById("b");
+if (location.search.includes("icon")) { b.setAttribute("aria-label", "Search"); b.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="#000" fill="none"/></svg>'; }
+else b.textContent = "Encontrar";
+window.__log = [];
+document.getElementById("s").addEventListener("submit", (e) => { e.preventDefault(); __log.push("search " + document.getElementById("q").value); });
+</script>
+</body></html>

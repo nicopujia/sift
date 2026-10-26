@@ -1,0 +1,78 @@
+[button] Skip to content
+[button] Menu
+H1 <details> HTML details disclosure element
+p: Oct 16, 2026
+  [link] HTML
+  [link] <summary>
+  [link] accessible description
+  H2 Try it
+  H2 Attributes
+    [link] global attributes
+  dt: open
+  dd: This Boolean attribute indicates whether the details — that is, the contents of the <details> element — are currently visible. The details are shown when this attribute exists, or hidden when this attribute is absent. By
+  dt: name
+  dd: This attribute enables multiple <details> elements to be connected, with only one open at a time. This allows developers to easily create UI features such as accordions without scripting. The name attribute specifies a g
+  H2 Usage notes
+    [link] user agent
+  p: When the user clicks on the widget or focuses it then presses the space bar, it "twists" open, revealing its contents. The common use of a triangle which rotates or twists around to represent opening or closing the widge
+    [link] open
+  H3 Styling the <details> element
+    [link] ::details-content
+    [link] display
+    [link] list-style-type
+    [link] list-style-position
+    [link] ::marker
+    [link] Changing the summary's icon
+    [link] ::details-content
+    [link] ::details-content reference page
+  H3 Events
+    [link] toggle
+  p: You can use an event listener for the toggle event to detect when the widget changes state:
+  H2 Examples
+  H3 A basic disclosure example
+  p: This example shows a basic <details> element with a <summary>.
+  H4 Result
+  [PORTAL] Interactive area from the original page: runner. Press Enter to use it, Escape to come back.
+  H3 Creating an open disclosure box
+  p: To start the <details> box in its open state, add the Boolean open attribute:
+  H4 Result
+  [PORTAL] Interactive area from the original page: runner. Press Enter to use it, Escape to come back.
+  H3 Multiple named disclosure boxes
+  p: We include several <details> boxes, all with the same name so only one can be open at a time:
+  H4 Result
+  [PORTAL] Interactive area from the original page: runner. Press Enter to use it, Escape to come back.
+  p: Try opening all the disclosure widgets. When you open one, all the others automatically close.
+  H3 Customizing the appearance
+  p: Now let's apply some CSS to customize the appearance of the disclosure box.
+  H4 CSS
+  p: This CSS creates a look similar to a tabbed interface, where clicking the tab opens it to reveal its contents.
+    [link] :open
+  H4 HTML
+  H4 Result
+  [PORTAL] Interactive area from the original page: runner. Press Enter to use it, Escape to come back.
+    [link] <summary>
+    [link] example of customizing the disclosure widget
+  H2 Technical summary
+    [link] Content categories
+    [link] Flow content
+  td: Permitted content
+    [link] <summary>
+    [link] flow content
+  td: Tag omission
+  td: None, both the starting and ending tag are mandatory.
+  td: Permitted parents
+    [link] flow content
+  td: Implicit ARIA role
+    [link] group
+  td: Permitted ARIA roles
+  td: No role permitted
+  td: DOM interface
+    [link] HTMLDetailsElement
+  H2 Specifications
+  th: Specification
+    [link] HTML # the-details-element
+  H2 Browser compatibility
+  H2 See also
+      [link] <summary>
+      [link] ::details-content
+[button] Sift

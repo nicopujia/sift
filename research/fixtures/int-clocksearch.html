@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Recipe search with a clock</title>
+<style>.slide{display:none}.slide.on{display:block}</style></head>
+<body>
+<header>
+  <div class="searchbox">
+    <input id="q" type="search" placeholder="Search recipes" aria-label="Search recipes">
+    <button id="go" aria-label="Search">Search</button>
+  </div>
+</header>
+<main>
+<h1>Recipes</h1>
+<p>Search thousands of gluten-free recipes. Type a dish and press Enter or the Search button.</p>
+<p>Local time: <span id="clock">0</span></p>
+<div id="car"><p class="slide on">Today: focaccia with rosemary.</p><p class="slide">Today: banana bread.</p><p class="slide">Today: pizza dough.</p></div>
+<div id="results"></div>
+</main>
+<script>
+window.__log = [];
+const q = document.getElementById('q');
+function search() { __log.push('search ' + q.value); document.getElementById('results').innerHTML = '<h2>Results for ' + q.value + '</h2><ul><li><a href="#r1">Focaccia</a></li></ul>'; }
+document.getElementById('go').onclick = search;
+// Only the user's own Enter (some sites guard against scripted keys).
+q.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.isTrusted) search(); });
+// A clock that ticks and a carousel that turns, as many pages have.
+let n = 0;
+setInterval(() => { document.getElementById('clock').textContent = String(++n); }, 400);
+let k = 0;
+const slides = document.querySelectorAll('.slide');
+setInterval(() => { slides[k].classList.remove('on'); k = (k + 1) % slides.length; slides[k].classList.add('on'); }, 700);
+</script>
+</body></html>

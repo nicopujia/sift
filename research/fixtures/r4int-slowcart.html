@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Gluten-free flour blend</title></head>
+<body>
+<header><p>Cart: <span id="count">0</span> items</p></header>
+<main>
+<h1>Gluten-free flour blend, 1 kg</h1>
+<p>A blend of rice flour, potato starch and tapioca for bread and cakes. Certified gluten-free, made in a dedicated facility.</p>
+<p>Price: $8.99</p>
+<button id="add">Add to cart</button>
+<p id="status" role="status"></p>
+</main>
+<script>
+window.__log = [];
+let n = 0;
+document.getElementById('add').onclick = () => {
+  __log.push('click ' + Math.round(performance.now()));
+  // The server answers after 1.5 s; the page updates two text nodes.
+  setTimeout(() => {
+    n++;
+    document.getElementById('count').firstChild.data = String(n);
+    document.getElementById('status').textContent = 'Added to cart (' + n + ').';
+    window.__shownAt = performance.now();
+    __log.push('updated ' + Math.round(performance.now()));
+  }, 1500);
+};
+</script>
+</body></html>

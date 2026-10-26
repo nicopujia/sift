@@ -1,0 +1,55 @@
+[button] Ir al contenido
+[button] Menú
+[button] Iniciar sesión
+    [link] Mundo
+H1 Un incendio destruyó el “Nido del Águila”, el antiguo refugio de montaña de Adolf Hitler en Alemania
+p: 24 oct 2026, 4:01
+p: Los primeros equipos de emergencia llegaron al edificio a las 21:52 del viernes, y encontraron la construcción “completamente en llamas”. Los bomberos enfrentaron dificultades por la ubicación remota a 1.834 metros de al
+    [link] Seguir
+  [button] Escuchar
+  [button] Puntos clave
+  [button] Resumen
+  [PORTAL] Área interactiva de la página original: Video Player - El incendio en el "Nido del Águila", la antigua residencia de Ado. Pulsá Enter para usarla y Escape para volver.
+  p: La Policía de Alemania detuvo de forma temporal a un sospechoso después de que un incendio de grandes proporciones destruyera el viernes la Kehlsteinhaus, conocida como el “Nido del Águila”, el antiguo refugio de montaña
+  p: “Se detuvo temporalmente a una persona sospechosa”, informó la Policía de Alta Baviera Sur. Las autoridades aclararon que aún investigan si el arrestado tiene relación con el siniestro y que la causa del fuego no está es
+  p: Los primeros equipos de emergencia llegaron al edificio a las 21.52 del viernes, y encontraron la construcción “completamente en llamas”. La ubicación remota del lugar, a 1.834 metros de altitud sobre la zona de Berchtes
+  p: Mientras caía nieve sobre la cima alpina, la histórica residencia seguía envuelto en llamas en las primeras horas del sábado, mostró una cámara meteorológica
+  [img] Captura de video obtenida de la cámara web de la casa de montaña Kehlsteinhaus —conocida como el «Nido del Águila» y antiguo refugio de montaña de Adolf Hitler—, tomada a primera hora del 24 de octubre de 2026 (Berchtesgaden/AFP)
+  p: Captura de video obtenida de la cámara web de la casa de montaña Kehlsteinhaus —conocida como el «Nido del Águila» y antiguo refugio de montaña de Adolf Hitler—, tomada a primera hora del 24 de octubre de 2026 (Berchtesg
+  p: La portavoz policial Lisa Maier indicó que los rescatistas no hallaron personas dentro del inmueble y que no se esperaban heridos. La División de Investigación Criminal de Traunstein quedó a cargo de las pesquisas.
+  p: El diario alemán Bild informó que la hipótesis de un incendio intencional forma parte de la investigación. Esa posibilidad no cuenta con confirmación oficial y los investigadores no determinaron todavía el origen de las 
+  [img] Humo y llamas se elevan tras un incendio en el Kehlsteinhaus, el «Nido del Águila», en Berchtesgaden, Baviera, Alemania (Cruz Roja de Baviera/Florian Scherer/Imagen facilitada vía REUTERS)
+  p: Humo y llamas se elevan tras un incendio en el Kehlsteinhaus, el «Nido del Águila», en Berchtesgaden, Baviera, Alemania (Cruz Roja de Baviera/Florian Scherer/Imagen facilitada vía REUTERS)
+  p: La Kehlsteinhaus, conocida como el Nido del Águila, se ubica a 1.834 metros de altura sobre Berchtesgaden y figura entre los destinos turísticos más visitados de esa zona de Baviera.
+  p: El edificio fue construido entre 1937 y 1938 como una casa de té para Adolf Hitler, aunque el líder nazi acudió al lugar en pocas ocasiones. La construcción también buscaba impresionar a invitados y representantes diplom
+  [img] Bomberos y otro personal de emergencia trabajan en el lugar tras un incendio en el Kehlsteinhaus, el «Nido del Águila», en Berchtesgaden, Baviera, Alemania, en esta imagen facilitada el 24 de octubre de 2026 (Florian Scherer/Cruz Roja Bávara/Imagen facilitada vía REUTERS)
+  p: Bomberos y otro personal de emergencia trabajan en el lugar tras un incendio en el Kehlsteinhaus, el «Nido del Águila», en Berchtesgaden, Baviera, Alemania, en esta imagen facilitada el 24 de octubre de 2026 (Florian Sch
+  p: La Kehlsteinhaus sobrevivió a la Segunda Guerra Mundial con pocos daños. Desde 1952 funciona como una posada de montaña y pertenece en la actualidad al Estado Libre de Baviera. El lugar alberga además una exposición dedi
+  H2 El Nido del Águila: los secretos del faraónico refugio de Hitler
+  [img] Nido del águila Hitler refugio nazi
+  p: El "Nido del Aguila" se convirtió en una atracción turística
+  p: La Kehlsteinhaus formó parte del complejo de Obersalzberg, donde Adolf Hitler tenía su segunda residencia oficial, el Berghof. La obra fue un regalo de Martin Bormann para el 50° cumpleaños de Hitler. El proyecto debía c
+  p: La casa se levantó en la cima de una montaña, a unos 10 kilómetros de Salzburgo. Su construcción exigió la apertura y pavimentación de una carretera de más de seis kilómetros, la perforación de la roca y la instalación d
+  p: El costo de la obra superó, según estimaciones, los USD 150 millones a valores actuales. Albert Speer, arquitecto y ex Ministro de Armamento y Guerra del Reich, recordó en sus memorias que el proyecto reflejaba el aislam
+  [img] Nido del águila Hitler refugio nazi
+  p: Hitler junto a Goebbels y su familia en el "Nido del Águila"
+  p: Aunque se ideó como un espacio de descanso para Hitler y como sitio para recibir a mandatarios extranjeros, el dictador nazi acudió pocas veces. La construcción tenía también una función de representación política.
+  p: El Nido del Águila se ubicaba cerca del Berghof, una residencia que Hitler compró en 1932 y amplió hasta convertirla en una mansión de 30 habitaciones. A su alrededor, Bormann impulsó la transformación de Obersalzberg en
+  p: El complejo incluyó residencias para jerarcas nazis, hoteles, oficinas, restaurantes, barracas para obreros y soldados. Allí funcionó una sede alternativa del régimen alemán.
+  p: Los Aliados devolvieron Kehlsteinhaus a las autoridades bávaras en 1960.
+  p: (Con información de AFP)
+    [link] Últimas noticias América
+    [link] Adolf Hitler
+    [link] Alemania
+    [link] Nido del Águila
+    [link] Baviera
+    [link] incendio
+    [link] Nazismo
+  H2 Últimas Noticias
+      [link] Los ataques a buques en Ormuz alcanzaron en octubre su máximo histórico desde el inicio de la guerra en Medio Oriente
+      [link] Irán analiza atacar cables submarinos si Estados Unidos e Israel vuelven a bombardear el país
+      [link] El ejército ucraniano suspenderá los combates en una zona de Oleshky desde las 03:00 del martes
+      [link] Moody's no rebajó la calificación de Francia, pese a los disturbios y las dificultades del Gobierno para aprobar su plan fiscal
+      [link] El Ejército israelí inició una operación en Hebrón tras un ataque que mató a dos soldados; busca armas e infraestructura terrorista
+      [link] MÁS NOTICIAS
+[button] Sift

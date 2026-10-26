@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Join the loyalty club · Crumb Bakery</title>
+<style>
+body{font-family:system-ui;margin:0}
+main{max-width:640px;margin:24px auto}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.4)}
+.dlg{position:fixed;top:40px;left:50%;transform:translateX(-50%);width:440px;background:#fff;padding:16px;border-radius:8px}
+.box{height:150px;overflow-y:scroll;border:1px solid #999;padding:8px}
+.box p{margin:0 0 10px}
+</style></head>
+<body>
+<main>
+<h1>Loyalty club</h1>
+<p>Earn a free loaf for every ten you buy. Review the club rules to join.</p>
+<button type="button" id="open">Review club rules</button>
+<p id="msg" role="status"></p>
+</main>
+<script>
+window.__log = [];
+const rules = [
+  "1. You earn one stamp for each loaf you buy at any Crumb Bakery shop.",
+  "2. Ten stamps give you one free loaf of your choice, gluten-free loaves included.",
+  "3. Stamps last twelve months from the day you earn them.",
+  "4. You cannot swap stamps for cash or move them to another member.",
+  "5. We send you one email a month about new bread, and you can stop it at any time.",
+  "6. We keep your name, email and stamps only for the club, and never sell them.",
+  "7. You can leave the club at any time from your account page.",
+  "8. We may change these rules and tell you by email 30 days before.",
+  "9. These rules are governed by the law of California. End of the rules."
+];
+document.getElementById("open").onclick = () => {
+  if (document.querySelector(".ov")) return;
+  const ov = document.createElement("div"); ov.className = "ov";
+  ov.innerHTML = '<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dt"><h2 id="dt">Club rules</h2><div class="box" id="box" tabindex="0">' + rules.map((r) => "<p>" + r + "</p>").join("") + '</div><p id="hint">Scroll to the end of the rules to accept.</p><button type="button" id="accept" disabled>Accept and join</button> <button type="button" id="close">Close</button></div>';
+  document.body.appendChild(ov); __log.push("open");
+  const box = ov.querySelector("#box");
+  box.addEventListener("scroll", () => {
+    if (box.scrollTop + box.clientHeight >= box.scrollHeight - 4 && ov.querySelector("#accept").disabled) { ov.querySelector("#accept").disabled = false; ov.querySelector("#hint").textContent = "You can now accept."; __log.push("read to end"); }
+  });
+  ov.querySelector("#accept").onclick = () => { __log.push("joined"); ov.remove(); document.getElementById("msg").textContent = "Welcome to the club."; };
+  ov.querySelector("#close").onclick = () => { __log.push("closed"); ov.remove(); };
+};
+</script>
+</body></html>

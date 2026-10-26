@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>The river town that saved its mill</title></head>
+<body>
+<header><a href="/">Valley News</a></header>
+<main>
+<article id="art">
+<h1 id="h">The river town that saved its mill</h1>
+<div id="body">
+<p>For almost a century the stone mill at the bend of the river was the reason the town existed. Farmers from three valleys brought their grain there each autumn, and the miller's family ground it into flour that went out on carts, then on trains, and finally on trucks to bakeries across the region. When the last miller retired eight years ago, nobody wanted to take over a business that barely paid its electricity bill, and the building was put up for sale.</p>
+<p>A developer offered to turn it into apartments. The town council was ready to accept, because the offer would have paid for a new roof on the school and a repaired bridge. Then a group of residents, most of them retired teachers and farmers, asked for six months to find another way. They held meetings in the church hall every Thursday night, and they wrote to every bakery that had ever bought flour from the mill.</p>
+<p>Seventeen bakeries wrote back. Most of them said the same thing: they would pay more for flour from local grain if they could count on a steady supply and on the same quality every week. The residents formed a cooperative, sold shares at fifty euros each, and raised enough money to buy the building and repair the old stones. Two young bakers from the city agreed to run the mill in exchange for a small salary and a share of the profits.</p>
+<p>The first year was hard. The water wheel broke twice, and a wet summer ruined part of the harvest. But the cooperative kept its promise to the bakeries, buying grain from farther away when it had to, and by the second year it was selling everything it could grind. Today the mill employs nine people, runs tours for school groups, and sells its flour in a shop that has become a stop for cyclists on the river path.</p>
+<p>The council used part of the money it would have received from the developer to repair the bridge anyway, through a regional grant that the cooperative helped it win. The school roof is still waiting. Residents say they do not regret the choice, and other towns along the river have started asking how they did it.</p>
+</div>
+<p><a id="next" href="/spaarticle.html?story=2">Next story: a new bus line</a></p>
+</article>
+</main>
+<script>
+document.getElementById("next").addEventListener("click", (e) => {
+  e.preventDefault();
+  history.pushState(null, "", "/spaarticle.html?story=2");
+  document.title = "New bus line opens on Monday";
+  document.getElementById("h").textContent = "New bus line opens on Monday";
+  document.getElementById("body").innerHTML = "<p>A new bus line between the railway station and the regional hospital opens on Monday, with buses every twenty minutes from six in the morning until ten at night, the city transport office announced on Friday.</p><p>The line stops at the market square, the public library, the swimming pool and the new housing estate on the northern edge of town, which until now had no direct link to the hospital, the station, or the shops in the centre.</p><p>Tickets cost the same as on the other city lines, and monthly passes are valid on it. Children under twelve and people over seventy travel free, as they already do on the rest of the network, the office said in a short statement.</p><p>Residents of the housing estate had asked for the line for years. Many of them work shifts at the hospital and until now had to change buses twice, or walk for half an hour along a road without a pavement, to reach it.</p><p>The council expects about two thousand passengers a day once the line is known. If the numbers hold, buses will run every fifteen minutes from the spring, and a second line to the industrial park may follow next year.</p>";
+  document.getElementById("next").remove();
+});
+</script>
+</body></html>

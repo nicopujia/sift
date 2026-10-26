@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Big page</title></head>
+<body>
+<main>
+<h1>Big page</h1>
+<p>A page with a very large DOM, like a long feed or a mail client.</p>
+<video id="v" width="640" height="360" src="" poster="" style="background:#000"></video>
+<div id="feed"></div>
+</main>
+<script>
+const f = document.getElementById("feed");
+let html = "";
+for (let i = 0; i < 6000; i++) html += `<div class="row"><span><b>Item ${i}</b></span><span><i>meta</i></span><div><a href="#${i}">open</a><span>x</span><span>y</span><span>z</span></div><div><span>a</span><span>b</span><span>c</span><span>d</span></div></div>`;
+f.innerHTML = html;
+</script>
+</body></html>

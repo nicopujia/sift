@@ -1,0 +1,190 @@
+# Confirmed working in round 5 (and round 4)
+
+- T4-generic: works.md T4-generic lines all still hold:
+- T4-generic: axe-core: 0 violations on the HN thread, Craigslist search, arXiv search, Discourse latest, GitHub Status and Python docs. Also 0 on HN Search, GOV.UK search, the OSM wiki, argentina.gob.ar search and the Discourse thread.
+- T4-generic: First content is not slower than the original (firstpaint.ts). HN thread 4022-4896 ms, GOV.UK renew 244-1288 ms, arXiv 3359-5268 ms and Python docs 1701-2425 ms were equal to the original. Discourse latest was faster: Sift 1059-2262 ms vs original 2444-3808 ms.
+- T4-generic: 200% zoom (640 CSS px): no horizontal overflow on the HN thread, Craigslist, Python docs, Discourse latest, GOV.UK search or HN Search. HN replies 13 levels deep keep at least 513 px of text width.
+- T4-generic: GOV.UK keyboard order stays inside Sift: Skip, Search, Menu, Overview, inline links, Renew online, Previous/Next, printable version, Sift switch.
+- T4-generic: HN thread: all 665 visible comments have the same depth as the original's indent. The one missing comment is hidden in the original too.
+- T4-generic: Stack Overflow 927358: not condensed. All 69 code blocks are verbatim (the only difference is the original's 'Copy' button text). 'Show 8 more comments' shows 13 comments. On question 178325, 'Run code snippet' shows the result in a portal with no scroll jump (scrollTop 20121 before and after).
+- T4-generic: Search from Sift works: HN 'rust' goes to hn.algolia.com/?q=rust with 30 items. GOV.UK 'council tax' gives 10 items. argentina.gob.ar 'dni' gives '621 resultados para "dni"' with lang=es.
+- T4-generic: Allbirds: a Navy Night swatch click changes the URL to /mens-tree-runners-navy-night, the line to 'Color: Navy Night (classic edition)' and the photo. Size 10 gets aria-pressed=true, and 'Add to Cart - $100' appears (not clicked). No shipping popup and no chat bubble.
+- T4-generic: Craigslist: the 'SF bay area' dialog lists the nearby areas. 'wheel size' opens its options under itself with aria-expanded=true.
+- T4-generic: BBC Good Food gluten-free bread: '22 comments' opens and focuses the Comments section. The ingredients and the 3 method steps match the original word for word. The Metric/US radios are labelled. Tabs show aria-pressed.
+- T4-generic: GitHub fd: the issues toolbar (Open/Closed, 5 Filter by buttons, Sort) survives a 1-result search. The README Short version keeps all 66 code blocks verbatim.
+- T4-generic: GOV.UK overview (renew-adult-passport) is not condensed (224 words) and keeps its inline links.
+- T4-generic: Other things that work:
+- T4-generic: Discourse search dialog: typing 'lifetime' shows the inline results in Sift's dialog.
+- T4-generic: Python docs Menu holds the table of contents and the previous/next topic links. All 21 section headings are present.
+- T4-generic: argentina.gob.ar results are clean title + snippet items with Spanish pagination.
+- T4-generic: HN front page: 30 items, each with upvote, comments and the More link.
+- T4-generic: lobste.rs: tags, domain, author, archive links and the score are kept.
+- T4-generic: Booking: destination suggestions appear in Sift while typing, and picking one works (it went to the city page).
+- T1-youtube: The F0 line still holds: one player portal at 1280, 600 and 400 px, exactly over #movie_player (262,95,756,425 / 18,148,564,317 / 18,140,364,205). No horizontal scroll in Sift's view at 600, 400 or 640x450@2x.
+- T1-youtube: Media bar through Sift: Pause/Play, Ahead 10s (10.1->20.1), Back 10s (->10.1), Mute/Unmute, and Captions (the YouTube CC aria-pressed follows true->false->true). Clicking the picture pauses, and Sift's label turns to Play.
+- T1-youtube: Full screen by mouse and by keyboard; exit by YouTube's button and by f. The portal is realigned afterwards.
+- T1-youtube: Theater mode clicked inside the portal: the portal stays at the player's place and size, both on and off.
+- T1-youtube: Search: typing plus Enter navigates. Chips show their pressed state (All, then Videos). Filters opens 'Search filters' with Relevance pressed. 'This week' goes to the same URL as YouTube's own link (sp=EgIIAw%253D%253D) and the same 3 results as the original.
+- T1-youtube: Search results keep the channel row (description, @RickAstleyYT · 4.55M subscribers, Subscribe) and playlist rows ('RickAstley - Greatest Hits · RickAstleyVEVO · Playlist · 10 videos').
+- T1-youtube: Up next to a bot-checked video shows the notice with no stale player, and browser Back restores the player, H1 and sections. The Up next Mix opens the Mix. Autoplay at the end moved Sift to the next video.
+- T1-youtube: Comments: replies 10->21 with 'Show more replies', matching the original one for one. Scrolling with End loaded 160/160 and 220 threads in step. Sort Newest by keyboard re-sorts, and focus returns to 'Sort comments'.
+- T1-youtube: Signed-out Like, Save to playlist and Subscribe open 'Like this video?', 'Want to watch this again later?' and 'Want to subscribe to this channel?'. Escape returns focus to the opener.
+- T1-youtube: Menu: the full guide, 'Show more' expands (Playables, Memberships), and Escape returns focus to Menu. Settings > Keyboard shortcuts opens, and Escape returns focus to Settings.
+- T1-youtube: Tab order with focus already in Sift: header, media bar, Position in video, channel, actions, Mix, Description, Up next, Comments, switch. No stops in the hidden original.
+- T1-youtube: axe-core: 0 violations on the Mix watch page, search, home and a Short. Also 0 with the Mix, Description, transcript, Up next, Comments and replies all open, and 0 with Settings > Display language open.
+- T1-youtube: Spanish watch, Mix and search pages are fully Spanish, including the new controls (Posición en el vídeo, Mostrar transcripción, Los mixes son listas...).
+- T1-youtube: Home: Topics chips have a pressed state. Music re-filters the list, and Sift follows the original's first rows. Infinite scroll 21->45->69->93 (original 24->48->72->96).
+- T1-youtube: Shorts: 'View 19 comments' opens the comments section, and Escape returns focus to the button. Next and Previous navigate.
+- T1-youtube: firstpaint.ts: home original 6652/4674/3434 ms vs Sift the same. Search original 5229/3588/2216 vs Sift 3267/1964/1400. Watch original title 5664/7420/5029 vs Sift 2573/2825/1919.
+- T1-youtube: Transcript lines seek the video, and keyboard use of the transcript works.
+- T1-youtube: Settings > Appearance > Dark theme applies on the original, and Sift stays white (reverted to Light afterwards).
+- T3-tools: Google Maps search results: ratings, the Price/Rating/Hours/All filters chips (they render a few seconds after load) and the 'Update results when map moves' checkbox label; the map is framed on the results (R5-T3-gmaps-search.png).
+- T3-tools: Google Maps top search on a search page: suggestions sheet, Enter opens the place, and focus moves to the place H1.
+- T3-tools: Google Maps place panel: address, hours, phone, website, Directions, Close; 'Show open hours for the week' expands (matches the original's 1 row in limited view).
+- T3-tools: Google Maps route page: 6 labeled mode radios stay in sync (Transit* after the click), Reverse, Add destination, Details shows the transit steps, the whole route is in the map box, and a full start address plus Enter computes the route.
+- T3-tools: Google Maps keyboard-only flow from a search page: type 'Coit Tower' + Enter → place H1 focused → Tab x4 to Directions → Enter puts focus in the start field → type, ArrowDown, Enter → route computed.
+- T3-tools: Google Maps: the wheel over the map scrolls the page, and Ctrl+wheel zooms the map.
+- T3-tools: OpenStreetMap: Enter in From and To computes the route (Foot 1.7 km 0:22, Car 2.5 km 0:06 after switching). Labels Car/Bicycle/Foot. Tab order runs top bar → radios → select → From → To → Close → Reverse. Keyboard search + Enter on a result opens it. Layers radios switch the layer.
+- T3-tools: MDN: the compat section is present on load (2/2). Try it edited with the mouse updates the output ('HELLO SIFT' in the runner). Language switch to Español gives Menú/Buscar/Ir al contenido/Vista Sift. Search opens MDN's dialog with suggestions, and Escape returns focus to Sift's Search. Portal names are clean. The Short version keeps 6 example code blocks.
+- T3-tools: weather.com: one current temperature; radar preview image (link named 'Radar'); no Map Attribution; location change by mouse, by Enter and by keyboard only; Menu holds Hourly/10 Day/Monthly; 10-day rows expand day details with aria-expanded.
+- T3-tools: GitHub: Go to file suggestions open by ArrowDown+Enter and by click; issue search (?q=is:issue+hydration); label filter sheet shows Signals pressed on reopen and applies on Escape (label:Signals); SPA navigation repo → Issues → issue updates Sift; the README Short version keeps both code blocks (2/2); the issue thread keeps blockquotes (6/6) and code (3/3 on #4416).
+- T3-tools: Wikipedia: Bread Short version keeps See also and External links; no navboxes or authority control; the portal's language select is labeled 'Search language'; the Spanish article keeps Spanish UI and a Spanish Short version ('VERSIÓN CORTA', 'Ver texto completo').
+- T3-tools: axe-core: 0 violations on the Maps route, Maps search, OSM directions, MDN details, weather.com, the GitHub repo, issue #4416, the blob view and Wikipedia Bread.
+- T3-tools: 200% zoom (640x450 CSS px): no horizontal overflow on the Maps route, MDN, OSM directions, GitHub issue #1899 and weather.com.
+- T3-tools: Speed (firstpaint.ts, 3 runs each): Maps search Sift 444-808 ms vs original 1152-1786 ms; OSM 1124-1418 vs 1284-1640 ms; weather.com 1280-2059 vs 4716-7953 ms; MDN, Wikipedia, GitHub issue and blob equal to the original.
+- T5-amazon-gmail-a11y: Regression lines from works.md (T5) still hold: amazon-search 'Add to cart' submits that card's own form (guard blocked POST https://www.amazon.com/cart/add-to-cart?...discoveredAsins.0=B0C3HCD34R).
+- T5-amazon-gmail-a11y: amazon-search: Sort by keyboard (ArrowDown) sets the original #s-result-sort-select to price-asc-rank. The Sennheiser brand filter and Next request exactly the original links' URLs. The search box submits /s/ref=nb_sb_noss?url=search-alias%3Daps&field-keywords=gluten+free+bread.
+- T5-amazon-gmail-a11y: amazon-search one-liners keep brand and model on all 9 branded rows, and now color too. Price lines keep 'Exclusive Prime price', coupon text and both delivery lines (Prime and non-member).
+- T5-amazon-gmail-a11y: Product fixture: Blue syncs both ways ('Color: Blue', aria-pressed). White is marked aria-disabled, and clicking it has the same effect as on the original. Quantity 2 + Add to Cart + Buy Now gives __added [{qty:'2',btn:'add-to-cart-button'},{qty:'2',btn:'buy-now-button'}]. Rating '4.5 out of 5 stars (78,026 ratings)' is kept. The Sponsored block is gone. Product details, Description and Reviews open with their content.
+- T5-amazon-gmail-a11y: Cart fixture: + and - by keyboard change the original quantity and subtotal ($92.93→$105.92→$118.91→$78.94), and Sift follows. Delete by mouse and by keyboard removes the line. Save for later replays. Proceed to checkout sets __checkout=true.
+- T5-amazon-gmail-a11y: amazon-product-blocked is shown faithfully as the block notice (Continue not clicked).
+- T5-amazon-gmail-a11y: Gmail fixture: open a thread, Back to Inbox, Archive from the thread and from the list, Delete, Mark as read/unread (focus stays on the toggled button) all reach the original. Reply sends both lines. Compose by keyboard (focus starts in To) sends {to:'friend@example.com', subject:'Bakery list', body:'Line one\nLine two'}; the sheet closes and focus returns to Compose. Search gives ?q=bakery. history.back/forward resync and say the title. Switching to the original mid-compose keeps the draft, and switching back restores all 3 fields with focus in To.
+- T5-amazon-gmail-a11y: Gmail stays in sync: a new email added by the page shows at once and gets a one-line gist that keeps the code (MW-4421).
+- T5-amazon-gmail-a11y: Menu dialogs (Amazon, Gmail, BBC, YouTube Menu and Settings): labeled modal, focus on Close, Tab trapped, Escape returns focus to the opener. Gmail menu links work (Starred → #starred).
+- T5-amazon-gmail-a11y: Switch: role=switch named 'Sift view' ('Vista Sift' on the infobae snapshot). Space and Alt+Shift+S toggle both ways. Skip to content moves focus to #sift-main. Every Sift control on the infobae snapshot has a Spanish name.
+- T5-amazon-gmail-a11y: axe-core: 0 violations on YouTube watch, the BBC article, amazon-search (also with Filters and Menu open), product, cart, Gmail (also with compose, menu and reply open) and amazon-product-blocked.
+- T5-amazon-gmail-a11y: Tab order is logical, with no stops in the hidden original, on YouTube watch, BBC, amazon-search, product, cart and Gmail.
+- T5-amazon-gmail-a11y: 200% zoom (640x450 at scale 2): no horizontal overflow in Sift on amazon-search, product, cart, Gmail, BBC and YouTube watch. The bar scrolls away. The YouTube video keeps playing (currentTime 13 s). Gmail compose at 200% has all fields and Send reachable with a visible focus ring.
+- T5-amazon-gmail-a11y: 400 px: no overflow on amazon-search, product, cart and Gmail. The switch shrinks to its track (60x42) and keeps its name.
+- T5-amazon-gmail-a11y: Speed (firstpaint.ts, 3 runs each): product, cart, Gmail and amazon-search equal to the original. BBC equal. YouTube watch: Sift 1.9-2.4 s vs original 4.8-5.0 s.
+- T5-amazon-gmail-a11y: Options: never-sift 'HTTPS://WWW.Example.COM:8080/path?q=1' is stored as 'example.com', with no duplicate. The 7- and 30-day cache times are stated. Clear shows 'Saved summaries cleared.' in a status region and empties the cache (0 entries). I restored my test entry afterwards. The missing-key warning was not rechecked: this build has a local key.
+- T5-amazon-gmail-a11y: Landmarks and headings: YouTube watch has header, search, main, then h1 title and h2 Description/Up next/Comments. BBC has header, main, h1 and h2 'More links'. Amazon search has nav:pagination.
+- T6-fixtures: Regression check of every T6-fixtures line in works.md: all hold. Login: Show password, Enter submits, the password is cleared, the Remember me label works, the promo and footer are removed. Checkout: values reach the page; Continue, Back, Change address and Review sync ?step=N; 'Payment' is announced; values are kept after Back; browser back and forward stay in sync; Enter in ZIP and on a radio submits; Place order shows the confirmation. Cookie wall without a gate: removed, full article. Feed: 20→30→40→50 with '10 new items', Like aria-pressed. Idle late modals: the promo stays hidden, the session and age dialogs are modal with focus. Selects: Country after 800 ms, City after a keyboard Country change. RTL: lang=ar, rtl, Arabic search logs 'search خبز الشعير'. Widgets: switch, number, both ranges, Fewer, More, Add to cart. F48 newsletter email field.
+- T6-fixtures: One works.md line changed only by design: 'Typing across a modal opening loses no keystrokes' no longer holds, because F367 now opens the alertdialog as a modal. The original page also sends those keys to its own OK button, so Sift matches the original. Not reported as a regression.
+- T6-fixtures: axe-core: 0 violations on r4-login, r4-checkout, r4-feed, r4-rtl, r4-widgets, r4-lazyselect and the 7 new fixtures r5-daterange, r5-chips, r5-table, r5-tabs, r5-wizard, r5-faq, r5-stickybar.
+- T6-fixtures: Time to first content equals the original (firstpaint.ts, 3 runs each): r4-feed 120/144/136 ms, r4-rtl 131/98/126 ms, r5-table 222/253/186 ms, r4-checkout 159/141/116 ms, core-buttons1000 400/228 ms.
+- T6-fixtures: 200% zoom (640 CSS px): no horizontal overflow on checkout, feed, rtl, late modal, r5-table, r5-chips, r5-wizard, r5-tabs (only the r5-daterange calendar overflows, reported).
+- T6-fixtures: Round 3 interaction fixtures still behave like the native page: t_dlgs (typing 'mal' keeps focus, page value 'mal'), t_combo (Escape closes the page list, 'change apr' before 'submit apr', native and Sift logs match), t_chat and t6_chattap (first click or tap sends), t_stuck and t_touch (blur reaches the page), t_mapnav (map not left inert), t_clip (paste reaches the Sift field), t_nfs (no double search), t_impl and t_cb (implicit submission matches native), t_space, t_synth (a synthetic Alt+Shift+S is ignored), t_nag (a dismissed nag stays dismissed after SPA nav).
+- T6-fixtures: r4int spot checks: lazymodel logs 'change Nico Ruiz','blur','save Nico Ruiz' (change before save). The newsletter dialog keeps its email field focused. The late dialog opens as a modal sheet with Close.
+- T6-fixtures: New fixtures that work. FAQ accordion: aria-expanded mirrored, one-open-at-a-time synced, a lazily loaded answer appears, details/summary expand, the chat bubble is removed. Lazy tabs: content loaded on click shows, 'Notifications opened below.' is announced, Save toasts are shown and announced. Wizard: Back/Next, step text announced, validation focus mirrored with aria-invalid. Date range: mouse and keyboard picking, month navigation, Reserve status. Chips: add by keyboard and mouse, Remove buttons. Table: filter syncs rows, Edit, the confirm dialog, Undo, the 'restored' announcement. A native confirm() before Delete works (dismiss keeps, accept deletes). Load more appends rows.
+
+# What round 4 confirmed working
+
+Do not break these. Each line starts with the tester that checked it.
+
+- T1-youtube: F0: one player portal on every fresh load, at 1280, 600 and 400 px.
+- T1-youtube: Play, Pause, Back 10s, Ahead 10s, Mute/Unmute and Captions through Sift all change the real player (currentTime 8.1 -> 18.1 -> 8.1; the YouTube CC button's aria-pressed follows). Clicking the video itself updates Sift's Play/Pause label.
+- T1-youtube: Full screen through Sift fills the screen with the video, and YouTube's exit button and the f key bring it back.
+- T1-youtube: Theater mode clicked inside the portal keeps the portal aligned with the player (756x424 at the same place).
+- T1-youtube: Search through Sift (typing and Enter) navigates to results, and filter chips show their pressed state. The Filters dialog lists its groups with 'Relevance' pressed, and 'This week' applies (sp=EgIIAw%3D%3D).
+- T1-youtube: Search results: channel names, handles, subscriber counts, Subscribe and playlist names are kept (F19).
+- T1-youtube: Up next to another video, then browser Back, restores the player and sections. Up next to a bot-checked video shows the notice with no stale player (F17). Autoplay at the end of the video moves Sift along with the page.
+- T1-youtube: Comments: nested replies, 'Show more replies' loads more (10 -> 26), Sort Top/Newest re-sorts in step with the original, and scrolling (wheel or End) loads more, with Sift and the original matching one for one (80/80, same order). Replies far down the list load too.
+- T1-youtube: Signed-out Like, Save to playlist and Subscribe each open the matching sign-in prompt as a named dialog ('Like this video?', 'Want to watch this again later?', 'Want to subscribe to this channel?').
+- T1-youtube: Menu holds the full guide (History, Music, Live, Gaming, Show more), and Escape returns focus to Menu. Settings > Keyboard shortcuts opens.
+- T1-youtube: Keyboard: the Sort dialog opens on Enter with focus on Close, Newest on Enter re-sorts, and focus returns to 'Sort comments'. The Tab order on the watch page is logical, with no stops in the hidden original.
+- T1-youtube: axe-core: 0 violations on watch, search, home and a Short, and 0 on the watch page with Description, Up next, Comments and replies open, with Sort open, and with Menu open.
+- T1-youtube: Spanish watch and search pages are fully Spanish (labels, sections, Save, sort dialog, chips, Filtros). The F20 watch repro is fixed.
+- T1-youtube: Home: one-line descriptions, Topics chips with pressed state (Music re-filters and Sift follows), and infinite scroll loads more (21 -> 45/69 rows).
+- T1-youtube: Shorts: the first Short has its own route, with the error note instead of a dead player, clean labels, 'View N comments' opening the comments, and Next/Previous video navigating.
+- T1-youtube: Narrow 400/600 px and 200% zoom: no horizontal scroll, and Up next is present in the one-column layout (F16).
+- T1-youtube: firstpaint.ts: home original 3780/2913/2707 ms vs Sift 3780/2913/2707 ms. Search original 3579/3157/2201 ms vs Sift 2301/2012/1323 ms. Watch original title 4704/5737/4594 ms vs Sift first content 1904/2137/1871 ms. The full watch view lands at the same time as the original's title in 3 of 4 runs.
+- T2-news: Every BBC article I opened (4 at 1280 px, 2 at 600/760/400 px) opens with H1, byline (author · date), the Short version, its photos and lead video. No Google promo, ads or subscribe banner.
+- T2-news: Playing video through Sift's media bar works on BBC (Limoges, 0:03/0:53), Infobae JW (blob src, t=3.8 s) and La Nación JW facades (t=4.1 s). Pause works.
+- T2-news: Infobae article tools work through Sift: 'Puntos clave' shows the 3 key points, and 'Escuchar' then 'Reproducir audio' plays the article audio (t=3.5 s); 'Pausar audio' pauses it.
+- T2-news: Search reaches results on BBC (/search?q=Starlink), Infobae (live queryly results), La Nación (/buscador/?query=Neuquén) and the Daily Mail snapshot field. The Guardian's search submits to Google site search, which returned a Google captcha for this machine. I stopped there.
+- T2-news: Menus open as labeled modal dialogs (BBC 'Menu', aria-modal=true, focus to Close; Escape returns focus to the Menu button). The Infobae Menú is clean and fully dimmed.
+- T2-news: Show full text / Show short version toggles by keyboard and focus stays on the toggle. Tab order is header, then content, then the switch.
+- T2-news: axe-core: 0 violations on BBC Limoges, Infobae Nido, La Nación Neuquén and the Daily Mail article snapshot.
+- T2-news: No horizontal scroll at 400 px on the BBC article, Infobae article, Guardian home and Daily Mail video snapshot.
+- T2-news: Speed: firstpaint.ts gave identical original and Sift times on every run (BBC article 346-701 ms, BBC home 427-749, Infobae article 470-1044, Infobae home 675-1453, La Nación article 1103-1916). A finer probe (scratchpad r4t2/fp.ts) put Sift within one polling step of the original. Sift is not slower.
+- T2-news: Language is kept: Spanish UI labels on Infobae and La Nación (Ver texto completo, Reproducir, Menú, 'Enlaces del texto completo'). Spanish line rewrites stay in Spanish.
+- T2-news: Daily Mail home line rewrites are mostly faithful and drop the clickbait. 80 pairs compared in the scratchpad file r4t2/dm-lines.txt.
+- T2-news: BBC live page (cq1j38x0n4zrt) renders as a clean timeline of timestamped posts with photos and the summary. No new post was published in my 3-minute watch, so live sync could not be tested.
+- T2-news: Daily Mail article Short version keeps all 6 photos and is faithful on the points I checked (12 days, nickname, eight months, reached out for comment).
+- T3-tools: Google Maps search: results have ratings, filter chips and a labeled 'Update results when map moves' checkbox; the map is framed on the results
+- T3-tools: Google Maps top search: autocomplete appears, and ArrowDown + Enter opens the place
+- T3-tools: Google Maps: clicking a result shows the full place panel (address, hours, phone, website, Directions), and 'Show open hours for the week' expands
+- T3-tools: Google Maps route page: both fields, 6 labeled travel-mode radios that stay in sync (Walking checked after the switch), Reverse and Add destination; switching to Walking updates the route; the whole route is visible in the map
+- T3-tools: Google Maps directions: typing a full start address + Enter computes the route the same as the original
+- T3-tools: OpenStreetMap: Enter in From and To computes the route; Car/Bicycle/Foot labels; Foot recomputes (1.7km 0:22); searches with several results list links and More results; keyboard order runs top bar → radios → select → From → To
+- T3-tools: MDN: Try it edited with the mouse updates the output; Tab indents inside the editor; Escape leaves the portal
+- T3-tools: MDN: the language switcher works, and Sift's own UI follows the page language (Menú, Buscar, Español); Search opens MDN's search dialog with suggestions; the feedback widget is gone; portal names are clean
+- T3-tools: weather.com: one current temperature; location changes by mouse and by Enter; radar preview image; past hours grouped; no Map Attribution
+- T3-tools: Wikipedia portal: the search language select is labeled; article search shows suggestions; the Short version keeps See also and External links as links; wiki chrome, navboxes and authority control are gone
+- T3-tools: GitHub: Go to file shows matches and opens them by keyboard (ArrowDown/Enter) and by mouse; issue search; the label filter sheet shows the pressed state and applies on Escape; SPA navigation repo → issues → issue updates Sift; README code blocks kept in the Short version
+- T3-tools: axe-core: 0 violations on the Maps route, OSM directions, MDN details, weather.com, the GitHub repo and Wikipedia Bread
+- T3-tools: Speed: Sift's first content was equal or faster than the original's: Maps search 681-845 ms vs 1454-1590 ms; OSM 1227-1612 ms vs 1346-1925 ms; MDN, weather.com and Wikipedia equal
+- T3-tools: 200% zoom (640 CSS px): no horizontal overflow on the Maps route, MDN, OSM or GitHub
+- T3-tools: Not a Sift problem (same in the original): at 640 px, place URLs redirect to /maps/place//@… with no place, and OSM hides the directions form
+- T4-generic: First content is not slower than the original: Sift showed content at the same poll as the original on the HN thread (2.4-4.5 s, network-bound), Stack Overflow 927358 (5.2-5.4 s), GOV.UK renew (0.3-1.5 s) and arXiv search (1.0-1.5 s), 3 runs each with firstpaint.ts.
+- T4-generic: axe-core finds 0 violations on the HN thread, Craigslist search, arXiv search, Discourse latest, GitHub Status and Python docs.
+- T4-generic: At 200% zoom (640 px CSS viewport) there is no horizontal overflow on the HN thread, Craigslist or Python docs. Nested HN replies keep at least 513 px of text width. Shot: research/shots/r4t4-hn-zoom200.png
+- T4-generic: GOV.UK keyboard order stays inside Sift: Skip, Search, Menu, tabs, Show full text, Renew online, the links, Previous/Next, Sift switch.
+- T4-generic: Hacker News thread is now a readable nested discussion: author, age, paragraphs kept, reply and upvote, correct depth for all 630 comments.
+- T4-generic: Stack Overflow: no answer is condensed, all 69 code blocks are verbatim, Show all comments reveals all 36 comments, Run code snippet works without a jump.
+- T4-generic: Search boxes work from Sift: HN (goes to hn.algolia.com), GOV.UK, argentina.gob.ar home ('dni' -> 621 resultados). Language stays Spanish (lang=es) on argentina.gob.ar.
+- T4-generic: Allbirds stays in sync: a color swatch click changes the URL, the 'Color:' line and the main photo; choosing size 10 marks it pressed and shows 'Add to Cart - $100' (not clicked).
+- T4-generic: Craigslist area selector opens the list of nearby areas. Filter groups now open under their own button with aria-expanded.
+- T4-generic: BBC Good Food: in-page '22 comments' link opens and focuses the Comments section; recipe ingredients and method steps are intact; tabs show pressed state.
+- T4-generic: GitHub issues filter toolbar (Open/Closed, 6 Filter by buttons) survives single-result searches, and the README Short version keeps both code blocks verbatim.
+- T4-generic: GOV.UK overview page (199 words) is no longer condensed and keeps its inline links.
+- T4-generic: No noise seen on these pages: GOV.UK cookie banner, Allbirds 'Where are we shipping to?' popup and chat bubble, Stack Overflow ads are all absent from Sift.
+- T5-amazon-gmail-a11y: Amazon search: Sift's 'Add to cart' submits that card's own original form (ASIN B0C3HCD34R, POST /cart/add-to-cart; my guard blocked it before it left the browser).
+- T5-amazon-gmail-a11y: Amazon search: Sort changed through Sift by keyboard sets the original #s-result-sort-select to price-asc-rank. A brand filter click and Next go to the same URLs as the original's links. The search box submits the original form (/s/ref=nb_sb_noss with url and field-keywords).
+- T5-amazon-gmail-a11y: Amazon search one-liners keep brand and model on all 8 branded rows (soundcore Q20i, AirPods Pro 3, HAOYUYAN, Beats Solo 4, Sony WH-CH520, AirPods 5, BERIBES, Sony WH-CH720N). Prices keep Prime and coupon qualifiers and both delivery lines.
+- T5-amazon-gmail-a11y: Amazon product fixture: the color swatches sync both ways ('Color: Blue', aria-pressed, unavailable White marked aria-disabled). Quantity 2 plus Add to Cart and Buy Now give __added [{qty:'2',btn:'add-to-cart-button'},{qty:'2',btn:'buy-now-button'}]. The sponsored block is removed. Product details, Description and Reviews are collapsible. About this item shows the full bullets.
+- T5-amazon-gmail-a11y: Amazon cart fixture: + and - change the original quantity and subtotal ($132.90 to $52.96), and Sift re-renders in sync. Delete removes the line. Save for later replays (it is a no-op in the fixture too). Proceed to checkout sets window.__checkout=true.
+- T5-amazon-gmail-a11y: Amazon blocked-product snapshot is shown faithfully as the block notice. I did not click Continue.
+- T5-amazon-gmail-a11y: Gmail fixture: open a thread, Back to Inbox, Archive from the thread and from the list, Delete, and Mark as read/unread all reach the original with the same effect. The inbox gists are one line each. Reply sends {to, body}. Compose with To, Subject and a 2-line body sends exactly that. Search gives the same URL as the original (?q=bakery#inbox). history.back resyncs. Switching to the original mid-compose keeps the draft, and switching back keeps the fields.
+- T5-amazon-gmail-a11y: Menu dialog (Gmail, Amazon): labelled modal, focus goes to Close, Tab is trapped, Escape closes it and returns focus to Menu.
+- T5-amazon-gmail-a11y: Switch: role=switch, named 'Sift view' ('Vista Sift' on a Spanish page). Space toggles to the original and back. Skip to content moves focus to main.
+- T5-amazon-gmail-a11y: axe-core: 0 violations on YouTube watch, the BBC article, amazon-search, the product, cart and Gmail fixtures, Gmail with compose, menu or reply open, Amazon with Filters expanded, and the Options page.
+- T5-amazon-gmail-a11y: Tab order is logical on YouTube watch, BBC, Amazon search, product and cart, and Gmail, with no stops on hidden original elements.
+- T5-amazon-gmail-a11y: 200% zoom (640 CSS px): no horizontal overflow in Sift's view on the product, cart, Gmail, search and YouTube watch; the video still plays.
+- T5-amazon-gmail-a11y: Speed: Sift's first content was never later than the original's. YouTube watch: 2.1-2.4 s vs 4.5-4.9 s. BBC, the Amazon snapshot and fixtures, and Gmail: equal.
+- T5-amazon-gmail-a11y: Language: on a Spanish page (infobae snapshot), all of Sift's own control names are Spanish ('Ir al contenido', 'Menú', 'Ver texto completo', 'Vista Sift').
+- T5-amazon-gmail-a11y: Options: the never-sift list is normalized, the cache TTLs are stated, the Clear button works, and the missing-key warning shows once per browser session.
+- T6-fixtures: Login (r4-login): Show password works through Sift (the field becomes text, the button becomes 'Hide password' with aria-pressed=true, page log 'toggle text'). Enter in the password field submits. When the page clears the password after a failed sign-in, Sift's field is cleared too. Clicking the 'Remember me' label checks the page box. The promo box and footer are removed.
+- T6-fixtures: Multi-step checkout (r4-checkout): typed values reach the page. Continue, Back, Change address and Review sync with URL ?step=N, the new step title is announced ('Payment'), values are kept after Back, browser back and forward stay in sync, Enter in ZIP submits the step, Enter on a radio submits, and Place order shows the confirmation.
+- T6-fixtures: Cookie wall over content that is already there (r4-cookiewall.html): the wall is removed and the full article shows at once.
+- T6-fixtures: Infinite feed: wheel scrolling in Sift loads 10 more posts per round (20→30→40→50), each announced as '10 new items'. Like toggles with aria-pressed and the count mirrored.
+- T6-fixtures: Late modals while idle: the newsletter promo stays hidden. The session-timeout alertdialog and the age gate open as modal sheets with focus. 'Stay signed in' closes the page modal. Typing across a modal opening loses no keystrokes.
+- T6-fixtures: Selects whose options change later: the Country list that arrives after 800 ms shows up. City options update after a Country change made with the keyboard, and change events reach the page.
+- T6-fixtures: RTL Arabic page: lang=ar, rtl direction and right alignment, mirrored bar, Short version written in Arabic (192 of 293 words), and search with Arabic text works.
+- T6-fixtures: Widgets: role=switch as a checkbox, the number field, the native range input, the Fewer button, Add to cart, and the page's 'Added to cart.' message all work.
+- T6-fixtures: axe-core: 0 violations on Sift's view of r4-login, r4-checkout, r4-feed, r4-rtl, r4-widgets and r4-lazyselect.
+- T6-fixtures: Zoom 200% (640 CSS px): no horizontal overflow on checkout, feed, rtl or the late modal. The text reflows.
+- T6-fixtures: Time to first content equals the original: feed 106-160 ms, RTL article 78-118 ms (firstpaint.ts, 3 runs each).
+- T6-fixtures: F48: a newsletter modal the user opens is shown with its email field.
+- T6-fixtures: All round 3 interaction fixes rechecked on their own fixtures (F57-F61, F63, F102-F108) behave like the native page.
+- T2-news: Guardian home (1280 px): 149 Sift headline links all match the original card that owns the URL. Separate cards stay separate. No duplicate Starlink/Talarico items. Clicked headlines open the right story.
+- T2-news: Guardian Menu: a labelled modal starting Close, News, Opinion, Sport... with no promo, teasers or logo link.
+- T2-news: BBC News home at 1280 and 600 px: a clean list of headline, summary and time/section. The 600 px link set matches 1280.
+- T2-news: BBC articles at 1280 px (Limoges, Meghan, Hebron): H1, byline 'author · date', SHORT VERSION label + Show full text, photos with captions, both Limoges video portals named. The related card sits in 'More links'.
+- T2-news: BBC Hebron Short version: every number and name I checked (1,000 displaced, 2,500 / 0.35 sq km, 200 families, 200,000 residents, 1967, i24 'very big surprise') matches the source.
+- T2-news: Infobae home: 95 of 96 story links match their original anchors (the one missing is a trend tag). The 'Desde Managua' dateline is now in the meta line. Clicking 'Kim Jong-un visitó China...' opens the right article.
+- T2-news: Infobae article tools: 'Puntos clave' shows 4 key points. 'Escuchar' then 'Reproducir audio' plays the audio (t=1.8 s, then 8.9 s). 'Pausar audio' pauses it (t=6.3, paused).
+- T2-news: Video through Sift's media bar: BBC Limoges (0:04/0:53), La Nación JW facade (t=6.3 s, controls switch to Pausar/Atrás/Adelante), Infobae JW (5.1 s, then Pausar pauses on a fresh load).
+- T2-news: Search: BBC dialog field to /search?q=Starlink with results; La Nación header to /buscador/?query=Neuquén with working filters; Infobae with Enter in the dialog field; the Daily Mail snapshot submits to dailymail.com/home/search.html?query=Meghan&channel=ushome (the live site is blocked, as in the original).
+- T2-news: Sign-in opens without submitting: Infobae as an 'Iniciar sesión' dialog with focus in Email; La Nación goes to login.lanacion.com.ar with a clean Spanish form.
+- T2-news: Menus: BBC 'Menu' and Infobae 'Menú' are aria-modal dialogs with focus on Close/Cerrar, and Escape returns focus to the Menu button. The Infobae Menú is clean.
+- T2-news: Keyboard: 'Ver texto completo' / 'Ver versión corta' toggles with Enter and focus stays on the toggle. BBC and Clarín tab order runs header, video controls, toggle, links, then the Sift switch.
+- T2-news: axe-core: 0 violations on BBC Limoges, Infobae Italy article, La Nación Neuquén, Daily Mail article snapshot, Guardian home, Guardian Hebron article, Clarín article, Infobae home.
+- T2-news: No horizontal overflow at 400 px (Infobae article, Guardian home, Daily Mail video snapshot, BBC Limoges, Clarín article) or at 600 px (BBC home, BBC Limoges, BBC Meghan, La Nación Neuquén).
+- T2-news: Speed (firstpaint.ts, 3 runs each): Sift's first content came at the same poll as the original's on BBC article (592-1707 ms), Guardian article (381-1296), Guardian home (1600-2376), Guardian Hebron (602-948), Infobae home (1056-1964), La Nación article (2192-7397), Clarín home (4167-6196).
+- T2-news: Language: Spanish UI on Infobae, La Nación and Clarín (Ver texto completo, Reproducir, Pausar, Atrás 10 s, Menú, Ingresar, Enlaces del texto completo, Posición en el vídeo). Spanish line rewrites stay Spanish.
+- T2-news: Daily Mail article snapshot: the Short version keeps all 6 photos and is faithful on 12 days, the nickname and eight months. '+6 View gallery' now shows once.
+- T2-news: BBC live page cq1j38x0n4zrt: a clean timeline of timestamped posts. A lazily loaded video in the 'Fireworks and tear gas' post appeared as a working portal after scrolling.
+- T2-news: Clarín (new site): home headlines and meta are clean. Clicking 'Masivas protestas contra Macron' opens the right article. The article Short version is 0.58 of the full text and keeps its video portal and section headings.
+- T2-news: F381 fixture: all 7 story cards kept, the 4 real sign-up CTAs dropped.

@@ -1,0 +1,24 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><title>Shadow mix</title></head><body>
+<main>
+<h1>Component gallery</h1>
+<p>Every component below keeps its link or button inside a shadow root, open or closed, the way design systems ship them.</p>
+<div class="cta"><open-link href="/open" label="Open shadow link"></open-link></div>
+<div class="cta"><closed-link href="/closed" label="Closed shadow link"></closed-link></div>
+<p>Text before a slotted link: <slot-link><a href="/slotted">Slotted link</a></slot-link> and after it.</p>
+<div class="cta"><nested-card></nested-card></div>
+<div class="cta"><closed-button></closed-button></div>
+<p id="out">Nothing pressed yet.</p>
+<p>The last paragraph of the page must still show after all the components above have been read.</p>
+</main>
+<script>
+const mk = (name, mode, html) => customElements.define(name, class extends HTMLElement {
+  connectedCallback() { if (this.shadowRoot || this._r) return; this._r = this.attachShadow({ mode }); this._r.innerHTML = html(this); }
+});
+mk("open-link", "open", (h) => '<a href="' + h.getAttribute("href") + '">' + h.getAttribute("label") + '</a>');
+mk("closed-link", "closed", (h) => '<a href="' + h.getAttribute("href") + '">' + h.getAttribute("label") + '</a>');
+mk("slot-link", "open", () => '<span><slot></slot></span>');
+mk("nested-card", "open", () => '<inner-link></inner-link>');
+mk("inner-link", "closed", () => '<a href="/nested">Nested closed link</a>');
+mk("closed-button", "closed", () => '<button onclick="document.getElementById(\'out\').textContent=\'Pressed the closed button\'">Press me</button>');
+</script>
+</body></html>

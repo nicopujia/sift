@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Modal fixture</title>
+<style>
+dialog { width: 420px; }
+#styled { width: 640px; height: 360px; background: #dde; }
+</style></head>
+<body>
+<main>
+<h1>Modal fixture</h1>
+<p>A page modal dialog with a details element and a popover inside, a popover in a shadow root, and a map with its own inline styles.</p>
+<button id="openModal" onclick="document.getElementById('dlg').showModal()">Open modal</button>
+<dialog id="dlg" aria-label="Confirm order">
+  <p>Are you sure you want to place the order?</p>
+  <details id="det"><summary>Order details</summary><p>Two items, 31 dollars.</p></details>
+  <button id="tipBtn" popovertarget="tip">What is this?</button>
+  <div id="tip" popover="auto">A short explanation.</div>
+  <button id="confirm" onclick="__log.push('confirmed');document.getElementById('dlg').close()">Confirm</button>
+</dialog>
+<button id="openShadow" onclick="document.querySelector('x-widget').shadowRoot.getElementById('sp').showPopover()">Open shadow popover</button>
+<x-widget></x-widget>
+<h2>Styled map</h2>
+<div id="styled" class="leaflet-container" tabindex="0" aria-label="Styled map" style="position: relative; right: 0px; bottom: 20px; margin-top: 20px; border-bottom: 3px solid red; padding-left: 5px; overflow-y: auto; border-top-left-radius: 4px;"><button>Zoom</button></div>
+<p>The end.</p>
+</main>
+<script>
+window.__log = [];
+customElements.define("x-widget", class extends HTMLElement {
+  constructor() { super(); this.attachShadow({ mode: "open" }).innerHTML = '<div id="sp" popover="manual" style="inset:auto;left:20px;top:20px;width:300px;height:120px;background:#fdd">Shadow popover text</div>'; }
+});
+</script>
+</body></html>

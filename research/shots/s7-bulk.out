@@ -1,0 +1,49 @@
+url: http://127.0.0.1:8799/fx/r6-bulktable.html
+first sift content: 151 ms
+logs:
+
+--- outline (44 lines) ---
+[button] Skip to content
+[button] Menu
+[link] Orders
+H1 Orders to ship
+  [select:select-one] 5 
+  [input:checkbox] on 
+th: Order
+th: Customer
+th: Items
+th: Status
+  [input:checkbox] on 
+  [link] #2001
+td: Ana Ruiz
+td: 1
+td: To ship
+  [input:checkbox] on 
+  [link] #2002
+td: Ben Ito
+td: 2
+td: To ship
+  [input:checkbox] on 
+  [link] #2003
+td: Chen Wu
+td: 3
+td: To ship
+  [input:checkbox] on 
+  [link] #2004
+td: Dara Kim
+td: 1
+td: To ship
+  [input:checkbox] on 
+  [link] #2005
+td: Eli Shaw
+td: 2
+td: To ship
+[link] 1
+[link] 2
+[link] 3
+[link] Next
+p: 0 selected
+[button] Mark as shipped
+[button] Print labels
+[button] Clear selection
+[button] Sift

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Is sourdough worth it? · Bread Forum</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; }
+  main { max-width: 680px; margin: 0 auto; padding: 16px; }
+  .post { border-bottom: 1px solid #ddd; padding: 16px 0; }
+  .post .who { font-weight: bold; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Is sourdough worth it?</h1>
+  <div class="stream" id="stream"></div>
+</main>
+<script>
+// A thread that keeps only the posts near the window's scroll position, like Discourse:
+// the others are empty boxes of their height, with a screen-reader heading.
+const N = 20;
+const H = 520;
+const names = ["ana", "ben", "cara", "dev", "eli", "fay", "gus", "hana", "ivo", "jun", "kai", "lia", "max", "nia", "oto", "pia", "quin", "rui", "sol", "tom"];
+const stream = document.getElementById("stream");
+const text = (i) => `Post ${i + 1} by ${names[i]}. ` + "I have been baking with a starter for years and the flavour is worth the wait, though it takes planning and patience every single week. ".repeat(3);
+for (let i = 0; i < N; i++) {
+  const d = document.createElement("div");
+  d.dataset.i = i;
+  stream.appendChild(d);
+}
+function render() {
+  const top = scrollY - innerHeight;
+  const bottom = scrollY + innerHeight * 2;
+  for (const d of stream.children) {
+    const i = +d.dataset.i;
+    const y = d.offsetTop;
+    const near = y + H > top && y < bottom;
+    if (near && !d.classList.contains("post")) {
+      d.className = "post";
+      d.removeAttribute("style");
+      d.innerHTML = `<p class="who"><a href="/u/${names[i]}">${names[i]}</a></p><p>${text(i)}</p>`;
+      d.style.minHeight = H + "px";
+    } else if (!near && !d.classList.contains("cloaked")) {
+      d.className = "cloaked";
+      d.setAttribute("style", `height:${H}px !important;margin:0`);
+      d.innerHTML = `<h2 class="sr-only">post by ${names[i]}</h2>`;
+    }
+  }
+}
+addEventListener("scroll", () => requestAnimationFrame(render));
+render();
+</script>
+</body>
+</html>

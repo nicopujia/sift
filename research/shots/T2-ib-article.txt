@@ -1,0 +1,50 @@
+[button] Ir al contenido
+[button] Menú
+[button] Iniciar sesión
+    [link] Mundo
+H1 Marco Rubio afirmó que la invasión a Ucrania se reduce a la región del Donbás e instó a Moscú y Kiev a dar concesiones para la paz
+p: 24 oct 2026, 7:06
+p: El jefe de la diplomacia estadounidense sostuvo que el Kremlin busca el 11% del territorio ucraniano, con una zona clave que sus fuerzas no lograron conquistar por medios militares
+    [link] Seguir
+  [button] Escuchar
+  [button] Puntos clave
+  [button] Resumen
+  [img] El secretario de Estado estadounidense, Marco Rubio (REUTERS/Kylie Cooper)
+  p: El secretario de Estado estadounidense, Marco Rubio (REUTERS/Kylie Cooper)
+  p: El secretario de Estado de Estados Unidos, Marco Rubio, sostuvo que la guerra entre Rusia y Ucrania se concentra en el Donbás y reclamó concesiones de Kiev y Moscú para avanzar hacia una salida diplomática de la invasión
+  p: “La gente le llama la guerra de Ucrania, pero es sobre el Donbás. Es sobre una región del país. En esencia, es sobre el 11% de una parte de ese país que Rusia quiere y no puede tomar militarmente y que Ucrania no está di
+  p: El jefe de la diplomacia estadounidense señaló que Ucrania tiene “buenas razones” para rechazar la cesión de la región, integrado por las provincias de Donetsk y Lugansk, por motivos de soberanía y por las consecuencias 
+  p: El Donbás ocupa un lugar central en la confrontación armada desde 2014. La invasión rusa a gran escala, iniciada en 2022, extendió los combates a otras regiones de Ucrania después de que las fuerzas de Moscú no lograran 
+  [img] Mapa de Ucrania y países limítrofes con áreas marcadas en naranja y amarillo, referencias inferiores y el mar Negro al sur
+  p: Un mapa de Ucrania detalla las zonas bajo control militar ruso y las contraofensivas ucranianas a partir de datos del Institute for the Study of War
+  p: Por su parte, el presidente de Estados Unidos, Donald Trump, aseguró el jueves que avanzan las gestiones de Washington entre Kiev y Moscú para poner fin a la guerra, aunque evitó precisar los resultados de los contactos 
+  p: “Veremos cómo resulta. Han estado ocurriendo muchas cosas”, respondió Trump ante la prensa en la Casa Blanca, consultado por la afirmación del presidente ucraniano, Volodimir Zelensky, quien sostuvo que el mandatario rus
+  p: La nueva ronda diplomática quedó a cargo de Steve Witkoff, enviado especial de la Casa Blanca, en un intento por destrabar un conflicto cuyo final formó parte de las promesas de campaña de Trump. El martes pasado, Witkof
+  p: En paralelo a las negociaciones, Ucrania informó el viernes que persisten las fallas y los límites de velocidad en el sistema satelital militar Starshield, pese a que Trump afirmó que el empresario Elon Musk restituyó el
+  [img] Donald Trump aseguró que avanzan las gestiones de Washington entre Kiev y Moscú (REUTERS/Umit Bektas)
+  p: Donald Trump aseguró que avanzan las gestiones de Washington entre Kiev y Moscú (REUTERS/Umit Bektas)
+  p: “Los límites de velocidad en Starlink y Starshield siguen ahí, y la velocidad no se restauró”, insistió Zelensky. El mandatario agregó que Kiev esperaba una decisión de SpaceX y de la administración estadounidense para s
+  p: Funcionarios de Estados Unidos, citados por The Wall Street Journal, afirmaron que Trump habló con Musk para exigir el fin de las restricciones de velocidad sobre Starshield en Ucrania. La limitación afecta a drones de a
+  p: El jueves, Trump sostuvo que Musk había recuperado el sistema, aunque no aclaró si se había comunicado personalmente con el empresario para solicitar la restitución completa del servicio. El viernes indicó que trataría e
+  p: “No quiero comentar eso, ya saben, si llamé yo o si llamó alguien más, no hace ninguna diferencia”, declaró Trump. “Supongo que, en el fondo, él lo restableció”, agregó en referencia al dueño de SpaceX.
+  p: (Con información de EFE)
+    [link] Últimas noticias América
+    [link] Marco Rubio
+    [link] Estados Unidos
+    [link] EEUU
+    [link] Rusia
+    [link] Ucrania
+    [link] Guerra Rusia Ucrania
+    [link] Lugansk
+    [link] Donbás
+    [link] Donetsk
+    [link] Volodimir Zelensky
+    [link] Vladimir Putin
+  H2 Últimas Noticias
+      [link] Un incendio destruyó el Nido del Águila, antiguo refugio de montaña de Adolf Hitler en Alemania
+      [link] Los ataques a buques en Ormuz alcanzaron en octubre su máximo histórico desde el inicio de la guerra en Medio Oriente
+      [link] Irán analiza atacar cables submarinos si Estados Unidos e Israel vuelven a bombardear el país
+      [link] El ejército ucraniano suspenderá los combates en una zona de Oleshky desde las 03:00 del martes
+      [link] Moody's no rebajó la calificación de Francia, pese a los disturbios y las dificultades del Gobierno para aprobar su plan fiscal
+      [link] MÁS NOTICIAS
+[button] Sift

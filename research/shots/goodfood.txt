@@ -1,0 +1,69 @@
+[button] Skip to content
+  [input:search]  Recipes, guides and more...
+  [button] Search
+[button] Menu
+[link] Sign in
+[link] Register
+H1 Gluten-free bread
+p: Jun 1, 2025
+    [link] Barney Desmazery
+[button] Save recipe
+[button] Manage Collections
+p: Makes 1 loaf (10-12 slices)
+p: Easy
+p: Prep: 5 mins
+p: Cook: 1 hr
+p: Plus rising time
+    [link] A star rating of 3.8 out of 5.28 ratings Rate
+    [link] 22 comments
+[button] Alternatives
+[button] Complete the dish
+H2 Ingredients
+H2 Nutrition
+p: Units:
+    [input:radio] on 
+    [input:radio] on 
+  li: 400g gluten-free white bread flour
+  li: 1 tsp salt
+    [link] dried yeast
+    [link] buttermilk
+    [link] eggs
+    [link] olive oil
+  [link] Good Food app.
+H2 Method
+H3 step 1
+  [link] bowl
+  [link] whisk
+H3 step 2
+  [link] baking sheet
+H3 step 3
+  [link] wire rack
+  H3 Which gluten-free flour is best for bread?
+  p: When it comes to baking with gluten-free flour, there is not one single type of flour which does it all. Instead, a blend of at least three flours is necessary to create the ideal characteristics of a perfectly textured 
+  p: At least 50% of your flour should be from a light flour, such as yellow cornflour (a finer ground version of the coarser ground polenta made from maize/corn), gluten-free oat flour, brown rice flour, or the widely availa
+  p: Some brands will sell a ready mixed blend of flours which has been proven to work well when baking bread. Doves Farm bread flour is a good option if you are starting out.
+  H3 Can you use yeast in gluten-free bread?
+  p: Yes – yeast is a fungus and is naturally gluten-free. However, it’s always advisable to check the ingredients to make sure it has not been blended with wheat starch in the case of dried yeast. If you are using fresh yeas
+  H3 Tips for making gluten-free bread
+    li: When mixing your bread dough, treat it more like a batter than a dough. You won’t need a dough hook, just a regular paddle on a food mixer and you won’t need to knead it, just mix it until all dry pockets have disappeare
+    li: The good news is that you don’t need to do all the heavy work of kneading which works the gluten in regular bread. You can simply shape it and place it on a tray or in a tin.
+    li: Gluten-free flour often need more liquid than regular wheat flour. Don’t be alarmed if the recipe calls for a large amount of liquid compared to what you may be used to when bread-making. Gluten-free bread will also need
+    li: Gluten-free bread may take longer to rise and it will only need one rise as it doesn’t benefit from the process of knocking back and a second rise, as with regular bread.
+    li: Gluten-free bread is usually wetter and will struggle to hold its own shape, so it is best risen in a boule, or risen and baked in a mould or a loaf tin. If baking a loaf, line the loaf tin with non-stick baking paper an
+    li: Gluten-free flours tend to brown less than wheat flour, so don’t judge readiness on a golden colour alone.
+    li: The internal temperature of the bread must reach 105C inside. If you have a digital probe this is the most accurate way to tell if the bread is cooked through.
+    li: Gluten-free bread will take longer to bake so turn the oven down to 180C, instead of the 200C temperature you might normally bake bread at.
+    li: All bread-making calls for a warm environment. Make sure all your ingredients are the same temperature and are not being used straight from the fridge.
+    li: An initial burst of steam when baking bread helps the bread to rise. This is beneficial when baking gluten-free loaves as well. Try adding some ice cubes to a tray in the bottom or use a water spray just before you put t
+    li: Cool the bread slowly. Take it out of the oven and leave to cool in the tin for 10 minutes before attempting to remove the loaf from the tin and placing on a wire rack to cool completely. If you leave the bread in the ti
+    li: Don’t store your bread in the fridge as this will draw out the moisture.
+  H3 Can I use a bread machine?
+  p: If you have a bread machine, you can use this recipe in it. However, the main point of difference between a regular bake and a gluten-free bake is that there is no knocking-back of the dough. The dough is only risen once
+  p: The programme should have a 20-minute mix cycle, followed by an hour of rising, finishing with an hour of baking.
+  p: When using a bread maker, measure the liquid in first and the flours on top, that way you will avoid dry bits sticking to the pan. Check the flour has been incorporated properly after the mix cycle and if not use a rubbe
+  H3 Can I make it vegan?
+  p: Gluten-free bread can be made without egg but bear in mind that without gluten these gluten free-flours do need a binder to help gel the ingredients together. The most popular plant-based binder is a powder called psylli
+  p: Flax seeds and chia seeds are also helpful as a binding agent in place of eggs, as is aquafaba (chickpea brine) and agar agar (vegetarian gelatine).
+    [link] Good Good Trust Campaign
+p: Get 3 months of Good Food All Access for just £6. Find triple-tested recipes that take the stress out of deciding what to cook, spend less time planning, and more time enjoying the season.
+[button] Sift

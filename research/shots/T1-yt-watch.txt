@@ -1,0 +1,66 @@
+[button] Skip to content
+  [input:search]  Search
+  [button] Search
+[button] Menu
+[link] Sign in
+[PORTAL] Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)
+[button] Pause
+[button] Back 10s
+[button] Ahead 10s
+[button] Mute
+[button] Captions
+[button] Full screen
+H1 Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)
+  [link] Rick Astley
+p: 1,829,927,090 views · Oct 25, 2009
+[button] Subscribe
+[button] Like 19M
+[button] Dislike
+[button] Save
+    p: The official video for “Never Gonna Give You Up” by Rick Astley.
+    p: Never: The Autobiography 📚 OUT NOW!
+    p: Follow this link to get your copy and listen to Rick’s ‘Never’ playlist ❤️ #RickAstleyNever
+    p: https://linktr.ee/rickastleynever
+    p: “Never Gonna Give You Up” was a global smash on its release in July 1987, topping the charts in 25 countries including Rick’s native UK and the US Billboard Hot 100. It also won the Brit Award for Best single in 1988. St
+    p: The legendary video was directed by Simon West – who later went on to make Hollywood blockbusters such as Con Air, Lara Croft – Tomb Raider and The Expendables 2. The video passed the 1bn YouTube views milestone on 28 Ju
+    p: Subscribe to the official Rick Astley YouTube channel: https://RickAstley.lnk.to/YTSubID
+    p: Follow Rick Astley:
+    p: Facebook: https://RickAstley.lnk.to/FBFollowID
+    p: Twitter: https://RickAstley.lnk.to/TwitterID
+    p: Instagram: https://RickAstley.lnk.to/InstagramID
+    p: Website: https://RickAstley.lnk.to/storeID
+    p: TikTok: https://RickAstley.lnk.to/TikTokID
+    p: Listen to Rick Astley:
+    p: Spotify: https://RickAstley.lnk.to/SpotifyID
+    p: Apple Music: https://RickAstley.lnk.to/AppleMusicID
+    p: Amazon Music: https://RickAstley.lnk.to/AmazonMusicID
+    p: Deezer: https://RickAstley.lnk.to/DeezerID
+    p: Lyrics:
+    p: We’re no strangers to love
+    p: You know the rules and so do I
+    p: A full commitment’s what I’m thinking of
+    p: You wouldn’t get this from any other guy
+    p: I just wanna tell you how I’m feeling
+    p: Gotta make you understand
+    p: Never gonna give you up
+    p: Never gonna let you down
+    p: Never gonna run around and desert you
+    p: Never gonna make you cry
+    p: Never gonna say goodbye
+    p: Never gonna tell a lie and hurt you
+    p: We’ve known each other for so long
+    p: Your heart’s been aching but you’re too shy to say it
+    p: Inside we both know what’s been going on
+    p: We know the game and we’re gonna play it
+    p: And if you ask me how I’m feeling
+    p: Don’t tell me you’re too blind to see
+    p: Never gonna give you up
+    p: Never gonna let you down
+    p: Never gonna run around and desert you
+    p: Never gonna make you cry
+    p: Never gonna say goodbye
+    p: Never gonna tell a lie and hurt you
+    p: #RickAstley #NeverGonnaGiveYouUp #WheneverYouNeedSomebody #OfficialMusicVideo …...more
+    p: ...more
+    p: Show less
+[button] Sift

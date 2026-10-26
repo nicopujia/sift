@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Files · Cloudbox</title>
+<style>
+body{font-family:system-ui;margin:0}
+header{background:#0b3d91;color:#fff;padding:12px 24px}header a{color:#fff;margin-right:12px}
+main{max-width:720px;margin:24px auto}
+ul.files{list-style:none;padding:0}
+ul.files li{display:flex;align-items:center;gap:12px;border-bottom:1px solid #ddd;padding:8px;position:relative}
+ul.files li .name{flex:1}
+.kebab{border:0;background:none;font-size:20px;cursor:pointer;width:32px}
+[role=menu]{position:absolute;right:8px;top:36px;background:#fff;border:1px solid #888;box-shadow:0 4px 12px rgba(0,0,0,.2);list-style:none;margin:0;padding:4px 0;z-index:3;min-width:140px}
+[role=menuitem]{padding:6px 12px;cursor:pointer}[role=menuitem]:focus{background:#def;outline:none}
+.size{color:#666;font-size:13px}
+</style></head>
+<body>
+<header><a href="/">Cloudbox</a><a href="/files">Files</a><a href="/shared">Shared</a></header>
+<main>
+<h1>My files</h1>
+<p id="count">Showing 3 of 6 files</p>
+<ul class="files" id="files"></ul>
+<p><button type="button" id="more">Load more files</button></p>
+<p id="status" role="status"></p>
+</main>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+const all = [
+  ["Budget 2026.xlsx", "48 KB"], ["Rye recipe.pdf", "1.2 MB"], ["Team photo.jpg", "3.4 MB"],
+  ["Invoice 1042.pdf", "88 KB"], ["Notes.txt", "2 KB"], ["Logo.svg", "12 KB"],
+];
+let shown = new URLSearchParams(location.search).has("all") ? 6 : 3, files = all.slice();
+function label(i, name) { return i % 3 === 0 ? "More" : i % 3 === 1 ? "More actions for " + name : "Actions"; }
+function draw() {
+  $("files").innerHTML = files.slice(0, shown).map(([n, s], i) => '<li data-n="' + n + '"><span class="name"><a href="/f/' + encodeURIComponent(n) + '">' + n + '</a></span><span class="size">' + s + '</span><button type="button" class="kebab" aria-haspopup="menu" aria-expanded="false" aria-label="' + label(i, n) + '">⋮</button></li>').join("");
+  $("count").textContent = "Showing " + Math.min(shown, files.length) + " of " + files.length + " files";
+  $("more").hidden = shown >= files.length;
+}
+draw();
+function closeMenus() { for (const m of document.querySelectorAll("[role=menu]")) { m.previousElementSibling?.setAttribute("aria-expanded", "false"); m.remove(); } }
+$("files").addEventListener("click", (e) => {
+  const k = e.target.closest(".kebab");
+  if (k) {
+    const open = k.getAttribute("aria-expanded") === "true"; closeMenus(); if (open) return;
+    const li = k.closest("li"), n = li.dataset.n;
+    const m = document.createElement("ul"); m.setAttribute("role", "menu"); m.setAttribute("aria-label", "Actions for " + n);
+    m.innerHTML = '<li role="menuitem" tabindex="-1" data-a="rename">Rename</li><li role="menuitem" tabindex="-1" data-a="download">Download</li><li role="menuitem" tabindex="-1" data-a="delete">Delete</li>';
+    k.after(m); k.setAttribute("aria-expanded", "true"); m.firstElementChild.focus(); __log.push("menu " + n);
+    m.addEventListener("keydown", (ev) => {
+      const items = [...m.children], i = items.indexOf(document.activeElement);
+      if (ev.key === "ArrowDown") { ev.preventDefault(); items[(i + 1) % items.length].focus(); }
+      if (ev.key === "ArrowUp") { ev.preventDefault(); items[(i + items.length - 1) % items.length].focus(); }
+      if (ev.key === "Escape") { closeMenus(); k.focus(); }
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); document.activeElement.click(); }
+    });
+    return;
+  }
+  const it = e.target.closest("[role=menuitem]");
+  if (it) {
+    const n = it.closest("li[data-n]").dataset.n, a = it.dataset.a; closeMenus(); __log.push(a + " " + n);
+    if (a === "delete") { files = files.filter((f) => f[0] !== n); draw(); $("status").textContent = n + " moved to Trash."; }
+    if (a === "download") $("status").textContent = "Downloading " + n + "…";
+  }
+});
+document.addEventListener("click", (e) => { if (!e.target.closest(".kebab, [role=menu]")) closeMenus(); });
+$("more").onclick = () => { $("more").textContent = "Loading…"; setTimeout(() => { shown += 3; $("more").textContent = "Load more files"; draw(); __log.push("loaded " + shown); }, 600); };
+</script>
+</body></html>

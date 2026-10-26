@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Temporal forms</title></head>
+<body><main><h1>Temporal forms</h1><p>Each form: one text field and one other field, no submit button.</p>
+<form id="f-date" onsubmit="event.preventDefault();__log.push('date')"><label>A<input id="t-date"></label><input type="date"></form>
+<form id="f-month" onsubmit="event.preventDefault();__log.push('month')"><label>B<input id="t-month"></label><input type="month"></form>
+<form id="f-week" onsubmit="event.preventDefault();__log.push('week')"><label>C<input id="t-week"></label><input type="week"></form>
+<form id="f-time" onsubmit="event.preventDefault();__log.push('time')"><label>D<input id="t-time"></label><input type="time"></form>
+<form id="f-datetime-local" onsubmit="event.preventDefault();__log.push('datetime-local')"><label>E<input id="t-datetime-local"></label><input type="datetime-local"></form>
+<form id="f-number" onsubmit="event.preventDefault();__log.push('number')"><label>F<input id="t-number"></label><input type="number"></form>
+</main><script>window.__log = [];</script></body></html>

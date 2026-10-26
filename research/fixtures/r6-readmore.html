@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Reviews · Rye sourdough · Breadbox</title>
+<style>
+body{font-family:system-ui;margin:0}
+header{background:#5a3e1b;color:#fff;padding:12px 24px}header a{color:#fff;margin-right:12px}
+main{max-width:680px;margin:24px auto}
+.rv{border-bottom:1px solid #ddd;padding:12px 0}
+.rv .body{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rv.open .body{display:block}
+.rv .more{border:0;background:none;color:#06c;padding:0;cursor:pointer}
+.stars{color:#c80}
+.acc h3{margin:0}.acc button.q{width:100%;text-align:left;padding:10px;border:0;border-bottom:1px solid #ccc;background:#f6f6f6;font:inherit}
+.acc .a{padding:8px 10px}
+</style></head>
+<body>
+<header><a href="/">Breadbox</a><a href="/bread">Bread</a></header>
+<main>
+<h1>Rye sourdough: reviews</h1>
+<p>4.6 out of 5 (3 reviews)</p>
+<div id="reviews">
+<article class="rv" id="r1"><h2><span class="stars" aria-label="5 out of 5 stars">★★★★★</span> Best rye in town</h2><p class="meta">Ana · October 20, 2026</p>
+<p class="body" id="b1">Dense, sour and moist, exactly like the rye my grandmother bought in Riga. It keeps for a full week in a paper bag, and toasts beautifully. I slice it thin and eat it with butter and smoked fish. The crust is thick but not hard. One loaf lasts our family of three about five days. Note that the loaf is smaller than it looks in the photo, about 700 grams, so order two if you have guests.</p>
+<button type="button" class="more" aria-expanded="false" aria-controls="b1">Read more</button></article>
+<article class="rv" id="r2"><h2><span class="stars" aria-label="4 out of 5 stars">★★★★☆</span> Good, but salty</h2><p class="meta">Ben · October 18, 2026</p>
+<p class="body" id="b2">Lovely texture and a deep flavor from the long ferment, but a little too salty for me. My partner liked it a lot. Delivery came on time and the bread was still warm. I would buy it again but ask the bakery to use less salt, which they said they can do on request if you add a note at checkout.</p>
+<button type="button" class="more" aria-expanded="false" aria-controls="b2">Read more</button></article>
+<article class="rv" id="r3"><h2><span class="stars" aria-label="5 out of 5 stars">★★★★★</span> Perfect for open sandwiches</h2><p class="meta">Chen · October 15, 2026</p>
+<p class="body" id="b3">Holds together when sliced thin, which is what you want for smørrebrød. Not gluten-free: rye contains gluten, so people with celiac disease should not eat it, as the bakery clearly says on the label.</p>
+<button type="button" class="more" aria-expanded="false" aria-controls="b3">Read more</button></article>
+</div>
+<p><button type="button" id="more-reviews">Show more reviews</button></p>
+<section class="acc" aria-labelledby="fq">
+<h2 id="fq">Questions</h2>
+<p><button type="button" id="all">Expand all</button></p>
+<h3><button type="button" class="q" aria-expanded="false" aria-controls="a1">How long does it keep?</button></h3><div class="a" id="a1" hidden>About a week in a paper bag. Freeze slices for up to three months.</div>
+<h3><button type="button" class="q" aria-expanded="false" aria-controls="a2">Does it contain wheat?</button></h3><div class="a" id="a2" hidden>Yes, 30% wheat flour. It is not gluten-free.</div>
+<h3><button type="button" class="q" aria-expanded="false" aria-controls="a3">Can I order it sliced?</button></h3><div class="a" id="a3" hidden>Yes. Choose "Sliced" when you add it to your basket.</div>
+</section>
+</main>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+document.getElementById("reviews").addEventListener("click", (e) => { const b = e.target.closest(".more"); if (!b) return; const a = b.closest(".rv"); const o = a.classList.toggle("open"); b.setAttribute("aria-expanded", String(o)); b.textContent = o ? "Read less" : "Read more"; __log.push((o ? "more " : "less ") + a.id); });
+$("more-reviews").onclick = () => { const a = document.createElement("article"); a.className = "rv"; a.id = "r4"; a.innerHTML = '<h2><span class="stars" aria-label="3 out of 5 stars">★★★☆☆</span> Too sour for kids</h2><p class="meta">Dara · October 9, 2026</p><p class="body">My children did not like the sour taste. Adults loved it.</p>'; $("reviews").appendChild(a); $("more-reviews").remove(); __log.push("more reviews"); };
+const qs = [...document.querySelectorAll(".q")];
+qs.forEach((q) => q.addEventListener("click", () => { const o = q.getAttribute("aria-expanded") !== "true"; q.setAttribute("aria-expanded", String(o)); $(q.getAttribute("aria-controls")).hidden = !o; __log.push("q " + q.getAttribute("aria-controls") + " " + o); }));
+$("all").onclick = () => { const open = $("all").textContent === "Expand all"; qs.forEach((q) => { q.setAttribute("aria-expanded", String(open)); $(q.getAttribute("aria-controls")).hidden = !open; }); $("all").textContent = open ? "Collapse all" : "Expand all"; __log.push("all " + open); };
+</script>
+</body></html>

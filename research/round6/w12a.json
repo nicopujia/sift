@@ -1,0 +1,537 @@
+{
+ "confirmed": [
+  {
+   "source": "T1-youtube",
+   "title": "Opening a video by single-page navigation shows a generic view titled 'YouTube' above the player for 2-8 s, then jumps to the real layout",
+   "severity": "medium",
+   "where": "YouTube: clicking a video or Mix in Sift on search results or home (single-page navigation to /watch)",
+   "evidence": "Polled every 100 ms after the click (t1r6/spapoll.ts), 3 of 3 navigations. Search -> Mix: 'h1=YouTube@96 portal=144 seek=false first=h1.,figure.portal-wrap' from 3.9 s to 12.1 s. Search -> video (pp= link): from 1.9 s to 4.2 s. Home -> Mix: from 1.7 s to 6.3 s. Then the layout switches to the player at 95 with the real H1 below it at 633 (a jump of about 540 px for the title). In this interim view the seek slider and the metadata are missing. The adapter view lands exactly when the original's #title h1 fills, so only the interim view is wrong. The original shows an empty title area in that window, not 'YouTube'. On fresh loads this no longer happens (F309). Shots: /home/nico/projects/sift-test-1/research/shots/R6T1-spa-youtube-h1-1.png, R6T1-spa-youtube-h1-0.png, contact sheet R6T1-spa-contact.png.",
+   "repro": "cd /home/nico/projects/sift-test-1; SIFT_PORT=9461 SIFT_PORT=9461 SIFT_TAB=T1-youtube bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r6/spapoll.ts 'https://www.youtube.com/results?search_query=rick+astley' 'main li a.title[href*=\"dQw4w9WgXcQ\"]' 14000. It prints 'h1=YouTube@96 portal=144 ... first=h1.,figure.portal-wrap' for several seconds before 'h1=Rick Astley - ...@633 portal=95'. Also try 'https://www.youtube.com/' with the same selector.",
+   "suspectedCause": "After a single-page navigation, watch() in src/content/adapters/youtube.ts returns null while the watch metadata is not ready, and the generic extractor renders document.title ('YouTube' during YouTube's navigation) as the H1. watchSettling() and the early-title path appear to cover only the first load.",
+   "regression": false,
+   "verdict": "Reproduced in 3 of 3 single-page navigations with T1's spapoll.ts. Search to Mix: h1=YouTube@96 from 155 ms to 3081 ms, with the portal at 144 once it appears. Search to the second video: the same from 240 ms to 3564 ms. Home to Mix: the same from 148 ms to 2856 ms. Each time the view then switched to the player at 95 and the real H1 at 633. During that window the original's ytd-watch-metadata #title h1 was empty. In one run document.title already named the video at 1389 ms, but the H1 still said 'YouTube'. The suspected cause is wrong. The generic extractor is not involved. The YouTube adapter makes this view itself. With no title yet, watch() in src/content/adapters/youtube.ts returns a partial page: in the !flexy branch it is base([loading], 'YouTube'), and in the flexy branch it is base([player], ... || 'YouTube'), with no title block in either. App() in src/content/ui/app.tsx then draws page.title as a separate h1 (showTitle) above the blocks. When the title arrives, the H1 moves below the player. This is a real layout jump of about 540 px on every video opened in place, plus a wrong heading.",
+   "fix": "In src/content/adapters/youtube.ts watch(), for the partial page with no title (the !flexy branch when not on first load, and the !fresh branch), do not fall back to 'YouTube' as page.title. Pass an empty title, so App() draws no stand-alone h1, or put the title-keyed h block after the player (use docTitle once it no longer reads 'YouTube' or the previous page's title). Then the H1 stays below the player and does not jump."
+  },
+  {
+   "source": "T1-youtube",
+   "title": "Opening a video tells screen readers 'YouTube' and never the video's title",
+   "severity": "medium",
+   "where": "YouTube: single-page navigation from search or home to a watch page (Sift's role=status live region)",
+   "evidence": "I recorded the polite status region (t1r6/announce2.ts). Search -> 'Rick Astley's Never Gonna Give You Up' gave only one entry: \"1159ms 'YouTube'\". 14 s later document.title was 'Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster) - YouTube', and Sift's H1 had shown that title since 4.1 s. Home -> Mix: 'YouTube' at 973 ms, and the region still said 'YouTube' about 20 s later. Home -> another video: 'YouTube' at 412 ms. By contrast, a search announces 'Search: rick astley' and Back announces 'Home' correctly (t1r6/announce3.ts). A screen-reader user who opens a video never hears which video opened.",
+   "repro": "cd /home/nico/projects/sift-test-1; SIFT_PORT=9461 SIFT_TAB=T1-youtube bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r6/announce2.ts 'https://www.youtube.com/results?search_query=rick+astley' 'main li a.title[href*=\"dQw4w9WgXcQ\"][href*=\"pp=\"]' 14000. It prints the status text changes ('YouTube' only) and the final document.title (the video's title).",
+   "suspectedCause": "src/content/index.ts around lines 1638-1652. On navigation, page.title is YouTube's placeholder 'YouTube'. From search it differs from prevTitle, so 'YouTube' is said at once and titleWait is false. From home, prevTitle is also 'YouTube', so the 2.5 s timer fires while the title is still the placeholder. The real title, which arrives 4-12 s later, is never said.",
+   "regression": false,
+   "verdict": "Reproduced twice with T1's announce2.ts. Home to Mix: the polite region said only 'YouTube' at 520 ms. Search to the 'Never Gonna Give You Up' video: only 'YouTube' at 630 ms. After 12-14 s, document.title was the full video title, and Sift's H1 had shown it since about 3 s, but nothing more was announced. The code matches. In src/content/index.ts (navigation branch around lines 1638-1652), the first navigated page is the adapter's partial watch page titled 'YouTube'. When that differs from prevTitle, it is said at once and titleWait is set to false. When it equals prevTitle (from home), the 2.5 s timer says 'YouTube'. Either way, the real title that comes later is never announced.",
+   "fix": "In src/content/index.ts, where navigated pages are announced, treat a page.partial page as not yet named. Set titleWait when page.partial or page.title === prevTitle. Have the timer and the 'titleWait && page.title !== prevTitle' branch announce only once the page is no longer partial. Also stop using the 'YouTube' placeholder as the title of partial watch pages in src/content/adapters/youtube.ts watch()."
+  },
+  {
+   "source": "T1-youtube",
+   "title": "A timestamp link in a comment seeks the video, but Sift stays down in the comments; the original scrolls up to the player",
+   "severity": "medium",
+   "where": "YouTube watch page, Comments, timestamp links (e.g. '0:22' in a comment under Newest)",
+   "evidence": "In Sift, clicking '0:22' (href watch?v=dQw4w9WgXcQ&t=22s) changed currentTime from 96.5 to 24.5 and left the URL unchanged. The view stayed in the comments with the player's portal at top -2322, so the reader cannot see the jump. In original mode (Alt+Shift+S), clicking the same link at scrollY 1792 seeked (t=25.3) and scrolled the page to scrollY 0, which puts the player in view. Shot of the original after the click: /home/nico/projects/sift-test-1/research/shots/R6T1-orig-timestamp.png. Transcript lines behave the same in Sift (they seek, and the player may be far above). On the original, the transcript sits beside the player.",
+   "repro": "cd /home/nico/projects/sift-test-1; SIFT_PORT=9461 SIFT_TAB=T1-youtube bun scripts/act.ts goto:https://www.youtube.com/watch?v=dQw4w9WgXcQ wait:11000 click:Comments wait:3000 'click:Sort comments' wait:1000 click:Newest wait:4000 \"eval:[...document.querySelector('sift-root').shadowRoot.querySelectorAll('details a')].filter(a=>/^\\d+:\\d\\d$/.test(a.innerText)).map(a=>a.innerText)\". Then click one of those, e.g. click:0:22 wait:2000, and run \"eval:document.querySelector('video').currentTime+' '+document.querySelector('sift-root').shadowRoot.querySelector('.portal').getBoundingClientRect().top\". The time changes, and the portal top stays far negative. Do the same with Alt+Shift+S on the original link: scrollY goes to 0. Timestamp comments vary; any comment with a time link works.",
+   "suspectedCause": "The click is replayed on the original link. YouTube's handler seeks and scrolls the hidden original window to the top. Sift does not mirror that scroll-to-player in its own view.",
+   "regression": false,
+   "verdict": "Reproduced twice. Comments sorted by Newest held a comment with the timestamp links 0:22 and 0:54 (href watch?v=dQw4w9WgXcQ&t=22s / 54s). In Sift, clicking 0:54 seeked (24.9 to 56.4 s) and the URL stayed the same. The window scrollY went to 0, but Sift's view stayed in the comments with the portal top at -3268 (screenshot research/shots/skeptic-n2-sift.png). Clicking 0:22 later did the same: currentTime 24.4, portal top -3298. In the original (Alt+Shift+S), clicking the same 0:22 link at scrollY 2218 seeked to 24.5 and scrolled to scrollY 0, which shows the player (research/shots/skeptic-n2-orig.png). So the seek is replayed, but Sift drops the second half of the effect, which is bringing the player into view.",
+   "fix": "In src/content/adapters/youtube.ts, mark comment and description links that point to the current video with a t= value as seek links. Then, in the click-replay path in src/content/index.ts (afterAct or the link-click handler), scroll the player's portal placeholder into view after such a click. A more general option: after a replayed click, if the original window scrolled so that a portal's element came into view, scroll Sift's view to that portal."
+  },
+  {
+   "source": "T1-youtube",
+   "title": "Settings dialog keeps the last sub-page's name ('Appearance', 'Display language') after Back or when reopened",
+   "severity": "medium",
+   "where": "YouTube (any page), header Settings dialog and its sub-pages",
+   "evidence": "Settings, then Appearance, then Back: the dialog lists the top-level items ('Your data in YouTube | Appearance: Light | Display language | ... | Keyboard shortcuts | Settings | Help | Send feedback'), but its visible heading and aria-label stay 'Appearance' (3 of 3 runs). The original's ytd-multi-page-menu-renderer shows the top-level list at that moment. Escape from Display language, then reopening Settings: the dialog is named 'Display language' while it lists the top-level items (2 of 2). Screen-reader users hear the wrong dialog name. In 1 of 3 runs in this stale state, clicking 'Keyboard shortcuts' did nothing: no dialog opened, and focus stayed on the button. That did not reproduce in 2 retries. Shot: /home/nico/projects/sift-test-1/research/shots/R6T1-settings-back.png",
+   "repro": "cd /home/nico/projects/sift-test-1; SIFT_PORT=9461 SIFT_TAB=T1-youtube bun scripts/act.ts goto:https://www.youtube.com/watch?v=dQw4w9WgXcQ wait:12000 click:Settings wait:1500 click:Appearance wait:1500 click:Back wait:1500 \"eval:(()=>{const d=[...document.querySelector('sift-root').shadowRoot.querySelectorAll('[role=dialog]')].find(d=>d.checkVisibility());return d.getAttribute('aria-label')+' | '+d.innerText.replace(/\\s+/g,' ').slice(0,120)})()\". It prints 'Appearance | Appearance Close Your data in YouTube Appearance: Light Display language...'. Also try press:Escape, click:Settings, click:'Display language', press:Escape, click:Settings, then the same eval: 'Display language | ...'.",
+   "suspectedCause": "The dialog's title is kept from the sub-page model when YouTube swaps the multi-page menu back to its top-level page (its header element stays in the DOM but hidden), so the title is read from a stale or hidden header.",
+   "regression": false,
+   "verdict": "Reproduced. Settings showed 'label=Settings'. Then Appearance showed 'label=Appearance', with Back and the theme choices. After Back, the dialog showed 'label=Appearance h2=Appearance' while listing the top-level items. The original at that moment: the top-level menu's visible #header is empty, and the only header with the text 'Appearance' is in the hidden submenu (checkVisibility false). Escape, then Settings again: the dialog was still named 'Appearance'. After Display language and Escape, reopening Settings gave 'label=Display language', with focus on Close. So the wrong name stays for the rest of the visit, and a screen reader announces it on open. The side claim did not reproduce: from the stale state, Keyboard shortcuts opened normally. The cause is in settingsMenu() in src/content/adapters/youtube.ts. `q(\"ytd-simple-menu-header-renderer\", page)` searches the whole subtree of the top-level menu, so it finds the hidden submenu's header, and its h2 becomes the title.",
+   "fix": "In src/content/adapters/youtube.ts settingsMenu(), pick the header that belongs to the page being shown and is visible: qa(\"ytd-simple-menu-header-renderer\", page).find(h => h.closest(\"ytd-multi-page-menu-renderer\") === page && visible(h)). For the top-level page, the title then falls back to the opener's aria-label ('Settings')."
+  },
+  {
+   "source": "T1-youtube",
+   "title": "Picking an item in a playlist or Mix closes the playlist section, while the original keeps its panel open",
+   "severity": "medium",
+   "where": "YouTube watch page with &list= (a playlist such as PL2MI040U_GXobmpXtTwBF7oHBGT5BETSD, or the Mix RDdQw4w9WgXcQ): the playlist/Mix section",
+   "evidence": "I opened the 'Mix - Rick Astley ...' section and clicked its first item (it plays). After navigation the section had open=false, H1 and portal were correct, and focus was on main at the top. The original's ytd-playlist-panel-renderer stayed visible and expanded. Same on the 'RickAstley - Greatest Hits \u00b7 1 / 10' playlist: after clicking item 3 and then item 2, the summary updated to '3 / 10' and '2 / 10', but open=false both times. Those two targets showed YouTube's bot check. Working through a playlist by keyboard means reopening the section and finding the current item after every video. Sift's media bar has no Next or Previous video either, and YouTube's in-player Next is not on the Tab path. Shot: /home/nico/projects/sift-test-1/research/shots/R6T1-mix-next.png",
+   "repro": "cd /home/nico/projects/sift-test-1; SIFT_PORT=9461 SIFT_TAB=T1-youtube bun scripts/act.ts 'goto:https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RDdQw4w9WgXcQ&start_radio=1' wait:12000 'click:Mix - Rick' wait:800 'click:performs \u201cNever Gonna Give You Up\u201d in' wait:6000 \"eval:[...document.querySelector('sift-root').shadowRoot.querySelectorAll('details')].find(d=>/^Mix/.test(d.querySelector('summary').innerText)).open+' '+document.querySelector('ytd-playlist-panel-renderer#playlist').checkVisibility()\". It prints 'false true'. The item texts are AI one-liners and can vary; any item in the open Mix shows the same result.",
+   "suspectedCause": "After a single-page navigation the section's open state is reset to its default (collapsed), possibly because the remembered key depends on the video, even when the list is the same.",
+   "regression": false,
+   "verdict": "Reproduced 3 times. On watch?v=dQw4w9WgXcQ&list=RDdQw4w9WgXcQ I opened the Mix section (open=true) and clicked an item. The first item (same video, &index=, no bot check) gave siftOpen=false while the original's ytd-playlist-panel-renderer stayed visible with no collapsed attribute. The second and third items gave the same result. Those two also showed YouTube's bot check, which does not change this logic. The suspected cause is wrong. The section key is a fixed 'playlist'. Instead, checkUrl() in src/content/index.ts (around line 1775) calls store.local.clear() on every single-page URL change, which also wipes 'sec:playlist'. Section() in src/content/ui/app.tsx then falls back to collapsed: true. Every video picked from a list closes the list.",
+   "fix": "In src/content/index.ts checkUrl(), keep the 'sec:playlist' entry in store.local, instead of clearing it, when the old and new URLs have the same list= parameter (or keep any sec:* entry the adapter marks as persistent across navigation). Optionally key the section by list id in playlistSection() in src/content/adapters/youtube.ts, so a different list starts collapsed."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "NPR home page loses 17 of 38 top stories: a grid member holding several <article>s now drops the whole grid to the walker, which then deletes 'c-promo-card' stories as noise",
+   "severity": "high",
+   "where": "src/content/extract/generic.ts:2165 (nav's rule: members.some(k => k.querySelectorAll('article').length > 1) \u2192 return null), together with the NOISE_TOKEN drop in visitEl at generic.ts:3152 ('promo-card' in NOISE_TOKEN, dom.ts:745)",
+   "evidence": "Live https://www.npr.org/ with the harness: now 21 items, sift-r5-base 37-38. Each group's bundle gives 37, except sift-r5-nav, which gives 21. A copy of the current tree with only line 2165 removed (scratchpad/r6/mod) gives 38. Missing stories include 'U.S. birth rate drops to record low\u2026', 'Americans can't get enough of mahjong\u2026', 'Ohio could decide control of the Senate\u2026', 'Gunmen open fire at a church\u2026', 'Jet fuel prices hit a record\u2026' and 'Kara Swisher on Elon Musk\u2026'. In the real extension (9468) none of them is in Sift's text, while document.body.textContent has all six. DOM: div (41 kids, 86 <article>s) > div.bucketwrap members. One member holds a nested featured card-wrap with 5 articles, so detectItems returns null. The walker then visits each article.c-promo-card, and the NOISE_TOKEN check drops it ('promo-card'), which toItem never applied. A minimal fixture (scratchpad/r5/fx/promocards.html: 8 promo-card stories plus one member with 3 nested ones) keeps only the 3 nested stories. Pre kept all 11. In the real extension, 'click:plan number 3 for' says 'not found'. Spiegel is the only other of 30 live news fronts where the rule changes output, and it helps there.",
+   "repro": "cd scratchpad/rv && python3 -m http.server 8868 in scratchpad/r5/fx; bun batch.ts ../r6/o5 now,pre http://127.0.0.1:8868/promocards.html (now: 3 items, pre: 11). Live: cd scratchpad/r6 && N=1 bun live.ts live4 now,mod,r5-base npr.txt; grep -c '^  \\*' live4/www_npr_org_.*.txt",
+   "regression": true,
+   "suspectedCause": "Returning null for the whole set because one member holds several <article>s hands every card to visitEl. visitEl drops class tokens such as 'c-promo-card' (NOISE_TOKEN 'promo(tion)?-?cards?' and 'promo') before asCard runs. Either exclude only the multi-article members from the set (as ext does for 'boxes'), or skip the NOISE_TOKEN drop for an <article> or card whose heading links a story.",
+   "verdict": "Confirmed, high, regression. I used my own bundles built from sift-test-8 (now), sift-r5-base (pre), and a copy with only generic.ts:2165 removed (mod). On live https://www.npr.org/ the harness gives 21 items for now, 37 for pre and 37 for mod. Stories present in pre and mod but missing from now include 'U.S. birth rate drops to record low\u2026', 'Americans can't get enough of mahjong\u2026', 'Ohio could decide control of the Senate\u2026', 'Gunmen open fire at a church\u2026', 'Jet fuel prices hit a record\u2026', 'Kara Swisher on Elon Musk\u2026' and 'Leon Bridges reinvents his sound\u2026'. In the real extension (9468), Sift's text has none of those six, while document.body.textContent has all of them. act 'click:Kara Swisher on Elon' says 'not found'. Across all article headlines, 38 of 57 were missing from Sift's text. Some of those (stain removal, Clayface, spiral pass) are missing in pre too, so they are a separate issue. On the promocards.html fixture, now keeps only the 3 nested featured stories and pre keeps all 11 headlines. Pre does squeeze 101 and 102 into meta, but story 0 and stories 1-7 survive. The cause is as described: line 2165 returns null for the whole grid, and the walker's NOISE_TOKEN check at generic.ts:3152 ('promo-card'/'promo') then drops each article.c-promo-card.",
+   "fix": "In detectItems (src/content/extract/generic.ts ~2165), do not return null for the whole set when only some members hold several <article>s. Put those members in `boxes`, so they are walked and left out of the set, and return null only when most members hold several articles (the Discourse thread case). As a backstop, skip the NOISE_TOKEN drop in visitEl (~3152) for an <article> or card whose heading holds a story link."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "pictureTwin makes lists and grids of picture-only links quadratic (~1 s extra per extraction at 3000 entries)",
+   "severity": "medium",
+   "where": "src/content/extract/generic.ts:747 (usefulControl calls pictureTwin for every link) and 755-765 (pictureTwin runs box.querySelectorAll('a[href]') up to 4 ancestors deep and only then checks length > 6)",
+   "evidence": "Alternating runs in the same page, current tree compared with the same tree minus line 747 (scratchpad/r6/mod2). wallul3000.html (<ul> of 3000 li>a>img alt): now 1265/1132/983/893 ms, without pictureTwin 210/173/201/229 ms. walldiv3000.html (div.cell>a>img): now 2756/1620/1468/1546, without 845/510/578/573. wallul1000: now 187/179/188/153, without 90/59/56/54. sift-r5-base on wallul3000: 275/273/235/185 ms. CPU profile (harness): pictureTwin is the top self-time function. In the real extension's profile, querySelectorAll self time is 6175 ms on wallul3000 vs 133 ms on wall3000 (same links inline in one div). Each li has a single picture link, so the loop climbs to the <ul> and runs querySelectorAll over all 3000 links once per entry. Every re-extraction (mutations, load more) pays it again.",
+   "repro": "Serve scratchpad/r5/fx on 8868; cd scratchpad/rv && BASE=./bundle-mod2.js BOTH=1 bun run3.ts http://127.0.0.1:8868/wallul3000.html ../r6/time5.js",
+   "regression": true,
+   "suspectedCause": "querySelectorAll on a large ancestor per picture link (content group's new helper). Cache the links with words per box per pass (as wordedHrefs does), or count links incrementally and stop at 7.",
+   "verdict": "Confirmed, medium, regression. I built a copy of the current tree with only generic.ts:747 (the pictureTwin call) removed, and ran both bundles on the same page, alternating, 5 runs each. wallul3000: now 1281/1007/1190/1208/1183 ms, without the call 205/239/304/165/155. walldiv3000: now 2023-3748 ms, without 857-1284. wallul1000: now 207-387 ms, without 74-160. wall3000 (links inline in one div, no climb): now 255-743 ms, without 227-511, so roughly the same. Real extension profile.ts on wallul3000: querySelectorAll self time 6840 ms, with pictureTwin in the hot list. On wall3000 it was 92 ms. The code matches the claim: for each picture-only link, the loop climbs to the big list and runs box.querySelectorAll('a[href]') over every link before the length > 6 break. That is quadratic. It only shows at roughly 1000+ untwinned picture links (galleries, avatar walls), and it repeats on every re-extraction.",
+   "fix": "In pictureTwin (src/content/extract/generic.ts ~755-765), stop before the full query on a big box. Either count the box's links with an early exit at 7, or cache per extraction pass a map of box to (link count, hrefs that have words), as wordedHrefs does, so each ancestor is scanned once."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "ctaStrip deletes 'Already have an account? [Log in]' and 'Need help? [Visit the help centre]' when the link is button-styled and goes to a subdomain",
+   "severity": "medium",
+   "where": "src/content/extract/generic.ts:3168 (if (tlen(el) < 120 && ctaStrip(el)) return;) and 774-788 (ctaStrip: one link with a btn/button/cta class to another host of the same site, plus 8-60 characters of other text)",
+   "evidence": "Fixture scratchpad/r6/fxl/ctalogin.html, served as http://fixture.test/page: a sign-up form, then <div>Already have an account? <a class=\"btn btn-secondary\" href=\"https://account.fixture.test/login\">Log in</a></div> and <div>Need help? <a class=\"btn\" href=\"https://help.fixture.test/\">Visit the help centre</a></div>. Now: only h1, intro and the form; both lines and their links are gone. Pre: 'p(small): Already have an account? [Log in ->/login]' and 'p(small): Need help? [Visit the help centre ->/]'. The rule targets La Naci\u00f3n's radio cross-promo. It also matches any short strip whose one button-styled link goes to the site's own account., help., app. or my. subdomain, which is common for sign-in and help.",
+   "repro": "cd scratchpad/rv && bun run3.ts ../r6/fxl/ctalogin.html ol.js; BUNDLE=./bundle-pre.js bun run3.ts ../r6/fxl/ctalogin.html ol.js",
+   "regression": true,
+   "suspectedCause": "ctaStrip has no test that the target is another product (a promo) rather than the user's account, sign-in or help. Restrict it to links whose text or slogan sells (PROMO_LABEL-like words, 'Escuch\u00e1', 'Listen', 'Play'), or exclude sign-in, account and help links and pages that hold a form.",
+   "verdict": "Confirmed, medium, regression. Harness on ctalogin.html served as http://fixture.test/page: now gives h1, intro and the form only, and both lines are gone. Pre gives 'p(small): Already have an account? [Log in ->/login]' and 'p(small): Need help? [Visit the help centre ->/]'. Real extension (9468, same URL via request interception): Sift shows the heading, the intro, the email field and 'Create account', and nothing else, while the original page text has 'Already have an account? Log in' and 'Need help? Visit the help centre'. ctaStrip (generic.ts:774-788) matches: a single link with a btn class, a different host on the same site, 8-60 characters of other text, and no heading, p or form inside the strip. A sign-up page linking to its accounts. or help. subdomain with a Bootstrap-style button link is common, and losing 'Log in' there removes a control the user needs.",
+   "fix": "In ctaStrip (src/content/extract/generic.ts ~774), exclude account, sign-in and help targets: drop the match when the link text or path matches sign in, log in, account, help or support, or when the page holds a form. Better still, require selling words like La Naci\u00f3n's ('Escuch\u00e1', 'Listen', 'Play', 'Descarg\u00e1', 'Download the app') before treating the strip as a cross-promo."
+  },
+  {
+   "source": "R2-interaction",
+   "title": "Arrow keys and Space in a focused game board (or any focusable part of a shown original whose page handles keys on window) scroll Sift's view off the board",
+   "severity": "high",
+   "where": "src/content/index.ts:941-962 (new round 5 keydown listener on window, bubble phase)",
+   "evidence": "New fixture fx/r6int-game.html: a canvas with tabindex=0 and a window keydown listener that calls preventDefault for the arrow keys and Space, as most canvas games do. At 1000x600 in Sift, I click the board (focus is on the canvas, the portal is entered) and press ArrowDown, ArrowDown, ArrowRight, ArrowUp, Space. The game gets all five keys, but Sift's view scrolls from 0 to 538 px (48+48-48+0.85 x view height, exactly scrollByKey's steps). The board is now at top -320, bottom 58, mostly off screen. The same keys on the original (Alt+Shift+S, same clicks) leave the page scroll at 0. Google Maps is not affected (its map div prevents the key itself: the map panned and Sift did not scroll).",
+   "repro": "SIFT_PORT=9467 SIFT_TAB=R2-interaction bun r6int/game.ts from the scratchpad dir (/tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad), with r6int/game-orig.ts as the control. By hand: open http://127.0.0.1:8799/fx/r6int-game.html, click the green board in Sift, press ArrowDown.",
+   "suspectedCause": "The listener is added at document_start, so it runs before every window keydown listener the page adds later. It checks e.defaultPrevented before the game has had its turn, then calls preventDefault and scrollByKey itself. It also ignores enteredPortal(), so keys still scroll Sift after the user deliberately entered the original. Unity WebGL's template canvas (tabindex=-1, keys handled on window) fits this pattern. Fix ideas: skip when enteredPortal() === this portal's ref; or decide after the page's listeners have run (let the default scroll happen and mirror it, or register the listener lazily after load).",
+   "regression": true,
+   "verdict": "Reproduced twice on fx/r6int-game.html at 1000x600. In Sift I clicked the canvas, which focused it inside the portal. I pressed ArrowDown, ArrowDown, ArrowRight, ArrowUp, Space. The game logged all five keys, but Sift's scrollTop went from 0 to 538 and the board ended up at top -320, bottom 58. The control on the original (Sift off, same clicks and keys) left page scroll at 0, and that page can scroll: scrollHeight is 725 against a 600 px window, and PageDown on the body scrolls it to 125. So the game's preventDefault holds on the original and Sift overrides it. The code matches the claim. The listener at src/content/index.ts:944-962 is added on window at document_start, so it runs before any window keydown listener the page adds later. When it runs, e.defaultPrevented is still false, so it calls preventDefault and scrollByKey. It does not check enteredPortal(). The listener is not in the pre-round-5 source (scratchpad/pre-r5), so this is a regression. It only hits focusable boards whose page listens on window. Listeners on document or on the element run first and are not affected, which is why YouTube and Maps work. For those boards, the game cannot be played in Sift.",
+   "fix": "src/content/index.ts:944-962. Decide after the page's own window listeners have run. For example, in a window capture-phase keydown listener, add a one-time bubble listener on window for that event. It runs last, so it sees the page's preventDefault, and only then does it mirror the scroll. Also return early when enteredPortal() === refOfPortal(portal), because the user has deliberately entered the original."
+  },
+  {
+   "source": "R2-interaction",
+   "title": "Pressing a button or Submit inside a page popup that changes nothing in the DOM removes the popup from Sift (the F529 failure through H.act and H.submit)",
+   "severity": "high",
+   "where": "src/content/index.ts:2229-2233 (afterAct without keep), called from H.act at index.ts:2449 and H.submit at index.ts:2567; src/content/recent.ts:17-26; src/content/extract/generic.ts:5204 (lastPop only with a text field) and generic.ts:5374 (a newsletter-worded dialog is kept only while recentNodes(true) points into it)",
+   "evidence": "(1) Existing F48 fixture fx/ext2-newsletter-open.html: Subscribe opens the role=dialog sheet. I type 'nico' in its email field (the page gets 'nico') and press the sheet's Subscribe. Sift shows the notice 'Email: Please include an '@'...', but the sheet is gone at 300 ms, 1.5 s and 4 s. Focus jumps to the page's Subscribe button, and the page dialog is still open. The user cannot fix the address. The same happens on new fixture fx/r6int-dlgform.html with an empty required email. (2) New fixture fx/r6int-sharepop.html: a role-less 'Servings' popup with Double it, Halve it, Done. 'Double it' only runs JS, so the DOM does not change. After one press the sheet is gone, focus is on Servings, and the page popup stays open. Pressing Servings again shows nothing (the page's handler returns early), so Halve it and Done cannot be reached without switching to the original.",
+   "repro": "From the scratchpad dir: SIFT_PORT=9467 SIFT_TAB=R2-interaction bun r6int/news2.ts (newsletter, invalid email), bun r6int/dlgform2.ts (required email), bun r6int/sharepop2.ts (role-less popup, plus the retry).",
+   "suspectedCause": "afterAct() calls armRecent() without keep, which empties the recent nodes and byAction. Only those nodes keep a role-less popup (findPopup; the lastPop fallback needs a text field) or a cookie/newsletter-worded dialog (the NOISE_TEXT check). The F529 fix passes keep only from H.check and H.select. H.act and H.submit should do the same when the element (or form) is inside the shown dialog (inShownDialog).",
+   "regression": false,
+   "verdict": "Reproduced twice each. (1) On fx/ext2-newsletter-open.html, Subscribe opens the sheet. I typed 'nico' (the page field got 'nico') and pressed the sheet's Subscribe. The notice 'Email: Please include an '@'...' shows. The sheet is gone at 300 ms, 1.5 s and 4 s, focus is on the page's Subscribe button (r3), and the page's role=dialog is still open. Sift's outline has no email field left. (2) On fx/r6int-dlgform.html, pressing Sign up with the required email empty gives the same result: no sheet from 100 ms to 4 s, and the page dialog stays open. Pressing Subscribe again in Sift brings nothing back, because the page's handler returns early while .dlg exists. On the original (Sift off), the same press keeps the dialog open and moves focus to the email field. (3) On fx/r6int-sharepop.html, Servings opens the sheet. After 'Double it' the sheet is gone, focus is on Servings, and the page popup is still there. Pressing Servings again shows nothing, so Halve it and Done cannot be reached. The code matches the claim. H.act (index.ts:2449) and H.submit (index.ts:2567) call afterAct() without keep, so armRecent() empties the recent nodes. Only the F529 path (H.check and H.select) passes keep when the element is inside the shown dialog (inShownDialog). This is the F529 failure through two more handlers. In Sift, the user cannot fix an invalid email or finish a role-less popup.",
+   "fix": "src/content/index.ts. In H.act, compute keep = inShownDialog(el) before the click and call afterAct(keep). In H.submit, compute keep = inShownDialog(form ?? fieldEl) and call afterAct(keep), at least when proxy.submit reports a problem. Optionally, widen the lastPop fallback in src/content/extract/generic.ts (around 5204) to popups without a text field."
+  },
+  {
+   "source": "R2-interaction",
+   "title": "At 200% zoom or phone width, a notice now covers the whole top bar (site name, search box, Search, Menu) while the view is at the top",
+   "severity": "medium",
+   "where": "src/content/ui/styles.ts:40 (.bar[data-flat] .bar-notice { position: fixed; top: 0 }); src/content/ui/app.tsx:1037 and 993",
+   "evidence": "New fixture fx/r6int-topform.html: a header with nav and a search form, then a short contact form with a required email. At 640x450 (200% zoom) the bar is flat. Before Send, 'Search the bakery', Search and Menu are all visible at the top. After Send with the email empty, and with the view at the top, elementFromPoint at the center of each of those controls hits the notice ('COVERED by notice'). The screenshot (r6int/topnotice.png) shows only the yellow notice where the bar was. A validation notice stays until the user types or acts. A toast with Undo stays as long as the page shows it. Before round 5 the notice sat inside the static bar, below its controls.",
+   "repro": "From the scratchpad dir: SIFT_PORT=9467 SIFT_TAB=R2-interaction bun r6int/topnotice.ts 640x450",
+   "suspectedCause": "The F530 fix fixes the notice at top:0 whenever the bar is flat, also when the flat bar itself is in view. Fix ideas: use position: sticky (it then sits below the bar while the bar shows and sticks at the top once the bar scrolls away), or fix the notice only while the bar is out of view.",
+   "regression": true,
+   "verdict": "Reproduced on fx/r6int-topform.html. At 640x450 the bar is flat and the page is only 455 px tall, so after Send the view is at the top without any forced scroll (scrollTop 5). The notice 'Your email: Please fill out this field.' then covers the site name, 'Search the bakery', Search and Menu. elementFromPoint at each control's center hits the notice, and my screenshot shows only the notice where the bar was. The notice was still there after 8.8 s. Shift+Tab from the email field puts keyboard focus on Menu, Search and the search box in turn, and each one is fully hidden under the notice (WCAG 2.4.11, Focus Not Obscured). At 390x844 the search box, Search and the site name are covered and Menu is visible. The cause is the F530 fix in src/content/ui/styles.ts:40: .bar[data-flat] .bar-notice is position: fixed at top: 0 even while the flat bar is in view. Before round 5 the notice sat below the controls, so this is a regression. It hits the low-vision 200% zoom users the F530 fix was meant to help. It lasts as long as a notice shows, so medium severity.",
+   "fix": "src/content/ui/styles.ts:40 and src/content/ui/app.tsx (fitBar and the notice markup). Fix the notice only while the bar's control row is out of view, for example with an IntersectionObserver or a scroll check in fitBar that toggles an attribute on the bar. Or render the notice as a sibling after the header with position: sticky; top: 0 against the scroller. Sticky inside the static header would not work, because it scrolls away with the header. Keep --bar-h in sync."
+  },
+  {
+   "source": "T4-generic",
+   "title": "BART Trip Planner page loses the whole planner (cross-origin iframe dropped)",
+   "severity": "high",
+   "where": "https://www.bart.gov/planner",
+   "evidence": "The original shows the Trip Planner (start/destination fields, Depart Now, SEARCH, map) in iframe.bart-trip-planner (src https://planner.bart.gov/, 1280x800, visible, inside main#block-bart-content from the first second). Sift shows only H1 'Bay Area Rapid Transit' and the service advisory, with 0 portals, and the rest of the page is empty. So the page's only tool, trip planning, cannot be used from Sift. axe finds 0 violations. Shots: /home/nico/projects/sift-test-4/research/shots/r6t4-bart.png vs /home/nico/projects/sift-test-4/research/shots/r6t4-bart-orig.png",
+   "repro": "SIFT_PORT=9464 SIFT_TAB=T4-generic bun scripts/act.ts goto:https://www.bart.gov/planner wait:15000 \"eval:[JSON.stringify(document.querySelector('iframe.bart-trip-planner').getBoundingClientRect()), document.querySelector('sift-root').shadowRoot.querySelectorAll('.portal').length]\" outline gives a 1280x800 rect, 0 portals, and an outline that ends after the advisory paragraph.",
+   "suspectedCause": "Unverified. portalBlock() in src/content/extract/generic.ts should make a portal from a large cross-origin iframe, so the iframe is probably skipped before it gets there. It is untitled, full-width, and has the class 'bart-trip-planner no-breadcrumb'.",
+   "regression": false,
+   "verdict": "Reproduced. After 15 s, iframe.bart-trip-planner (src https://planner.bart.gov) is 1280x800 and visible, but Sift has 0 portals. Sift's outline ends after the Service Advisory paragraph (shot research/shots/skeptic-bart.png). The original with Sift off shows the full planner: start and destination fields, Depart Now, SEARCH and the map (research/shots/skeptic-bart-orig.png). Cause found: in visitEl() (src/content/extract/generic.ts), the NOISE_TOKEN check skips only MEDIA tags (img, picture, video, audio), so it also runs on the iframe. NOISE_TOKEN in src/content/dom.ts matches '-breadcrumb' inside the class 'no-breadcrumb'. I tested NOISE_TOKEN.test('bart-trip-planner no-breadcrumb') and it returned true. So the iframe is dropped before portalBlock() runs. High severity: the page's only tool cannot be used.",
+   "fix": "In src/content/extract/generic.ts visitEl(), exempt embedded surfaces (iframe, canvas, embed, object) from the NOISE_TOKEN skip, or only apply that skip to them when they are small. Also make NOISE_TOKEN in src/content/dom.ts ignore negated classes such as 'no-breadcrumb' or 'no-share', for example with a (?<!no-) lookbehind."
+  },
+  {
+   "source": "T4-generic",
+   "title": "weather.gov location suggestions cannot be picked; ArrowDown+Enter gives a different place than on the original",
+   "severity": "high",
+   "where": "https://forecast.weather.gov/MapClick.php?lat=37.7749&lon=-122.4194 (location field)",
+   "evidence": "Typing 'Springfield' into Sift's field makes the original show 10 clickable suggestions (div.autocomplete-suggestion). Sift shows them as one yellow notice banner of run-together text ('Springfield, IL, USA Springfield, MA, USA Springfield, MO, USA \u2026') with no links or buttons. ArrowDown x3 in Sift selects nothing (.autocomplete-selected is null, value stays 'Springfield'), and Enter opens Springfield, IL (lat=39.7994&lon=-89.6436). On the original with Sift off, the same keys select 'Springfield, MO, USA' and Enter opens lat=37.2155&lon=-93.2924. Typing a full 'Seattle, WA' and pressing Go does work. Shots: /home/nico/projects/sift-test-4/research/shots/r6t4-nws-springfield.png, /home/nico/projects/sift-test-4/research/shots/r6t4-nws-typing.png",
+   "repro": "SIFT_PORT=9464 SIFT_TAB=T4-generic bun scripts/act.ts 'goto:https://forecast.weather.gov/MapClick.php?lat=37.7749&lon=-122.4194' wait:9000 'type:input[name=inputstring]=>Springfield' wait:4000 shot:x press:ArrowDown press:ArrowDown press:ArrowDown \"eval:document.querySelector('.autocomplete-selected')?.textContent\" press:Enter wait:9000 url. Gives null and lat=39.7994 (IL). With Sift off, the same keys give 'Springfield, MO, USA' and lat=37.2155.",
+   "suspectedCause": "The suggestion box is an absolutely positioned body-level div with no role and no links (jQuery autocomplete). Sift classifies it as a notice/toast and renders its text. Arrow keys typed in Sift's field are not replayed in a way the plugin's keydown handler sees.",
+   "regression": false,
+   "verdict": "Reproduced twice. Typing 'Springfield' into Sift's location field makes the original show 10 div.autocomplete-suggestion. Sift renders them as one p.notice.warn (also a role=status line) of run-together text with 0 links or buttons (research/shots/skeptic-nws-spring.png). After ArrowDown x3 (and x2 on the second run), .autocomplete-selected is null and the value stays 'Springfield'. Enter then opens lat=39.7994&lon=-89.6436 (Springfield, IL). With Sift off, the same keys select 'Springfield, MO, USA' and Enter opens lat=37.2155&lon=-93.2924. Sift's own suggestion handling (suggestKey in src/content/index.ts) only works with a '.sheet.suggest'. This jQuery list is never recognized as a suggestion list, so ArrowDown never reaches the page's keydown handler, and no suggestion can be picked.",
+   "fix": "In src/content/extract/generic.ts, treat a body-level, absolutely positioned box that appears right under the focused field, whose rows start with the typed text (jQuery Autocomplete's .autocomplete-suggestions), as that field's suggestion list. suggestionsOf() and the popup and notice rules should give it a '.sheet.suggest' with one clickable row per suggestion, not a notice. Also, when no suggest sheet exists, let ArrowUp and ArrowDown from Sift's field be replayed as keydown on the page field (src/content/index.ts onSiftKey/suggestKey, src/content/proxy.ts)."
+  },
+  {
+   "source": "T4-generic",
+   "title": "Stack Overflow: 'Show 8 more comments' on the question jumps the view past all the new comments",
+   "severity": "medium",
+   "where": "https://stackoverflow.com/questions/927358/how-do-i-undo-the-most-recent-local-commits-in-git (question's comments, inside the closed 'Comments' fold)",
+   "evidence": "Before the click, Sift's scrollTop is 1435 with the button at y=427. 2 s after the click, scrollTop is 3047: the view jumps 1612 px. Focus moves to the answers' 'Sorted by' select at y=423, and the 13 comments sit at y=-2033\u2026231, all above the view except the last two. The reader lands below the comments and must scroll back up to find the 8 new ones. In the original, the new comments appear below the old ones where the link was. For the answers' newer 'Show all comments' control, the view stays put and focus goes to 'Collapse comments'. Shot: /home/nico/projects/sift-test-4/research/shots/r6t4-so-more8-after.png",
+   "repro": "Load the URL with Sift on and wait 12 s. Open the question's 'Comments' summary (h2 'Comments' inside a closed details). Click 'Show 8 more comments' and read Sift's host scrollTop and shadowRoot.activeElement before and 2 s after. Gives 1435 \u2192 3047, with activeElement the 'Highest score (default)\u2026' select.",
+   "suspectedCause": "When the clicked control is removed, focus falls to the next focusable control. Sift then keeps that control at the clicked spot, which scrolls past the inserted comments.",
+   "regression": false,
+   "verdict": "Reproduced twice in a row. I opened the question's closed 'Comments' fold and clicked 'Show 8 more comments'. Before: Sift's scrollTop was 1479, the button at y=383, and 5 comments at y=-466\u2026340. 1.5 s after: scrollTop was 3091 (a jump of 1612 px), focus was on the 'Highest score (default)\u2026' select at y=379, and the 13 comments sat at y=-2078\u2026186, so only the last two were in view (research/shots/skeptic-so-after.png). With Sift off, the same click on the question's 'Show 8 more' link kept scrollY at 323, and the new comments appear in place below the old ones (research/shots/skeptic-so-orig-after.png). Cause in the code: refocus() in src/content/index.ts walks spot.near (the next controls first) and calls tryFocus(now, true) with scroll=true. That puts the next control, the sort select after all the comments, into view.",
+   "fix": "In src/content/index.ts refocus(), when the removed control was a load-more or expand control and new content now sits in its place, focus the first new entry (or the previous control) with preventScroll, and keep the view's scroll anchor. Do not scroll to the next control in spot.near."
+  },
+  {
+   "source": "T4-generic",
+   "title": "Discourse thread: End moves one screen per press instead of going to the last post",
+   "severity": "medium",
+   "where": "https://users.rust-lang.org/t/is-ai-actually-getting-that-good/143208",
+   "evidence": "In Sift, each End press moves the original down one screen. scrollY goes 813, 1626, 2439, 3252, and the authors go 'zugzwanged,Anlis,Schard,simonbuchan' \u2192 'simonbuchan,khimru,farnz,ZiCog,jjpe'. After 6 presses Sift is still at mid-thread (burumdev). On the original with Sift off, 1 End press goes to scrollY 9085, URL /143208/25, showing the last posts 'khimru,MOCKBA'. A keyboard user needs about 15 presses to reach the newest reply in this 20-post thread. Shot: /home/nico/projects/sift-test-4/research/shots/r6t4-discourse-orig-end.png",
+   "repro": "SIFT_PORT=9464 SIFT_TAB=T4-generic bun scripts/act.ts goto:https://users.rust-lang.org/t/is-ai-actually-getting-that-good/143208 wait:9000 press:End wait:3000 \"eval:[scrollY,location.pathname]\" gives [813,'/t/\u2026/143208']. With Sift off, the same steps give [9085,'/t/\u2026/143208/25'].",
+   "suspectedCause": "The round 5 F500 fix makes Sift step through a thread that unloads posts one screen at a time with stepWith(), and End is handled the same way. End could jump the original to its last post instead.",
+   "regression": false,
+   "verdict": "Reproduced. In Sift, each End press moves the original down exactly one screen: scrollY 813, 1626, 2439, 3252, 4065\u2026 and the URL goes /2, /3, /4, /5, /7\u2026 It took 14 presses to reach the end (scrollY 10593, /18). With Sift off, one End press gives scrollY 10593, /18, with the last posts khimru, jumpnbrownweasel, notriddle and MOCKBA in view. Cause in the code: edgeScroll() in src/content/index.ts jumps the original to its start for Home (se.scrollTop = 0), but End only calls stepWith(), which moves one innerHeight at a time. Medium: a keyboard user cannot get to the end of a thread in one press.",
+   "fix": "In src/content/index.ts edgeScroll(), treat End like Home. When key === 'End' and cloakedPosts(), set se.scrollTop = se.scrollHeight and dispatch a scroll event, then put Sift's view at its end once the last posts are extracted."
+  },
+  {
+   "source": "T4-generic",
+   "title": "Craigslist search: results start about 2.7 screens down, after the whole filter panel",
+   "severity": "medium",
+   "where": "https://sfbay.craigslist.org/search/sss?query=bike",
+   "evidence": "In Sift, the first result ('2021 Liv Embolden E+ $1,600') is at y=2412 at 1280x900. Before it come every filter: categories with counts, 4 checkboxes, show more/check all/uncheck all, all/owner/dealer, miles/zip, price, make and model, odometer, model year, 10 filter groups, reset/apply, and 4 safety links, then the toolbar. The original shows 6 result cards on its first screen, beside a narrow filter sidebar. Shots: /home/nico/projects/sift-test-4/research/shots/r6t4-cl-search.png vs /home/nico/projects/sift-test-4/research/shots/r6t4-cl-search-orig.png",
+   "repro": "SIFT_PORT=9464 SIFT_TAB=T4-generic bun scripts/act.ts 'goto:https://sfbay.craigslist.org/search/sss?query=bike' wait:12000 \"eval:(()=>{const r=document.querySelector('sift-root').shadowRoot;const f=r.querySelector('li.item');return Math.round(f.getBoundingClientRect().top+r.host.scrollTop)})()\" gives about 2412.",
+   "suspectedCause": "The filter sidebar comes before the results in DOM order and is rendered open in full. It could be folded into a closed 'Filters' section, or placed after the results.",
+   "regression": false,
+   "verdict": "Reproduced. At 1280x813, Sift's first result ('Actbest Striker Ebike') is at y=1936, about 2.4 screens down. Before it come every category as a link plus a checkbox, 4 checkboxes, show more/check all/uncheck all, all/owner/dealer, miles/zip, price, make and model, 9 filter-group buttons, reset/apply, 4 safety links and the toolbar (research/shots/skeptic-cl.png). The original shows 6 result cards on its first screen, beside a narrow filter sidebar. My y value is lower than the claim's 2412 because my viewport was shorter, but the problem is the same. Medium: the results are what the page is for, and the filter panel buries them.",
+   "fix": "In src/content/extract/generic.ts, when a panel of filter controls (checkbox groups, min/max fields, reset/apply) comes before a list of results in DOM order, fold it into a closed 'Filters' section, or place it after the results list and toolbar."
+  },
+  {
+   "source": "T4-generic",
+   "title": "weather.gov: the first screen is site chrome; the forecast starts 1.6 screens down",
+   "severity": "medium",
+   "where": "https://forecast.weather.gov/MapClick.php?lat=37.7749&lon=-122.4194",
+   "evidence": "After the H1, Sift shows the 3 agency links, then the site nav as 9 buttons (HOME, FORECAST \u2026 ABOUT), then the location field with the visible label 'inputstring' (its name attribute), 'View Location Examples', the office link, and 'News Headlines'. 'Current conditions' starts at y=795 and the 7-day forecast ('Tonight \u00b7 Low: 53 \u00b0F') at y=1461, at 1280x900. The original shows current conditions and the 7-day strip on its first screen. Opening FORECAST shows a dialog whose title is its items run together ('Local Graphical Aviation Marine Rivers and Lakes Hurricanes Severe Weather Fire'), with a Close button that wraps as 'Clo/se'. Shots: /home/nico/projects/sift-test-4/research/shots/r6t4-nws.png vs /home/nico/projects/sift-test-4/research/shots/r6t4-nws-orig.png, /home/nico/projects/sift-test-4/research/shots/r6t4-nws-forecastmenu.png",
+   "repro": "SIFT_PORT=9464 SIFT_TAB=T4-generic bun scripts/visit.ts 'https://forecast.weather.gov/MapClick.php?lat=37.7749&lon=-122.4194' x --wait 9000. In the outline, lines 4-17 are agency links, nav buttons, the inputstring field and news before 'Hazardous Weather Conditions'. Then eval the top of the p containing 'Tonight \u00b7 Low' plus host.scrollTop: 1461.",
+   "suspectedCause": "The NWS nav bar (div.navbar with dropdown buttons) and the header widgets are not recognised as site chrome, so they are not moved to Menu. The field label falls back to the name attribute.",
+   "regression": false,
+   "verdict": "Reproduced. After the H1, Sift shows the 3 agency links, then the site nav as 9 button-styled links (HOME \u2026 ABOUT), then the location field labelled 'inputstring' (its name attribute), 'View Location Examples', the office link and News Headlines. 'Current conditions at' is at y=795 and 'Tonight \u00b7 Low: 53 \u00b0F' at y=1461, with a viewport 813 px tall (research/shots/skeptic-nws.png). The original shows current conditions and the 7-day strip on its first screen. Opening FORECAST gives a dialog titled 'Local Graphical Aviation Marine Rivers and Lakes Hurricanes Severe Weather Fire', and its Close button wraps as 'Clo/se'. The page behind the dialog also turned into a long list of the dropdown links (research/shots/skeptic-nws-fmenu.png). The dialog title and the wrap are polish, but the site nav and header widgets kept in the body are real noise and push the forecast down, so this is medium.",
+   "fix": "In src/content/extract/generic.ts, recognize the NWS div.navbar (a row of dropdown toggles for site sections) as site chrome in isChrome() and move it to Menu. Name the dropdown dialog from its trigger ('Forecast'), not from its items' text (dialogIn/openedPanel). Never use a field's name attribute as its visible label (toField's label fallback)."
+  },
+  {
+   "source": "T4-generic",
+   "title": "Booking destination suggestions in Sift lag 1.5-3 s behind the original and show the previous list under the new text",
+   "severity": "medium",
+   "where": "https://www.booking.com/ (destination field)",
+   "evidence": "I typed into Sift's field and polled every 500 ms. 'Cordoba': the original listed C\u00f3rdoba results at 1963 ms, while Sift still showed 'San Carlos de Bariloche | Mendoza 2 adults' until 4013 ms and updated at 4795 ms. 'Salta': the original updated by 1256 ms, Sift by 3066 ms. During the gap, a click on Sift's first suggestion would pick the stale destination. Earlier, 4 s after typing 'Bariloche', Sift still showed the default list (Mendoza, Niagara Falls, Toronto\u2026) while the original had Bariloche results. Shot: /home/nico/projects/sift-test-4/research/shots/r6t4-booking-typing2.png. The machine is busy, but the original was measured at the same time in the same tab.",
+   "repro": "Load https://www.booking.com/ in Sift, wait 12 s, then run bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/sugg-lag.ts Cordoba with SIFT_PORT=9464 SIFT_TAB=T4-generic. The script clears Sift's search field, types the word, and every 500 ms prints Sift's suggestion buttons next to the original's [data-testid=autocomplete-result].",
+   "suspectedCause": "Re-extraction after the suggestion list's mutations is debounced or queued behind a slow full extract. The list under a focused field could be refreshed first.",
+   "regression": false,
+   "verdict": "Reproduced with the agent's script, 3 words, while the machine was less loaded (load average about 4.5 on 6 cores). The original showed new results at 1421, 1269 and 1293 ms. Sift showed them at 2429, 2780 and 2301 ms. Until then, Sift still showed the old 'San Carlos de Bariloche | Mendoza' list. So Sift was about 1.0 to 1.5 s behind, not the 1.5 to 3 s claimed, but the lag is real and the same every time. During it, a click on Sift's first suggestion would pick a destination the original no longer offers. Cause in the code: the input path in src/content/index.ts runs schedule(0) 300 ms after the last keystroke, which is before the network answer arrives. The list's later mutations then go through the routine idle path of schedule(): up to 800 ms, or lastDur*9, plus a requestIdleCallback with a timeout of 600 ms.",
+   "fix": "In src/content/index.ts, while a field with a suggestion list has focus and was typed in within the last ~3 s, schedule mutations promptly (schedule(0) or a delay under 100 ms) instead of through the idle backoff in schedule(). Or keep the typedRun fast path active until the list changes."
+  },
+  {
+   "source": "T4-generic",
+   "title": "Booking 'Sign in, save money' promo modal is shown as a Sift dialog and takes the first input",
+   "severity": "medium",
+   "where": "https://www.booking.com/ (first visit in the session)",
+   "evidence": "After clicking Sift's destination field and typing 'Bariloche', Sift showed a modal dialog 'Window offering discounts of 10% or more when you sign in to Booking.com \u2026 Sign in, save money \u2026 Sign in or register'. The typed text was lost: the field still read 'Mendoza'. This is the original's aria-modal Genius promo. Spec: popups are noise. After 'Dismiss sign-in info.', typing worked. I saw it once; after dismissal the site did not show it again in this profile, so a fresh profile may be needed to reproduce. Shot: /home/nico/projects/sift-test-4/research/shots/r6t4-booking-typing.png",
+   "repro": "In a fresh Chrome profile: SIFT_PORT=9464 SIFT_TAB=T4-generic bun scripts/act.ts goto:https://www.booking.com/ wait:12000 'click:input[type=search]' press:Control+a press:Backspace 'type:input[type=search]=>Bariloche' wait:4000 \"eval:[document.querySelector('sift-root').shadowRoot.querySelector('[role=dialog]')?.innerText.slice(0,80), document.querySelector('sift-root').shadowRoot.querySelector('input[type=search]').value]\" gave ['Window offering discounts of 10%\u2026','Mendoza'].",
+   "suspectedCause": "The dialog rules keep any visible aria-modal dialog. A sign-in or discount promo with a 'Dismiss' button and no form could be dismissed (proxy its Dismiss button) or dropped.",
+   "regression": false,
+   "verdict": "Reproduced after I cleared booking.com cookies and storage in the test profile (CDP Network.deleteCookies and Storage.clearDataForOrigin, booking.com only). On load, Sift shows a modal dialog: 'Window offering discounts of 10% or more when you sign in to Booking.com \u00b7 Dismiss sign-in info. \u00b7 blue Genius logo \u00b7 Sign in, save money \u00b7 Sign in or register'. Clicking Sift's search field and typing 'Bariloche' left the field empty, and the dialog stayed on top (research/shots/skeptic-booking-fresh2.png). The original also shows this Genius promo (research/shots/skeptic-booking-fresh-orig.png), but the spec says popups and promos are removed. Sift keeps it as a blocking dialog and loses the first input. On a later load it did not show again. Cause in the code: dialogIn() in src/content/extract/generic.ts drops self-opened dialogs only when NOISE_TEXT (cookies or newsletter) matches. Its close-name regex /^(close|\u2026|dismiss|\u2026)$/ does not match 'Dismiss sign-in info.', so the dialog has no close and may be marked blocking.",
+   "fix": "In src/content/extract/generic.ts dialogIn(), skip (or auto-dismiss by proxying its Dismiss button) a dialog the page opened on its own, with no field, whose content is a sign-in or discount promo (a 'Sign in or register' link plus a dismiss control, 'save 10%'). Keep it when the user's last action opened it (openedWith). Also let the close-name regex match names that start with Dismiss or Close ('Dismiss sign-in info.')."
+  }
+ ],
+ "rejected": [],
+ "stillOpen": [
+  {
+   "id": "F309",
+   "status": "partly",
+   "evidence": "Fresh loads: the generic interim view is gone. In 7 of 7 loads (3 runs of poll.ts plus 4 screencasts, plain and Mix), I never saw the 'search query' placeholder, the H1 without its prefix, or an H1 above the player. Sequence: 'Loading' at 0.8-1.1 s, then the H1 'Rick Astley - ...' with 'Loading\u2026' at 0.9-1.3 s, then the player inserted above at 1.5-2.1 s, then the full adapter view. Two problems remain. (1) For about 0.6-0.8 s the title stands alone at top 77. Then the player is inserted above it, and the H1 jumps to 572 (3 of 3 polls). Frames: /home/nico/projects/sift-test-1/research/shots/R6T1-watch-early-4up.png. (2) On a single-page navigation into a watch page, the generic layout still appears for 2-8 s, with H1 'YouTube' above the player. See the new finding on that.",
+   "src": "T1-youtube",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, as the reporter says. In 2 fresh polled loads of watch?v=dQw4w9WgXcQ, no generic view appeared: no 'search query' placeholder, no H1 without the prefix, and no H1 above the player. Sequence: 'Loading' at 0.8-1.2 s. Then the H1 'Rick Astley - Never Gonna Give You Up...' stood alone at top 77 (from 992 ms and 1687 ms). Then the player was put above it, and the H1 jumped to 572 (at 1530 ms and 2799 ms), then settled at 632-633. So the fresh-load jump of about 500 px remains, for 0.5-1.1 s. The single-page-navigation case is still open: the 'YouTube' H1 above the player for about 3 s, then a jump (confirmed under N0).",
+    "fix": "In src/content/adapters/youtube.ts watch(), on first load, when early is set but #movie_player is not there yet, reserve the player's place: push a placeholder portal-wrap block at 16:9 before the title, or hold the title until the player exists, so the H1 never starts above where the player will be. For the single-page-navigation part, see the N0 fix."
+   }
+  },
+  {
+   "id": "F563",
+   "status": "partly",
+   "evidence": "The original fixture is fixed: mostread.html gives 5 story items, 'h2: Most read', then 10 linked items, and the real extension has a link for story 9. Two common variants still fail, in the harness and the real extension. (1) The box title is a link (<h3><a href=/most-read>Most read</a></h3>, scratchpad/r5/fx/mostread-linked.html). (2) The ranked rows are divs, not ol/li (mostread-divs.html). Both give one item 'Most read ->/most-read' (or ->/read/0) with headlines 0-7 squeezed into its meta. Stories 8 and 9 are gone: real extension act 'click:Most read story number 8' says 'not found'. Cause: listedHeadlines (generic.ts:2177-2190) needs the box's first visible link to sit inside an ol/ul/[role=list].",
+   "src": "R1-extractor",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Confirmed as partly fixed. mostread.html now gives 5 story items, 'h2: Most read', and 10 linked items. Both variants still fail. mostread-linked.html gives one item 'Most read ->/most-read' with headlines 0-7 in its meta. mostread-divs.html gives 'Most read ->/read/0' with headlines 0-7 in its meta. Real extension: mostread-linked shows '[link] Most read' with links 0-7, mostread-divs shows links 1-7, and act 'click:Most read story number 8' says 'not found' on both. r5-base fails the same way, but round-4 g-base (sift-r4-base) handles both variants, giving 'h2: Most read' (linked in the first variant) and all 10 links. So both variants are still the F563 regression. listedHeadlines (generic.ts:2177) looks for the box's first visible link inside an ol/ul/[role=list]. In the linked variant that first link is the title, and in the divs variant there is no list at all.",
+    "fix": "In listedHeadlines (src/content/extract/generic.ts ~2177-2190), skip a first link that sits in the box's heading before checking for a list. For rows without a list, also accept 3 or more sibling elements that each hold one headline link (a repeated row class) as the list."
+   }
+  },
+  {
+   "id": "F566",
+   "status": "partly",
+   "evidence": "The fixture with onclick works. hashlink.html gives '[How do I change the delivery address\u2026? ->\u2026#]'. In the real extension, act 'click:How do I change' opens the answer: 'Open Your orders\u2026' appears and #a1.hidden is false. The same FAQ wired with addEventListener only (no onclick, aria-* or role; scratchpad/r5/fx/hashlink2.html) still becomes plain 'p:' text. Real extension: 'click:How do I change' says 'not found', and the answer stays hidden. scriptLink (generic.ts:831) only checks attributes, so listener-only links of 60+ characters to '#' still read as text (generic.ts:1017, 3458).",
+   "src": "R1-extractor",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Confirmed as partly fixed. Real extension: on hashlink.html (onclick), both questions are links. 'click:How do I change' opens the answer: 'Open Your orders\u2026' appears and the answer's hidden is false. On hashlink2.html (same FAQ, wired with addEventListener only), both questions are plain 'p:' text. 'click:How do I change' says 'not found', and the answer stays hidden (hidden is true). scriptLink (generic.ts:831) only checks onclick, data-action, aria-* and role, and the isolated world cannot see listeners added by page scripts. So the guards at generic.ts:1017 and 3458 still turn listener-only long '#' links into text.",
+    "fix": "In src/content/extract/generic.ts (~1017 and ~3458), stop turning a bare href='#' link into text: keep it as a link or action, since proxy.ts replays the click on the original. Or have src/main/index.ts hook EventTarget.prototype.addEventListener for click on anchors and mark them (a data attribute), so scriptLink can see them. Delegated listeners would still be missed by the hook, so keeping bare '#' links clickable is the more robust fix."
+   }
+  },
+  {
+   "id": "F503",
+   "status": "partly",
+   "evidence": "The date part is fixed. On /city/ar/mendoza.html, clicking 'Friday, November 20, 2026' in Sift gives 'Fri, Nov 20 / Check-out date' and the calendar stays open (66 checkboxes). Then 'Thursday, November 26, 2026' gives 'Fri, Nov 20 / Thu, Nov 26'. The home-page flow (destination, dates) works the same. Still wrong: while the date picker is open, Sift's header submit button is labelled 'Calendar' (eval of the header buttons: ['Calendar@9','Search@3466']). Clicking it submits the search. Shots: /home/nico/projects/sift-test-4/research/shots/r6t4-booking-date1.png, /home/nico/projects/sift-test-4/research/shots/r6t4-booking-date2.png, /home/nico/projects/sift-test-4/research/shots/r6t4-booking-city.png. (After Search, both Sift and the original land on the city page without dates. This is the site's behavior, the same with Sift off.)",
+   "src": "T4-generic",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Status 'partly' is accurate. The date part is fixed: on /city/ar/mendoza.html, clicking 'Friday, November 20, 2026' in Sift gave 'Fri, Nov 20 / Check-out date' and the calendar stayed open (61 checkboxes). Then 'Thursday, November 26, 2026' gave 'Fri, Nov 20 / Thu, Nov 26'. The 'Calendar' label did not show on the city page in my session: after the cookie reset its picker had no Calendar/I'm flexible tabs. It did show on the home page. With the date picker open (tabs 'Calendar' and 'I'm flexible' shown), Sift's header submit button reads 'Calendar' (research/shots/skeptic-booking-home-dates.png). Clicking it did not search in my run: the URL stayed https://www.booking.com/, the calendar closed and check-out was set to Nov 21. So the button's effect is wrong too, though not the way the claim says. Cause found: the search-field code in src/content/extract/generic.ts (around line 4920) runs own.find(named) before filtering out role=tab. named() tests SEARCH_BUTTON against the id, and the tab's id 'calendar-searchboxdatepicker-tab-trigger' contains 'search'. So the Calendar tab becomes f.submit and gives the submitLabel.",
+    "fix": "In src/content/extract/generic.ts, in the search-field button choice, pick from `plain` only: btn = plain.find(named) ?? plain.find(submit-type). Also test the id against SEARCH_BUTTON only as a whole word, not as a substring of 'searchbox'."
+   }
+  }
+ ],
+ "works": [
+  "T1-youtube: F508: no original bleed in 4 fresh-load screencasts and 1 single-page-navigation screencast; YouTube's view transitions are skipped (AbortError) while Sift is shown.",
+  "T1-youtube: F509: fresh watch load starts focus on Sift's main; YouTube does not take focus back (2 of 2 runs to 19.7 s); PageDown scrolls Sift even with focus in the player.",
+  "T1-youtube: F510: Mix, playlist and Up next links keep list= exactly as the original; a middle-click opens the Mix.",
+  "T1-youtube: works.md 23/85: one player portal exactly over #movie_player at 1280 (262,95,756,425), 600 (18,148,564,317), 400 (18,140,364,205) and 640x450@2x (18,148,604,339); no horizontal overflow in Sift's view.",
+  "T1-youtube: works.md 24/86: Pause/Play, Ahead 10s (11.3->21.3), Back 10s (->11.3), Mute/Unmute and Captions (YouTube CC aria-pressed true->false->true; Sift's Captions aria-pressed follows). Clicking the picture pauses and Sift's label turns to Play.",
+  "T1-youtube: New seek slider: labeled 'Position in video' with aria-valuetext '1:46 / 3:33'; a click seeks (106/213); ArrowRight/Left +-1 s, PageUp +21 s, End to 3:33, Home to 0:00; the value follows playback.",
+  "T1-youtube: works.md 25/87: Full screen by mouse and by keyboard (Enter on Sift's button, focus moves into the player); exit by f and by YouTube's own exit button; the portal is realigned and focus returns to Full screen.",
+  "T1-youtube: works.md 26/88: Theater mode toggled inside the portal; the portal stays exactly over the player, on and off.",
+  "T1-youtube: works.md 27/89: search typing + Enter; chips pressed (All, then Videos); Filters opens 'Search filters' with Relevance pressed; 'This week' gives sp=EgIIAw%253D%253D, the same as YouTube's link.",
+  "T1-youtube: Search suggestions: the list appears, ArrowDown moves into it, Enter or a click searches the suggestion (results?search_query=never+gonna+give+you+up+lyrics); Escape closes it with focus kept in the field.",
+  "T1-youtube: works.md 28/90: search results keep the channel row (description, @RickAstleyYT \u00b7 4.55M subscribers, Subscribe to the same sign-in URL) and playlist rows ('RickAstley - Greatest Hits \u00b7 RickAstleyVEVO \u00b7 Playlist \u00b7 10 videos').",
+  "T1-youtube: works.md 29/91: Up next to a bot-checked video shows the notice with no stale player; history back restores player, H1 and sections; autoplay at the end moved Sift to the next video.",
+  "T1-youtube: works.md 30/92: replies 10->21 with 'Show more replies', the same as the original; End loads comments in step (40->60->80->100, equal to the original's visible threads); Sort Newest by keyboard re-sorts and focus returns to 'Sort comments'. Comment timestamp links are now real links that seek.",
+  "T1-youtube: works.md 31/93: signed-out Like, Save to playlist and Subscribe open 'Like this video?', 'Want to watch this again later?' and 'Want to subscribe to this channel?'; Escape returns focus to the opener.",
+  "T1-youtube: works.md 32/94 and T5 63: Menu holds the full guide, the same as the original's entries; Show more adds Playables and Memberships; focus on Close, Tab trapped (Shift+Tab -> Report history), aria-modal=true, Escape returns to Menu. Settings > Keyboard shortcuts opens and Escape returns to Settings.",
+  "T1-youtube: works.md 33/95: Tab order inside Sift: header, media bar, Position in video, channel, Subscribe, Like, Dislike, Save, Description, Up next (only titles are stops), Comments, Sort, reply buttons, switch; no stops in the hidden original.",
+  "T1-youtube: works.md 34/96 and T5 65: axe-core 0 violations on the Mix watch page with Mix, Description, Transcript, Up next and Comments open, and with replies and Settings open; 0 on search, home and Shorts.",
+  "T1-youtube: works.md 35/97: Spanish watch, search and home are fully Spanish (Pausar, Atr\u00e1s 10 s, Posici\u00f3n en el v\u00eddeo, Descripci\u00f3n, A continuaci\u00f3n, Filtros de b\u00fasqueda with Relevancia pressed, Vista Sift); Up next one-liners are in Spanish; lang=es-ES. Reset to hl=en afterwards.",
+  "T1-youtube: works.md 36/98: home Topics chips pressed state (Music, then All); Sift follows the original's first rows; infinite scroll 21->45->69->93, equal to the original.",
+  "T1-youtube: works.md 37/99: Shorts 'View N comments' opens the comments; Next video navigates. Previous video did not navigate, but the original does the same in this profile (checked with Sift off).",
+  "T1-youtube: works.md 38/101 and T5 69: firstpaint home original 4823/2985/3921 ms vs Sift the same; search original 3684/3770/3887 vs Sift 1717/2191/1899; watch original title 8544/15354/14005 vs Sift 4384/3117/6233.",
+  "T1-youtube: works.md 39: transcript 24 lines, the same as the original's 24 segments; a click on 0:43 seeks to 43.0; Tab plus Enter on a line seeks (60.0).",
+  "T1-youtube: works.md 40: Settings > Appearance > Dark theme applies on the original (html[dark]); Sift stays white (#fff, text #111). Reverted to Light.",
+  "T1-youtube: works.md 100 and T5 67: 600 px, 400 px and 640x450@2x have no horizontal scroll and keep Up next; at 200% the header is static and scrolls away, and the video keeps playing.",
+  "T1-youtube: T5 71: landmarks header, form[role=search], main; h1 title, h2 Description/Up next/Comments.",
+  "T1-youtube: Playlist section: position 'n / 10', Loop cycles Loop playlist -> Loop video -> Turn off loop and Shuffle toggles, both mirrored with the original's aria-pressed and labels.",
+  "T1-youtube: Up next loads more on End (20->40), in step with the original.",
+  "T1-youtube: Signed-out bot checks (Gangnam Style, Mii Maker, playlist items 2-3, a Mix item, a lofi live stream) show YouTube's notice with Sign in and Learn more, the same as the original. I did not get around them, so the live stream is untested.",
+  "T4-generic: All 10 rechecked findings hold on the merged build (9 fixed, F503 partly). See the rechecks.",
+  "T4-generic: works.md T4-generic lines still hold: axe-core 0 violations on the HN thread (item 50224463), Craigslist search, arXiv search, Discourse latest, GitHub Status, Python docs pathlib, HN Search, GOV.UK search, OSM wiki, argentina.gob.ar search and the Discourse thread. Also 0 on Booking Mendoza, Stack Overflow 927358 and BART (only 1 on weather.gov, see polish).",
+  "T4-generic: First content is never slower than the original (firstpaint.ts, 3 runs each). HN thread 5430-8946 ms, GOV.UK renew 614-2184 ms, arXiv 1311-3738 ms, Python docs 4471-5103 ms and weather.gov 751-2298 ms were equal to the original. Discourse latest was faster: Sift 824-4096 ms vs original 2211-7909 ms.",
+  "T4-generic: 200% zoom (640 CSS px): no horizontal overflow on the HN thread, Craigslist search, Python docs, Discourse latest, GOV.UK search, HN Search, weather.gov, Booking city page, GitHub Status or Stack Overflow.",
+  "T4-generic: GOV.UK keyboard order stays in Sift: Skip, Search, Menu, Overview, the inline links, Renew online, the links, Previous/Next, printable version, Sift switch (renew page). The overview page is not condensed and keeps its inline links.",
+  "T4-generic: HN thread 50224463: depth matches the original for all 443 comments (0 differences). Deepest replies keep 665 px of text width. Each comment has age, reply, upvote, root/parent/prev/next and Collapse. Collapse folds 148 replies in both Sift and the original, '148 more' restores them, and focus stays on the toggle.",
+  "T4-generic: Stack Overflow 927358: not condensed. All 69 code blocks are verbatim (ignoring the original's 'Copy' text). 'Show 8 more comments' brings 13 question comments. An answer's 'Show all comments' expands in place, with focus on 'Collapse comments'. On 178325, 'Run code snippet' shows the result in a 628 px portal with no scroll jump (scrollTop 19819 before and after). The result took about 5 s to appear.",
+  "T4-generic: Search from Sift works: HN 'rust' goes to hn.algolia.com/?q=rust with 30 items. GOV.UK 'council tax' gives 10 items. argentina.gob.ar 'pasaporte' gives '756 resultados' with Spanish pagination (lang=es). The home field's 'dni' goes to /tramitar/tramites_y_servicios/dni, the same as the original.",
+  "T4-generic: Allbirds: the Navy Night swatch changes the URL to /mens-tree-runners-navy-night, the line to 'Color: Navy Night (classic edition)' and the photo alt. Size 10 gets aria-pressed=true and 'Add to Cart - $100' appears (not clicked). The gallery dialog shows 4 images. Reviews are empty in Sift and in the original (the Yotpo widget never loads, even when scrolled).",
+  "T4-generic: Craigslist: the 'SF bay area' dialog lists the nearby areas. 'wheel size' opens 18 options under itself with aria-expanded=true. A price range of 100-400 plus Apply gives min_price/max_price in the URL, and sort '\ufe69\u2192 $$$' gives sort=priceasc with the filter kept; results start at $100.",
+  "T4-generic: BBC Good Food gluten-free bread: 6/6 ingredients and 3/3 method steps match word for word. The Metric/US radios are labelled. The tabs show aria-pressed. '22 comments' focuses the 'Comments, questions and tips (22)' heading.",
+  "T4-generic: GitHub fd: the toolbar (5 'Filter by' buttons and Sort) survives 0-result and 6-result searches. The logged-out original has no Open/Closed toggle either. The README Short version keeps 66/66 code blocks verbatim.",
+  "T4-generic: Python docs pathlib: 21/21 section headings, 83/83 pre blocks, and API entries render as paragraphs with code blocks. The Menu holds the table of contents and the previous/next topic links.",
+  "T4-generic: HN front page: 30 items, each with upvote and comments. 'More' loads ?p=2 with 30 items starting at rank 31. lobste.rs keeps tags, domain, author, archive links, score and comments for 25/25 stories.",
+  "T4-generic: Booking: suggestions appear while typing, picking 'San Carlos de Bariloche' fills the field, and picking two dates in Sift sets 'Fri, Nov 20 / Thu, Nov 26'.",
+  "T4-generic: GOV.UK search: 'Filter and sort', then 'Sort by', 'Updated (newest)' and Apply gives order=updated-newest, with results dated 23 October 2026.",
+  "T4-generic: arXiv: 21/21 results. '\u25bd More' expands the abstract (193 \u2192 1408 chars) and turns into '\u25b3 Less'. The sort select changes with the keyboard and Go applies it (order= in the URL).",
+  "T4-generic: HN Search: Date sort gives sort=byDate with matching results. Page '2' loads page=1 with 30 items. The current page has aria-pressed=true.",
+  "T4-generic: Discourse thread: 'This post has 3 replies' expands 3 embedded replies, with aria-expanded=true. Discourse latest: the wheel loads more rows (210) and Sift catches up within 3 s.",
+  "T4-generic: weather.gov: typing 'Seattle, WA' and pressing Go opens the Seattle forecast. The detailed 7-day text, current conditions and hazard link are complete.",
+  "T4-generic: Not checkable this round: (1) the Discourse inline search results (works.md line 'Discourse search dialog'). users.rust-lang.org rate-limited search ('You\u2019ve performed this action too many times' / '503 error'). Sift showed that error dialog, and one OK closed it. (2) GOV.UK 'Renew online' reaches passport.service.gov.uk, which returned a WAF 'Web Page Blocked' page. (3) rome2rio showed a bot check (left alone). (4) sbb.ch rendered blank in the original too."
+ ],
+ "polish": [
+  "T1-youtube: Fresh watch load: for about 0.7 s the title stands alone at the top, then the player is inserted above it and the title jumps about 500 px down (/home/nico/projects/sift-test-1/research/shots/R6T1-watch-early-4up.png).",
+  "T1-youtube: Comments: the author handle and the time are adjacent spans with no whitespace between them, so innerText and copy read '@DavidPrince-xg4rh5 minutes ago'.",
+  "T1-youtube: YouTube's single-key shortcuts (k, m, j, l) do nothing while focus is in Sift, though Settings > Keyboard shortcuts lists them (left over from F303; the new slider covers seeking).",
+  "T1-youtube: Seek slider: ArrowLeft/Right step 1 s, while YouTube's player steps 5 s, so moving through a long video by arrows is slow.",
+  "T1-youtube: At 200% zoom (640x450@2x) the Sift switch sits over the player's bottom-right controls, and a black box is drawn around it over the video (/home/nico/projects/sift-test-1/research/shots/R6T1-zoom200-switch-crop.png).",
+  "T1-youtube: Search box: after Escape closes the suggestions, ArrowDown does not reopen them; you have to type again.",
+  "T1-youtube: Menu: 'Show more' / 'Show less' in the guide is a link (a), not a button.",
+  "T1-youtube: Playlist/Mix: the current item is marked only by the text 'NOW PLAYING'; there is no aria-current.",
+  "T1-youtube: Home meta lines: 'ExCaL 149 watching' has no separator between channel and live count, and 'Iran International ... \u00b7 43:55 \u00b7 and \u0646\u06cc\u0648\u0634\u0627 \u0635\u0627\u0631\u0645\u06cc' splits the collaborator name after the duration.",
+  "T1-youtube: Transcript lines are links with href='#', so a middle-click or a copied link opens the same page.",
+  "T1-youtube: Right after leaving full screen (1.5 s), one screenshot lacked the Subscribe/Like/Save row; it was back a moment later (/home/nico/projects/sift-test-1/research/shots/R6T1-fs-off.png).",
+  "T1-youtube: Shorts at 400 px: Sift has no Next or Previous control because the original hides its arrows at that width. Wheel and ArrowDown did not advance the original either in this profile, so I could not show a difference.",
+  "T1-youtube: Watch page action row: 'Like 19M' next to 'Dislike this video' is an inconsistent label style.",
+  "R1-extractor: src/content/extract/generic.ts:651 labelOf's new rule (4+ letters of visible text win over the aria-label) makes one GitHub toolbar inconsistent: live github.com/vitejs/vite/issues shows 'Filter by author', 'Filter by labels' \u2026 next to 'Types' (was 'Filter by issue type'), because 'types' is not a substring of the aria-label.",
+  "R1-extractor: src/content/extract/generic.ts:1121-1122: the BACKLINK doc comment ('Links from a note back to where it was cited') now sits above the new ANCHOR_NAME JSDoc, so two doc comments are stacked and BACKLINK has none.",
+  "R1-extractor: src/content/extract/generic.ts:312-316: the dangling 'Buttons with one name beside different fields' doc comment sits above boxButton's own (it predates round 5).",
+  "R1-extractor: src/content/extract/generic.ts:5581-5585 findToast saves and restores lastPop around findPopup(newCtx()) but not nav's shownPop, which that call also overwrites (generic.ts:5206). I found no failing case; I only note it as a merge loose end.",
+  "R1-extractor: Stack Overflow question pages in headless Chrome serve a bot-check DOM (13 KB, empty innerText). During it, extract() once threw 'null.querySelectorAll' in findArticle (document.body swapped mid-run). That is not reproducible on a normal load, so I did not pursue it.",
+  "R1-extractor: src/content/extract/generic.ts:3246 (heading branch): a heading whose only text sits in a web component's shadow root (<h2><docs-link label=Changelog></h2>) is dropped with its link, both now and before round 5 (scratchpad/r5/fx/shadowlink2.html).",
+  "R2-interaction: src/content/recent.ts:57 with index.ts:1363: a toast whose text changes in place ('Order #1006 restored.' written into the same #toast on fx/r5-table.html) adds no element, so findToast never finds it. It is only spoken (newAlert) and never shown in the notice.",
+  "R2-interaction: src/content/index.ts:1781: checkUrl clears store.notice but not store.noticeActions, toastEl or lastToast. An Undo toast the page keeps showing across a single-page navigation is never shown again (findToast's said === lastToast returns early).",
+  "R2-interaction: src/content/ui/app.tsx:997-1000: watchNotice calls barObs.observe() for every new .bar-notice element and never unobserves it, so removed notice divs stay observed until the bar element changes.",
+  "R2-interaction: src/main/index.ts:137-151: while Sift is shown, every document.startViewTransition() is skipped, so transition.ready rejects with an unhandled AbortError (checked: 'readyRejected AbortError' in Sift, 'ready' on the original). A page that awaits ready before other work skips that work. Astro's router uses updateCallbackDone and finished, so it is fine.",
+  "R2-interaction: src/main/index.ts:189-198: a page's click listener on window, document or <html> added with capture and once is used up by a click on Sift's own controls without running (the wrapper returns early, and once still removes it).",
+  "R2-interaction: src/main/index.ts:179-205: EventTarget.prototype.addEventListener and removeEventListener are no longer native functions in the page world (toString shows source). Some bot-detection scripts check for this kind of tampering. Not verified on a real site.",
+  "R2-interaction: src/content/index.ts:1636-1645: in a single-page app whose title stays the same, the new page's name is said only after the 2.5 s titleWait timer, not at once.",
+  "R2-interaction: src/content/index.ts:1123 and 1897: shownItems now counts table rows (10 or more), so scrolling near Sift's end on a page whose only list is a long table calls loadMore(), which scrolls the hidden original to its bottom.",
+  "R2-interaction: src/content/index.ts:2451 (Undo in the notice): after Undo, focus jumps to the next control in reading order (r5-table.html: 'Export CSV'), not near the restored row.",
+  "T4-generic: Python docs search: a few results whose link is an #index-N anchor are dropped (fnmatch.html#index-3 on q=glob, c-api/threads.html#index-7 on q=thread). Same-href entries are merged.",
+  "T4-generic: Craigslist listing: the '\u25b2' back-to-search link is named only '\u25b2' (the original's title 'back to search' is not used). 24 'Image N' buttons fill a run of the page. The 'copy' button next to the reply email is dropped.",
+  "T4-generic: Craigslist search: the odometer and model year min/max fields are labelled 'whole number, no letters or symbols', and the price fields only 'min'/'max'. The group name is missing from each field's name.",
+  "T4-generic: OSM wiki Key:highway: the 'Used on these elements' icons run together as 'may be used on nodesmay be used on ways\u2026'.",
+  "T4-generic: GitHub Status: each component shows both 'Operational' and 'Normal'. The incident list gives dates only, without the incident names from the bar tooltips.",
+  "T4-generic: Python docs Menu: the 'Previous topic' and 'Next topic' labels are dropped, so 'File and Directory Access' and 'os.path \u2014 \u2026' stand alone after the TOC.",
+  "T4-generic: weather.gov: 'Your local forecast office is' comes after the office link instead of before it. The basemap select has no accessible name (axe select-name, critical). The BART page H1 is 'Bay Area Rapid Transit' rather than 'Trip Planner'.",
+  "T4-generic: Discourse thread: the topic map keeps 5 avatar links (\"MOCKBA's profile\" \u2026) right after the first post.",
+  "T4-generic: arXiv search: the 'Search v0.5.6 released 2020-02-24' link sits right under the H1.",
+  "T4-generic: Booking city page: the date picker lists 66 checkboxes, including 24 disabled past days (Oct 1-24), before the travelers field and Search.",
+  "T4-generic: GOV.UK tabwalk: after the Sift switch, focus goes to the page body once before cycling back to Skip (browser cycle, the same as before)."
+ ],
+ "recheck": {
+  "F508": {
+   "id": "F508",
+   "status": "fixed",
+   "evidence": "4 PNG screencasts of fresh loads (3x watch?v=dQw4w9WgXcQ, 1x the &list=RDdQw4w9WgXcQ Mix; 122-165 frames each over 13 s) plus 1 screencast of a search-to-watch click (185 frames): 0 frames with dark pixels in Sift's white margins (x<250 and x 1030-1140, y>=150). Frames: /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r6/c1..c4 and spa1. Counter: t1r6/dark.py. A main-world hook (t1r6/vt.ts) shows YouTube still calls document.startViewTransition (at 5.3 s on a fresh load, and again on the single-page navigation). Its ready promise rejects with AbortError each time, so the transition is skipped. The wrapper from the round 5 fix is installed on Document.prototype.",
+   "src": "T1-youtube"
+  },
+  "F509": {
+   "id": "F509",
+   "status": "fixed",
+   "evidence": "tabs2.ts after a fresh load: 'start: SIFT <main#sift-main>'. The first Tab goes to Sift's Pause, then the whole Sift order. No PAGE stops until after the Sift switch, where focus leaves the document. early.ts, 2 runs: focus stayed on Sift's Full screen (or Mute) from 2.9-4.0 s through 19.7 s, so YouTube no longer takes it back. t1r6/pgdn.ts: PageDown with the initial focus scrolls Sift (portal top 95 -> -202) and PageUp returns it. After a click on the video picture (focus PAGE div#movie_player), PageDown still scrolls Sift (95 -> -202), and the original's scrollY stays 0. ArrowDown lowers the volume (0.85 -> 0.80) and Space toggles play, as on the original.",
+   "src": "T1-youtube"
+  },
+  "F510": {
+   "id": "F510",
+   "status": "fixed",
+   "evidence": "results?search_query=rick+astley: Sift's 'Mix - Rick Astley' points to watch?v=dQw4w9WgXcQ&list=RDEMt6MUSQI0t_Ts2EDUDWGRhQ&start_radio=1. 'Mix - Rick Astley - Never Gonna Give You Up...' points to ...&list=RDdQw4w9WgXcQ&start_radio=1. Both match the original's hrefs exactly. A trusted middle-click (modclick.ts) on the Mix link opened a new tab at the full Mix URL. The Up next links also match the original one for one (e.g. /watch?v=oTu4WcpB9Iw&list=RDoTu4WcpB9Iw&start_radio=1&pp=oAcB). Playlist links keep list= as well.",
+   "src": "T1-youtube"
+  },
+  "F309": {
+   "id": "F309",
+   "status": "partly",
+   "evidence": "Fresh loads: the generic interim view is gone. In 7 of 7 loads (3 runs of poll.ts plus 4 screencasts, plain and Mix), I never saw the 'search query' placeholder, the H1 without its prefix, or an H1 above the player. Sequence: 'Loading' at 0.8-1.1 s, then the H1 'Rick Astley - ...' with 'Loading\u2026' at 0.9-1.3 s, then the player inserted above at 1.5-2.1 s, then the full adapter view. Two problems remain. (1) For about 0.6-0.8 s the title stands alone at top 77. Then the player is inserted above it, and the H1 jumps to 572 (3 of 3 polls). Frames: /home/nico/projects/sift-test-1/research/shots/R6T1-watch-early-4up.png. (2) On a single-page navigation into a watch page, the generic layout still appears for 2-8 s, with H1 'YouTube' above the player. See the new finding on that.",
+   "src": "T1-youtube",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, as the reporter says. In 2 fresh polled loads of watch?v=dQw4w9WgXcQ, no generic view appeared: no 'search query' placeholder, no H1 without the prefix, and no H1 above the player. Sequence: 'Loading' at 0.8-1.2 s. Then the H1 'Rick Astley - Never Gonna Give You Up...' stood alone at top 77 (from 992 ms and 1687 ms). Then the player was put above it, and the H1 jumped to 572 (at 1530 ms and 2799 ms), then settled at 632-633. So the fresh-load jump of about 500 px remains, for 0.5-1.1 s. The single-page-navigation case is still open: the 'YouTube' H1 above the player for about 3 s, then a jump (confirmed under N0).",
+    "fix": "In src/content/adapters/youtube.ts watch(), on first load, when early is set but #movie_player is not there yet, reserve the player's place: push a placeholder portal-wrap block at 16:9 before the title, or hold the title until the player exists, so the H1 never starts above where the player will be. For the single-page-navigation part, see the N0 fix."
+   }
+  },
+  "F560": {
+   "id": "F560",
+   "status": "fixed",
+   "evidence": "Harness, current tree compared with sift-r5-base, on scratchpad/r5/fx/dates.html. Now: actions ['Fri 24[on]','Sat 25[off]',\u2026] and actions ['10:30 AM',\u2026], and the 'Other days' row is links ([Fri 24 ->/showtimes?day=0] \u00b7 \u2026). Pre: 'p: Fri 24 \u00b7 Sat 25 \u2026' as plain text. Real extension (9468): act 'click:Sat 25' then 'click:7:15 PM' gives #picked 'Time picked: 7:15 PM' with .sel on 'Sat 25'. core-buttons3000: 3000 <button>s in Sift's main, first content 1895 ms. readingStrip now refuses cells that are or hold a control (generic.ts:3890), and the fade drop only applies to cells that are not links.",
+   "src": "R1-extractor"
+  },
+  "F561": {
+   "id": "F561",
+   "status": "fixed",
+   "evidence": "Harness flags.html now gives '[English] [Espa\u00f1ol] [Fran\u00e7ais] [Deutsch] [\u4e2d\u6587]' and '[Download on the App Store] [Get it on Google Play]' (pre: '[English] +4', '+1'). The real extension shows all 7 links. Live github.com/vitejs/vite: '[npm package] [node compatibility] [build status] [discord chat]' (pre: 'npm package +3'). wall1000: 384 ms vs 9878 pre. wall3000: 443 ms vs 36414 pre, JSON 71,941 / 221,649 bytes, so every link is kept. A separate quadratic pass on the same kind of wall when it is a <ul> is new; see the pictureTwin finding.",
+   "src": "R1-extractor"
+  },
+  "F562": {
+   "id": "F562",
+   "status": "fixed",
+   "evidence": "Harness sentence.html: 'p: Showing 20 results \u00b7 [Sort: Newest (btn)] \u00b7 [Saved searches ->/saved]'. In the real extension the outline lists '[link] Saved searches'. Daily Mail article snapshot: now 'ul: [33 comments ->/#comments]' (pre: 'p: [Share (btn)] Add us as a preferred source33 comments' twice). The real extension text shows '33 comments' once, with no Share and no promo. Same on dailymail-article-video ('266 comments').",
+   "src": "R1-extractor"
+  },
+  "F563": {
+   "id": "F563",
+   "status": "partly",
+   "evidence": "The original fixture is fixed: mostread.html gives 5 story items, 'h2: Most read', then 10 linked items, and the real extension has a link for story 9. Two common variants still fail, in the harness and the real extension. (1) The box title is a link (<h3><a href=/most-read>Most read</a></h3>, scratchpad/r5/fx/mostread-linked.html). (2) The ranked rows are divs, not ol/li (mostread-divs.html). Both give one item 'Most read ->/most-read' (or ->/read/0) with headlines 0-7 squeezed into its meta. Stories 8 and 9 are gone: real extension act 'click:Most read story number 8' says 'not found'. Cause: listedHeadlines (generic.ts:2177-2190) needs the box's first visible link to sit inside an ol/ul/[role=list].",
+   "src": "R1-extractor",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Confirmed as partly fixed. mostread.html now gives 5 story items, 'h2: Most read', and 10 linked items. Both variants still fail. mostread-linked.html gives one item 'Most read ->/most-read' with headlines 0-7 in its meta. mostread-divs.html gives 'Most read ->/read/0' with headlines 0-7 in its meta. Real extension: mostread-linked shows '[link] Most read' with links 0-7, mostread-divs shows links 1-7, and act 'click:Most read story number 8' says 'not found' on both. r5-base fails the same way, but round-4 g-base (sift-r4-base) handles both variants, giving 'h2: Most read' (linked in the first variant) and all 10 links. So both variants are still the F563 regression. listedHeadlines (generic.ts:2177) looks for the box's first visible link inside an ol/ul/[role=list]. In the linked variant that first link is the title, and in the divs variant there is no list at all.",
+    "fix": "In listedHeadlines (src/content/extract/generic.ts ~2177-2190), skip a first link that sits in the box's heading before checking for a list. For rows without a list, also accept 3 or more sibling elements that each hold one headline link (a repeated row class) as the list."
+   }
+  },
+  "F564": {
+   "id": "F564",
+   "status": "fixed",
+   "evidence": "Harness textIn on pills.html: 'News Sport Business Culture', 'Topics: Politics Economy Leeds', 'Housing Transport Schools' (pre glued them). In the real extension, Sift's main text reads 'News Sport Business Culture'. On the live Infobae article the tags parent is display:flex, and the inline output has ' ' between each tag link. The unstyled saved snapshot still glues them because it lacks the site's CSS: its parent's 'display_flex' class computes to block.",
+   "src": "R1-extractor"
+  },
+  "F565": {
+   "id": "F565",
+   "status": "fixed",
+   "evidence": "Harness shadowlink.html now gives 'ul: [Get started ->/start]' (pre: TypeError reading 'getAttribute'). The real extension outline shows '[link] Get started' and the page text. Variants in scratchpad/r5/fx/shadowlink2.html, with the shadow link in a <p>, in <li>s, after loose text, and in card divs, all extract without errors.",
+   "src": "R1-extractor"
+  },
+  "F566": {
+   "id": "F566",
+   "status": "partly",
+   "evidence": "The fixture with onclick works. hashlink.html gives '[How do I change the delivery address\u2026? ->\u2026#]'. In the real extension, act 'click:How do I change' opens the answer: 'Open Your orders\u2026' appears and #a1.hidden is false. The same FAQ wired with addEventListener only (no onclick, aria-* or role; scratchpad/r5/fx/hashlink2.html) still becomes plain 'p:' text. Real extension: 'click:How do I change' says 'not found', and the answer stays hidden. scriptLink (generic.ts:831) only checks attributes, so listener-only links of 60+ characters to '#' still read as text (generic.ts:1017, 3458).",
+   "src": "R1-extractor",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Confirmed as partly fixed. Real extension: on hashlink.html (onclick), both questions are links. 'click:How do I change' opens the answer: 'Open Your orders\u2026' appears and the answer's hidden is false. On hashlink2.html (same FAQ, wired with addEventListener only), both questions are plain 'p:' text. 'click:How do I change' says 'not found', and the answer stays hidden (hidden is true). scriptLink (generic.ts:831) only checks onclick, data-action, aria-* and role, and the isolated world cannot see listeners added by page scripts. So the guards at generic.ts:1017 and 3458 still turn listener-only long '#' links into text.",
+    "fix": "In src/content/extract/generic.ts (~1017 and ~3458), stop turning a bare href='#' link into text: keep it as a link or action, since proxy.ts replays the click on the original. Or have src/main/index.ts hook EventTarget.prototype.addEventListener for click on anchors and mark them (a data attribute), so scriptLink can see them. Delegated listeners would still be missed by the hook, so keeping bare '#' links clickable is the more robust fix."
+   }
+  },
+  "F528": {
+   "id": "F528",
+   "status": "fixed",
+   "evidence": "Gmail fixture (r5int/rm1.ts): Enter on the first entry opens #inbox/1, and the live region says only 'Your class schedule for next week'. No 'Removed:'. r5int-morenav (more.ts): opening 'Recipe number 2' says only 'Recipe number 2'. Live YouTube home (ytnav.ts and r6int/ytnav2.ts): Enter on the first entry says 'YouTube' and nothing else; the watch page sits behind YouTube's bot check here, so document.title stays 'YouTube' for 14 s. The fix is the navAt < store.actAt guard at index.ts:415.",
+   "src": "R2-interaction"
+  },
+  "F529": {
+   "id": "F529",
+   "status": "fixed",
+   "evidence": "r5int/popcheck.ts: after checking Ana, the MODAL sheet stays at 200 ms, 800 ms, 2 s and 4 s, and focus stays on the checkbox in the layer. r5int/popselect.ts: choosing 'Can edit' keeps the sheet. New full flow (r6int/popflow.ts): check Ana by mouse, check Luis by Tab+Space, ArrowDown on the select, then Tab and Enter on Save. Page log: 'saved ana=true luis=true acc=Can edit', and focus goes back to People. The fix is H.check and H.select calling afterAct(inShownDialog(el)), index.ts:2533-2549.",
+   "src": "R2-interaction"
+  },
+  "F530": {
+   "id": "F530",
+   "status": "fixed",
+   "evidence": "r5int/zoom.ts 640x450: the bar is flat and the notice 'Your email: Please fill out this field.' is at top 0, bottom 74, in view (it was at -617). At 390x844 it is also at 0-74, in view. Control at 1280x900: top 64. r6int/zoom2.ts: focus moves to the email field at 83-133, below the notice, and typing then Send sends ('sent a@b.co'). This fix adds a new problem: see the finding about the notice covering the bar.",
+   "src": "R2-interaction"
+  },
+  "F500": {
+   "id": "F500",
+   "status": "fixed",
+   "evidence": "Ran the repro with evals at 1.5 s, 7.5 s and 12.5 s on 1 fresh load, plus 2 more fresh loads checked at 10 s. All gave [0,'zugzwanged,Anlis,Schard'] and the URL stayed /143208, so the original no longer jumps to the end. From the thread's end (scrollY 12834), a single Home press goes back to scrollY 0 and 'zugzwanged,Anlis,Schard'. Shot: /home/nico/projects/sift-test-4/research/shots/r6t4-discourse-fresh.png",
+   "src": "T4-generic"
+  },
+  "F501": {
+   "id": "F501",
+   "status": "fixed",
+   "evidence": "q=glob: the repro now gives [no article.short, glob.glob present, 88 original li, 83 Sift li.item]. The order matches the original: '7. Simple statements, glob, glob.glob, pathlib.Path.glob\u2026'. Only 1 of 84 unique result links is missing (fnmatch.html#index-3). The other gaps are same-href duplicates. q=thread: no Short version, 411 items against 412 unique links. q=walk from Sift's quick search gives 34 items, not condensed. Shots: /home/nico/projects/sift-test-4/research/shots/r6t4-pydocs-search.png, /home/nico/projects/sift-test-4/research/shots/r6t4-pydocs-search-thread.png",
+   "src": "T4-generic"
+  },
+  "F502": {
+   "id": "F502",
+   "status": "fixed",
+   "evidence": "The repro gives [1,1,1,1] on the SPECIALIZED HARDROCK listing. Sift shows the 600x450 photo with 24 'Image N' buttons ('Image 2' swaps the photo, as on the original), reply/favorite/hide/flag, prev/next and print. The map is now 318x300, below the photos. 'reply' then 'email' shows the relay address and the webmail links. Shots: /home/nico/projects/sift-test-4/research/shots/r6t4-cl-listing.png, /home/nico/projects/sift-test-4/research/shots/r6t4-cl-img2.png, /home/nico/projects/sift-test-4/research/shots/r6t4-cl-reply.png, /home/nico/projects/sift-test-4/research/shots/r6t4-cl-email.png",
+   "src": "T4-generic"
+  },
+  "F503": {
+   "id": "F503",
+   "status": "partly",
+   "evidence": "The date part is fixed. On /city/ar/mendoza.html, clicking 'Friday, November 20, 2026' in Sift gives 'Fri, Nov 20 / Check-out date' and the calendar stays open (66 checkboxes). Then 'Thursday, November 26, 2026' gives 'Fri, Nov 20 / Thu, Nov 26'. The home-page flow (destination, dates) works the same. Still wrong: while the date picker is open, Sift's header submit button is labelled 'Calendar' (eval of the header buttons: ['Calendar@9','Search@3466']). Clicking it submits the search. Shots: /home/nico/projects/sift-test-4/research/shots/r6t4-booking-date1.png, /home/nico/projects/sift-test-4/research/shots/r6t4-booking-date2.png, /home/nico/projects/sift-test-4/research/shots/r6t4-booking-city.png. (After Search, both Sift and the original land on the city page without dates. This is the site's behavior, the same with Sift off.)",
+   "src": "T4-generic",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Status 'partly' is accurate. The date part is fixed: on /city/ar/mendoza.html, clicking 'Friday, November 20, 2026' in Sift gave 'Fri, Nov 20 / Check-out date' and the calendar stayed open (61 checkboxes). Then 'Thursday, November 26, 2026' gave 'Fri, Nov 20 / Thu, Nov 26'. The 'Calendar' label did not show on the city page in my session: after the cookie reset its picker had no Calendar/I'm flexible tabs. It did show on the home page. With the date picker open (tabs 'Calendar' and 'I'm flexible' shown), Sift's header submit button reads 'Calendar' (research/shots/skeptic-booking-home-dates.png). Clicking it did not search in my run: the URL stayed https://www.booking.com/, the calendar closed and check-out was set to Nov 21. So the button's effect is wrong too, though not the way the claim says. Cause found: the search-field code in src/content/extract/generic.ts (around line 4920) runs own.find(named) before filtering out role=tab. named() tests SEARCH_BUTTON against the id, and the tab's id 'calendar-searchboxdatepicker-tab-trigger' contains 'search'. So the Calendar tab becomes f.submit and gives the submitLabel.",
+    "fix": "In src/content/extract/generic.ts, in the search-field button choice, pick from `plain` only: btn = plain.find(named) ?? plain.find(submit-type). Also test the id against SEARCH_BUTTON only as a whole word, not as a substring of 'searchbox'."
+   }
+  },
+  "F504": {
+   "id": "F504",
+   "status": "fixed",
+   "evidence": "The repro (End x3 with 4 s waits) gives [30,30,0] \u2192 [60,60,1779] \u2192 [90,90,3983] \u2192 [120,120,6126]. Sift rows match the original rows in order (0 differences across 120). 8 wheel steps of 1500 px load up to 210 rows, and Sift catches up within 3 s. Shot: /home/nico/projects/sift-test-4/research/shots/r6t4-discourse-latest-end.png",
+   "src": "T4-generic"
+  },
+  "F505": {
+   "id": "F505",
+   "status": "fixed",
+   "evidence": "Craigslist: after 'relevance' then Escape, and after 'relevance' then Close, Sift has no dialog (undefined) and focus is back on 'relevance'. HN Search: after Popularity then Close, the dialog is gone after one Close, the original's open dropdown count is 0, and focus is on 'Popularity'. 'All time' then Escape also closes cleanly. Allbirds: 3 rounds of 'Open image' then Escape gave no stray dialog. Shots: /home/nico/projects/sift-test-4/research/shots/r6t4-cl-afterclose.png, /home/nico/projects/sift-test-4/research/shots/r6t4-hns-afterclose.png, /home/nico/projects/sift-test-4/research/shots/r6t4-allbirds-afteresc.png",
+   "src": "T4-generic"
+  },
+  "F506": {
+   "id": "F506",
+   "status": "fixed",
+   "evidence": "The repro gives [true, ['A:Previous page']]. Clicking it goes to /history?page=2 'May 2026 to July 2026', where Sift shows both 'Previous page' and 'Next page'. 'Next page' returns to page=1 'August 2026 to October 2026'. Shots: /home/nico/projects/sift-test-4/research/shots/r6t4-ghhistory.png, /home/nico/projects/sift-test-4/research/shots/r6t4-ghhistory-p2.png",
+   "src": "T4-generic"
+  },
+  "F507": {
+   "id": "F507",
+   "status": "fixed",
+   "evidence": "The outline after H1 Key:highway goes straight to the photo and the Description table. 0 links match /jump to|Bahasa|\u7cb5\u8a9e|Other languages/. The first image is at y=150 (was 1361). Shot: /home/nico/projects/sift-test-4/research/shots/r6t4-osmwiki.png",
+   "src": "T4-generic"
+  },
+  "F338": {
+   "id": "F338",
+   "status": "fixed",
+   "evidence": "34 wheel steps of 400 px walked the thread in order: zugzwanged, Anlis, Schard, simonbuchan, khimru, farnz, ZiCog, jjpe, SReichelt, MOCKBA \u2026 burumdev, jumpnbrownweasel, notriddle, MOCKBA, Jookia. The original followed to scrollY 12834. The original repro (End twice) now advances to 'Anlis,Schard,simonbuchan,khimru' and no longer stays on the first 3 posts. End now moves one screen per press, which is reported as a separate medium finding.",
+   "src": "T4-generic"
+  },
+  "F346": {
+   "id": "F346",
+   "status": "fixed",
+   "evidence": "Each component now has an 'Incidents:' line, e.g. Actions 'Jul 29, Aug 6 (major), Aug 7, Aug 17 (major), Aug 26 (major), Oct 5 (major), Oct 7'. The counts match the original's non-green bars for every component: Git Ops 1, Webhooks 2, API 1, Issues 1, PR 3, Actions 7, Pages 2, Copilot 1, Copilot AI Model Providers 3, Packages/Codespaces 0. Incident History and the au/eu/jp/us links are present. Incident names from the bar tooltips are not shown. Shot: /home/nico/projects/sift-test-4/research/shots/r6t4-ghstatus.png",
+   "src": "T4-generic"
+  }
+ }
+}

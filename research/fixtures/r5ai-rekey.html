@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Bus line rekey [RERENDER]</title></head><body>
+<main><article id="art"><h1>Bus line rekey [RERENDER]</h1>
+<p>The council approved the new bus line on Monday after a long debate about costs, routes and the timetable in the town hall that went on until late at night.</p>
+<p>Residents can <a href="#" data-act="map">open the route map</a> to see every stop, or <a href="/timetable" data-act="timetable">read the timetable</a> for the first month of service before it starts.</p>
+<p>The mayor said the line would cost two million euros and would be paid by a regional grant over five years, with no new local taxes for residents or shops.</p>
+<p>Some shop owners on Elm Street said they worried about parking during the works, which will close part of the street for three weeks in the spring of next year.</p>
+<p>The first buses will run every twenty minutes from six in the morning to eleven at night, and every forty minutes on Sundays and public holidays across the valley.</p>
+<p>The council will review the line after six months and may add stops near the new school and the clinic if enough residents ask for them at the public meetings.</p></article></main>
+<div id="log"></div>
+<script>
+document.addEventListener('click', (e) => {
+  const a = e.target.closest && e.target.closest('a[data-act]');
+  if (!a) return;
+  e.preventDefault();
+  document.body.dataset.clicked = a.dataset.act + ':' + (a.isConnected ? 'live' : 'dead');
+});
+// The app re-renders the same article (new elements, same text) after the Short version came.
+// The app replaces the article element (a client render after the server one) and adds an 'Updated' line.
+const old = document.getElementById('art');
+setTimeout(() => { const n = document.createElement('article'); n.id = 'art'; n.innerHTML = old.innerHTML.replace('</h1>', '</h1><p><small>Updated 10:42</small></p>'); old.replaceWith(n); document.body.dataset.rerendered = '1'; }, Number(new URLSearchParams(location.search).get('at') || 6000));
+</script></body></html>

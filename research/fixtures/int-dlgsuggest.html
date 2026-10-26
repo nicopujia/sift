@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Find a flight</title></head>
+<body><main><h1>Find a flight</h1><p>Type a city to see airports. The airport list opens under the field while you type.</p>
+<form onsubmit="event.preventDefault();__log.push('search '+from.value)" style="position:relative">
+<label for="from">From</label> <input id="from" autocomplete="off">
+<div id="pick" role="dialog" aria-label="Airports" hidden style="position:absolute;top:30px;left:0;width:320px;min-height:90px;background:#fff;border:1px solid #888;padding:6px"></div>
+<p><label for="when">Date</label> <input id="when" type="date"></p>
+<button>Search flights</button>
+</form></main>
+<script>window.__log = [];
+from.addEventListener("input", () => {
+  const v = from.value.toLowerCase();
+  const opts = ["Madrid (MAD)", "Malaga (AGP)", "Manchester (MAN)", "Paris (CDG)"].filter((s) => v && s.toLowerCase().startsWith(v));
+  pick.innerHTML = opts.map((s) => '<button type="button">' + s + '</button>').join(" ");
+  pick.hidden = !opts.length;
+});
+pick.addEventListener("click", (e) => { if (e.target.localName === "button") { from.value = e.target.textContent; pick.hidden = true; __log.push("picked " + from.value); } });
+</script></body></html>

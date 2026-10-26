@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Field list fixture</title></head>
+<body>
+<main>
+<h1>Find a city</h1>
+<p>Type a city name. Suggestions show right under the field, inside the search box. The clock below ticks every second.</p>
+<div id="box">
+  <label>City <input id="q" role="combobox" aria-expanded="false" aria-controls="lb" autocomplete="off"></label>
+  <div id="lb" role="listbox" hidden></div>
+</div>
+<p>Local time: <span id="clock">0</span></p>
+<p>Some more text so the page has content. Cities are listed when you type at least one letter.</p>
+</main>
+<script>
+window.__log = [];
+const q = document.getElementById("q"), lb = document.getElementById("lb");
+function draw() {
+  const v = q.value.toLowerCase();
+  const opts = ["paris", "parma", "panama city"].filter((s) => v && s.startsWith(v));
+  lb.innerHTML = opts.map((s, i) => '<div role="option" id="o' + i + '">' + s + "</div>").join("");
+  lb.hidden = !opts.length;
+  q.setAttribute("aria-expanded", String(!lb.hidden));
+}
+q.addEventListener("input", draw);
+lb.addEventListener("click", (e) => { const o = e.target.closest("[role=option]"); if (o) { q.value = o.textContent; lb.hidden = true; __log.push("picked " + o.textContent); } });
+let n = 0;
+setInterval(() => { document.getElementById("clock").textContent = String(++n); }, 1000);
+</script>
+</body></html>

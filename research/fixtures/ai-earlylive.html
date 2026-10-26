@@ -1,0 +1,16 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Mill story [EARLY]</title></head><body>
+<!-- ai group fixture (round 4, F401): an article with a ticking line, so Sift re-extracts it every 5 s. Use with the mock model API, whose [EARLY] answer ends without a finish reason (a failure that may pass). Sift must not ask again every 30 s. -->
+<main><article><h1>Mill story [EARLY]</h1>
+<p>Updated <span id="tick">0</span> seconds ago</p>
+<p>Paragraph 0 says the river mill reopened in 2000 after 3 years of work by 11 volunteers from the valley.</p>
+<p>Paragraph 1 says the river bridge reopened in 2001 after 4 years of work by 18 volunteers from the valley.</p>
+<p>Paragraph 2 says the river school reopened in 2002 after 5 years of work by 25 volunteers from the valley.</p>
+<p>Paragraph 3 says the river market reopened in 2003 after 6 years of work by 32 volunteers from the valley.</p>
+<p>Paragraph 4 says the river harbor reopened in 2004 after 7 years of work by 39 volunteers from the valley.</p>
+<p>Paragraph 5 says the river clinic reopened in 2005 after 8 years of work by 46 volunteers from the valley.</p>
+<p>Paragraph 6 says the river library reopened in 2006 after 9 years of work by 53 volunteers from the valley.</p>
+<p>Paragraph 7 says the river station reopened in 2007 after 10 years of work by 60 volunteers from the valley.</p>
+<p>Paragraph 8 says the river stadium reopened in 2008 after 11 years of work by 67 volunteers from the valley.</p>
+</article></main>
+<script>let n = 0; setInterval(() => { document.getElementById("tick").textContent = String(n += 5); }, 5000);</script>
+</body></html>

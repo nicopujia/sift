@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Rent a stand · Market Hall</title>
+<style>
+body{font-family:system-ui;margin:0;padding-bottom:90px}
+header{background:#3b2f63;color:#fff;padding:12px 24px}header a{color:#fff;margin-right:12px}
+main{max-width:640px;margin:24px auto}
+.prog{color:#555}
+label{display:block;margin-top:10px;font-weight:600}
+input[type=text],input[type=number],select{padding:6px;width:260px}
+.err{color:#b00}
+.terms{max-height:140px;overflow:auto;border:1px solid #ccc;padding:8px;font-size:13px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:2px solid #3b2f63;padding:12px 24px;display:flex;gap:16px;align-items:center;justify-content:center;box-shadow:0 -4px 12px rgba(0,0,0,.1)}
+.bar button:disabled{opacity:.4}
+[hidden]{display:none!important}
+</style></head>
+<body>
+<header><a href="/">Market Hall</a><a href="/stands">Stands</a><a href="/faq">FAQ</a></header>
+<main>
+<h1>Rent a stand</h1>
+<p class="prog" id="prog" aria-live="polite">Step 1 of 3: Your stall</p>
+<form id="w" novalidate>
+<section id="s1">
+  <h2>Your stall</h2>
+  <label for="stall">Stall name</label><input type="text" id="stall" name="stall">
+  <p class="err" id="stall-err" hidden>Enter a stall name.</p>
+  <label for="kind">What do you sell?</label>
+  <select id="kind"><option value="">Choose one</option><option>Bread and pastry</option><option>Cheese</option><option>Vegetables</option></select>
+</section>
+<section id="s2" hidden>
+  <h2>Dates</h2>
+  <fieldset><legend>Which Saturdays?</legend>
+  <label><input type="checkbox" name="sat" value="Nov 7"> November 7</label>
+  <label><input type="checkbox" name="sat" value="Nov 14"> November 14</label>
+  <label><input type="checkbox" name="sat" value="Nov 21"> November 21</label></fieldset>
+  <label for="tables">Tables (1-3)</label><input type="number" id="tables" min="1" max="3" value="1">
+</section>
+<section id="s3" hidden>
+  <h2>Review and terms</h2>
+  <p id="sum"></p>
+  <h3>Stand rules</h3>
+  <div class="terms" tabindex="0">1. Set up between 6 and 7:30 am. 2. Food sellers need a current health permit. 3. Leave the stand clean by 2 pm. 4. The $40 deposit is refunded within 10 days if the stand is left clean. 5. No amplified music. 6. Cancellations less than 48 hours before market day lose the deposit.</div>
+</section>
+<p><button type="button" id="back" hidden>Back</button> <button type="button" id="next">Next</button></p>
+</form>
+<p id="done" role="status"></p>
+</main>
+<div class="bar" id="bar" hidden>
+  <label style="margin:0;font-weight:400"><input type="checkbox" id="agree"> I have read and accept the stand rules</label>
+  <button type="button" id="pay" disabled>Pay $40 deposit</button>
+</div>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+let step = 1;
+const titles = { 1: "Your stall", 2: "Dates", 3: "Review and terms" };
+function go(n) {
+  step = n;
+  for (const i of [1, 2, 3]) $("s" + i).hidden = i !== n;
+  $("back").hidden = n === 1; $("next").hidden = n === 3; $("bar").hidden = n !== 3;
+  $("prog").textContent = "Step " + n + " of 3: " + titles[n];
+  if (n === 3) { const sats = [...document.querySelectorAll("input[name=sat]:checked")].map((c) => c.value); $("sum").textContent = $("stall").value + " (" + ($("kind").value || "no category") + "), " + (sats.join(", ") || "no dates") + ", " + $("tables").value + " table(s)."; }
+  __log.push("step " + n);
+}
+$("next").onclick = () => {
+  if (step === 1 && !$("stall").value.trim()) { $("stall-err").hidden = false; $("stall").setAttribute("aria-invalid", "true"); $("stall").focus(); __log.push("err stall"); return; }
+  $("stall-err").hidden = true; $("stall").removeAttribute("aria-invalid");
+  go(step + 1);
+};
+$("back").onclick = () => go(step - 1);
+$("agree").addEventListener("change", () => { $("pay").disabled = !$("agree").checked; __log.push("agree " + $("agree").checked); });
+$("pay").onclick = () => { __log.push("pay " + $("sum").textContent); $("bar").hidden = true; $("w").hidden = true; $("done").textContent = "Booked. We emailed your receipt."; };
+</script>
+</body></html>

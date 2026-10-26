@@ -1,0 +1,6 @@
+[button] Skip to content
+  [input:search]  Search Wikipedia
+  [button] Search
+[button] Menu
+H1 Wikipedia The Free Encyclopedia
+[button] Sift

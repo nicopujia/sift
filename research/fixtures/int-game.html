@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Canvas game</title></head>
+<body>
+<main>
+<h1>Canvas game</h1>
+<p>Click the board, then use the arrow keys to move. The game listens on the window, like most canvas games.</p>
+<canvas id="c" width="600" height="400" style="background:#efe"></canvas>
+<p><a href="#help">How to play</a></p>
+</main>
+<script>
+window.__log = [];
+addEventListener("keydown", (e) => __log.push("key " + e.key + " on " + e.target.localName));
+document.getElementById("c").addEventListener("pointerdown", () => __log.push("pointerdown canvas"));
+</script>
+</body></html>

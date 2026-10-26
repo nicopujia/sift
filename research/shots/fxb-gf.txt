@@ -1,0 +1,73 @@
+[button] Skip to content
+  [input:search]  Recipes, guides and more...
+  [button] Search
+[button] Menu
+[link] Sign in
+[link] Register
+[img] Gluten-free bread served on a bread board
+H1 Gluten-free bread
+p: Jun 1, 2025
+    [link] Barney Desmazery
+[button] Save recipe
+[button] Manage Collections
+p: Makes 1 loaf (10-12 slices)
+p: Easy
+p: Prep: 5 mins
+p: Cook: 1 hr
+p: Plus rising time
+    [link] A star rating of 3.8 out of 5. 28 ratings Rate
+    [link] 22 comments
+[button] Alternatives
+[button] Complete the dish
+[button] Ingredients
+[button] Nutrition
+p: Units:
+    [input:radio] on 
+    [input:radio] on 
+  li: 400g gluten-free white bread flour
+  li: 1 tsp salt
+    [link] dried yeast
+    [link] buttermilk
+    [link] eggs
+    [link] olive oil
+H2 Method
+H3 step 1
+  [link] bowl
+  [link] whisk
+H3 step 2
+  [link] baking sheet
+H3 step 3
+  [link] wire rack
+  [button] Show full text
+  p: Gluten-free bread needs blended flours and different mixing, rising, and baking methods from regular bread.
+  H3 Which gluten-free flour is best for bread?
+  p: No single gluten-free flour works on its own. Use a blend of at least three types to make bread that holds together and is not too hard.
+  p: Use:
+    li: At least 50% light flour, such as yellow cornflour, gluten-free oat flour, brown rice flour, or white rice flour.
+    li: 25% protein- and fibre-rich flour, such as chickpea (gram), soy, potato, or teff flour, or a mix.
+    li: 25% starchy flour, such as cornflour (also called cornstarch), arrowroot, tapioca, or potato starch. Potato starch is different from potato flour, which is made from the whole potato. These flours help bind the dough.
+  p: The recipe above uses gluten-free white flour, which you can mix with brown gluten-free flours and others. Ready-made bread flour blends are also available. Doves Farm bread flour is one option for beginners.
+  H3 Can you use yeast in gluten-free bread?
+  p: Yes. Yeast is a fungus and is naturally gluten-free. Check dried yeast ingredients in case it contains wheat starch. Check that fresh yeast is fully sealed so it has not been contaminated with wheat from the bakery.
+  p: For bread without yeast, use buttermilk and bicarbonate of soda to make soda bread.
+  H3 Tips for making gluten-free bread
+    li: Mix the dough like batter, using a regular mixer paddle. Mix until no dry pockets remain; do not knead or use a dough hook.
+    li: Shape the dough and place it on a tray or in a tin. It does not need kneading to develop gluten.
+    li: Gluten-free flour often needs more liquid than wheat flour, so a large amount of liquid may be needed.
+    li: Gluten-free bread needs more yeast than regular bread because it lacks gluten’s elasticity.
+    li: It may take longer to rise, but it needs only one rise. Knocking it back and giving it a second rise does not help.
+    li: The dough is usually wetter and may not hold its shape. Let it rise in a boule, mould, or loaf tin. For a loaf tin, line it with non-stick baking paper and spray the sides with oil to help remove the bread.
+    li: Gluten-free flour browns less than wheat flour, so colour alone does not show when the bread is ready.
+    li: The bread’s internal temperature must reach 105C. A digital probe is the most accurate way to check it is cooked through.
+    li: Gluten-free bread takes longer to bake. Set the oven to 180C instead of the usual 200C.
+    li: Use ingredients at the same temperature; do not use them straight from the fridge. Bread-making needs a warm environment.
+    li: Steam at the start of baking helps the bread rise. Add ice cubes to a tray at the bottom of the oven, or spray water just before putting the bread in and closing the oven door.
+    li: Cool the bread slowly. Leave it in the tin for 10 minutes, then remove it and cool it fully on a wire rack. Leaving it in the tin can make the base soggy.
+    li: Do not store the bread in the fridge, as this draws out moisture.
+  H3 Can I use a bread machine?
+  p: Yes, if your machine has a gluten-free setting with no dough knock-back and only one rise. The programme should mix for 20 minutes, rise for an hour, then bake for an hour.
+  p: Add the liquid first, then the flour, to prevent dry bits sticking to the pan. After mixing, check that all the flour is incorporated. Use a rubber spatula to mix in any dry parts if needed.
+  H3 Can I make it vegan?
+  p: Yes. Gluten-free flour needs a binder, even when you leave out the egg. Psyllium husk is a popular plant-based binder. As a guide, use about 5% of the dry weight, but you may need to make the recipe several times to get 
+  p: Flax seeds, chia seeds, aquafaba (chickpea brine), and agar agar (vegetarian gelatine) can also replace eggs as binders.
+[button] Sift

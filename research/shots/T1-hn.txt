@@ -1,0 +1,202 @@
+[button] Skip to content
+  [input:search]  q
+  [button] Search
+H1 news.ycombinator.com
+  [link] Hacker News
+  [link] new
+  [link] past
+  [link] comments
+  [link] ask
+  [link] show
+  [link] jobs
+  [link] submit
+  [link] login
+  [link] OBS Studio 33
+  [link] github.com/obsproject
+  [link] pentagrama
+  [link] 3 hours ago
+  [link] hide
+  [link] 19 comments
+  [link] Kimi K3.1 Pro and K3.1 Pro Highspeed
+  [link] kimi.ai
+  [link] Jowsey
+  [link] 15 hours ago
+  [link] hide
+  [link] 519 comments
+  [link] Twelve years of distributed SQLite
+  [link] philipotoole.com
+  [link] otoolep
+  [link] 6 hours ago
+  [link] hide
+  [link] 18 comments
+  [link] Today, we hacked what we'd set out to hack: the iPhone
+  [link] calif.io
+  [link] pavel_lishin
+  [link] 15 hours ago
+  [link] hide
+  [link] 551 comments
+  [link] How close can pure functional programming get to C?
+  [link] rtfeldman.com
+  [link] stmonty
+  [link] 4 hours ago
+  [link] hide
+  [link] 7 comments
+  [link] Apple Music 404 Not Found
+  [link] music.apple.com
+  [link] frizlab
+  [link] 15 hours ago
+  [link] hide
+  [link] 229 comments
+  [link] Local Wikipedia: Wikipedia, but only for things a half hour walk from you
+  [link] edjefferson.com
+  [link] sohkamyung
+  [link] 1 day ago
+  [link] hide
+  [link] 233 comments
+  [link] A practical guide to AI image generation, from diffusion to agents
+  [link] danielball.com
+  [link] westsmith
+  [link] 5 hours ago
+  [link] hide
+  [link] 14 comments
+  [link] Dessa: Conversation Model trained only on speech
+  [link] block.xyz
+  [link] dsr12
+  [link] 13 hours ago
+  [link] hide
+  [link] 134 comments
+  [link] Bringing uv and ty together
+  [link] astral.sh
+  [link] Ravencentric
+  [link] 8 hours ago
+  [link] hide
+  [link] 29 comments
+  [link] CVE Tracker
+  [link] 0xosprey.com
+  [link] Group_B
+  [link] 10 hours ago
+  [link] hide
+  [link] 61 comments
+  [link] Canadians are running out of time to oppose Bill C-22
+  [link] eff.org
+  [link] hn_acker
+  [link] 20 hours ago
+  [link] hide
+  [link] 213 comments
+  [link] The Best Monopoly Strategy, Tested on 300M Games [video]
+  [link] youtube.com
+  [link] zdw
+  [link] 3 hours ago
+  [link] hide
+  [link] 9 comments
+  [link] Apple Security Research Device
+  [link] security.apple.com
+  [link] neom
+  [link] 5 hours ago
+  [link] hide
+  [link] 7 comments
+  [link] The Real Kevin Bacon
+  [link] pudding.cool
+  [link] xnx
+  [link] 17 hours ago
+  [link] hide
+  [link] 77 comments
+  [link] The Quake Fan who built the map editor everybody uses
+  [link] funcarena.com
+  [link] klaussilveira
+  [link] 5 hours ago
+  [link] hide
+  [link] 6 comments
+  [link] How Block Blast harvests its players for ad money
+  [link] ayoships.com
+  [link] motionlessveloc
+  [link] 5 hours ago
+  [link] hide
+  [link] 4 comments
+  [link] Hacker reverses Samsung TV, finds on-board AI listening OpenAI account suspended
+  [link] reddit.com
+  [link] testing22321
+  [link] 2 hours ago
+  [link] hide
+  [link] 9 comments
+  [link] C vs. C#: racing VLC's Gaussian blur
+  [link] martinfinkel.com
+  [link] martz
+  [link] 8 hours ago
+  [link] hide
+  [link] 13 comments
+  [link] Physicists trap a single antimatter particle for a month
+  [link] scientificamerican.com
+  [link] mooreds
+  [link] 1 hour ago
+  [link] hide
+  [link] 2 comments
+  [link] One Man's Pan Am 747 Replica [video]
+  [link] youtube.com
+  [link] Teever
+  [link] 5 hours ago
+  [link] hide
+  [link] 1 comment
+  [link] Air Purifiers as White Noise Machines
+  [link] jefftk.com
+  [link] luu
+  [link] 14 hours ago
+  [link] hide
+  [link] 112 comments
+  [link] Show HN: Corgi, a helpful {agent, terminal} multiplexer
+  [link] corgi.computer
+  [link] eiopa
+  [link] 10 hours ago
+  [link] hide
+  [link] 20 comments
+  [link] Around a dozen banking apps began specifically permitting GrapheneOS
+  [link] grapheneos.social
+  [link] privacyishuman
+  [link] 6 hours ago
+  [link] hide
+  [link] discuss
+  [link] The past, present, and future share a show floor at Pinball Expo 2026
+  [link] arstechnica.com
+  [link] civicpivot
+  [link] 7 hours ago
+  [link] hide
+  [link] 6 comments
+  [link] Rise of collagen-eating microbes may help explain gaps in the fossil record
+  [link] cam.ac.uk
+  [link] gmays
+  [link] 9 hours ago
+  [link] hide
+  [link] discuss
+  [link] UUIDv7: Timestamps aren’t time-ordered and other oddities
+  [link] alexsci.com
+  [link] ibobev
+  [link] 15 hours ago
+  [link] hide
+  [link] 115 comments
+  [link] How is music possible
+  [link] henrikkarlsson.xyz
+  [link] rafaelc
+  [link] 15 hours ago
+  [link] hide
+  [link] 77 comments
+  [link] A Cocktail Party in the Street: An Interview with Alan Stillman (2010)
+  [link] ediblegeography.com
+  [link] NaOH
+  [link] 2 hours ago
+  [link] hide
+  [link] discuss
+  [link] Alzheimer's breakthrough: 2 hrs of sleep restored without clearing brain plaques
+  [link] sciencedaily.com
+  [link] amichail
+  [link] 6 hours ago
+  [link] hide
+  [link] 23 comments
+  [link] Guidelines
+  [link] FAQ
+  [link] Lists
+  [link] API
+  [link] Security
+  [link] Legal
+  [link] Apply to YC
+  [link] Contact
+[button] Sift

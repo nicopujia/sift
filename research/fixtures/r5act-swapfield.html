@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Swapped search field</title>
+<style>
+body { font-family: sans-serif; margin: 0; }
+header { padding: 8px; border-bottom: 1px solid #ccc; position: relative; }
+#sugg { position: absolute; top: 44px; left: 8px; width: 320px; background: #fff; border: 1px solid #999; margin: 0; padding: 0; list-style: none; }
+#sugg li { padding: 6px; cursor: pointer; }
+main { padding: 16px; }
+</style></head>
+<body>
+<!-- act fixture (round 5): F513, Wikipedia's header search. The page swaps its search box for a
+     typeahead's own input on first focus (after ?ms= milliseconds, default 300), copies the value,
+     and focuses the new one. ?big=N adds N paragraphs, so Sift looks at the page again less often,
+     as on a long article. Keys typed after the swap must reach the new input, and Enter must
+     submit what Sift's field shows. The new input shows suggestions on focus (with a value) and on input. -->
+<header>
+  <form id="searchform" action="#" role="search">
+    <input type="search" name="search" id="searchInput" placeholder="Search the bakery" aria-label="Search the bakery">
+    <button type="submit">Search</button>
+  </form>
+</header>
+<main>
+  <h1>Breads</h1>
+  <p>Sourdough is a bread made with a natural leavening of wild yeast and lactic acid bacteria. Rye bread uses rye flour. Soda bread uses baking soda instead of yeast.</p>
+  <p>Each bread has its own page. Use the search box above to find one.</p>
+</main>
+<script>
+window.__log = [];
+const WORDS = ["Sourdough", "Sourdough starter", "Soda bread", "Rye bread", "Rice bread"];
+const ms = Number(new URLSearchParams(location.search).get("ms") ?? 300);
+// ?big=N: N more paragraphs, a long page like a Wikipedia article (Sift looks at it again less often).
+const big = Number(new URLSearchParams(location.search).get("big") ?? 0);
+for (let i = 0; i < big; i++) { const p = document.createElement("p"); p.textContent = "Paragraph " + (i + 1) + " about bread: flour, water, salt and time make a loaf with a crisp crust and a soft crumb."; document.querySelector("main").appendChild(p); }
+const form = document.getElementById("searchform");
+let old = document.getElementById("searchInput");
+old.addEventListener("input", () => __log.push("old:" + old.value));
+form.addEventListener("submit", (e) => { e.preventDefault(); __log.push("submit " + new FormData(form).get("search")); });
+function show(input) {
+  let ul = document.getElementById("sugg");
+  const q = input.value.trim().toLowerCase();
+  if (!q) { ul?.remove(); input.setAttribute("aria-expanded", "false"); return; }
+  if (!ul) { ul = document.createElement("ul"); ul.id = "sugg"; ul.setAttribute("role", "listbox"); ul.setAttribute("aria-label", "Search results"); document.querySelector("header").appendChild(ul); }
+  ul.innerHTML = "";
+  for (const w of WORDS.filter((w) => w.toLowerCase().startsWith(q.slice(0, 2)))) {
+    const li = document.createElement("li");
+    li.setAttribute("role", "option");
+    li.id = "opt-" + w.replace(/\W/g, "");
+    li.textContent = w;
+    li.addEventListener("click", () => { input.value = w; __log.push("pick " + w); ul.remove(); });
+    ul.appendChild(li);
+  }
+  input.setAttribute("aria-expanded", "true");
+}
+old.addEventListener("focus", () => {
+  setTimeout(() => {
+    const n = document.createElement("input");
+    n.type = "search"; n.name = "search"; n.placeholder = "Search the bakery"; n.setAttribute("aria-label", "Search the bakery");
+    n.setAttribute("role", "combobox"); n.setAttribute("aria-autocomplete", "list"); n.setAttribute("aria-controls", "sugg"); n.setAttribute("aria-expanded", "false");
+    n.value = old.value;
+    n.addEventListener("input", () => { __log.push("new:" + n.value); show(n); });
+    n.addEventListener("focus", () => show(n));
+    old.replaceWith(n);
+    __log.push("swapped with " + JSON.stringify(n.value));
+    n.focus();
+  }, ms);
+}, { once: true });
+</script>
+</body></html>

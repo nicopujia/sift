@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Council extends bus network | Example News</title>
+<style>
+  body { font: 16px/1.5 sans-serif; max-width: 760px; margin: 2em auto; }
+  lite-youtube { display: block; position: relative; width: 640px; height: 360px; background: #222 center/cover; cursor: pointer; }
+  lite-youtube .lty-playbtn { position: absolute; inset: 0; margin: auto; width: 68px; height: 48px; border: 0; background: red; }
+  .vplayer { width: 640px; height: 360px; background: #000; cursor: pointer; position: relative; }
+  .vplayer img { width: 100%; height: 100%; display: block; }
+  .vplayer .button-play { position: absolute; inset: 0; margin: auto; width: 64px; height: 64px; }
+</style>
+</head>
+<body>
+<main>
+<article>
+<h1>Council extends bus network</h1>
+<p>The city council voted on Tuesday to extend the bus network, adding three new lines that will connect the northern suburbs with the central station, the hospital and the university campus by next spring.</p>
+<p>The plan, which costs about twelve million dollars over three years, was approved after a long debate in which several members asked for more frequent service at night and on weekends, when the current lines run only every forty minutes.</p>
+<lite-youtube videoid="abc123" videotitle="Council meeting highlights"><button type="button" class="lty-playbtn" aria-label="Play: Council meeting highlights"></button></lite-youtube>
+<p>Residents of the northern suburbs have asked for better buses for years. Many of them work at the hospital or study at the university, and today they need two changes and more than an hour to get there in the morning.</p>
+<figure>
+  <div class="vplayer" data-video-id="xyz789" data-config='{"title":"The new bus lines on a map"}'><div class="button-play"></div><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='360'%3E%3Crect width='640' height='360' fill='%23456'/%3E%3C/svg%3E" alt=""></div>
+  <figcaption>The new bus lines on a map</figcaption>
+</figure>
+<p>The transport department said the first of the new lines will start in March, and the other two in May, once the new buses arrive from the factory and the drivers finish their training on the new routes and stops.</p>
+<p>Opponents said the money would be better spent on repairing roads, but the mayor answered that more people on buses means fewer cars and less wear on the roads, and that the plan pays for itself within ten years.</p>
+</article>
+</main>
+<script>
+  // Click-to-load: each facade becomes a real video player when clicked, like lite-youtube and JW Player facades do.
+  function load(box) {
+    const v = document.createElement("video");
+    v.width = 640; v.height = 360; v.controls = true; v.muted = true;
+    v.src = "data:video/mp4;base64,";
+    box.replaceChildren(v);
+    box.dataset.loaded = "1";
+  }
+  document.querySelector("lite-youtube").addEventListener("click", (e) => load(e.currentTarget));
+  document.querySelector(".vplayer").addEventListener("click", (e) => load(e.currentTarget));
+</script>
+</body>
+</html>

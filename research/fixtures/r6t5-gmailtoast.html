@@ -1,0 +1,76 @@
+<!doctype html>
+<!-- SYNTHETIC stand-in for Gmail (r6t5 tester): gmail.html plus Gmail's "Conversation archived. Undo" toast (role=alert, Undo is a span role=link#link_undo, Dismiss is an icon role=button). Not real Gmail. -->
+<html lang="en"><head><meta charset="utf-8"><title>Inbox (2) - nico@example.com - Gmail</title>
+<meta name="sift-test-url" content="https://mail.google.com/mail/u/0/#inbox">
+<style>body{font:14px Arial;margin:0} .nav{position:fixed;left:0;top:64px;width:200px} .main{margin-left:220px;margin-top:64px} tr.zA td{padding:4px 8px;border-bottom:1px solid #eee;cursor:pointer} tr.zE{font-weight:bold} header{position:fixed;top:0;left:0;right:0;height:56px;background:#f6f8fc} .bqY{display:none} tr:hover .bqY{display:inline}</style>
+</head><body>
+<header role="banner"><form role="search" id="aso_search_form_anchor"><input name="q" aria-label="Search mail" placeholder="Search mail"><button aria-label="Search mail" type="submit">S</button></form></header>
+<div class="nav" role="navigation">
+  <div gh="cm" class="T-I T-I-KE L3" role="button" tabindex="0">Compose</div>
+  <div class="nZ"><a href="#inbox" aria-label="Inbox 2 unread">Inbox</a></div>
+  <div><a href="#starred" aria-label="Starred">Starred</a></div>
+  <div><a href="#sent" aria-label="Sent">Sent</a></div>
+</div>
+<div class="main" role="main" id="main"></div>
+<div id="compose-root"></div>
+<div class="b8 UC" aria-live="assertive" role="alert" style="position:fixed;left:16px;bottom:16px;visibility:hidden;background:#333;color:#fff;padding:8px 12px;border-radius:4px"><div class="J-J5-Ji"><div class="vh"></div></div></div>
+<script>
+let undoMail = null;
+function toast(msg) {
+  const box = document.querySelector('.b8.UC'); const vh = box.querySelector('.vh');
+  vh.innerHTML = `<span class="aT"><span class="bAq">${msg}</span><span class="bAo">&nbsp;&nbsp;${location.search.includes("btn=1") ? '<button id="link_undo">Undo</button>' : '<span class="ag a8k" id="link_undo" role="link" tabindex="0" param="#">Undo</span>'}</span></span>${location.search.includes("nodismiss=1") ? "" : '<div tabindex="0" role="button" class="bBe" aria-label="Dismiss" style="display:inline-block;width:16px;height:16px;margin-left:12px;background:#777"></div>'}`;
+  box.style.visibility = 'visible';
+  vh.querySelector('#link_undo').addEventListener('click', () => { if (undoMail) { mails.splice(undoMail.i, 0, undoMail.m); undoMail = null; window.__undone = (window.__undone||0)+1; route(); } vh.innerHTML = '<span class="aT"><span class="bAq">Action undone.</span></span>'; });
+  vh.querySelector('[aria-label=Dismiss]')?.addEventListener('click', () => { box.style.visibility = 'hidden'; vh.innerHTML = ''; });
+}
+</script>
+
+<script>
+const mails = [
+  {id: 1, from: "Minerva University", email: "noreply@minerva.edu", subject: "Your class schedule for next week", snippet: "Here is your updated schedule. CS110 moves to Tuesday at 10 AM Pacific. Please review the pre-class work before Monday.", date: "6:42 AM", unread: true, body: "Hi Nico,\n\nHere is your updated schedule for next week. CS110 moves to Tuesday at 10 AM Pacific because of the instructor's travel. The pre-class work is due Monday at 5 PM. ".repeat(4) + "\n\nBest,\nRegistrar"},
+  {id: 2, from: "Celiac Support", email: "news@celiac.example", subject: "New gluten-free bakery list for San Francisco", snippet: "We checked 14 bakeries. Only 5 have dedicated gluten-free kitchens. Cross-contamination risk remains at the others.", date: "Oct 23", unread: true, body: "We checked 14 bakeries in San Francisco. Only 5 have dedicated gluten-free kitchens. The other 9 share equipment, so cross-contamination risk remains and they are not safe for people with celiac disease."},
+  {id: 3, from: "Amazon", email: "ship@amazon.example", subject: "Your package was delivered", snippet: "Delivered to the front desk at 3:10 PM.", date: "Oct 22", unread: false, body: "Your package was delivered to the front desk at 3:10 PM."},
+];
+let open = null;
+const main = document.getElementById("main");
+function act(el, fn) { el.addEventListener("mousedown", (e) => { e.preventDefault(); el._down = true; }); el.addEventListener("mouseup", () => { if (el._down) { el._down = false; fn(); } }); }
+function renderList() {
+  main.innerHTML = `<div role="tablist"><div role="tab" aria-selected="true">Primary</div><div role="tab" aria-selected="false">Promotions</div></div>
+  <div class="Dj"><span class="ts">1</span>–<span class="ts">${mails.length}</span> of <span class="ts">${mails.length}</span></div>
+  <table role="grid"><tbody>${mails.map(m => `<tr class="zA ${m.unread ? "zE" : "yO"}" data-id="${m.id}"><td class="yX xY"><div class="yW"><span class="zF" email="${m.email}" name="${m.from}">${m.from}</span></div></td>
+  <td class="xY a4W"><div class="xS"><div class="xT"><div class="y6"><span class="bog"><span>${m.subject}</span></span></div><span class="y2"> - ${m.snippet}</span></div></div></td>
+  <td class="xW xY"><span title="${m.date}">${m.date}</span></td>
+  <td><ul class="bqY"><li class="bqX" data-tooltip="Archive">A</li><li class="bqX" data-tooltip="Delete">D</li><li class="bqX" data-tooltip="${m.unread ? "Mark as read" : "Mark as unread"}">R</li></ul></td></tr>`).join("")}</tbody></table>`;
+  for (const tr of main.querySelectorAll("tr.zA")) {
+    const id = +tr.dataset.id;
+    // Gmail opens a conversation on a click on the row (not on the hover actions).
+    tr.querySelector("td.a4W").addEventListener("click", () => { location.hash = "#inbox/" + id; });
+    act(tr.querySelector('[data-tooltip="Archive"]'), () => { const i = mails.findIndex(m => m.id === id); undoMail = {i, m: mails[i]}; mails.splice(i, 1); renderList(); toast("Conversation archived."); });
+    act(tr.querySelector('[data-tooltip="Delete"]'), () => { const i = mails.findIndex(m => m.id === id); mails.splice(i, 1); renderList(); });
+    act(tr.querySelector('[data-tooltip^="Mark as"]'), () => { const m = mails.find(m => m.id === id); m.unread = !m.unread; renderList(); });
+  }
+}
+function renderThread(id) {
+  const m = mails.find(x => x.id === id); if (!m) return renderList();
+  m.unread = false;
+  main.innerHTML = `<div class="iH"><div role="button" data-tooltip="Back to Inbox" aria-label="Back to Inbox">←</div><div role="button" data-tooltip="Archive" aria-label="Archive">A</div><div role="button" data-tooltip="Delete" aria-label="Delete">D</div><div role="button" data-tooltip="Mark as unread" aria-label="Mark as unread">U</div></div>
+  <h2 class="hP">${m.subject}</h2>
+  <div class="adn ads"><span class="gD" email="${m.email}" name="${m.from}">${m.from}</span><span class="g3" title="${m.date}">${m.date}</span><div class="hb">to me</div>
+  <div class="a3s aiL">${m.body.split("\n").map(l => l ? `<div>${l}</div>` : "<br>").join("")}<div class="gmail_quote">On Mon someone wrote: old quoted text</div></div></div>
+  <span class="ams bkH" role="link">Reply</span><span class="ams bkG" role="link">Forward</span><div id="reply"></div>`;
+  act(main.querySelector('[data-tooltip="Back to Inbox"]'), () => { location.hash = "#inbox"; });
+  act(main.querySelector('[data-tooltip="Archive"]'), () => { mails.splice(mails.indexOf(m), 1); location.hash = "#inbox"; });
+  main.querySelector(".bkH").addEventListener("click", () => {
+    main.querySelector("#reply").innerHTML = `<div class="M9"><div aria-label="Message Body" contenteditable="true" role="textbox" aria-multiline="true" class="Am"></div><div role="button" data-tooltip="Send ‪(Ctrl-Enter)‬" aria-label="Send ‪(Ctrl-Enter)‬">Send</div></div>`;
+    act(main.querySelector('[data-tooltip^="Send"]'), () => { const t = main.querySelector('[aria-label="Message Body"]').innerText.trim(); window.__sent = (window.__sent || []).concat([{to: m.email, body: t}]); main.querySelector("#reply").innerHTML = `<div class="vh">Message sent</div>`; });
+  });
+}
+function route() { const h = location.hash; const mm = /#inbox\/(\d+)/.exec(h); if (mm) renderThread(+mm[1]); else renderList(); }
+addEventListener("hashchange", route); route();
+act(document.querySelector("[gh=cm]"), () => {
+  document.getElementById("compose-root").innerHTML = `<div role="dialog" style="position:fixed;right:20px;bottom:0;width:500px;height:400px;background:#fff;border:1px solid #999"><h2 class="aYF">New Message</h2>
+  <input class="agP aFw" aria-label="To recipients"><input name="subjectbox" placeholder="Subject" aria-label="Subject"><div aria-label="Message Body" contenteditable="true" role="textbox" aria-multiline="true" class="Am" style="height:200px"></div>
+  <div role="button" data-tooltip="Send ‪(Ctrl-Enter)‬">Send</div><div role="button" data-tooltip="Discard draft ‪(Ctrl-Shift-D)‬">🗑</div></div>`;
+  act(document.querySelector('#compose-root [data-tooltip^="Send"]'), () => { const d = document.querySelector("#compose-root"); window.__sent = (window.__sent || []).concat([{to: d.querySelector(".agP").value, subject: d.querySelector("[name=subjectbox]").value, body: d.querySelector("[aria-label='Message Body']").innerText.trim()}]); d.innerHTML = ""; });
+});
+</script></body></html>

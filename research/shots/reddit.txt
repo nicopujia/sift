@@ -1,0 +1,5 @@
+[button] Skip to content
+p: You've been blocked by network security.
+  [link] Log in
+  [link] File a ticket
+[button] Sift

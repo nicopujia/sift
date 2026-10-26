@@ -1,0 +1,10 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><title>Bake Weekly</title></head><body><main><h1>Bake Weekly</h1><p>Our weekly letter has one recipe, one technique, and one story from a bakery somewhere in the world. Every issue is short and free.</p><button id=sub>Subscribe</button></main>
+<script>
+document.getElementById("sub").addEventListener("click", () => {
+  const d = document.createElement("div");
+  d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-label", "Subscribe");
+  d.style.cssText = "position:fixed;top:100px;left:300px;width:400px;height:300px;background:#fff";
+  d.innerHTML = '<h2>Get the newsletter</h2><form action="/sub" onsubmit="return false"><label>Email <input type=email name=email></label><button>Subscribe</button></form><button aria-label="Close" onclick="this.parentElement.remove()">×</button>';
+  document.body.appendChild(d);
+});
+</script></body></html>

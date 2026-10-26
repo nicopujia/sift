@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Help: Deliveries · Breadbox</title>
+<style>
+body{font-family:system-ui;margin:0}
+header{background:#222;color:#fff;padding:12px 24px}header a{color:#fff;margin-right:12px}
+main{max-width:680px;margin:24px auto}
+.acc h3{margin:0}
+.acc button{width:100%;text-align:left;padding:12px;border:0;border-bottom:1px solid #ddd;background:#fafafa;font:inherit;font-weight:600;cursor:pointer}
+.acc button[aria-expanded=true]{background:#eef}
+.acc .panel{padding:8px 12px}
+.helpful{font-size:13px;color:#555}
+details{border-bottom:1px solid #ddd;padding:8px 0}
+.chat{position:fixed;right:16px;bottom:16px;background:#06c;color:#fff;border-radius:24px;padding:10px 16px}
+</style></head>
+<body>
+<header><a href="/">Breadbox</a><a href="/help">Help</a></header>
+<main>
+<h1>Deliveries</h1>
+<p>Answers to common questions about delivery days, missing items and refunds.</p>
+<label for="hs">Search help</label> <input id="hs" type="search" placeholder="Search help articles">
+<h2>Delivery questions</h2>
+<div class="acc">
+  <h3><button type="button" aria-expanded="false" aria-controls="a1" id="q1">When do you deliver?</button></h3>
+  <div class="panel" id="a1" role="region" aria-labelledby="q1" hidden><p>We deliver on Tuesdays, Fridays and Saturdays between 7 am and noon. You choose a two-hour window at checkout.</p><p class="helpful">Was this helpful? <button type="button" class="yes" style="width:auto;padding:2px 8px">Yes</button> <button type="button" class="no" style="width:auto;padding:2px 8px">No</button></p></div>
+  <h3><button type="button" aria-expanded="false" aria-controls="a2" id="q2">What if an item is missing?</button></h3>
+  <div class="panel" id="a2" role="region" aria-labelledby="q2" hidden><p>Report it within 48 hours from <a href="/orders">your orders</a>. We refund the item to your card in 3 to 5 days, or as store credit at once.</p><p class="helpful">Was this helpful? <button type="button" class="yes" style="width:auto;padding:2px 8px">Yes</button> <button type="button" class="no" style="width:auto;padding:2px 8px">No</button></p></div>
+  <h3><button type="button" aria-expanded="false" aria-controls="a3" id="q3">Can I change my delivery address?</button></h3>
+  <div class="panel" id="a3" role="region" aria-labelledby="q3" hidden></div>
+</div>
+<h2>Refunds</h2>
+<details><summary>How long does a refund take?</summary><p>Card refunds take 3 to 5 working days. Store credit is instant.</p></details>
+<details><summary>Can I get a refund for bread that went stale?</summary><p>Yes, if you tell us within two days of delivery. Send a photo from your orders page.</p></details>
+</main>
+<div class="chat" role="button" tabindex="0">Chat with us</div>
+<script>
+window.__log = [];
+document.querySelector(".acc").addEventListener("click", (e) => {
+  const b = e.target.closest("h3 button");
+  if (b) {
+    const open = b.getAttribute("aria-expanded") !== "true";
+    // Only one answer open at a time.
+    for (const o of document.querySelectorAll(".acc h3 button")) { o.setAttribute("aria-expanded", "false"); document.getElementById(o.getAttribute("aria-controls")).hidden = true; }
+    b.setAttribute("aria-expanded", String(open));
+    const p = document.getElementById(b.getAttribute("aria-controls")); p.hidden = !open;
+    __log.push((open ? "open " : "close ") + b.id);
+    // The third answer loads from the server on first open.
+    if (open && b.id === "q3" && !p.innerHTML) { p.innerHTML = "<p>Loading…</p>"; setTimeout(() => { p.innerHTML = "<p>Yes, until 8 pm the day before delivery. Go to <a href='/account/address'>your addresses</a> and pick the order.</p>"; __log.push("loaded a3"); }, 700); }
+    return;
+  }
+  const y = e.target.closest(".yes, .no");
+  if (y) { y.parentElement.textContent = "Thanks for your feedback."; __log.push("feedback " + y.className); }
+});
+</script>
+</body></html>

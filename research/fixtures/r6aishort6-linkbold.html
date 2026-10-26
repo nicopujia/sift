@@ -1,0 +1,17 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Bus line works [LINKBOLD]</title></head><body>
+<main><article id="art"><h1>Bus line works [LINKBOLD]</h1>
+<p>The council approved the new bus line on Monday after a long debate about costs, routes and the timetable in the town hall that went on until late at night.</p>
+<p>Residents can <a href="/map" data-act="map">open the route map</a> to see every stop, or <a href="/permit/cancel" data-act="permit">cancel their parking permit</a> before the works on Elm Street start next spring.</p>
+<p>Drivers must not park on Elm Street during the three weeks of works, because the council will tow every car left there and charge the owner for the towing.</p>
+<p>The mayor said the line would cost two million euros and would be paid by a regional grant over five years, with no new local taxes for residents or shops.</p>
+<p>The first buses will run every twenty minutes from six in the morning to eleven at night, and every forty minutes on Sundays and public holidays across the valley.</p>
+<p>The council will review the line after six months and may add stops near the new school and the clinic if enough residents ask for them at the public meetings.</p></article></main>
+<script>
+// F615/F616 fixture: the mock answers with a bold warning line and a link id put on other words.
+document.addEventListener('click', (e) => {
+  const a = e.target.closest && e.target.closest('a[data-act]');
+  if (!a) return;
+  e.preventDefault();
+  document.body.dataset.clicked = a.dataset.act;
+});
+</script></body></html>

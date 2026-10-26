@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Recipes feed</title></head>
+<body>
+<main id="app"></main>
+<script>
+// A feed with "Load more"; each entry opens its recipe in place (pushState),
+// and the recipe page loads its "Related recipes" list in two batches, as feeds do.
+window.__log = [];
+const app = document.getElementById('app');
+let n = 6;
+function feed() {
+  document.title = 'Recipes feed';
+  app.innerHTML = '<h1>Gluten-free recipes</h1><ul id="list">' + Array.from({ length: n }, (_, i) => `<li><h3><a href="/fx/r5int-morenav.html?r=${i}" data-i="${i}">Recipe number ${i + 1} with rice flour</a></h3><p>A short note about recipe ${i + 1}.</p></li>`).join('') + '</ul><button id="more">Load more</button>';
+  document.getElementById('more').onclick = () => { n += 6; __log.push('more'); feed(); };
+  for (const a of app.querySelectorAll('#list a')) a.onclick = (e) => { e.preventDefault(); history.pushState({}, '', a.href); recipe(+a.dataset.i); };
+}
+function recipe(i) {
+  document.title = 'Recipe ' + (i + 1);
+  app.innerHTML = `<h1>Recipe number ${i + 1}</h1><p>Mix the flour and water. Bake for forty minutes.</p><h2>Related recipes</h2><ul id="rel"></ul>`;
+  const rel = document.getElementById('rel');
+  const add = (from, to) => { for (let k = from; k < to; k++) rel.insertAdjacentHTML('beforeend', `<li><h3><a href="#r${k}">Related recipe ${k + 1} for this dish</a></h3><p>Another note ${k}.</p></li>`); };
+  setTimeout(() => add(0, 8), 300);
+  setTimeout(() => add(8, 16), 1200);
+}
+addEventListener('popstate', () => feed());
+feed();
+</script>
+</body></html>

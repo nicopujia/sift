@@ -1,0 +1,11 @@
+[button] Skip to content
+  [input:search]  q
+  [button] Search
+H1 Google Maps
+[PORTAL] Interactive area from the original page: Map · Use arrow keys to pan the map. · Get details about a place by pressing its. Press Enter to use it, Escape to come back.
+[button] Directions
+[button] Save
+[button] Nearby
+[button] Send to phone
+    [link] About this data
+[button] Sift

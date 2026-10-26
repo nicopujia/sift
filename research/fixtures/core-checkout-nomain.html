@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Checkout · Breadbox</title>
+<style>
+body{font-family:system-ui;margin:0;background:#f6f6f6}
+header{padding:12px 24px;background:#222;color:#fff}
+header a{color:#fff}
+.wrap{display:flex;gap:24px;max-width:960px;margin:24px auto}
+.content{flex:2;background:#fff;padding:24px}
+aside{flex:1;background:#fff;padding:16px;align-self:flex-start}
+.steps{display:flex;gap:16px;list-style:none;padding:0}
+.steps li{color:#999}.steps li[aria-current]{color:#000;font-weight:bold}
+label{display:block;margin-top:12px}
+input,select{padding:6px;width:100%;box-sizing:border-box}
+input[type=radio]{width:auto}
+.err{color:#b00;margin:2px 0}
+.summary{border:3px solid #b00;padding:12px;margin-bottom:12px}
+[aria-invalid=true]{border:2px solid #b00}
+.trust{font-size:12px;color:#666}
+</style></head>
+<body>
+<header><a href="/">Breadbox</a> · Secure checkout</header>
+<div class="wrap">
+<div class="content">
+<ol class="steps" aria-label="Checkout steps"><li id="s1" aria-current="step">Shipping</li><li id="s2">Payment</li><li id="s3">Review</li></ol>
+<div id="summary" class="summary" role="alert" tabindex="-1" hidden><h2>There is a problem</h2><ul id="summary-list"></ul></div>
+
+<form id="ship" novalidate>
+  <h1>Shipping address</h1>
+  <label for="name">Full name</label>
+  <p class="err" id="name-err" hidden></p>
+  <input id="name" name="name" autocomplete="name" required aria-describedby="name-err">
+  <label for="addr">Street address</label>
+  <p class="err" id="addr-err" hidden></p>
+  <input id="addr" name="addr" required aria-describedby="addr-err">
+  <label for="city">City</label>
+  <p class="err" id="city-err" hidden></p>
+  <input id="city" name="city" required aria-describedby="city-err">
+  <label for="zip">ZIP code</label>
+  <p class="err" id="zip-err" hidden></p>
+  <input id="zip" name="zip" inputmode="numeric" required aria-describedby="zip-hint zip-err"><p id="zip-hint" class="trust">5 digits, for example 94103</p>
+  <label for="state">State</label>
+  <select id="state" name="state"><option value="">Choose a state</option><option>California</option><option>Oregon</option><option>Washington</option></select>
+  <p><button type="submit">Continue to payment</button></p>
+</form>
+
+<form id="pay" novalidate hidden>
+  <h1>Payment</h1>
+  <fieldset><legend>Payment method</legend>
+  <label><input type="radio" name="method" value="card" checked> Card</label>
+  <label><input type="radio" name="method" value="paypal"> PayPal</label></fieldset>
+  <label for="card">Card number</label>
+  <p class="err" id="card-err" hidden></p>
+  <input id="card" name="card" inputmode="numeric" autocomplete="cc-number" aria-describedby="card-err">
+  <label for="exp">Expiry (MM/YY)</label>
+  <p class="err" id="exp-err" hidden></p>
+  <input id="exp" name="exp" aria-describedby="exp-err">
+  <p><button type="button" id="back1">Back</button> <button type="submit">Review order</button></p>
+</form>
+
+<section id="review" hidden>
+  <h1>Review your order</h1>
+  <h2>Ship to</h2><p id="r-ship"></p><p><a href="#" id="edit-ship">Change address</a></p>
+  <h2>Pay with</h2><p id="r-pay"></p><p><a href="#" id="edit-pay">Change payment</a></p>
+  <p><button type="button" id="place">Place order</button></p>
+</section>
+</div>
+<aside><h2>Order summary</h2><ul><li>Sourdough loaf × 2 — $14.00</li><li>Rye bread × 1 — $6.50</li></ul><p><strong>Total: $20.50</strong></p><p class="trust">Secure checkout · 30-day returns · Questions? Call 555-0199</p></aside>
+</div>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+function show(step) {
+  $("ship").hidden = step !== 1; $("pay").hidden = step !== 2; $("review").hidden = step !== 3;
+  for (const i of [1, 2, 3]) { if (i === step) $("s" + i).setAttribute("aria-current", "step"); else $("s" + i).removeAttribute("aria-current"); }
+  $("summary").hidden = true;
+  history.pushState({ step }, "", "?step=" + step);
+  __log.push("step " + step);
+}
+function check(rules) {
+  const bad = [];
+  for (const [id, msg, ok] of rules) {
+    const el = $(id), e = $(id + "-err");
+    if (!ok(el.value)) { bad.push([id, msg]); el.setAttribute("aria-invalid", "true"); e.hidden = false; e.textContent = msg; }
+    else { el.removeAttribute("aria-invalid"); e.hidden = true; e.textContent = ""; }
+  }
+  const list = $("summary-list"); list.innerHTML = "";
+  if (bad.length) {
+    for (const [id, msg] of bad) { const li = document.createElement("li"); li.innerHTML = '<a href="#' + id + '">' + msg + "</a>"; list.appendChild(li); }
+    $("summary").hidden = false; $("summary").focus();
+    __log.push("errors " + bad.map((b) => b[0]).join(","));
+  }
+  return !bad.length;
+}
+$("summary-list").addEventListener("click", (e) => { const a = e.target.closest("a"); if (!a) return; e.preventDefault(); $(a.getAttribute("href").slice(1)).focus(); __log.push("jump " + a.getAttribute("href")); });
+$("ship").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (check([["name", "Enter your full name", (v) => v.trim()], ["addr", "Enter your street address", (v) => v.trim()], ["city", "Enter your city", (v) => v.trim()], ["zip", "Enter a 5-digit ZIP code, like 94103", (v) => /^\d{5}$/.test(v)]])) show(2);
+});
+$("pay").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const card = document.querySelector("input[name=method]:checked").value === "card";
+  if (!card || check([["card", "Enter a 16-digit card number", (v) => /^\d{16}$/.test(v.replace(/\s/g, ""))], ["exp", "Enter the expiry as MM/YY", (v) => /^\d\d\/\d\d$/.test(v)]])) {
+    $("r-ship").textContent = $("name").value + ", " + $("addr").value + ", " + $("city").value + " " + $("zip").value + " " + $("state").value;
+    $("r-pay").textContent = card ? "Card ending " + $("card").value.slice(-4) : "PayPal";
+    show(3);
+  }
+});
+$("back1").addEventListener("click", () => show(1));
+$("edit-ship").addEventListener("click", (e) => { e.preventDefault(); show(1); });
+$("edit-pay").addEventListener("click", (e) => { e.preventDefault(); show(2); });
+$("place").addEventListener("click", () => { __log.push("place order"); $("review").innerHTML = "<h1>Thank you</h1><p>Order BB-2041 is confirmed.</p>"; });
+addEventListener("popstate", (e) => { const s = (e.state && e.state.step) || 1; $("ship").hidden = s !== 1; $("pay").hidden = s !== 2; $("review").hidden = s !== 3; });
+</script>
+</body></html>

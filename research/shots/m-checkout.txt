@@ -1,0 +1,19 @@
+[button] Skip to content
+[button] Menu
+  li: Shipping
+  li: Payment
+  li: Review
+H1 Shipping address
+  [input:text]  
+  [input:text]  
+  [input:text]  
+  [input:text]  
+p: 5 digits, for example 94103
+  [select:select-one]  
+  [button] Continue to payment
+H2 Order summary
+  li: Sourdough loaf × 2 — $14.00
+  li: Rye bread × 1 — $6.50
+p: Total: $20.50
+p: Secure checkout · 30-day returns · Questions? Call 555-0199
+[button] Sift

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Inbox orders · Crumb Admin</title>
+<!-- r6dlg6: r6-bulktable.html with the bulk bar really hidden until a row is selected (.bulk[hidden]{display:none}); ?lang=es names it "N seleccionados" -->
+<style>
+body{font-family:system-ui;margin:0}
+header{background:#1f2937;color:#fff;padding:12px 24px}header a{color:#cbd5e1;margin-right:12px}
+main{max-width:860px;margin:24px auto;padding-bottom:80px}
+table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #ddd;padding:8px;text-align:left}
+.bulk{position:fixed;left:0;right:0;bottom:0;background:#111;color:#fff;padding:12px 24px;display:flex;gap:12px;align-items:center}
+.bulk[hidden]{display:none}
+.bulk button{background:#fff;border:0;padding:6px 12px;border-radius:4px}
+nav.pages{display:flex;gap:6px;margin-top:12px;align-items:center}
+nav.pages a{padding:4px 8px;border:1px solid #ccc}
+nav.pages a[aria-current=page]{background:#1f2937;color:#fff}
+.tag{font-size:12px;background:#eee;padding:2px 6px;border-radius:8px}
+</style></head>
+<body>
+<header><a href="/">Crumb Admin</a><a href="/orders">Orders</a><a href="/products">Products</a></header>
+<main>
+<h1>Orders to ship</h1>
+<p><label for="per">Rows per page</label> <select id="per"><option>5</option><option>10</option></select></p>
+<table>
+<caption id="cap" style="text-align:left">Orders 1-5 of 12</caption>
+<thead><tr><th scope="col"><input type="checkbox" id="all" aria-label="Select all orders on this page"></th><th scope="col">Order</th><th scope="col">Customer</th><th scope="col">Items</th><th scope="col">Status</th></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+<nav class="pages" aria-label="Pages" id="pages"></nav>
+<p id="status" role="status"></p>
+</main>
+<div class="bulk" id="bulk" hidden><span id="nsel">0 selected</span><button type="button" id="ship">Mark as shipped</button><button type="button" id="print">Print labels</button><button type="button" id="clear">Clear selection</button></div>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+const names = ["Ana Ruiz","Ben Ito","Chen Wu","Dara Kim","Eli Shaw","Fatima Noor","Gus Lee","Hana Mori","Ivo Petrov","June Park","Kofi Mensah","Lia Costa"];
+const data = names.map((n, i) => ({ id: 2001 + i, cust: n, items: (i % 3) + 1, st: "To ship" }));
+let page = 1, per = 5; const sel = new Set();
+function draw() {
+  const rows = data.slice((page - 1) * per, page * per);
+  $("rows").innerHTML = rows.map((r) => '<tr><td><input type="checkbox" class="pick" data-id="' + r.id + '" aria-label="Select order ' + r.id + '"' + (sel.has(r.id) ? " checked" : "") + '></td><td><a href="/orders/' + r.id + '">#' + r.id + '</a></td><td>' + r.cust + '</td><td>' + r.items + '</td><td><span class="tag">' + r.st + '</span></td></tr>').join("");
+  const pages = Math.ceil(data.length / per);
+  $("pages").innerHTML = (page > 1 ? '<a href="?page=' + (page - 1) + '" data-p="' + (page - 1) + '">Previous</a>' : "") + Array.from({ length: pages }, (_, i) => '<a href="?page=' + (i + 1) + '" data-p="' + (i + 1) + '"' + (i + 1 === page ? ' aria-current="page"' : "") + ">" + (i + 1) + "</a>").join("") + (page < pages ? '<a href="?page=' + (page + 1) + '" data-p="' + (page + 1) + '">Next</a>' : "");
+  $("cap").textContent = "Orders " + ((page - 1) * per + 1) + "-" + Math.min(page * per, data.length) + " of " + data.length;
+  const onPage = rows.map((r) => r.id); $("all").checked = onPage.every((id) => sel.has(id)); $("all").indeterminate = !$("all").checked && onPage.some((id) => sel.has(id));
+  $("bulk").hidden = sel.size === 0; $("nsel").textContent = sel.size + (location.search.includes("lang=es") ? " seleccionados" : " selected");
+}
+draw();
+$("rows").addEventListener("change", (e) => { const c = e.target.closest(".pick"); if (!c) return; const id = +c.dataset.id; c.checked ? sel.add(id) : sel.delete(id); __log.push((c.checked ? "pick " : "unpick ") + id); draw(); });
+$("all").addEventListener("change", () => { const rows = data.slice((page - 1) * per, page * per); for (const r of rows) $("all").checked ? sel.add(r.id) : sel.delete(r.id); __log.push("all " + $("all").checked); draw(); });
+$("pages").addEventListener("click", (e) => { const a = e.target.closest("a"); if (!a) return; e.preventDefault(); page = +a.dataset.p; history.pushState({ page }, "", "?page=" + page); __log.push("page " + page); draw(); });
+$("per").addEventListener("change", () => { per = +$("per").value; page = 1; __log.push("per " + per); draw(); });
+$("ship").onclick = () => { for (const r of data) if (sel.has(r.id)) r.st = "Shipped"; __log.push("ship " + [...sel].join(",")); $("status").textContent = sel.size + " orders marked as shipped."; sel.clear(); draw(); };
+$("print").onclick = () => { __log.push("print " + [...sel].join(",")); $("status").textContent = "Labels ready for " + sel.size + " orders."; };
+$("clear").onclick = () => { sel.clear(); __log.push("clear"); draw(); };
+addEventListener("popstate", (e) => { page = (e.state && e.state.page) || 1; draw(); });
+</script>
+</body></html>

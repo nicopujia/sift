@@ -1,0 +1,16 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><title>Docs home</title></head><body>
+<main>
+<h1>Widget docs</h1>
+<p>Everything you need to install, configure and ship the widget in your own app, with examples for every option.</p>
+<div class="cta"><docs-link href="/start" label="Get started"></docs-link></div>
+<p>Questions? Read the guide or open an issue on the tracker and the team will answer within a day.</p>
+</main>
+<script>
+customElements.define("docs-link", class extends HTMLElement {
+  connectedCallback() {
+    const r = this.attachShadow({ mode: "open" });
+    r.innerHTML = '<a href="' + this.getAttribute("href") + '">' + this.getAttribute("label") + '</a>';
+  }
+});
+</script>
+</body></html>

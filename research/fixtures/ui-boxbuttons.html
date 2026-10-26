@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Account settings · Breadbox</title>
+<style>body{font-family:system-ui;margin:0} main{max-width:520px;margin:30px auto} .box{display:flex;gap:6px;align-items:center;margin:10px 0}</style>
+</head>
+<body>
+<main>
+<h1>Account settings</h1>
+<!-- Buttons in a field's own box stay next to that field in Sift; a stepper keeps "-" and "+" together. -->
+<form id="f" onsubmit="event.preventDefault(); __log.push('saved')">
+  <div class="box"><label for="pw">New password</label><input id="pw" type="password" name="pw"><button type="button" id="show" aria-pressed="false" onclick="const p=document.getElementById('pw'); const r=p.type==='password'; p.type=r?'text':'password'; this.setAttribute('aria-pressed', String(r)); this.textContent=r?'Hide':'Show'; __log.push('show '+r)">Show</button></div>
+  <div class="box"><label><input type="checkbox" name="news"> Send me the weekly bake list</label></div>
+  <div class="box"><button type="button" id="minus" onclick="q.value=Math.max(1,+q.value-1); __log.push('minus')">-</button><input id="q" name="loaves" type="number" value="2" aria-label="Loaves per week"><button type="button" id="plus" onclick="q.value=+q.value+1; __log.push('plus')">+</button></div>
+  <p><button type="submit">Save changes</button></p>
+</form>
+<p>Your plan renews on the first of each month. You can pause deliveries at any time from this page.</p>
+</main>
+<script>window.__log = []; const q = document.getElementById("q");</script>
+</body></html>

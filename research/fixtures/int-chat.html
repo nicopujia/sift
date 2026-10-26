@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Team chat</title></head>
+<body><main><h1>Team chat</h1><p>Messages from the team about the weekly planning meeting and the shared agenda for Tuesday.</p>
+<div id="msgs"><p>Ana: the agenda is in the shared folder.</p></div>
+<form onsubmit="event.preventDefault()">
+<div id="ed" contenteditable="true" role="textbox" aria-label="Message" style="min-height:40px;border:1px solid #999"></div>
+<button type="button" id="send" disabled>Send</button>
+</form></main>
+<script>window.__log = [];
+// Like React or Vue: the button state follows the editor after a microtask.
+ed.addEventListener("input", () => queueMicrotask(() => { send.disabled = !ed.innerText.trim(); }));
+send.addEventListener("click", () => { __log.push("sent: " + ed.innerText.trim()); msgs.insertAdjacentHTML("beforeend", "<p>Me: " + ed.innerText.trim() + "</p>"); ed.innerHTML = ""; send.disabled = true; });
+</script></body></html>

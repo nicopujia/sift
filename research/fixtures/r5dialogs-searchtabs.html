@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Find a stay · Staybook</title>
+<style>body{font-family:system-ui;margin:0}header{padding:12px 24px;border-bottom:1px solid #ccc}main{max-width:720px;margin:24px auto}
+.pick{position:absolute;background:#fff;border:1px solid #999;padding:12px;margin-top:4px;z-index:5}</style></head>
+<body>
+<header><a href="/">Staybook</a></header>
+<main>
+<h1>Find a stay</h1>
+<p>Search hotels, homes and more. Pick your dates in the calendar or say you are flexible.</p>
+<!-- The search form holds a date picker whose tabs are plain <button>s (type submit by default), before the real submit. -->
+<form id="f" role="search">
+  <input type="search" name="ss" aria-label="Where are you going?" value="Mendoza">
+  <div class="pick" id="pick">
+    <div role="tablist"><button role="tab" aria-selected="true">Calendar</button> <button role="tab" aria-selected="false">I'm flexible</button></div>
+    <p>Choose your check-in date.</p>
+  </div>
+  <div style="height:120px"></div>
+  <button type="submit">Search</button>
+</form>
+</main>
+<script>
+window.__log = [];
+document.getElementById("f").addEventListener("submit", (e) => { e.preventDefault(); __log.push("submit by " + (e.submitter && e.submitter.textContent)); });
+</script>
+</body></html>

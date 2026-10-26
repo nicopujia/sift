@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Bread list · Crumb</title>
+<style>body{font-family:system-ui;margin:0}main{max-width:720px;margin:24px auto;position:relative;min-height:600px}
+.dd{position:absolute;top:150px;right:0;background:#fff;border:1px solid #999;padding:6px}
+.dd ul{list-style:none;margin:6px 0 0;padding:0}</style></head>
+<body>
+<main>
+<h1>Our breads</h1>
+<p>Every loaf is baked in a dedicated gluten-free kitchen. Pick an order for the list below.</p>
+<!-- A role-less dropdown whose positioned box holds both its trigger and its list. -->
+<div class="dd">
+  <button id="sort" aria-expanded="false">Sort: Newest</button>
+  <ul id="list" hidden><li><button data-k="new">Newest</button></li><li><button data-k="old">Oldest</button></li><li><button data-k="price">Price</button></li></ul>
+</div>
+<ul id="breads"><li>Brown rice sourdough</li><li>Seeded rolls</li><li>Rosemary focaccia</li><li>Cinnamon swirl</li></ul>
+</main>
+<script>
+window.__log = [];
+const list = document.getElementById("list"), sort = document.getElementById("sort");
+sort.onclick = () => { list.hidden = !list.hidden; sort.setAttribute("aria-expanded", String(!list.hidden)); __log.push(list.hidden ? "closed" : "opened"); };
+list.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; sort.textContent = "Sort: " + b.textContent; list.hidden = true; sort.setAttribute("aria-expanded", "false"); __log.push("sort " + b.dataset.k); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !list.hidden) { list.hidden = true; sort.setAttribute("aria-expanded", "false"); __log.push("esc"); } });
+</script>
+</body></html>

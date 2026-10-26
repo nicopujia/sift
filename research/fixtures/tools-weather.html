@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Montreal Weather - fixture</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  header { position: sticky; top: 0; background: #fff; display: flex; gap: 8px; padding: 8px; }
+  .picker { position: relative; }
+  .panel { position: absolute; top: 100%; left: 0; width: 400px; background: #fff; box-shadow: 0 4px 12px #0003; padding: 8px; }
+  .row { display: flex; align-items: center; height: 48px; }
+  .place { flex: 1; cursor: pointer; }
+  .place p { margin: 0; }
+  .fav { display: flex; align-items: center; }
+  .fav span { width: 0; overflow: hidden; opacity: 0; padding-left: 8px; white-space: nowrap; }
+  .fav:hover span { width: 88px; opacity: 1; }
+  .strip { overflow-x: auto; }
+  .strip > div.track { position: relative; width: 1600px; height: 120px; }
+  .cell { position: absolute; top: 0; width: 64px; text-align: center; }
+  .cell p { margin: 0; }
+  .past { opacity: .45; }
+  .day { display: flex; gap: 12px; align-items: center; padding: 8px 0; }
+  .day .cond { display: none; }
+  svg { width: 24px; height: 24px; }
+</style>
+</head>
+<body>
+<!-- tools fixture (round 4): F331 icon conditions, F332 hourly strip, F333 location picker as a dialog with grouped rows. -->
+<header>
+  <a href="/">weather</a>
+  <div class="picker">
+    <button id="trigger" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Montreal" data-testid="location-picker-trigger">Montreal</button>
+  </div>
+</header>
+<main>
+  <h1 id="title">Montreal Weather</h1>
+  <section>
+    <h2>Today's Outlook</h2>
+    <div class="strip"><div class="track" id="track"></div></div>
+  </section>
+  <section>
+    <h2>Daily Forecast</h2>
+    <div id="days"></div>
+  </section>
+</main>
+<script>
+  const PLACES = [["Boston", "Massachusetts"], ["Boston", "England, United Kingdom"], ["Boston Common", "Boston, Massachusetts"], ["Boston", "Virginia"]];
+  const trigger = document.getElementById("trigger");
+  let panel = null, results = null, loc = null;
+  // Like weather.com, the panel is only in the page while it is open.
+  function setOpen(on) {
+    if (on && !panel) {
+      panel = document.createElement("div");
+      panel.className = "panel";
+      panel.innerHTML = '<input type="text" placeholder="Search for a location" autocomplete="off"><div></div>';
+      trigger.after(panel);
+      loc = panel.querySelector("input");
+      results = panel.querySelector("div");
+      loc.addEventListener("input", onInput);
+    } else if (!on && panel) {
+      panel.remove();
+      panel = null;
+    }
+    trigger.setAttribute("aria-expanded", String(on));
+  }
+  trigger.addEventListener("click", () => setOpen(!panel));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+  function pick(name, region) {
+    document.getElementById("title").textContent = name + " Weather";
+    trigger.textContent = name;
+    trigger.setAttribute("aria-label", name);
+    setOpen(false);
+  }
+  function onInput() {
+    results.innerHTML = "";
+    const q = loc.value.trim().toLowerCase();
+    if (!q) return;
+    for (const [name, region] of PLACES.filter(([n]) => n.toLowerCase().startsWith(q))) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `<div role="button" class="place"><p>${name}</p><p>${region}</p></div><div class="fav"><span>Save Location</span><button type="button"><svg viewBox="0 0 24 24"><title>Favorite</title><path d="M12 2l3 7h7l-6 5 2 8-6-4-6 4 2-8-6-5h7z"/></svg></button></div>`;
+      row.querySelector(".place").addEventListener("click", () => pick(name, region));
+      row.querySelector("button").addEventListener("click", () => row.querySelector("button").setAttribute("data-saved", "1"));
+      results.appendChild(row);
+    }
+  }
+  const track = document.getElementById("track");
+  const hours = ["10 am", "11 am", "12 pm", "1 pm", "Now", "3 pm", "4 pm", "5 pm", "6 pm", "7 pm", "8 pm", "9 pm"];
+  hours.forEach((h, i) => {
+    const past = i < 4;
+    const cell = document.createElement(past ? "div" : "a");
+    cell.className = "cell" + (past ? " past" : "");
+    cell.style.left = i * 72 + "px";
+    if (!past) {
+      cell.href = "#hour-" + i;
+      cell.setAttribute("aria-label", `${h}, ${50 + i}°`);
+    }
+    cell.innerHTML = `<p>${h}</p><svg viewBox="0 0 24 24"><title>Sunny</title><circle cx="12" cy="12" r="6"/></svg><p>${50 + i}°</p>`;
+    track.appendChild(cell);
+  });
+  const days = [["Today", "Sunny", "Sunny", "1%"], ["Mon 26", "Scattered Showers Day", "AM Showers", "52%"], ["Tue 27", "Mostly Clear Day", "Mostly Sunny", "3%"]];
+  const dayBox = document.getElementById("days");
+  days.forEach(([d, icon, words, rain], i) => {
+    const a = document.createElement("a");
+    a.className = "day";
+    a.href = "#day-" + i;
+    a.innerHTML = `<span>${d}</span><svg viewBox="0 0 24 24"><title>${icon}</title><circle cx="12" cy="12" r="6"/></svg><span>${rain}</span><span class="cond">${words}</span><span>${36 + i}°</span><span>${56 - i}°</span>`;
+    dayBox.appendChild(a);
+  });
+</script>
+</body>
+</html>

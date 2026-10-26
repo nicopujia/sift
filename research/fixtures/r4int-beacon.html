@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Recipe search</title></head>
+<body>
+<header>
+  <div class="searchbox">
+    <input id="q" type="search" placeholder="Search recipes" aria-label="Search recipes">
+    <button id="go" aria-label="Search">Search</button>
+  </div>
+</header>
+<main>
+<h1>Recipes</h1>
+<p>Search thousands of gluten-free recipes. Type a dish and press Enter or the Search button.</p>
+<div id="results"></div>
+</main>
+<script>
+window.__log = [];
+const q = document.getElementById('q');
+function search() { __log.push('search ' + q.value); document.getElementById('results').innerHTML = '<h2>Results for ' + q.value + '</h2><ul><li><a href="#r1">Focaccia</a></li></ul>'; }
+document.getElementById('go').onclick = search;
+// Only the user's own Enter (some sites guard against scripted keys).
+q.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.isTrusted) search(); });
+// An analytics beacon every half second, as many sites send.
+if (location.search.includes('beacon')) setInterval(() => fetch('/fx/r4int-beacon.html?ping=' + Date.now()).catch(() => {}), 500);
+</script>
+</body></html>

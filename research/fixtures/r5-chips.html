@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>New job alert · Workly</title>
+<style>
+body{font-family:system-ui;margin:0}
+header{background:#23395d;color:#fff;padding:12px 24px}header a{color:#fff;margin-right:12px}
+main{max-width:640px;margin:24px auto}
+.chips{display:flex;flex-wrap:wrap;gap:6px;border:1px solid #888;padding:6px;border-radius:6px;position:relative}
+.chip{background:#e3ebf7;border-radius:12px;padding:2px 4px 2px 10px;display:inline-flex;align-items:center;gap:4px}
+.chip button{border:0;background:none;cursor:pointer;font-size:14px}
+#skill{border:0;flex:1;min-width:120px;padding:4px;outline:none}
+#list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #888;list-style:none;margin:2px 0 0;padding:0;z-index:3}
+#list li{padding:6px 10px;cursor:pointer}#list li[aria-selected=true]{background:#dfe8f5}
+#list li.active{outline:2px solid #23395d}
+.hint{font-size:12px;color:#666}
+.side{background:#fffbe6;padding:12px;margin-top:24px}
+</style></head>
+<body>
+<header><a href="/">Workly</a><a href="/jobs">Jobs</a><a href="/companies">Companies</a><a href="/salaries">Salaries</a></header>
+<main>
+<h1>Create a job alert</h1>
+<p>We email you new jobs that match. You can change or stop the alert at any time.</p>
+<form id="f" novalidate>
+<label for="title" style="display:block;font-weight:600">Job title</label>
+<input id="title" name="title" value="Baker" style="padding:6px;width:300px">
+<p style="font-weight:600;margin-bottom:4px" id="skills-l">Skills</p>
+<div class="chips" id="chips">
+  <span class="chip" data-v="Sourdough">Sourdough <button type="button" aria-label="Remove Sourdough">×</button></span>
+  <span class="chip" data-v="Pastry">Pastry <button type="button" aria-label="Remove Pastry">×</button></span>
+  <input id="skill" role="combobox" aria-labelledby="skills-l" aria-expanded="false" aria-controls="list" aria-autocomplete="list" placeholder="Add a skill" autocomplete="off">
+  <ul id="list" role="listbox" aria-label="Skills" aria-multiselectable="true" hidden></ul>
+</div>
+<p class="hint">Up to 5 skills. Press Backspace in the empty box to remove the last one.</p>
+<fieldset style="margin-top:12px"><legend>Job type</legend>
+<label><input type="checkbox" name="type" value="full" checked> Full time</label>
+<label><input type="checkbox" name="type" value="part"> Part time</label>
+<label><input type="checkbox" name="type" value="seasonal"> Seasonal</label>
+</fieldset>
+<label for="freq" style="display:block;font-weight:600;margin-top:12px">How often</label>
+<select id="freq" name="freq"><option>Daily</option><option selected>Weekly</option></select>
+<p><button type="submit">Create alert</button></p>
+<p id="status" role="status"></p>
+</form>
+<div class="side"><strong>Workly Premium</strong>: see who viewed your profile. <a href="/premium">Try free for 30 days</a></div>
+</main>
+<script>
+window.__log = [];
+const all = ["Sourdough","Pastry","Laminated dough","Gluten-free baking","Cake decorating","Bread scoring","Food safety","Inventory","Team lead","Viennoiserie"];
+const chips = document.getElementById("chips"), input = document.getElementById("skill"), list = document.getElementById("list");
+let act = -1;
+const chosen = () => [...chips.querySelectorAll(".chip")].map((c) => c.dataset.v);
+function addChip(v) {
+  if (chosen().includes(v) || chosen().length >= 5) return;
+  const s = document.createElement("span"); s.className = "chip"; s.dataset.v = v;
+  s.innerHTML = v + ' <button type="button" aria-label="Remove ' + v + '">×</button>';
+  chips.insertBefore(s, input); __log.push("add " + v); input.value = ""; draw();
+}
+function draw() {
+  const q = input.value.trim().toLowerCase();
+  const opts = all.filter((s) => !q || s.toLowerCase().includes(q));
+  if (!opts.length || document.activeElement !== input && !q) { list.hidden = true; input.setAttribute("aria-expanded", "false"); return; }
+  list.innerHTML = opts.map((s, i) => '<li role="option" id="o' + i + '" aria-selected="' + chosen().includes(s) + '"' + (i === act ? ' class="active"' : "") + ">" + s + "</li>").join("");
+  list.hidden = false; input.setAttribute("aria-expanded", "true");
+}
+chips.addEventListener("click", (e) => { const b = e.target.closest(".chip button"); if (b) { const v = b.parentElement.dataset.v; b.parentElement.remove(); __log.push("remove " + v); draw(); } });
+input.addEventListener("input", () => { act = -1; draw(); });
+input.addEventListener("focus", () => draw());
+input.addEventListener("blur", () => setTimeout(() => { list.hidden = true; input.setAttribute("aria-expanded", "false"); }, 150));
+input.addEventListener("keydown", (e) => {
+  const items = [...list.querySelectorAll("li")];
+  if (e.key === "ArrowDown") { e.preventDefault(); act = Math.min(items.length - 1, act + 1); draw(); input.setAttribute("aria-activedescendant", "o" + act); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); act = Math.max(0, act - 1); draw(); input.setAttribute("aria-activedescendant", "o" + act); }
+  else if (e.key === "Enter") { e.preventDefault(); const it = items[act] || (input.value.trim() && items[0]); if (it) addChip(it.textContent); }
+  else if (e.key === "Backspace" && !input.value) { const c = chips.querySelectorAll(".chip"); if (c.length) { const v = c[c.length - 1].dataset.v; c[c.length - 1].remove(); __log.push("backspace " + v); draw(); } }
+  else if (e.key === "Escape") { list.hidden = true; input.setAttribute("aria-expanded", "false"); }
+});
+list.addEventListener("mousedown", (e) => { e.preventDefault(); const li = e.target.closest("li"); if (!li) return; if (li.getAttribute("aria-selected") === "true") { const c = chips.querySelector('.chip[data-v="' + li.textContent + '"]'); c && c.remove(); __log.push("remove " + li.textContent); draw(); } else addChip(li.textContent); });
+document.getElementById("f").addEventListener("submit", (e) => { e.preventDefault(); const types = [...document.querySelectorAll("input[name=type]:checked")].map((i) => i.value); __log.push("create " + document.getElementById("title").value + " | " + chosen().join(",") + " | " + types.join(",") + " | " + document.getElementById("freq").value); document.getElementById("status").textContent = "Alert created. We will email you weekly."; });
+</script>
+</body></html>

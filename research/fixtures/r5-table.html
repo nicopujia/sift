@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Orders · Crumb Admin</title>
+<style>
+body{font-family:system-ui;margin:0;display:flex;min-height:100vh}
+nav.side{width:200px;background:#1f2937;color:#fff;padding:16px}nav.side a{display:block;color:#cbd5e1;padding:6px 0}
+.app{flex:1;padding:24px}
+table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #ddd;padding:8px;text-align:left}
+th button{border:0;background:none;font:inherit;font-weight:700;cursor:pointer}
+th[aria-sort=ascending] button::after{content:" ▲"}th[aria-sort=descending] button::after{content:" ▼"}
+.tools{display:flex;gap:8px;margin-bottom:12px}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center}
+.dlg{background:#fff;padding:20px;border-radius:8px;max-width:380px}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:6px}
+#toast button{margin-left:12px}
+.st{font-size:12px;padding:2px 6px;border-radius:8px;background:#eee}
+</style></head>
+<body>
+<nav class="side" aria-label="Admin"><strong>Crumb Admin</strong><a href="/dash">Dashboard</a><a href="/orders" aria-current="page">Orders</a><a href="/products">Products</a><a href="/customers">Customers</a><a href="/settings">Settings</a></nav>
+<div class="app">
+<main>
+<h1>Orders</h1>
+<div class="tools"><label for="filter">Filter</label> <input id="filter" type="search" placeholder="Customer or order #"> <button type="button" id="export">Export CSV</button></div>
+<table id="t" aria-describedby="cap">
+<caption id="cap" style="text-align:left;color:#555">6 orders. Click a column header to sort.</caption>
+<thead><tr>
+<th scope="col" aria-sort="none" data-k="id"><button type="button">Order</button></th>
+<th scope="col" aria-sort="none" data-k="cust"><button type="button">Customer</button></th>
+<th scope="col" aria-sort="descending" data-k="date"><button type="button">Date</button></th>
+<th scope="col" aria-sort="none" data-k="total"><button type="button">Total</button></th>
+<th scope="col">Status</th>
+<th scope="col"><span class="sr" style="position:absolute;left:-9999px">Actions</span></th>
+</tr></thead>
+<tbody id="rows"></tbody>
+</table>
+<p id="empty" hidden>No orders match.</p>
+</main>
+</div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<script>
+window.__log = [];
+let data = [
+  { id: 1001, cust: "Ana Ruiz", date: "2026-10-20", total: 24.5, st: "Paid" },
+  { id: 1002, cust: "Ben Ito", date: "2026-10-22", total: 8.0, st: "Refunded" },
+  { id: 1003, cust: "Chen Wu", date: "2026-10-23", total: 61.25, st: "Paid" },
+  { id: 1004, cust: "Dara Kim", date: "2026-10-18", total: 15.0, st: "Pending" },
+  { id: 1005, cust: "Eli Shaw", date: "2026-10-21", total: 33.9, st: "Paid" },
+  { id: 1006, cust: "Fatima Noor", date: "2026-10-24", total: 12.75, st: "Pending" },
+];
+let sortK = "date", dir = -1, q = "", lastDeleted = null;
+const $ = (id) => document.getElementById(id);
+function draw() {
+  const rows = data.filter((r) => !q || (r.cust + " " + r.id).toLowerCase().includes(q)).sort((a, b) => (a[sortK] > b[sortK] ? 1 : a[sortK] < b[sortK] ? -1 : 0) * dir);
+  $("rows").innerHTML = rows.map((r) => '<tr data-id="' + r.id + '"><td><a href="/orders/' + r.id + '">#' + r.id + "</a></td><td>" + r.cust + "</td><td>" + r.date + "</td><td>$" + r.total.toFixed(2) + '</td><td><span class="st">' + r.st + '</span></td><td><button type="button" class="edit" aria-label="Edit order ' + r.id + '">Edit</button> <button type="button" class="del" aria-label="Delete order ' + r.id + '">Delete</button></td></tr>').join("");
+  $("empty").hidden = rows.length > 0;
+  $("cap").textContent = rows.length + " orders. Click a column header to sort.";
+  for (const th of document.querySelectorAll("th[data-k]")) th.setAttribute("aria-sort", th.dataset.k === sortK ? (dir > 0 ? "ascending" : "descending") : "none");
+}
+draw();
+document.querySelector("thead").addEventListener("click", (e) => { const th = e.target.closest("th[data-k]"); if (!th) return; const k = th.dataset.k; dir = k === sortK ? -dir : 1; sortK = k; draw(); __log.push("sort " + k + " " + (dir > 0 ? "asc" : "desc")); });
+$("filter").addEventListener("input", () => { q = $("filter").value.trim().toLowerCase(); draw(); __log.push("filter " + q); });
+$("export").onclick = () => __log.push("export");
+function toast(html, ms) { const t = $("toast"); t.innerHTML = html; t.hidden = false; clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; t.innerHTML = ""; }, ms); }
+$("rows").addEventListener("click", (e) => {
+  const tr = e.target.closest("tr"); if (!tr) return; const id = +tr.dataset.id;
+  if (e.target.closest(".edit")) { __log.push("edit " + id); return; }
+  if (!e.target.closest(".del")) return;
+  const opener = e.target.closest(".del");
+  const ov = document.createElement("div"); ov.className = "ov";
+  ov.innerHTML = '<div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="dt" aria-describedby="dd"><h2 id="dt">Delete order #' + id + '?</h2><p id="dd">This removes the order and its invoice. Customers are not notified.</p><button type="button" id="cancel">Cancel</button> <button type="button" id="confirm">Delete order</button></div>';
+  document.body.appendChild(ov); $("cancel").focus(); __log.push("confirm open " + id);
+  const close = () => { ov.remove(); opener.isConnected && opener.focus(); };
+  $("cancel").onclick = () => { __log.push("cancel " + id); close(); };
+  ov.addEventListener("keydown", (k) => { if (k.key === "Escape") { __log.push("esc " + id); close(); } });
+  $("confirm").onclick = () => {
+    const i = data.findIndex((r) => r.id === id); lastDeleted = [i, data[i]]; data.splice(i, 1); ov.remove(); draw(); __log.push("deleted " + id);
+    toast('Order #' + id + ' deleted. <button type="button" id="undo">Undo</button>', 6000);
+    $("undo").onclick = () => { data.splice(lastDeleted[0], 0, lastDeleted[1]); draw(); __log.push("undo " + id); toast("Order #" + id + " restored.", 3000); };
+  };
+});
+</script>
+</body></html>

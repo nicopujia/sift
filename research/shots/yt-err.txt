@@ -1,0 +1,21 @@
+[link] Sift view
+  [input:search]  Search
+  [button] Search
+[button] Menu
+[link] Sign in
+p: Sign in to confirm you’re not a bot
+[link] Sign in
+[link] Learn more
+H1 Tears For Fears - Everybody Wants To Rule The World (Official Music Video)
+  [link] Tears For Fears
+p: 599,021,324 views · Aug 9, 2013
+[button] Subscribe
+[button] Like 5.4M
+[button] Dislike
+[button] Save
+    [button] Show full text
+    p: This is the song "Everybody Wants To Rule The World" by Tears For Fears.
+    p: The song lyrics talk about life, choices, and wanting control.
+    p: It says "Everybody wants to rule the world." It also says "Nothing ever lasts forever."
+    p: The video is remastered in HD. It was made in 1985.
+[button] Sift

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sift</title>
+<meta name="description" content="Sift turns any website into its essence: only what matters, on a clean white page, still fully usable.">
+<link rel="icon" href="icon.png">
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; background: #fff; color: #111; font: 19px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 38em; margin: 0 auto; padding: 2.5em 16px 4em; }
+  h1 { font-size: 2em; margin: 0 0 .2em; display: flex; align-items: center; gap: .4em; }
+  h1 img { width: 1.2em; height: 1.2em; }
+  h2 { font-size: 1.25em; margin: 1.8em 0 .4em; }
+  .lead { font-size: 1.15em; color: #333; margin-top: 0; }
+  a { color: #0645ad; }
+  .btn { display: inline-block; background: #111; color: #fff; text-decoration: none; padding: .6em 1.1em; border-radius: .5em; font-weight: 700; }
+  .btn:focus-visible, a:focus-visible { outline: 3px solid #111; outline-offset: 2px; box-shadow: 0 0 0 6px #ffbf47; }
+  ol li { margin: .4em 0; }
+  code { background: #f3f3f3; padding: .1em .35em; border-radius: .25em; font-size: .9em; }
+  .muted { color: #474747; font-size: .9em; }
+</style>
+</head>
+<body>
+<main>
+  <h1><img src="icon.png" alt="">Sift</h1>
+  <p class="lead">Every website, reduced to what matters. Clean, fast to read, and still fully usable.</p>
+  <p>Sift opens every page already simplified: no ads, no popups, no clutter. Long text is shortened to its facts, lists become plain one-line lists, and every button, form, and video still works. One switch in the corner shows the original page.</p>
+  <p><a class="btn" href="sift.zip" download>Download Sift (Chrome)</a></p>
+
+  <h2>Install</h2>
+  <ol>
+    <li>Unzip <code>sift.zip</code>.</li>
+    <li>Open <code>chrome://extensions</code> and turn on <strong>Developer mode</strong> (top right).</li>
+    <li>Click <strong>Load unpacked</strong> and choose the unzipped <code>sift</code> folder.</li>
+    <li>Open Sift's <strong>Options</strong> and paste an <a href="https://openrouter.ai/keys">OpenRouter API key</a>. Without a key, Sift still cleans pages but does not shorten text.</li>
+  </ol>
+
+  <h2>Use</h2>
+  <ul>
+    <li>Pages open in Sift's view. The switch in the bottom right corner, the toolbar button, or <code>Alt+Shift+S</code> shows the original page.</li>
+    <li>Switching to the original lasts while you stay on that site in that tab.</li>
+    <li>Text size and sites to never sift are in Options.</li>
+  </ul>
+
+  <h2>Privacy</h2>
+  <p class="muted">To shorten text, Sift sends the page's text to the model provider you choose (OpenRouter by default), including the text of pages you are signed in to, like your email. Results are cached in your browser. Sift sends one anonymous report per day of use to sift.pujia.ar with the Sift version, the date, a random id used for that one report, and that day's counts of pages shown, switches to the original and back to Sift, actions, errors, list entries sent for one-line descriptions, Short versions asked for, uses of "load more", and the total and number of times to first view (for the average): no addresses, no page content, no site names, and no id that lasts past the day. The server does not log IP addresses or browser details. You can turn that off in Options.</p>
+</main>
+</body>
+</html>

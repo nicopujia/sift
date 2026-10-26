@@ -1,0 +1,48 @@
+[button] Skip to content
+[button] Menu
+[link] Sign in
+H1 Montreal Weather
+    [link] Montreal Weather
+    p: Montreal, Quebec · As of 3:53 a.m. EDT · Now 40°39°38° · Fair · Feels Like · H High
+    [button] Improve location precision
+H2 Today's Outlook
+p: Today's high temperature will be nearly the same as yesterday's.
+    [link] Now, 38°
+p: Sunrise
+p: Sunset
+p: Wind
+p: 0 mph NNE
+p: Humidity
+p: Air Quality
+p: 55 - Moderate
+p: Dew Point
+p: Pressure
+p: 30.51 in
+p: UV Index
+p: 0 of 11
+p: Visibility
+p: 10 mi
+p: Moon Phase
+p: Waxing Gibbous
+p: Sunrise
+p: Sunset
+H2 Montreal Daily Forecast
+    [link] Today 15% 36°55°
+    [link] Sun 25 14% 49°62°
+    [link] Mon 26 24% 34°57°
+    [link] Tue 27 2% 30°45°
+    [link] Wed 28 5% 40°49°
+    [link] Thu 29 24% 48°61°
+    [link] Fri 30 16% 42°55°
+    [link] Next 10 days
+H2 Radar
+    [link] Now
+[button] Map Attribution
+H2 Air Quality Index
+H2 Moderate
+p: Air quality is acceptable; however, for some pollutants there may be a moderate health concern for a very small number of people who are unusually sensitive to air pollution.
+    [link] See details
+[button] Air Quality Index
+    [link] Health & Activities
+    p: Seasonal Allergies and Pollen Count Forecast · No pollen detected in your area
+[button] Sift

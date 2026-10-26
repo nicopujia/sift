@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Classic bike trailer - $120 (fixture)</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  .global-header { background: #eee; padding: 6px 12px; }
+  .page-container { max-width: 980px; margin: 0 auto; padding: 0 12px; }
+  .dateReplyBar { display: flex; gap: 16px; align-items: center; margin: 12px 0; }
+  .reply-button { background: #eee; border: 1px solid #999; padding: 6px 12px; }
+  .action [role=button] { cursor: pointer; font-size: 13px; }
+  .userbody { display: flex; gap: 24px; }
+  figure.iw { margin: 0; width: 602px; }
+  .gallery { position: relative; width: 600px; height: 450px; overflow: hidden; border: 1px solid #ccc; }
+  .swipe-wrap { position: relative; width: 1200px; height: 450px; transition: transform .2s; }
+  .slide { position: absolute; top: 0; width: 600px; height: 450px; text-align: center; }
+  #thumbs a { display: inline-block; margin: 2px; }
+  #thumbs img.selected { outline: 2px solid orange; }
+  .mapAndAttrs { width: 300px; }
+  #map { width: 300px; height: 280px; background: #dfe; }
+</style>
+</head>
+<body>
+<!-- Round 5 content fixer, F502: a classifieds listing. The post's own bar
+     (reply, favorite, hide, flag) is a <header> inside the section with the
+     title; the photos are a slider with a strip of thumbnails (a portrait
+     337x450 photo, the second one without alt); the map beside it is small.
+     Sift keeps the reply button, the photo with Image 1/Image 2 buttons that
+     switch it, and keeps the map small. -->
+<header class="global-header"><a href="/">CL</a> <a href="#">SF bay area</a> &gt; <a href="#">bicycles</a></header>
+<section class="page-container">
+  <section class="body">
+    <header class="dateReplyBar">
+      <div class="actions-combo">
+        <button class="reply-button" onclick="document.getElementById('flap').hidden = false">reply</button>
+        <div class="action"><div role="button" title="add to favorites" onclick="this.textContent = '★ favorited'">☆ favorite</div></div>
+        <div class="action"><div role="button" title="hide this posting">hide</div></div>
+        <div class="action"><div role="button" title="flag as prohibited">flag</div></div>
+      </div>
+      <div id="flap" hidden><button>email</button> <button>chat</button></div>
+      <p class="postinginfo">Posted <time>about 2 hours ago</time></p>
+    </header>
+    <h1 class="postingtitle">Classic Burley Bee Single-Seat Bike Trailer - $120 (oakland)</h1>
+    <section class="userbody">
+      <figure class="iw multiimage">
+        <div class="gallery">
+          <div class="swipe-wrap" id="wrap">
+            <div class="slide" style="left: 0"><img id="p1" width="337" height="450" alt="Classic Burley Bee Single-Seat Bike Trailer 1" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='337' height='450'%3E%3Crect width='337' height='450' fill='%2336c'/%3E%3Ctext x='40' y='225' font-size='40' fill='white'%3EPhoto one%3C/text%3E%3C/svg%3E"></div>
+            <div class="slide" style="left: 600px"><img id="p2" width="337" height="450" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='337' height='450'%3E%3Crect width='337' height='450' fill='%23c63'/%3E%3Ctext x='40' y='225' font-size='40' fill='white'%3EPhoto two%3C/text%3E%3C/svg%3E"></div>
+          </div>
+        </div>
+        <div id="thumbs">
+          <a class="thumb" href="#p1" data-i="0"><img class="selected" width="50" height="50" alt="Classic Burley Bee Single-Seat Bike Trailer 1 thumbnail" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='50' height='50' fill='%2336c'/%3E%3C/svg%3E"></a>
+          <a class="thumb" href="#p2" data-i="1"><img width="50" height="50" alt="Classic Burley Bee Single-Seat Bike Trailer 2 thumbnail" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='50' height='50' fill='%23c63'/%3E%3C/svg%3E"></a>
+        </div>
+      </figure>
+      <div class="mapAndAttrs">
+        <div class="mapbox"><div id="map" class="leaflet-container" aria-label="Map">map</div><div class="mapaddress">Balfour Ave near Calmar</div></div>
+        <div class="attrgroup"><div class="attr">make / manufacturer: Burley</div><div class="attr">model name / number: Bee</div></div>
+      </div>
+    </section>
+    <section id="postingbody">This is a pre-2007, classic blue and yellow Burley Bee single-seat bike trailer. It is in great condition and perfect for family bike rides. Very lightly used! Folds flat for easy storage. Includes clear rain cover and yellow sunshade. $120 OBO.</section>
+  </section>
+</section>
+<script>
+  for (const a of document.querySelectorAll("#thumbs a")) a.addEventListener("click", (e) => {
+    e.preventDefault();
+    const i = +a.dataset.i;
+    document.getElementById("wrap").style.transform = `translateX(${-600 * i}px)`;
+    for (const im of document.querySelectorAll("#thumbs img")) im.classList.toggle("selected", im.parentElement === a);
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playground editor fixture</title>
+<style>
+  body { font: 16px system-ui, sans-serif; margin: 24px; }
+  x-editor { display: block; width: 700px; height: 320px; border: 1px solid #888; }
+  #saved { padding: 8px 12px; border: 1px solid #444; background: #ffd; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Playground</h1>
+  <p>Type code in the editor. The output below follows each change, and a "Saved" note pops up now and then.</p>
+  <section>
+    <h2>Try it</h2>
+    <x-editor></x-editor>
+  </section>
+  <section>
+    <h2>Output</h2>
+    <pre id="out"></pre>
+  </section>
+  <section>
+    <h2>Notes</h2>
+    <p>This fixture checks that typing in an editor Sift shows from the page keeps every key: the page changes its output while you type (Sift reads the page again each time), and opens its own popover (Sift puts its view back on top).</p>
+  </section>
+</main>
+<div id="saved" popover="manual">Saved</div>
+<script>
+  customElements.define("x-editor", class extends HTMLElement {
+    connectedCallback() {
+      const sr = this.attachShadow({ mode: "open" });
+      sr.innerHTML = '<style>textarea{box-sizing:border-box;width:100%;height:100%;font:15px monospace;border:0;padding:8px}</style><textarea aria-label="Code" spellcheck="false"></textarea>';
+      const ta = sr.querySelector("textarea");
+      const out = document.getElementById("out");
+      const saved = document.getElementById("saved");
+      let n = 0;
+      ta.addEventListener("input", () => {
+        // The output follows the code a moment later, as a runner does.
+        clearTimeout(this.t);
+        this.t = setTimeout(() => { out.textContent = "> " + ta.value.toUpperCase(); }, 80);
+        if (++n % 8 === 0) {
+          saved.showPopover();
+          setTimeout(() => saved.hidePopover(), 700);
+        }
+      });
+    }
+  });
+</script>
+</body>
+</html>

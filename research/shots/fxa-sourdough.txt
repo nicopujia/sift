@@ -1,0 +1,64 @@
+[button] Skip to content
+  [input:search]  Search Wikipedia
+  [button] Search
+[button] Menu
+[link] Create account
+[link] Log in
+H1 Sourdough
+[link] Article
+[link] Talk
+[link] Read
+p: From Wikipedia, the free encyclopedia
+  [button] Show full text
+  p: Sourdough uses a live flour-and-water starter with wild yeast and lactic acid bacteria to raise bread; fermentation gives it a sour taste and helps it keep longer.
+  H2 History
+  p: Sourdough is one of the oldest and most common ways to raise bread. It was the main method for most of human history. Barm from beer-making replaced it in the Middle Ages, then cultured baker’s yeast replaced barm after 
+  p: The Encyclopedia of Food Microbiology says a sourdough bread found in Switzerland dates to 3700 BC. Sourdough fermentation likely began thousands of years earlier with farming in the Fertile Crescent and Egypt. The book 
+  p: French bakers brought sourdough methods to Northern California during the California Gold Rush. Sourdough remains part of San Francisco culture; “Sourdough Sam” is the San Francisco 49ers’ mascot. Although sourdough is l
+  p: During the 1898 Klondike Gold Rush, sourdough became common in Alaska and the Yukon Territory. Yeast and baking soda were less reliable in the conditions prospectors faced. Settlers carried starter in pouches around thei
+  p: In English-speaking countries, wheat bread is common, and sourdough is no longer the standard way to raise bread. It was gradually replaced by beer-making barm, then cultured yeast after Louis Pasteur confirmed germ theo
+  p: Some countries do not legally define sourdough bread. Products sold as sourdough may use baker’s yeast or chemical raising agents, with or instead of live starter. The Real Bread Campaign calls these breads “sourfaux.” T
+  H2 Preparation
+  H3 Starter
+  p: Sourdough needs a live mixture of flour and water, called a starter or leaven. It contains wild yeast and bacteria, including lactobacilli. The starter raises the bread and develops its flavor. Starters vary in how much 
+  p: To make a starter, mix flour and water and leave it in a warm place for one or two weeks. When wheat flour meets water, the enzyme amylase breaks starch into glucose and maltose, which natural yeast can use. With enough 
+  H3 Refreshment or feeding of the starter
+  p: As the starter ferments, add flour and water regularly. These additions are called refreshments or feedings. Regular feeding keeps the culture active.
+  p: The ratio of fermented starter to fresh flour and water matters for developing and maintaining the culture. Higher refreshment ratios are linked to greater microbial stability. In San Francisco sourdough, starter is 40% 
+  p: A starter made from scratch with salted wheat-rye dough takes about 54 hours at 27 °C (81 °F) to stabilize at pH 4.4–4.6. 4% salt inhibits L. sanfranciscensis; C. milleri can tolerate 8%.
+  p: A drier, cooler starter has less bacterial activity and more yeast growth. It produces more acetic acid relative to lactic acid. A wetter, warmer starter has more bacterial activity and less yeast growth, so it produces 
+  H3 Intervals between refreshments
+  p: A stable culture dominated by F. sanfranciscensis needs a temperature of 25–30 °C (77–86 °F) and feeding every 24 hours for about two weeks (336 hours). Waiting more than three days between feedings acidifies the dough a
+  p: Feeding more often can increase gas production; this is called “acceleration.” It may change the ratio of yeast to lactobacilli. If daily feedings have not been reduced to every few hours, use less starter in the final d
+  p: Some faster methods need fewer feedings and use commercial sourdough starters as inoculants. One type uses traditionally maintained, stable starter doughs, often dried, with uncertain microorganism ratios. Another uses m
+  p: Keeping sourdough highly active and able to raise bread usually requires several feedings a day. Bakeries that use sourdough as their only raising agent do this; home bakers who use it weekly or less often generally do n
+  H3 Local methods
+  p: Bakers use several methods to encourage a stable starter culture. Unbleached, unbromated flour contains more microorganisms than more processed flour. Wholemeal flour provides the greatest variety of organisms and extra 
+  p: Most urban tap water is treated with chlorine or chloramine. Small amounts inhibit potentially dangerous microorganisms but are harmless to animals. Some bakers recommend untreated water for feeding cultures. Because sou
+  p: A small amount of diastatic malt adds maltase and simple sugars to support yeast at first.
+  p: Sourdough’s flavor varies by place and depends on the method, starter and dough hydration, refreshment ratio, fermentation time, temperature, humidity, and elevation. These factors affect its microorganisms.
+  H3 Mixing and shaping the bread
+  p: Feed the starter 4–12 hours before adding it to dough. Mix in flour and water to make an active leaven. It should grow, become bubbly, and float in water before use.
+  p: Mix some leaven with flour and water to make dough of the desired consistency. Starter usually weighs 13–25% of the total flour, though recipes vary. Using 5–10% cold, unfed starter, called sourdough discard, can also ma
+  p: Some sourdough methods do not require kneading.
+  p: Shape the dough into loaves, let them proof (rest before baking), then bake. Because proofing takes a long time, bakers may refrigerate loaves to slow it down. This is called retardation and can also deepen the bread’s f
+  p: Sourdough takes longer to rise than baker’s-yeast dough because its yeast is less vigorous. In the presence of lactic acid bacteria, some sourdough yeasts have been observed to produce twice as much gas as baker’s yeast.
+  p: Most sourdough starters rise too slowly for bread machines. Manufacturers may offer recipes designed for their machines. These make starter in the pan on a special setting, then add ingredients such as apple cider vinega
+  p: Bakers often make one or more deep cuts in the dough to control expansion in the oven. They may add shallow cuts for decoration.
+  p: After baking, sourdough stays fresh longer than many breads and resists spoilage and mold without the additives used to slow spoilage in other breads.
+  H3 Continuing the cycle
+  p: Bakers rarely start a new culture for each bake. They usually keep a continuous starter culture from the first batch, called mother dough, mother sponge, chef, or seed sour. There are two ways to continue the cycle after
+    li: Save some starter for another day. Its acidity and antibacterial agents help stop unwanted yeast and bacteria from growing, so a starter may last for many years. Feed the saved starter with flour and water, sometimes wit
+    li: Use the French-style levain method. Save some raw, unbaked dough instead of starter. The next day, mix it with the ingredients for a new loaf. Before shaping and baking, save some of that dough to raise the next batch.
+  H2 Biology and chemistry
+  p: Sourdough is a stable culture of lactic acid bacteria and yeast in flour and water. Yeast produces carbon dioxide, which raises the dough. Lactic acid bacteria produce lactic acid, which gives sour flavor. The bacteria u
+  H3 Lactic acid bacteria
+  p: …
+  [link] Categories
+    [link] Sourdough breads
+    [link] Doughs
+    [link] Cuisine of California
+    [link] California Gold Rush
+    [link] Fermented foods
+    [link] Cuisine of the Southwestern United States
+[button] Sift

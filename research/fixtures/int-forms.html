@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Forms fixture</title></head>
+<body>
+<main>
+<h1>Implicit submission fixture</h1>
+<p>Each form logs what happened in window.__log. None of them leave the page.</p>
+<h2>A: first submit button disabled</h2>
+<form id="A" onsubmit="event.preventDefault();__log.push('A submit by '+(event.submitter&&event.submitter.id))">
+  <label>A name <input name="a" id="Aname"></label>
+  <button id="Asave" disabled>Save</button>
+  <button id="Adel" onclick="__log.push('A del clicked')">Delete</button>
+</form>
+<h2>B: two text fields, no submit button</h2>
+<form id="B" onsubmit="event.preventDefault();__log.push('B submit')">
+  <label>B user <input name="user" id="Buser"></label>
+  <label>B pass <input name="pass" type="password" id="Bpass"></label>
+</form>
+<h2>C: one text field, no submit button</h2>
+<form id="C" onsubmit="event.preventDefault();__log.push('C submit')">
+  <label>C query <input name="q" id="Cq"></label>
+  <label><input type="checkbox" name="exact"> C exact</label>
+</form>
+<h2>D: novalidate with a required field</h2>
+<form id="D" novalidate onsubmit="event.preventDefault();__log.push('D submit')">
+  <label>D email <input name="email" type="email" required id="Demail"></label>
+  <label>D note <input name="note" id="Dnote"></label>
+  <button id="Dgo">Go</button>
+</form>
+<h2>E: required field, validation applies</h2>
+<form id="E" onsubmit="event.preventDefault();__log.push('E submit')">
+  <label>E email <input name="email" type="email" required id="Eemail"></label>
+  <label>E note <input name="note" id="Enote"></label>
+  <button id="Ego" onclick="__log.push('E go clicked')">Send E</button>
+</form>
+<h2>F: the page handles Enter itself</h2>
+<form id="F" onsubmit="event.preventDefault();__log.push('F submit')">
+  <label>F city <input name="city" id="Fcity" onkeydown="if(event.key==='Enter'){event.preventDefault();__log.push('F enter handled keyCode='+event.keyCode)}"></label>
+  <label>F zip <input name="zip" id="Fzip"></label>
+  <button id="Fgo">Find</button>
+</form>
+</main>
+<script>window.__log = [];</script>
+</body></html>

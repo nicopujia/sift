@@ -1,0 +1,184 @@
+[button] Skip to content
+[button] Menu
+[button] Search or jump to, type / to search
+[link] Sign in
+[link] Sign up
+[link] You must be signed in to fork a repository
+[link] Star 38.9k
+H1 preactjs/preact: ⚛️ Fast 3kB React alternative with the same modern API. Components & Virtual DOM.
+H2 Repository navigation
+[link] Code
+[link] Issues 17
+[link] Pull requests 21
+[link] Discussions
+[link] Actions
+[link] Projects
+[link] Wiki
+[link] Security and quality 1
+[link] Insights
+    [link] preact
+p: Public
+    [link] Notifications
+    [link] Fork 4.5k
+    [link] Star 38.9k
+[button] main branch
+  [link] 263 Branches
+  [link] 361 Tags
+  [input:text]  Go to file
+  [button] Code
+  [link] JoviDeCroock
+  [link] JoviDeCroock
+  [link] Merge pull request
+  [link] #5321
+  [link] from preactjs/JoviDeCroock/layout-effect-err…
+[button] Open commit details
+[button] success
+  [link] 958adfa
+    [link] 6,475 Commits
+th: Name
+th: Last commit message
+th: Last commit date
+  [link] .github
+  [link] Ryan makes a great point (
+  [link] #5255
+  [link] )
+td: last month
+  [link] .husky
+  [link] Migrate dependency management to a root and demo pnpm workspace
+td: last month
+  [link] benchmarks @ 0e3f967
+  [link] Integrate the new benchmarks repo and update (
+  [link] #4310
+  [link] )
+td: 2 years ago
+  [link] compat
+  [link] Merge branch 'main' into fix-unitless-svg-aspect-ratio
+td: 20 hours ago
+  [link] config
+  [link] chore: Remove leftover codemods (
+  [link] #5000
+  [link] )
+td: 9 months ago
+  [link] debug
+  [link] Report an uncaught error once it has left every tree
+td: 3 weeks ago
+  [link] demo
+  [link] Migrate dependency management to a root and demo pnpm workspace
+td: last month
+  [link] devtools
+  [link] 11.0.2
+td: yesterday
+  [link] hooks
+  [link] Trim comments
+td: 4 days ago
+  [link] jsx-runtime
+  [link] perf: omit dev fields from production jsx vnodes
+td: 2 months ago
+  [link] scripts
+  [link] Remove unused dependencies
+td: 3 months ago
+  [link] src
+  [link] fix: keep LIS candidacy separate from old vnode matching
+td: yesterday
+  [link] test-utils
+  [link] Finish act() cleanup when the leftover render queue throws
+td: 3 weeks ago
+  [link] test
+  [link] fix: keep LIS candidacy separate from old vnode matching
+td: yesterday
+  [link] types
+  [link] types: Correct outdated imports in
+  [link] jsx-runtime
+  [link] (
+  [link] #4981
+  [link] )
+td: 10 months ago
+  [link] .editorconfig
+  [link] chore: Fix mocha in Node v22+ (
+  [link] #4701
+  [link] )
+td: last year
+  [link] .gitignore
+  [link] Migrate dependency management to a root and demo pnpm workspace
+td: last month
+  [link] .gitmodules
+  [link] Integrate the new benchmarks repo and update (
+  [link] #4310
+  [link] )
+td: 2 years ago
+  [link] .oxfmtrc.json
+  [link] convert to oxfmt
+td: 3 months ago
+  [link] .oxlintrc.json
+  [link] convert to oxfmt
+td: 3 months ago
+  [link] .prettierignore
+  [link] Remove benches folder (
+  [link] #4592
+  [link] )
+td: 2 years ago
+  [link] CONTRIBUTING.md
+  [link] Use pnpm for release packing and staged publishing
+td: last month
+  [link] LICENSE
+  [link] Update license year
+td: 9 years ago
+  [link] README.md
+  [link] Add drydock badge and remove brotli
+td: 2 weeks ago
+  [link] jsconfig-lint.json
+  [link] chore: upgrade Vitest to 5
+td: last month
+  [link] jsconfig.json
+  [link] test: Switch tests to use
+  [link] .jsx
+  [link] file extension (
+  [link] #4925
+  [link] )
+td: last year
+  [link] mangle.json
+  [link] Keep listener attach times outside _listeners
+td: 3 weeks ago
+  [link] package.json
+  [link] Merge branch 'main' into JoviDeCroock/compat-compiler-runtime
+td: 20 hours ago
+  [link] pnpm-lock.yaml
+  [link] Pin terser to 5.16.0
+td: last month
+  [link] pnpm-workspace.yaml
+  [link] Migrate dependency management to a root and demo pnpm workspace
+td: last month
+  [link] vitest.config.mjs
+  [link] fix: resolve preact dist build in minified tests
+td: last month
+  [link] vitest.setup.js
+  [link] chore: remove sinon (
+  [link] #4820
+  [link] )
+td: last year
+  [button] Show full text
+  p: Preact is a fast, lightweight React alternative with a modern API, components, and a Virtual DOM.
+  H2 Preact
+  p: Preact is a fast 4 kB alternative to React with the same modern API. It offers Virtual DOM components with less overhead.
+    li: Familiar React API and patterns, including ES6 classes, hooks, and functional components
+    li: React compatibility through the preact/compat alias
+    li: JSX, VDOM, DevTools, HMR, and SSR
+    li: Optimized diffing and seamless hydration from server-rendered pages
+    li: Support for all modern browsers
+    li: Transparent asynchronous rendering with a pluggable scheduler
+  p: You can find more information on the Preact website. Preact has an npm package and a Slack community. The project lists Coveralls, gzip size, and Drydock review. See the awesome-preact list for libraries.
+  H2 Getting Started
+  p: You don’t need ES2015 to use Preact, but you can try it.
+  H2 Tutorial: Building UI with Preact
+  p: Build user interfaces by combining components and elements into trees. Components are functions or classes that describe what their tree should display. Write these descriptions in JSX or HTM, which uses JavaScript tagge
+  p: Use render() to create a structure from a tree description and append it to a parent DOM element. Later calls reuse the existing tree and update it in place. Preact compares the old and new structures to minimize DOM ope
+  p: The second call updates the <h1> text with one DOM call.
+  p: For more complex applications, components divide the interface into nested parts. Each component can compare changes from its own mounted point.
+  H2 Sponsors
+  p: Sponsors can get their logo and a link to their site in the GitHub README. Listed sponsors: SentDM, Songsterr, and Deno.
+  H2 Backers
+  p: Monthly donations support the project’s ongoing work.
+  H2 License
+  p: MIT
+  H2 About
+[button] Sift

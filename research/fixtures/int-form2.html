@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Form two</title></head>
+<body>
+<main>
+<h1>Form two</h1>
+<p>Forms with no submit button, to compare Enter in Sift with Enter in the page.</p>
+<form id="a" onsubmit="event.preventDefault(); __log.push('submit a')"><label for="a1">Trip name</label><input id="a1" name="a1" type="text"><label for="a2">Trip date</label><input id="a2" name="a2" type="date"></form>
+<form id="b" onsubmit="event.preventDefault(); __log.push('submit b')"><label for="b1">Coupon code</label><input id="b1" name="b1" type="text"><label for="b2">Color</label><input id="b2" name="b2" type="color"><label for="b3">Amount</label><input id="b3" name="b3" type="range"></form>
+</main>
+<script>window.__log = [];</script>
+</body></html>

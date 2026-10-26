@@ -1,0 +1,600 @@
+[button] Skip to content
+  [input:search] bike search for sale
+  [button] Search
+[button] Menu
+[link] acct
+H1 for sale
+    [img] 
+    [link] Bike Art
+    p: • · <1hr agoVallejo · $35
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] FIDLOCK TWIST x KEEGO bottle 600 + Bike Base BPA-free - Black x2
+    p: •••••• · <1hr agocity of san francisco · $119
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Brand New Bike Phone Stem Mount Universal Mobile Silicone Phone Holder
+    p: ••••••• · <1hr agosan jose west · $15
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Brand New Road Bike Exquisite Alloy Model Ornament Figure
+    p: •••• · <1hr agosan jose west · $25
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Brand New Triathlon Road Bike Alloy Model Ornament Figure
+    p: ••• · <1hr agosan jose west · $25
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Brand New Bike Silicone Phone Mount Holder with Shock-Absorbing Design
+    p: •••• · <1hr agosan jose west · $15
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Raleigh bike, good for height 5'3" to 5'6"
+    p: ••••••••• · <1hr agosan jose west · $50
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Max Racer Bicycle Trainer with Raleigh bike
+    p: ••••••••••• · <1hr agosan jose west · $70
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Mountain Bike
+    p: •••••••••• · <1hr agoDaly City · $100
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Gray 1-Bike Heavy-Duty Vinyl-Coated Screw-In Bike Storage Hook
+    p: •• · <1hr agoLos Gatos · $49
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 48cm Cannondale Synapse 3x10Speed Road Bike Shimano 105
+    p: •••••••••• · <1hr agotreasure island · $645
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Niner RKT 9 RDO, Carbon Full Suspension
+    p: ••••••••• · <1hr agoSan Jose · $1,950
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Kona Shred mountain bike
+    p: •••• · 1h agoSan Jose · $150
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Wahoo KICKR Bike (v1) Smart Bike – 2 Handlebar Sets, Rocker Feet
+    p: • · 1h agomountain view · $1,200
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 2026 Marin Kentfiled 2 - size L - ridden once
+    p: ••••••• · 1h agosonoma · $700
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] specialized TRANSITION PRO
+    p: •••••••••••••• · 1h agosan rafael · $1,200
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Heavy-Duty Stainless Steel Bike & Electric Scooter Wall Mount Hooks
+    p: ••••• · 1h agoalameda · $10
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Capo bike jersey and bib
+    p: ••••• · 1h agoberkeley · $40
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Specialized Toupe Ti 143 Bike Saddle
+    p: • · 1h agoberkeley · $50
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Specialized Rockhopper
+    p: •••••••••••••••••••• · 2h agosan jose east · $225
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Mongoose 20" BMaX Fat Tire BMX Bike - Kids - $30 (Sunol)
+    p: •• · 2h agodublin / pleasanton / livermore · $30
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] MTB Handlebars - Mountain Bike Parts - Renthal Riser Bars
+    p: ••• · 2h agosanta rosa · $80
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Trek / Bontrager MTB Parts - Mountain Bike Seat Handlebars Stem
+    p: ••••••••••••• · 2h agosanta rosa · $60
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Road Bike - Bicycle Stem - Bontrager / Trek
+    p: •••• · 2h agosanta rosa · $40
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Felt Comp Med/Large Mountain Bike
+    p: •••••• · 2h agodublin / pleasanton / livermore · $1,500
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Santa Cruz Tall Boy LT Size Large Sram NX 1x12
+    p: •••••• · 2h agodublin / pleasanton / livermore · $2,200
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Rans Vivo Full Suspension Off Road Recumbent One Size Fits All
+    p: •••••••• · 2h agofairfield / vacaville · $900
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] (no email) Grit Schwinn kids bike with beverage holder
+    p: ••••••• · 2h agosan jose east · $20
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Breezer Commuter Step Thru Mixte
+    p: • · 2h agoalamo square / nopa · $150
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] SURLY PUGSLEY XL
+    p: ••••• · 2h agoalamo square / nopa · $899
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Peloton Bike (Gen 2 Screen) with weights, Peloton Mat and shoes
+    p: ••••• · 2h agosan mateo · $400
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Surly Big Dummy - Large
+    p: •••••••••••••••••• · 2h agoSan Jose · $750
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Bridgestone MB5
+    p: •••••••••• · 2h agosan jose north · $550
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Park Tool bike clamp
+    p: ••••••• · 2h agoSan Jose · $30
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 26" Trek Comfort Bike.
+    p: ••• · 2h agosan jose north · $160
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 26" Trek Comfort Bike.
+    p: ••• · 2h agosan jose north · $160
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 26" Trek Comfort Bike.
+    p: ••• · 2h agosan jose north · $160
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Faraday Size Small
+    p: • · 2h agoSanta Cruz · $350
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Schwinn Jaguar Bike
+    p: • · 2h agovallejo / benicia · $99
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] ROYALBABY Kids bike training bike brand new for kids
+    p: ••••• · 2h agohayward / castro valley · $100
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Brompton CHPT3 V4 Edition
+    p: •• · 2h agosanta clara · $2,850
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Brand new Leatherman Made In USA top quality
+    p: •••••••••• · 2h agosouth san francisco · $45
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Schwinn Traveler (Found)
+    p: • · 2h agoberkeley · $1
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Bicycle Lekker Amsterdam Elite M2 (belt drive)
+    p: ••••• · 2h agomountain view · $650
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Kids bike
+    p: •••• · 2h agowestern addition · $30
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Kids Bicycle – Needs Repair / For Parts
+    p: •••••• · 2h agosan jose south · $15
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 2017 Specialized Turbo Levo FSR 6 Fattie E bike
+    p: •••••••• · 2h agohayward / castro valley · $3,300
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Tour Easy Coupled Folding Recumbent Suitcase Travel Bike Small/Med
+    p: ••••••••• · 2h agofairfield / vacaville · $1,500
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Specialized Hellga Fat Bike Size Medium
+    p: •••••••• · 2h agohayward / castro valley · $5,000
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Specialized helmet (black)
+    p: ••• · 2h agoSan Jose · $15
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Easy Racer “GRR” Gold Rush Recumbent Size Med Large
+    p: •••••••••• · 2h agodublin / pleasanton / livermore · $1,600
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 2017 Carbent HPV Sea Dragon Pro Recumbent Like New
+    p: ••••••••• · 3h agoLake Tahoe · $2,950
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Santa Cruz Hightower CC - Large - Reserve Wheels - X01 Transmission
+    p: •• · 3h agosan rafael · $5,000
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Pursuit Allroad, 58cm, Ultegra Di2, Enve
+    p: •••••• · 3h agocupertino · $4,200
+    [button] add to favorites list
+    [button] hide posting
+    [link] Titanium Litespeed $1,500,Bike roof rack fork clamp $22, OBO
+    p: no image · 3h agomenlo park · $22
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 92 Bontrager Steel Roadlight
+    p: • · 3h agomill valley · $1,000
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] KNEE ROVER
+    p: ••• · 3h agomilpitas · $35
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 20" BIKE
+    p: •••••• · 3h agomilpitas · $30
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Vintage Bianchi Alfana
+    p: •• · 3h agoberkeley north / hills · $525
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] BMX Bicycle “Hutch” Blue Fleece Sweatshirt XL Bike -
+    p: • · 3h agoSan Francisco · $25
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Car Vehicle Trunk Mount Bike Rack Bicycle
+    p: •• · 3h agoSan Francisco · $20
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] BMX 16" Bike Rims Bicycle Wheel Set with Tires
+    p: •• · 3h agoSan Francisco · $60
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Kinetic Bike Trainer Bicycle Trainer Bike Resistance Training Stand
+    p: • · 3h agoSan Francisco · $75
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Bike Seat - new condition
+    p: ••• · 3h agoSebastopol · $20
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Bike bottle holder all different kind
+    p: • · 3h agosanta rosa · $4
+    [button] add to favorites list
+    [button] hide posting
+    [link] Mastering Mountain Bike Skills - 2nd Edition - Never Read, New,Trades?
+    p: no image · 3h agocampbell · $15
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Bike rear basket
+    p: • · 3h agosanta rosa · $10
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Infinity bike
+    p: ••• · 3h agosanta rosa · $120
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Yakima bedhead bike rack
+    p: •• · 3h agoSebastopol · $20
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Bike bottle holder all different kind
+    p: • · 3h agosanta rosa · $4
+    [button] add to favorites list
+    [button] hide posting
+    [link] Yard Sale-Sat.Sept.26-clothes,15speed bike,garden,books,swim,pots,++++
+    p: no image · 9/26san rafael
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Santa Cruz heckler ebike OBO
+    p: •••••••••••••••••••••• · 3h agodaly city · $6,000
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 1988 Schwinn Voyageur Touring Road Bike 58cm Large
+    p: ••••••••••••••••• · 3h agoSacramento/Bay Area · $600
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Electra Rat Rob
+    p: • · 3h agoaptos · $140
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Bike for kid
+    p: •• · 3h agosunnyvale · $15
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Bike for kid
+    p: ••• · 3h agosunnyvale · $25
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Bike for kid
+    p: •••• · 3h agosunnyvale · $25
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Santa Cruz Blur 4 TR CC AXS Transmission Power Meter Reserve Large
+    p: ••••••••••• · 4h agonapa county · $5,200
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Allen 2 Bike Rack - Complete - Like New - Trunk/SUV
+    p: • · 4h agosanta clara · $35
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Vintage BSA female Bicycle
+    p: •••••••••• · 4h agoinner richmond · $58
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] BMX Bicycle “Hutch” Blue Fleece Sweatshirt XL Bike -
+    p: • · 4h agoSan Francisco · $25
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] USB Rechargeable Bright LED Bicycle Light Bike Headlight” No Strap”
+    p: • · 4h agoSan Francisco · $20
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] BMX 16" Bike Rims Bicycle Wheel Set with Tires
+    p: •• · 4h agoSan Francisco · $60
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Specialized Hotrock Bicycle 20 Inch Kids' Bikes
+    p: •• · 4h agoSF · $200
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Two Child’s Bike Frames Murray & Magna Bicycle Frame
+    p: • · 4h agoSF · $10
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Kona Lava Dome mountain bike
+    p: •••••• · 4h agoinner richmond · $185
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] CycleOps Bike Trainer Bicycle Exercise Machine -
+    p: • · 4h agoSF · $75
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] CycleOps Bike Trainer Bicycle Exercise Machine -
+    p: • · 4h agoSF · $75
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Schwinn Cruiser
+    p: • · 4h agobelmont · $200
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] USB Rechargeable Bright LED Bicycle Light Bike Headlight
+    p: • · 4h agoSF · $25
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] USB Rechargeable Bright LED Bicycle Light Bike Headlight
+    p: • · 4h agoSF · $25
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Ultracycle Body Geometry Bike Saddle Seat Black Road MTB Cycling
+    p: ••• · 4h agoSF · $10
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Ultracycle Body Geometry Bike Saddle Seat Black Road MTB Cycling
+    p: ••• · 4h agoSF · $10
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] vintage BMX Bike Bar Pads Webco Redline Haro GT
+    p: ••• · 4h agosf · $10
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Burley Bee Single Kids' Bike Trailer Protected Windows
+    p: ••••• · 4h agoSF · $200
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Tony Hawk Square Back BMX Bicycle Huckjam Series Freestyle Bike Frame
+    p: ••• · 4h agoSF · $100
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Tony Hawk Square Back BMX Bicycle Huckjam Series Freestyle Bike Frame
+    p: ••• · 4h agoSF · $100
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] TREK 4300 26" bicycle good condition with lock, keys & new repair kit
+    p: ••••••••• · 4h agosan jose south · $100
+    [button] add to favorites list
+    [button] hide posting
+    [link] Picture Frames, Shaker Bottle, Hot August Nights, Bike Water Bottle
+    p: no image · 4h agosan jose west · free
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 3 10 foot kryptonite kryptoflex bike lock cables
+    p: •• · 4h agoSOMA / south beach · $25
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Mountain Bike Seat - Chromag Lynx DT
+    p: •••• · 4h agocampbell · $20
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Specialized Status 160 (S4/ 5ft8-6ft2)
+    p: •••••••• · 4h agoFairfield · $1,800
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 2023 Gt Force Sport (Large)
+    p: •••••••••• · 4h agoFairfield · $1,000
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Blue mini bike frame
+    p: • · 4h agoFremont · $150
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Retrospect Chatham 2 Ebike. New! Barely ridden. One size fits most. $625 obo
+    p: •••••••••••• · 4h agoSan Jose
+    [button] add to favorites list
+    [button] hide posting
+    [link] 1996 Trek 7000 Mtn Bike
+    p: no image · 4h agolaurel hts / presidio · $150
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Stationary Bike Pedal Straps Recumbent Spin Spinner
+    p: •• · 4h agosan jose west · $5
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 26" Bike Fender, Purple - Low Rider Style - Brand New
+    p: ••• · 4h agosan jose west · $20
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Sondors Ebike. Barely ridden. $575 w charger.
+    p: •••••••• · 4h agoMarin
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Schwinn 26" women's mountain bike in blue
+    p: •••••• · 4h agofremont / union city / newark · $75
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Schwinn 26" women's mountain bike in blue
+    p: •••••• · 4h agofremont / union city / newark · $75
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Schwinn 26" women's mountain bike in blue
+    p: •••••• · 4h agofremont / union city / newark · $75
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Specialized Bike Stem 110 mm / 8 degrees
+    p: ••••• · 4h agosan jose west · $40
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Bontrager Road Bike Saddle
+    p: ••• · 4h agosan jose west · $5
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Road Bike Stem
+    p: ••• · 4h agosan jose west · $15
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Boys Diamondback Hardtail Mountain bike
+    p: •••• · 5h agolafayette / orinda / moraga · $40
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Schwinn Recumbent Bike 230 NEW
+    p: •••••••••••• · 5h agoSanta Rosa · $200
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] New Groove Waterproof Durable Shock Absorbing Bicycle Saddle Bike Seat
+    p: •••• · 5h agolos gatos · $20
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] Sondors thin (182 mi !!) city ebike $525
+    p: •••••••• · 5h agoSan Jose
+    [button] add to favorites list
+    [button] hide posting
+    [img] 
+    [link] 2026 Trek/ Electra Go E bike. $625!!
+    p: ••••••••••••••• · 5h agoDowntown
+    [button] add to favorites list

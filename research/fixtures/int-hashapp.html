@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Inbox</title></head>
+<body><div id="app"></div>
+<script>
+const app = document.getElementById("app");
+function view() {
+  const m = /^#\/msg\/(\d+)/.exec(location.hash);
+  if (m) {
+    document.title = "Message " + m[1];
+    app.innerHTML = `<main><h1>Message ${m[1]}: Lunch on Friday</h1><p>From: Ana. Hi, are we still on for lunch on Friday at noon? Let me know if the place on 5th street works for you.</p><p>${"More text of the message. ".repeat(20)}</p><a href="#/inbox">Back to inbox</a></main>`;
+  } else {
+    document.title = "Inbox";
+    let rows = "";
+    for (let i = 1; i <= 40; i++) rows += `<tr><td><a href="#/msg/${i}">Subject line number ${i} about plans</a></td><td>Sender ${i}</td><td>Oct ${i % 28 + 1}</td></tr>`;
+    app.innerHTML = `<main><h1>Inbox</h1><p>Your messages.</p><table><tbody>${rows}</tbody></table></main>`;
+  }
+}
+addEventListener("hashchange", view); view();
+</script></body></html>

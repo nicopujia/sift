@@ -1,0 +1,77 @@
+[button] Skip to content
+  [input:search] wireless headphones Search Amazon
+  [button] Search
+[button] Menu
+[link] Cart 0
+[button] Hello, sign in
+[link] Orders
+H1 Search: wireless headphones
+  [select:select-one] relevanceblender 
+  H2 Filters
+    [img] 
+    [link] Foldable Bluetooth over-ear headphones with noise cancelling and 35-hour battery life
+    p: $20.98 (was $199.99) · 4.5★ · 531 ratings · 1K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25
+    [img] 
+    [link] Soundcore by Anker Q20i noise-cancelling over-ear headphones in black
+    p: $39.97 (was $69.99) · 4.5★ · 78,026 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25
+    [button] Add to cart
+    [img] 
+    [link] Lightweight Bluetooth clip-on earbuds for sports, calls, and commuting
+    p: $25.99 · 4.2★ · 11 ratings · New on Amazon in past month · Join Prime to get FREE delivery Tomorrow, Oct 25
+    [button] Add to cart
+    [img] 
+    [link] Wireless over-ear headphones with noise cancelling and 120-hour battery life
+    p: $29.99 (was $299.99) · 4.3★ · 1,118 ratings · 3K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25
+    [img] 
+    [link] Apple AirPods Pro 3 wireless earbuds with noise cancellation and live translation
+    p: $199.00 (was $249.00) · 4.4★ · 16,928 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · More Buying Choices $183.44(7+ used & new offers)
+    [button] Add to cart
+    [img] 
+    [link] HAOYUYAN wireless sports earbuds with 80-hour battery life and waterproof design
+    p: $23.98 (was $25.98) · 4.5★ · 1,671 ratings · 7K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25
+    [img] 
+    [link] Wireless headphones with charging dock for watching TV
+    p: $59.99 (was $79.99) · 4.2★ · 305 ratings · 100+ bought in past month · Join Prime to get FREE delivery Mon, Oct 26
+    [img] 
+    [link] Wireless over-ear headphones with noise cancelling and 120-hour battery life
+    p: $99.96 (was $179.99) · 4.9★ · 129 ratings · 1K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25
+    [button] Add to cart
+    [img] 
+    [link] Wireless Bluetooth earbuds with 50-hour playback and waterproof design
+    p: $18.97 (was $19.97) · 4.8★ · 252 ratings · 7K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25
+    [img] 
+    [link] Open-ear wireless earbuds with earhooks for running and workouts
+    p: $25.63 (was $26.98) · 4.7★ · 74 ratings · Join Prime to get FREE delivery Tomorrow, Oct 25
+    [img] 
+    [link] Soundcore by Anker Q20i noise-cancelling over-ear headphones in white
+    p: $39.97 (was $69.99) · 4.5★ · 78,026 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25
+    [button] Add to cart
+    [img] 
+    [link] Beats Solo 4 wireless on-ear headphones with up to 50-hour battery life
+    p: $149.95 (was $199.95) · 4.6★ · 29,891 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · More Buying Choices $109.71(8+ used & new offers)
+    [button] Add to cart
+    [img] 
+    [link] Sony WH-CH520 wireless on-ear headphones with microphone and 50-hour battery life
+    p: 4.4★ · 36,142 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25
+    [link] Click to see price
+    [button] Add to cart
+    [img] 
+    [link] Apple AirPods 5 wireless earbuds with noise cancellation and spatial audio
+    p: $129.00 · 4.4★ · 329 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · More Buying Choices $118.91(6+ used & new offers)
+    [button] Add to cart
+    [img] 
+    [link] BERIBES wireless over-ear headphones with 65-hour battery life and six EQ modes
+    p: $23.99 (was $28.99) · 4.5★ · 48,840 ratings · 10K+ bought in past month · FREE delivery Thu, Oct 29 on $35 of items shipped by Amazon
+    [button] Add to cart
+    [img] 
+    [link] Sony WH-CH720N wireless over-ear headphones with noise cancelling and 35-hour battery life
+    p: 4.3★ · 17,157 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25
+    [link] Click to see price
+    [button] Add to cart
+[button] Previous
+[button] 1
+[link] 2
+[link] 3
+[button] 20
+[button] Next
+[button] Sift

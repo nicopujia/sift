@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Flour · Pantry Shop</title>
+<style>
+body{font-family:system-ui;margin:0}
+header{background:#2d4a22;color:#fff;padding:12px 24px}header a{color:#fff;margin-right:12px}
+main{max-width:860px;margin:24px auto}
+.bar{display:flex;gap:8px;align-items:center;position:relative;flex-wrap:wrap}
+.bar > button{border:1px solid #888;background:#fff;padding:6px 12px;border-radius:16px}
+.pop{position:absolute;top:40px;background:#fff;border:1px solid #888;box-shadow:0 4px 12px rgba(0,0,0,.2);padding:12px;z-index:4;min-width:200px}
+.pop label{display:block;margin:4px 0}
+.chips{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap}
+.chip{background:#e7f0e3;border-radius:12px;padding:2px 4px 2px 10px}
+.chip button{border:0;background:none}
+ul.res{list-style:none;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+ul.res li{border:1px solid #ddd;padding:10px}
+[role=listbox]{position:absolute;top:40px;right:0;background:#fff;border:1px solid #888;list-style:none;margin:0;padding:4px 0;z-index:4}
+[role=option]{padding:6px 12px;cursor:pointer}[role=option][aria-selected=true]{font-weight:700}[role=option].act{background:#def}
+.ad{background:#ffe;border:1px dashed #cc0;padding:8px;margin:12px 0}
+</style></head>
+<body>
+<header><a href="/">Pantry Shop</a><a href="/baking">Baking</a><a href="/deals">Deals</a></header>
+<main>
+<h1>Flour</h1>
+<div class="bar" id="bar">
+  <button type="button" id="b-brand" aria-haspopup="true" aria-expanded="false">Brand</button>
+  <button type="button" id="b-gf" aria-pressed="false">Gluten-free only</button>
+  <span style="flex:1"></span>
+  <span id="sortl">Sort by</span>
+  <button type="button" id="b-sort" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="sortl b-sort">Featured</button>
+</div>
+<div class="chips" id="chips" aria-label="Active filters"></div>
+<p id="count" role="status">8 results</p>
+<div class="ad">Sponsored: Try MegaMix pancake flour! <a href="/ad">Shop now</a></div>
+<ul class="res" id="res"></ul>
+</main>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+const items = [
+  { n: "Acme all-purpose flour, 2 kg", b: "Acme", gf: false, p: 3.2 },
+  { n: "Acme bread flour, 1 kg", b: "Acme", gf: false, p: 2.9 },
+  { n: "Bobs rice flour, 680 g", b: "Bobs", gf: true, p: 4.5 },
+  { n: "Bobs 1-to-1 baking flour, 1.2 kg", b: "Bobs", gf: true, p: 7.9 },
+  { n: "Caputo Fioreglut, 1 kg", b: "Caputo", gf: true, p: 9.5 },
+  { n: "Caputo 00 pizza flour, 1 kg", b: "Caputo", gf: false, p: 4.1 },
+  { n: "Doves spelt flour, 1 kg", b: "Doves", gf: false, p: 3.8 },
+  { n: "Doves buckwheat flour, 1 kg", b: "Doves", gf: true, p: 4.2 },
+];
+const brands = new Set(); let gf = false, sort = "Featured";
+function draw() {
+  let r = items.filter((i) => (!brands.size || brands.has(i.b)) && (!gf || i.gf));
+  if (sort === "Price: low to high") r = r.slice().sort((a, b) => a.p - b.p);
+  if (sort === "Price: high to low") r = r.slice().sort((a, b) => b.p - a.p);
+  $("res").innerHTML = r.map((i) => '<li><a href="/p/' + encodeURIComponent(i.n) + '">' + i.n + '</a><br>$' + i.p.toFixed(2) + (i.gf ? ' · Gluten-free' : '') + ' <button type="button" class="add" aria-label="Add ' + i.n + ' to cart">Add</button></li>').join("");
+  $("count").textContent = r.length + " results";
+  $("chips").innerHTML = [...brands].map((b) => '<span class="chip">Brand: ' + b + ' <button type="button" data-b="' + b + '" aria-label="Remove filter Brand: ' + b + '">×</button></span>').join("") + (gf ? '<span class="chip">Gluten-free <button type="button" data-gf="1" aria-label="Remove filter Gluten-free">×</button></span>' : "");
+  $("b-brand").textContent = brands.size ? "Brand (" + brands.size + ")" : "Brand";
+}
+draw();
+function closePop() { const p = document.querySelector(".pop"); if (p) { p.remove(); $("b-brand").setAttribute("aria-expanded", "false"); } }
+$("b-brand").onclick = () => {
+  if (document.querySelector(".pop")) { closePop(); return; }
+  const p = document.createElement("div"); p.className = "pop";
+  p.innerHTML = ["Acme", "Bobs", "Caputo", "Doves"].map((b) => '<label><input type="checkbox" value="' + b + '"' + (brands.has(b) ? " checked" : "") + "> " + b + "</label>").join("") + '<p><button type="button" id="apply">Apply</button> <button type="button" id="reset">Reset</button></p>';
+  $("bar").appendChild(p); $("b-brand").setAttribute("aria-expanded", "true"); __log.push("brand open");
+  $("apply").onclick = () => { brands.clear(); for (const c of p.querySelectorAll("input:checked")) brands.add(c.value); __log.push("apply " + [...brands].join(",")); closePop(); draw(); $("b-brand").focus(); };
+  $("reset").onclick = () => { for (const c of p.querySelectorAll("input")) c.checked = false; __log.push("reset"); };
+  p.addEventListener("keydown", (e) => { if (e.key === "Escape") { closePop(); $("b-brand").focus(); } });
+};
+$("b-gf").onclick = () => { gf = !gf; $("b-gf").setAttribute("aria-pressed", String(gf)); __log.push("gf " + gf); draw(); };
+$("chips").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; if (b.dataset.b) brands.delete(b.dataset.b); if (b.dataset.gf) { gf = false; $("b-gf").setAttribute("aria-pressed", "false"); } __log.push("chip remove " + (b.dataset.b || "gf")); draw(); });
+$("res").addEventListener("click", (e) => { const b = e.target.closest(".add"); if (b) __log.push("add " + b.getAttribute("aria-label")); });
+$("b-sort").onclick = () => {
+  if (document.querySelector("[role=listbox]")) return;
+  const l = document.createElement("ul"); l.setAttribute("role", "listbox"); l.setAttribute("aria-label", "Sort by"); l.tabIndex = -1;
+  const opts = ["Featured", "Price: low to high", "Price: high to low"];
+  l.innerHTML = opts.map((o, i) => '<li role="option" id="so' + i + '" aria-selected="' + (o === sort) + '">' + o + "</li>").join("");
+  $("bar").appendChild(l); $("b-sort").setAttribute("aria-expanded", "true"); l.focus(); let a = opts.indexOf(sort);
+  const mark = () => { [...l.children].forEach((c, i) => c.classList.toggle("act", i === a)); l.setAttribute("aria-activedescendant", "so" + a); };
+  mark();
+  const pick = (o) => { sort = o; $("b-sort").textContent = o; l.remove(); $("b-sort").setAttribute("aria-expanded", "false"); __log.push("sort " + o); draw(); $("b-sort").focus(); };
+  l.addEventListener("click", (e) => { const o = e.target.closest("[role=option]"); if (o) pick(o.textContent); });
+  l.addEventListener("keydown", (e) => { if (e.key === "ArrowDown") { a = Math.min(2, a + 1); mark(); e.preventDefault(); } if (e.key === "ArrowUp") { a = Math.max(0, a - 1); mark(); e.preventDefault(); } if (e.key === "Enter") pick(opts[a]); if (e.key === "Escape") { l.remove(); $("b-sort").setAttribute("aria-expanded", "false"); $("b-sort").focus(); } });
+};
+</script>
+</body></html>

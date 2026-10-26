@@ -1,0 +1,6 @@
+node_modules/
+dist/
+research/snapshots/
+.chrome/
+local-key.json
+*.local.*

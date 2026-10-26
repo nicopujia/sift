@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Is rice flour good for bread? - Baking Forum</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body { font: 16px/1.5 sans-serif; margin: 0; }
+header { position: sticky; top: 0; background: #eee; padding: 8px 16px; }
+main { max-width: 720px; margin: 0 auto; padding: 16px; }
+.post { border-bottom: 1px solid #ccc; padding: 12px 0; box-sizing: border-box; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(0 100% 100% 0); white-space: nowrap; }
+</style></head>
+<body>
+<!--
+  A thread that unloads the posts far from its scroll position, as Discourse does:
+  an unloaded post is an empty box held at its height. Open with ?post=N to start at
+  post N, as Discourse does for /t/topic/id/N. The address follows the post in view
+  (history.replaceState). Checks for the nav group (F500, F338): Sift must not jump the
+  page to its end on load, must open at post N, must reach every post by scrolling, and
+  must not move the page while the reader is idle.
+-->
+<header><a href="#">Baking Forum</a></header>
+<main>
+<h1>Is rice flour good for bread?</h1>
+<div id="stream"></div>
+</main>
+<script>
+const names = ["Ana", "Ben", "Chen", "Dara", "Eli", "Fatima", "Gus", "Hana", "Ivo", "Jun"];
+const N = 30;
+const stream = document.getElementById("stream");
+const heightOf = (i) => 260 + ((i * 97) % 320);
+const textOf = (i) => `Post ${i + 1}. ` + "Rice flour has no gluten, so the dough needs a binder such as psyllium husk. ".repeat(2 + (i % 4));
+const posts = [];
+for (let i = 0; i < N; i++) {
+  const d = document.createElement("div");
+  d.className = "post";
+  d.dataset.n = String(i + 1);
+  d.style.height = heightOf(i) + "px";
+  stream.appendChild(d);
+  posts.push(d);
+}
+function fill(d, i) {
+  if (d.dataset.full) return;
+  d.dataset.full = "1";
+  d.innerHTML = `<article><h2 class="sr-only">post by ${names[i % 10]}</h2><a class="author" href="/u/${names[i % 10].toLowerCase()}-${i + 1}">${names[i % 10]} #${i + 1}</a><p>${textOf(i)}</p><button type="button">Like post ${i + 1}</button></article>`;
+}
+function cloak(d, i) {
+  if (!d.dataset.full) return;
+  delete d.dataset.full;
+  d.innerHTML = `<h2 class="sr-only">post by ${names[i % 10]}</h2>`;
+}
+let last = 0;
+function sync() {
+  const lo = scrollY - innerHeight, hi = scrollY + innerHeight * 2;
+  let inView = 0;
+  posts.forEach((d, i) => {
+    const top = d.offsetTop, bottom = top + d.offsetHeight;
+    if (bottom > lo && top < hi) fill(d, i); else cloak(d, i);
+    if (!inView && bottom > scrollY + 60) inView = i + 1;
+  });
+  if (inView && inView !== last) {
+    last = inView;
+    const u = new URL(location.href);
+    u.searchParams.set("post", String(inView));
+    if (inView === 1) u.searchParams.delete("post");
+    history.replaceState(null, "", u);
+  }
+}
+posts.forEach((d, i) => cloak(d, i));
+addEventListener("scroll", () => requestAnimationFrame(sync), { passive: true });
+addEventListener("load", () => {
+  const p = +(new URLSearchParams(location.search).get("post") || 0);
+  if (p > 1) scrollTo(0, posts[p - 1].offsetTop - 50);
+  sync();
+});
+// Like Discourse: everything shows at first, the far posts unload a moment later.
+posts.forEach((d, i) => fill(d, i));
+setTimeout(sync, 1200);
+</script>
+</body></html>

@@ -1,0 +1,600 @@
+[button] Skip to content
+  [input:search]  Search…
+  [button] Search
+[button] Menu
+[link] Log in
+[link] Sign up
+[link] Create a workspace
+H1 How do JavaScript closures work?
+p: Sep 21, 2008
+[button] Up vote
+[button] Down vote
+[button] Save
+    [link] Timeline
+  [link] community effort
+p: How would you explain JavaScript closures to someone with a knowledge of the concepts they consist of (for example functions, variables and the like), but does not understand closures themselves?
+  [link] the Scheme example
+    [link] show questions tagged 'javascript'
+    [link] show questions tagged 'function'
+    [link] show questions tagged 'variables'
+    [link] show questions tagged 'scope'
+    [link] show questions tagged 'closures'
+[button] Follow
+    [link] edited Apr 9, 2017 at 13:55
+p: community wiki
+  [link] 28 revs, 21 users 17%
+  [link] Zaheer Ahmed
+p: Comments disabled on deleted / locked posts / reviews
+  H2 85 Answers
+  p: Sorted by:
+    [select:select-one] scoredesc 
+      [link] Go to page 2
+      [link] Go to page 3
+      [link] Go to next page
+      [link] Timeline
+  p: A closure is a pairing of:
+    li: A function and
+    li: A reference to that function's outer scope (lexical environment)
+  p: A lexical environment is part of every execution context (stack frame) and is a map between identifiers (i.e. local variable names) and values.
+  p: Every function in JavaScript maintains a reference to its outer lexical environment. This reference is used to configure the execution context created when a function is invoked. This reference enables code inside the fu
+  p: If a function was called by a function, which in turn was called by another function, then a chain of references to outer lexical environments is created. This chain is called the scope chain.
+  p: In the following code, inner forms a closure with the lexical environment of the execution context created when foo is invoked, closing over variable secret:
+  [button] Run code snippet
+  p: In other words: in JavaScript, functions carry a reference to a private "box of state", to which only they (and any other functions declared within the same lexical environment) have access. This box of the state is invi
+  p: And remember: functions in JavaScript can be passed around like variables (first-class functions), meaning these pairings of functionality and state can be passed around your program, similar to how you might pass an ins
+  p: If JavaScript did not have closures, then more states would have to be passed between functions explicitly, making parameter lists longer and code noisier.
+  p: So, if you want a function to always have access to a private piece of state, you can use a closure.
+  p: ...and frequently we do want to associate the state with a function. For example, in Java or C++, when you add a private instance variable and a method to a class, you are associating the state with functionality.
+  p: In C and most other common languages, after a function returns, all the local variables are no longer accessible because the stack-frame is destroyed. In JavaScript, if you declare a function within another function, the
+  H2 Uses of Closures
+  p: Closures are useful whenever you need a private state associated with a function. This is a very common scenario - and remember: JavaScript did not have a class syntax until 2015, and it still does not have a private fie
+  H3 Private Instance Variables
+  p: In the following code, the function toString closes over the details of the car.
+  H3 Functional Programming
+  p: In the following code, the function inner closes over both fn and args.
+  H3 Event-Oriented Programming
+  p: In the following code, function onClick closes over variable BACKGROUND_COLOR.
+  H3 Modularization
+  p: In the following example, all the implementation details are hidden inside an immediately executed function expression. The functions tick and toString close over the private state and functions they need to complete the
+  H2 Examples
+  H3 Example 1
+  p: This example shows that the local variables are not copied in the closure: the closure maintains a reference to the original variables themselves. It is as though the stack-frame stays alive in memory even after the oute
+  H3 Example 2
+  p: In the following code, three methods log, increment, and update all close over the same lexical environment.
+  p: And every time createObject is called, a new execution context (stack frame) is created and a completely new variable x, and a new set of functions (log etc.) are created, that close over this new variable.
+  H3 Example 3
+  p: If you are using variables declared using var, be careful you understand which variable you are closing over. Variables declared using var are hoisted. This is much less of a problem in modern JavaScript due to the intro
+  p: In the following code, each time around the loop, a new function inner is created, which closes over i. But because var i is hoisted outside the loop, all of these inner functions close over the same variable, meaning th
+  H2 Final points:
+    li: Whenever a function is declared in JavaScript closure is created.
+    li: Returning a function from inside another function is the classic example of closure, because the state inside the outer function is implicitly available to the returned inner function, even after the outer function has c
+    li: Whenever you use eval() inside a function, a closure is used. The text you eval can reference local variables of the function, and in the non-strict mode, you can even create new local variables by using eval('var foo = 
+      [link] Function constructor
+    li: A closure in JavaScript is like keeping a reference (NOT a copy) to the scope at the point of function declaration, which in turn keeps a reference to its outer scope, and so on, all the way to the global object at the t
+    li: A closure is created when a function is declared; this closure is used to configure the execution context when the function is invoked.
+    li: A new set of local variables is created every time a function is called.
+  H2 Links
+      [link] private attributes and private methods
+      p: Douglas Crockford's simulated for an object, using closures.
+      [link] cause memory leaks in IE
+      p: A great explanation of how closures can if you are not careful.
+      [link] JavaScript Closures
+      p: MDN documentation on .
+      [link] JavaScript Closures
+      p: The Beginner's Guide to .
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Jul 16, 2023 at 17:04
+  p: community wiki
+    [link] 69 revs, 58 users 30%
+    [link] Ben Aston
+  H2 4 Comments
+  [button] Show all comments
+  [button] Add a comment
+      [link] jsonp
+      p: I've only been a frontend dev for six years, so I'm curious how common examples like curriedAdd(2)(3)() in your Functional Programming examples are besides when explaining closures or in coding interviews. I've done a lo
+      p: Mar 14, 2022 at 14:26 · 2022-03-14T14:26:44.46Z+00:00
+      [button] 12
+      [button] Reply
+      [link] JosephDoggie
+      p: Undoubtedly what you've written is true, though I haven't verified it personally. However, I find it deeply disturbing. Could you do an edit to show how you would print 0, 1, and 2. Also, in both loops i is less than 3, 
+      p: Apr 20, 2023 at 14:53 · 2023-04-20T14:53:23.32Z+00:00
+      [button] 0
+      [button] Reply
+      [link] Vic Stalkeur
+      p: This would require an update as JS does provide a private field/method syntax with # prefix now.
+      p: Feb 8, 2024 at 13:14 · 2024-02-08T13:14:19.923Z+00:00
+      [button] 0
+      [button] Reply
+      [link] Danny 'Quest' Engelman
+      p: No need for a function? { let a = 666;console.log(a) } { console.log(a) } logs 666 and a is not defined
+      p: Sep 7, 2025 at 19:09 · 2025-09-07T19:09:43.48Z+00:00
+      [button] 0
+      [button] Reply
+      [link] Timeline
+  p: Every function in JavaScript maintains a link to its outer lexical environment. A lexical environment is a map of all the names (eg. variables, parameters) within a scope, with their values.
+  p: So, whenever you see the function keyword, code inside that function has access to variables declared outside the function.
+  p: This will log 16 because function bar closes over the parameter x and the variable tmp, both of which exist in the lexical environment of outer function foo.
+  p: Function bar, together with its link with the lexical environment of function foo is a closure.
+  p: A function doesn't have to return in order to create a closure. Simply by virtue of its declaration, every function closes over its enclosing lexical environment, forming a closure.
+  p: The above function will also log 16, because the code inside bar can still refer to argument x and variable tmp, even though they are no longer directly in scope.
+  p: However, since tmp is still hanging around inside bar's closure, it is available to be incremented. It will be incremented each time you call bar.
+  p: The simplest example of a closure is this:
+  p: When a JavaScript function is invoked, a new execution context ec is created. Together with the function arguments and the target object, this execution context also receives a link to the lexical environment of the call
+  p: Every function creates a closure because every function has a link to its outer lexical environment.
+  p: Note that variables themselves are visible from within a closure, not copies.
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Mar 28, 2020 at 5:44
+  p: community wiki
+    [link] 41 revs, 31 users 31%
+    [link] Ali
+  H2 Comments
+      [link] Timeline
+  p: FOREWORD: this answer was written when the question was:
+  p: I'm pretty sure I was one of the only people that attempted to take the initial question literally. Since then, the question has mutated several times, so my answer may now seem incredibly silly & out of place. Hopefully
+  p: I'm a big fan of analogy and metaphor when explaining difficult concepts, so let me try my hand with a story.
+  p: Once upon a time:
+  p: There was a princess...
+  p: She lived in a wonderful world full of adventures. She met her Prince Charming, rode around her world on a unicorn, battled dragons, encountered talking animals, and many other fantastical things.
+  p: But she would always have to return back to her dull world of chores and grown-ups.
+  p: And she would often tell them of her latest amazing adventure as a princess.
+  p: But all they would see is a little girl...
+  p: ...telling stories about magic and fantasy.
+  p: And even though the grown-ups knew of real princesses, they would never believe in the unicorns or dragons because they could never see them. The grown-ups said that they only existed inside the little girl's imagination
+  p: But we know the real truth; that the little girl with the princess inside...
+  p: ...is really a princess with a little girl inside.
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Nov 1, 2017 at 11:40
+  p: community wiki
+    [link] 11 revs, 5 users 58%
+    [link] Jacob Swartwood
+  H2 5 Comments
+      [link] Patrick M
+      p: I love this explanation, truly. For those who read it and don't follow, the analogy is this: the princess() function is a complex scope containing private data. Outside the function, the private data can't be seen or acc
+      p: Feb 28, 2013 at 7:49 · 2013-02-28T07:49:20.18Z+00:00
+      [button] 391
+      [button] Reply
+      [link] jsfiddle.net/rjdx34k0/3
+      p: Having undefined values makes it more difficult to understand. Here is the true story
+      p: Hugolpz Sep 2, 2020 at 19:13 · 2020-09-02T19:13:06.297Z+00:00
+      [button] 4
+      [button] Reply
+      [link] Shiv
+      p: And Prince Charming can add to her adventures, can kill all the dragons to save her from dangers like below: function princeCharming { adventures.push('Honeymoon Trip', 'Skydiving', 'Visiting Somalia'); const pickADragon
+      p: Jan 13, 2021 at 5:15 · 2021-01-13T05:15:45.743Z+00:00
+      [button] 3
+      [button] Reply
+      [link] Bradleo
+      p: A key point to my understanding was adding console.log(littleGirl) to @Hugolpz answer. When drilling into the littleGirl object with devtools I could not find princeCharming, unicorn, dragons, or squirrel anywhere.
+      p: Dec 19, 2022 at 9:42 · 2022-12-19T09:42:17.04Z+00:00
+      [button] 1
+      [button] Reply
+      [link] Gabriel Cecon Carlsen
+      p: Apr 16, 2025 at 19:17 · goated answer ... · 2025-04-16T19:17:06.12Z+00:00
+      [button] 0
+      [button] Reply
+      [link] Timeline
+  p: Taking the question seriously, we should find out what a typical 6-year-old is capable of cognitively, though admittedly, one who is interested in JavaScript is not so typical.
+    [link] Childhood Development: 5 to 7 Years
+  p: We can use this example to explain closures, as follows:
+  p: We can code this in JavaScript like this:
+  p: Further points that explain why closures are interesting:
+    li: Each time makeKitchen() is called, a new closure is created with its own separate trashBags.
+    li: The trashBags variable is local to the inside of each kitchen and is not accessible outside, but the inner function on the getTrashBag property does have access to it.
+    li: Every function call creates a closure, but there would be no need to keep the closure around unless an inner function, which has access to the inside of the closure, can be called from outside the closure. Returning the 
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Oct 10, 2018 at 17:50
+  p: community wiki
+    [link] 18 revs, 5 users 84%
+    [link] dlaliberte
+  H2 3 Comments
+      [link] Mikko Rantalainen
+      p: Is the closure literally created when makeKitchen() is called? I would say that the closure is created by the return statement that acquires reference to local variable trashBags while creating the function object to be 
+      p: Sep 30, 2022 at 7:49 · 2022-09-30T07:49:05.187Z+00:00
+      [button] 0
+      [button] Reply
+      [link] dlaliberte
+      p: @MikkoRantalainen, you are correct that the closure around the inner function is not necessarily created when the containing function is called, but it must have been created by the time the function returns, or any time
+      p: Oct 4, 2022 at 14:59 · 2022-10-04T14:59:01.45Z+00:00
+      [button] 0
+      [button] Reply
+      [link] Mikko Rantalainen
+      p: Yes, the closure is created at the moment the anonymous function is created while defining the property getTrashBag of the anonymous object to be returned.
+      p: Oct 6, 2022 at 10:51 · 2022-10-06T10:51:45.83Z+00:00
+      [button] 0
+      [button] Reply
+      [link] Timeline
+  H2 The Straw Man
+  p: I need to know how many times a button has been clicked and do something on every third click...
+  H2 Fairly Obvious Solution
+  p: Now this will work, but it does encroach into the outer scope by adding a variable, whose sole purpose is to keep track of the count. In some situations, this would be preferable as your outer application might need acce
+  H2 Consider this option
+  p: Notice a few things here.
+  p: In the above example, I am using the closure behavior of JavaScript. This behavior allows any function to have access to the scope in which it was created, indefinitely. To practically apply this, I immediately invoke a 
+  p: A simple one-line closure
+  p: All variables outside the returned function are available to the returned function, but they are not directly available to the returned function object...
+  p: Get it? So in our primary example, the count variable is contained within the closure and always available to the event handler, so it retains its state from click to click.
+  p: Also, this private variable state is fully accessible, for both readings and assigning to its private scoped variables.
+  p: There you go; you're now fully encapsulating this behavior.
+    [link] Full Blog Post
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Jun 20, 2020 at 9:12
+  p: community wiki
+    [link] 17 revs, 8 users 64%
+    [link] jondavidjohn
+  H2 Comments
+      [link] Timeline
+  p: Closures are hard to explain because they are used to make some behaviour work that everybody intuitively expects to work anyway. I find the best way to explain them (and the way that I learned what they do) is to imagin
+  p: What would happen here if JavaScript didn't know closures? Just replace the call in the last line by its method body (which is basically what function calls do) and you get:
+  p: Now, where's the definition of x? We didn't define it in the current scope. The only solution is to let plus5 carry its scope (or rather, its parent's scope) around. This way, x is well-defined and it is bound to the val
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Jun 30, 2020 at 8:16
+  p: community wiki
+    [link] 4 revs, 3 users 70%
+    [link] Konrad Rudolph
+  H2 1 Comment
+      [link] User profile
+    [link] Nadav Shlush
+    [link] Sep 23, 2021 at 10:39
+  p: Closure is just saving the outer lexical environment. if a function was created at some lexical environment that's mean its part of the memory of that lexical environment. when i will call the function a new execution co
+  [button] 0
+  [button] Reply
+  [button] Open menu
+      [link] Timeline
+  p: TLDR
+  p: A closure is a link between a function and its outer lexical (ie. as-written) environment, such that the identifiers (variables, parameters, function declarations etc) defined within that environment are visible from wit
+  p: Details
+    [link] [[Environment]]
+    [link] lexical environment
+    [link] [[Call]]
+    [link] [[Environment]]
+    [link] environment record
+    [link] execution context
+  p: In the following example, function f closes over the lexical environment of the global execution context:
+  p: In the following example, function h closes over the lexical environment of function g, which, in turn, closes over the lexical environment of the global execution context.
+  p: If an inner function is returned by an outer, then the outer lexical environment will persist after the outer function has returned. This is because the outer lexical environment needs to be available if the inner functi
+  p: In the following example, function j closes over the lexical environment of function i, meaning that variable x is visible from inside function j, long after function i has completed execution:
+  p: In a closure, the variables in the outer lexical environment themselves are available, not copies.
+  p: The chain of lexical environments, linked between execution contexts via outer environment references, forms a scope chain and defines the identifiers visible from any given function.
+  p: Please note that in an attempt to improve clarity and accuracy, this answer has been substantially changed from the original.
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Feb 17, 2020 at 19:56
+  p: community wiki
+    [link] 17 revs, 6 users 49%
+    [link] Ben
+  H2 1 Comment
+      [link] User profile
+    [link] shea
+    [link] Aug 11, 2024 at 19:49
+    [link] this thread
+  [button] 1
+      [link] Timeline
+  p: OK, 6-year-old closures fan. Do you want to hear the simplest example of closure?
+    [link] more detailed explanation
+  p: Here is how I can convert my plane story into the code.
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Oct 10, 2018 at 18:38
+  p: community wiki
+    [link] 8 revs, 6 users 46%
+    [link] Max Tkachenko
+  H2 Comments
+      [link] Timeline
+  p: This is an attempt to clear up several (possible) misunderstandings about closures that appear in some of the other answers.
+    li: A closure is not only created when you return an inner function. In fact, the enclosing function does not need to return at all in order for its closure to be created. You might instead assign your inner function to a va
+    li: A closure does not reference a copy of the old values of variables in its scope. The variables themselves are part of the closure, and so the value seen when accessing one of those variables is the latest value at the ti
+    li: The "variables" in a closure include any named functions declared within the function. They also include arguments of the function. A closure also has access to its containing closure's variables, all the way up to the g
+    li: Closures use memory, but they don't cause memory leaks since JavaScript by itself cleans up its own circular structures that are not referenced. Internet Explorer memory leaks involving closures are created when it fails
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited May 5, 2016 at 15:00
+  p: community wiki
+    [link] 4 revs, 2 users 76%
+    [link] dlaliberte
+  H2 Comments
+      [link] Timeline
+  p: I wrote a blog post a while back explaining closures. Here's what I said about closures in terms of why you'd want one.
+  p: In that sense, they let a function act a bit like an object with private attributes.
+  H5 Example
+  p: Here the outer self-invoking anonymous function run only once and sets plusCount variable to 0, and returns the inner function expression.
+  p: Whereas inner function has access to plusCount variable. Now every time we invoke the function iplus1(), the inner function increments the plusCount variable.
+  p: The important point to keep in mind is that no other script on the page has access to plusCount variable and the only way to change the plusCount variable is through iplus1 function.
+    [link] So what are these closure thingys?
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Apr 10, 2023 at 20:27
+  p: community wiki
+    [link] 4 revs, 3 users 54%
+    [link] Nathan Long
+  H2 Comments
+      [link] Timeline
+  p: The original question had a quote:
+  p: This is how I'd try to explain it to an actual six-year-old:
+  p: You know how grown-ups can own a house, and they call it home? When a mom has a child, the child doesn't really own anything, right? But its parents own a house, so whenever someone asks "Where's your home?", the child c
+  p: A "Closure" is the ability of the child to always (even if abroad) be able to refer to its home, even though it's really the parent's who own the house.
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Sep 1, 2022 at 11:01
+  p: community wiki
+    [link] 5 revs, 3 users 75%
+    [link] Magne
+  H2 Comments
+      [link] Timeline
+  H2 Closures are simple:
+  p: The following simple example covers all the main points of JavaScript closures.*
+  p: Here is a factory that produces calculators that can add and multiply:
+  p: The key point: Each call to make_calculator creates a new local variable n, which continues to be usable by that calculator's add and multiply functions long after make_calculator returns.
+  p: If you are familiar with stack frames, these calculators seem strange: How can they keep accessing n after make_calculator returns? The answer is to imagine that JavaScript doesn't use "stack frames", but instead uses "h
+  p: Inner functions like add and multiply, which access variables declared in an outer function**, are called closures.
+  p: That is pretty much all there is to closures.
+    [link] another answer
+    [link] the accepted answer
+    [link] this answer
+    [link] this answer
+    [link] this comment
+    [link] this answer
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited May 23, 2017 at 12:10
+  p: community wiki
+    [link] 7 revs, 2 users 81%
+    [link] Matt
+  H2 Comments
+      [link] Timeline
+  H2 Can you explain closures to a 5-year-old?*
+    [link] Google's explanation
+  p: *A C# question
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Jun 20, 2020 at 9:12
+  p: community wiki
+    [link] 7 revs, 3 users 70%
+    [link] Chris S
+  H2 Comments
+      [link] Timeline
+    [link] a jsFiddle
+  H2 Closures done right:
+  p: In the above code createClosure(n) is invoked in every iteration of the loop. Note that I named the variable n to highlight that it is a new variable created in a new function scope and is not the same variable as index 
+  p: This creates a new scope and n is bound to that scope; this means we have 10 separate scopes, one for each iteration.
+  p: createClosure(n) returns a function that returns the n within that scope.
+  p: Within each scope n is bound to whatever value it had when createClosure(n) was invoked so the nested function that gets returned will always return the value of n that it had when createClosure(n) was invoked.
+  H2 Closures done wrong:
+  p: In the above code the loop was moved within the createClosureArray() function and the function now just returns the completed array, which at first glance seems more intuitive.
+  p: What might not be obvious is that since createClosureArray() is only invoked once only one scope is created for this function instead of one for every iteration of the loop.
+  p: Within this function a variable named index is defined. The loop runs and adds functions to the array that return index. Note that index is defined within the createClosureArray function which only ever gets invoked one 
+  p: Because there was only one scope within the createClosureArray() function, index is only bound to a value within that scope. In other words, each time the loop changes the value of index, it changes it for everything tha
+  p: All of the functions added to the array return the SAME index variable from the parent scope where it was defined instead of 10 different ones from 10 different scopes like the first example. The end result is that all 1
+  p: After the loop finished and index was done being modified the end value was 10, therefore every function added to the array returns the value of the single index variable which is now set to 10.
+  H2 Result
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Oct 9, 2022 at 3:20
+  p: community wiki
+    [link] 7 revs, 3 users 72%
+    [link] Chev
+  H2 Comments
+      [link] Timeline
+    [link] Wikipedia on closures
+    [link] JavaScript
+  p: Since scope-defining construction in JavaScript is a function, not a code block like in many other languages, what we usually mean by closure in JavaScript is a function working with nonlocal variables defined in already
+  p: Closures are often used for creating functions with some hidden private data (but it's not always the case).
+  p: ems
+  p: The example above is using an anonymous function, which was executed once. But it does not have to be. It can be named (e.g. mkdb) and executed later, generating a database function each time it is invoked. Every generat
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Dec 18, 2013 at 16:48
+  p: community wiki
+    [link] 6 revs, 3 users 78%
+    [link] mykhal
+  H2 Comments
+      [link] Timeline
+  p: The secrets for JavaScript functions are the private variables
+  p: Every time you call it, the local variable "name" is created and given the name "Mary". And every time the function exits the variable is lost and the name is forgotten.
+  p: As you may guess, because the variables are re-created every time the function is called, and nobody else will know them, there must be a secret place where they are stored. It could be called Chamber of Secrets or stack
+  p: But, in JavaScript, there is this very special thing that functions which are created inside other functions, can also know the local variables of their parents and keep them as long as they live.
+  p: So, as long as we are in the parent -function, it can create one or more child functions which do share the secret variables from the secret place.
+  p: But the sad thing is, if the child is also a private variable of its parent function, it would also die when the parent ends, and the secrets would die with them.
+  p: So to live, the child has to leave before it's too late
+  p: And now, even though Mary is "no longer running", the memory of her is not lost and her child will always remember her name and other secrets they shared during their time together.
+  p: So, if you call the child "Alice", she will respond
+  p: That's all there is to tell.
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Aug 15, 2022 at 9:23
+  p: community wiki
+    [link] 4 revs, 4 users 91%
+    [link] Tero Tolonen
+  H2 Comments
+      [link] Timeline
+    [link] What's a Closure?
+  p: Here's one of the examples:
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Oct 25, 2014 at 22:38
+  p: community wiki
+    [link] 3 revs, 3 users 89%
+    [link] Nathan Whitehead
+  H2 Comments
+      [link] Timeline
+  p: I do not understand why the answers are so complex here.
+  p: Here is a closure:
+  p: Yes. You probably use that many times a day.
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Jun 20, 2020 at 9:12
+  p: community wiki
+    [link] 2 revs, 2 users 97%
+    [link] floribon
+  H2 1 Comment
+      [link] User profile
+    [link] Konrad Rudolph
+    [link] Sep 23, 2021 at 10:51
+  p: It’s true that this is a closure, but the answer doesn’t explain anything about how it works, or even why it’s a closure. In particular, the equivalent code would work e.g. in C, which doesn’t have closures.
+      [link] Timeline
+  p: A closure is where an inner function has access to variables in its outer function. That's probably the simplest one-line explanation you can get for closures.
+  p: And the inner function has access not only to the outer function’s variables, but also to the outer function’s parameters as in the example below
+  p: Example
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Apr 10, 2023 at 20:01
+  p: community wiki
+    [link] 3 revs, 3 users 87%
+    [link] Vinod Srivastav
+  H2 Comments
+      [link] Timeline
+  p: Example for the first point by dlaliberte:
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Jan 16, 2016 at 2:39
+  p: community wiki
+    [link] 3 revs, 3 users 64%
+    [link] someisaac
+  H2 Comments
+      [link] Timeline
+  p: I know there are plenty of solutions already, but I guess that this small and simple script can be useful to demonstrate the concept:
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited May 9, 2016 at 11:32
+  p: community wiki
+    [link] 3 revs, 2 users 90%
+    [link] Gerardo Lima
+  H2 Comments
+      [link] Timeline
+  p: You're having a sleep over and you invite Dan. You tell Dan to bring one XBox controller.
+  p: Dan invites Paul. Dan asks Paul to bring one controller. How many controllers were brought to the party?
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Jul 20, 2011 at 15:16
+  p: community wiki
+      [link] StewShack
+  H2 Comments
+      [link] Timeline
+    [link] Closures
+  p: What if a variable is accessed, but it isn’t local? Like here:
+    [link] Enter image description here
+    [link] LexicalEnvironment
+  p: The process consists of two steps:
+    li: First, when a function f is created, it is not created in an empty space. There is a current LexicalEnvironment object. In the case above, it’s window (a is undefined at the time of function creation).
+    [link] Enter image description here
+  p: When a function is created, it gets a hidden property, named [[Scope]], which references the current LexicalEnvironment.
+    [link] Enter image description here
+  p: If a variable is read, but can not be found anywhere, an error is generated.
+  p: Nested functions
+  p: Functions can be nested one inside another, forming a chain of LexicalEnvironments which can also be called a scope chain.
+    [link] Enter image description here
+  p: So, function g has access to g, a and f.
+  p: Closures
+  p: A nested function may continue to live after the outer function has finished:
+    [link] Enter image description here
+  p: Marking up LexicalEnvironments:
+    [link] Enter image description here
+  p: As we see, this.say is a property in the user object, so it continues to live after User completed.
+  p: And if you remember, when this.say is created, it (as every function) gets an internal reference this.say.[[Scope]] to the current LexicalEnvironment. So, the LexicalEnvironment of the current User execution stays in mem
+  p: The whole point is to ensure that if the inner function wants to access an outer variable in the future, it is able to do so.
+  p: To summarize:
+    li: The inner function keeps a reference to the outer LexicalEnvironment.
+    li: The inner function may access variables from it any time even if the outer function is finished.
+    li: The browser keeps the LexicalEnvironment and all its properties (variables) in memory until there is an inner function which references it.
+  p: This is called a closure.
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited May 14, 2018 at 20:51
+  p: community wiki
+    [link] 7 revs, 2 users 81%
+    [link] Arvand
+  H2 Comments
+      [link] Timeline
+  p: JavaScript functions can access their:
+    li: globals, including the DOM
+    li: anything in outer functions
+  p: If a function accesses its environment, then the function is a closure.
+  p: Note that outer functions are not required, though they do offer benefits I don't discuss here. By accessing data in its environment, a closure keeps that data alive. In the subcase of outer/inner functions, an outer fun
+  p: Example of a closure that uses the global environment:
+  p: Imagine that the Stack Overflow Vote-Up and Vote-Down button events are implemented as closures, voteUp_click and voteDown_click, that have access to external variables isVotedUp and isVotedDown, which are defined global
+  p: When the user clicks the VoteUp button, the voteUp_click function checks whether isVotedDown == true to determine whether to vote up or merely cancel a down vote. Function voteUp_click is a closure because it is accessin
+  p: All four of these functions are closures as they all access their environment.
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Jun 8, 2016 at 22:16
+  p: community wiki
+    [link] 4 revs, 3 users 81%
+    [link] John Pick
+  H2 Comments
+      [link] Timeline
+  p: As a father of a 6-year-old, currently teaching young children (and a relative novice to coding with no formal education so corrections will be required), I think the lesson would stick best through hands-on play. If the
+  p: INSTRUCTIONS
+  p: DATA: Data is a collection of facts. It can be numbers, words, measurements, observations or even just descriptions of things. You can't touch it, smell it or taste it. You can write it down, speak it and hear it. You co
+  p: CODE: All the writing above is called code. It is written in JavaScript.
+  p: JAVASCRIPT: JavaScript is a language. Like English or French or Chinese are languages. There are lots of languages that are understood by computers and other electronic processors. For JavaScript to be understood by a co
+  p: BROWSER: When you connect to the Internet on a computer, tablet or phone to visit a website, you use a browser. Examples you may know are Internet Explorer, Chrome, Firefox and Safari. The browser can understand JavaScri
+  p: FUNCTION: A function in JavaScript is like a factory. It might be a little factory with only one machine inside. Or it might contain many other little factories, each with many machines doing different jobs. In a real li
+  p: All this data stuff sounds a bit boring, but it is really very cool; we might have a function that tells a robot what to make for dinner. Let's say I invite you and your friend to my house. You like chicken legs best, I 
+  p: I haven't got time to go shopping, so the function needs to know what we have in the fridge to make decisions. Each ingredient has a different cooking time and we want everything to be served hot by the robot at the same
+  p: A function normally has a name, parentheses and braces. Like this:
+  p: Note that /*...*/ and // stop code being read by the browser.
+  p: NAME: You can call a function just about whatever word you want. The example "cookMeal" is typical in joining two words together and giving the second one a capital letter at the beginning - but this is not necessary. It
+  p: PARENTHESES: "Parentheses" or () are the letter box on the JavaScript function factory's door or a post box in the street for sending packets of information to the factory. Sometimes the postbox might be marked for examp
+  p: BRACES: "Braces" which look like this {} are the tinted windows of our factory. From inside the factory you can see out, but from the outside you can't see in.
+  p: THE LONG CODE EXAMPLE ABOVE
+  p: Our code begins with the word function, so we know that it is one! Then the name of the function sing - that's my own description of what the function is about. Then parentheses (). The parentheses are always there for a
+  p: So this function might have something to do with singing, and might need some data about a person. It has instructions inside to do something with that data.
+  p: Now, after the function sing(), near the end of the code is the line
+  p: VARIABLE: The letters var stand for "variable". A variable is like an envelope. On the outside this envelope is marked "person". On the inside it contains a slip of paper with the information our function needs, some let
+  p: GLOBAL VARIABLE: person is a global variable, meaning that if you change its value from "an old lady" to "a young man", the person will keep being a young man until you decide to change it again and that any other functi
+  p: After this we have the line
+  p: This line is calling the function, as if it were calling a dog
+  p: When the browser has loaded the JavaScript code an reached this line, it will start the function. I put the line at the end to make sure that the browser has all the information it needs to run it.
+  p: Functions define actions - the main function is about singing. It contains a variable called firstPart which applies to the singing about the person that applies to each of the verses of the song: "There was " + person +
+  p: CLOSURES: The closures are the smaller functions that are inside the big sing() function. The little factories inside the big factory. They each have their own braces which mean that the variables inside them can't be se
+  p: The closures all know what the sing() function's variable called firstPart is, because they can see out from their tinted windows.
+  p: After the closures come the lines
+  p: The sing() function will call each of these functions in the order they are given. Then the sing() function's work will be done.
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Jun 8, 2016 at 22:11
+  p: community wiki
+    [link] 5 revs, 3 users 77%
+    [link] grateful
+  H2 Comments
+      [link] Timeline
+  p: Okay, talking with a 6-year old child, I would possibly use following associations.
+  p: Compare with a situation when a door was locked by draft and nobody inside (general function execution), and then some local fire occur and burn down the room (garbage collector:D), and then a new room was build and now 
+  p: For an advanced child I would put something like the following. It is not perfect, but it makes you feel about what it is:
+    [link] a jsbin
+      [link] Share
+      [link] Improve this answer
+      [link] Follow
+      [link] edited Oct 25, 2014 at 22:52
+  p: community wiki
+    [link] 9 revs, 2 users 88%

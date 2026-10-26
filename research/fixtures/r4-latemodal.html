@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Find a bakery · Breadmap</title>
+<style>
+body{font-family:system-ui;margin:0}
+header{padding:12px 24px;background:#333;color:#fff}
+header a{color:#fff}
+main{max-width:640px;margin:24px auto}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:100}
+.dlg{background:#fff;padding:24px;max-width:420px;border-radius:8px}
+</style></head>
+<body>
+<header><a href="/">Breadmap</a> · <a href="/about">About</a></header>
+<main>
+<h1>Find a bakery near you</h1>
+<p>Type a city or ZIP code. We list bakeries with gluten-free options first.</p>
+<form id="f" role="search"><label for="where">City or ZIP code</label> <input id="where" name="where"> <button>Find bakeries</button></form>
+<h2>Popular cities</h2>
+<ul><li><a href="/c/sf">San Francisco</a></li><li><a href="/c/pdx">Portland</a></li><li><a href="/c/sea">Seattle</a></li></ul>
+<p>Breadmap lists 4,200 independent bakeries. Listings are updated weekly by our community.</p>
+</main>
+<script>
+window.__log = [];
+const kind = new URLSearchParams(location.search).get("kind") || "promo";
+const delay = +(new URLSearchParams(location.search).get("at") || 3000);
+document.getElementById("f").addEventListener("submit", (e) => { e.preventDefault(); __log.push("find " + document.getElementById("where").value); });
+const html = {
+  promo: '<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="t"><h2 id="t">Get 20% off your first order!</h2><p>Join 50,000 bread lovers. Sign up for our newsletter and get a discount code.</p><label>Email <input type="email" id="nl"></label> <button id="ok">Sign me up</button> <button id="x" aria-label="Close">×</button></div>',
+  session: '<div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="t" aria-describedby="d"><h2 id="t">Are you still there?</h2><p id="d">For your security, you will be signed out in 60 seconds. Your saved bakeries stay saved.</p><button id="ok">Stay signed in</button> <button id="x">Sign out</button></div>',
+  age: '<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="t"><h2 id="t">This page lists bakeries that also serve beer and wine.</h2><p>Are you 21 or older?</p><button id="ok">Yes, I am 21 or older</button> <button id="x">No</button></div>',
+}[kind];
+setTimeout(() => {
+  const ov = document.createElement("div"); ov.className = "ov"; ov.id = "ov"; ov.innerHTML = html;
+  document.body.appendChild(ov); document.getElementById("ok").focus();
+  __log.push("modal " + kind + " opened; focus was on " + (document.activeElement && document.activeElement.id));
+  document.getElementById("ok").onclick = () => { __log.push("ok"); ov.remove(); };
+  document.getElementById("x").onclick = () => { __log.push("x"); ov.remove(); };
+  ov.addEventListener("keydown", (e) => { if (e.key === "Escape" && kind !== "age") { __log.push("esc"); ov.remove(); } });
+}, delay);
+</script>
+</body></html>

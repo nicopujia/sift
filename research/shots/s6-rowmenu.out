@@ -1,0 +1,28 @@
+url: http://127.0.0.1:8799/fx/r5-rowmenu.html?all=1
+first sift content: 192 ms
+logs:
+
+--- outline (23 lines) ---
+[button] Skip to content
+[button] Menu
+H1 My files
+p: Showing 6 of 6 files
+    [link] Budget 2026.xlsx
+    p: 48 KB
+    [button] More
+    [link] Rye recipe.pdf
+    p: 1.2 MB
+    [button] More actions
+    [link] Team photo.jpg
+    p: 3.4 MB
+    [button] Actions
+    [link] Invoice 1042.pdf
+    p: 88 KB
+    [button] More
+    [link] Notes.txt
+    p: 2 KB
+    [button] More actions
+    [link] Logo.svg
+    p: 12 KB
+    [button] Actions
+[button] Sift

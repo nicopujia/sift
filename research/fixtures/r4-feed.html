@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Home · Crumbles</title>
+<style>
+body{font-family:system-ui;margin:0;background:#eef}
+header{position:sticky;top:0;background:#fff;padding:8px 16px;border-bottom:1px solid #ccc;z-index:5}
+.layout{display:flex;max-width:1000px;margin:0 auto;gap:16px}
+nav.side{width:180px}
+main{flex:1;max-width:600px}
+aside{width:220px;font-size:13px}
+#banner{position:sticky;top:48px;z-index:4;display:block;margin:8px auto;background:#1d9bf0;color:#fff;border:0;border-radius:16px;padding:6px 14px}
+.post{background:#fff;margin:8px 0;padding:12px;border-radius:6px}
+.post .who{font-weight:bold}
+.post time{color:#666;font-size:12px;margin-left:6px}
+.post .acts button{margin-right:8px}
+#sentinel{height:40px;text-align:center;color:#666}
+</style></head>
+<body>
+<header><a href="/">Crumbles</a> <form role="search" style="display:inline" onsubmit="event.preventDefault();__log.push('search '+q.value)"><input id="q" name="q" placeholder="Search Crumbles" aria-label="Search Crumbles"></form></header>
+<div class="layout">
+<nav class="side"><a href="/">Home</a><br><a href="/explore">Explore</a><br><a href="/notifications">Notifications</a><br><a href="/messages">Messages</a><br><a href="/profile">Profile</a></nav>
+<main>
+<h1>Home</h1>
+<button id="banner" hidden></button>
+<div id="feed" role="feed" aria-busy="false" aria-label="Posts"></div>
+<div id="sentinel">Loading more posts…</div>
+</main>
+<aside><h2>Who to follow</h2><p><a href="/u/rye">@ryeguy</a> <button>Follow</button></p><p><a href="/u/flour">@flourpower</a> <button>Follow</button></p><h2>Trending</h2><p>#sourdough · 12K posts</p><p>#glutenfree · 4K posts</p><p>Promoted: <a href="https://ads.example/oven">Best oven deals of 2026</a></p></aside>
+</div>
+<script>
+window.__log = [];
+const topics = ["proofed a rye loaf overnight and it finally rose", "tried a new gluten-free flour blend for pizza", "found a bakery that sells day-old bread for a dollar", "my starter smells like nail polish, is that normal", "baked bagels for the first time, boiled them too long", "the corner shop now stocks spelt flour", "used a dutch oven for crust, huge difference", "brioche with too much butter is still brioche"];
+const names = ["Ana", "Ben", "Chen", "Dara", "Eli", "Fatima", "Gus", "Hana", "Ivo", "June"];
+let n = 0;
+function post(i, fresh) {
+  const d = document.createElement("article");
+  d.className = "post"; d.setAttribute("aria-posinset", String(i)); d.dataset.id = String(i);
+  const who = names[i % names.length];
+  d.innerHTML = '<div><a class="who" href="/u/' + who.toLowerCase() + '">' + who + '</a><time>' + (fresh ? "now" : (i + 1) + "m") + '</time></div>' +
+    '<p><a href="/p/' + i + '" style="color:inherit;text-decoration:none">' + who + " " + topics[i % topics.length] + " (post " + i + ")</a></p>" +
+    '<div class="acts"><button class="like" aria-pressed="false" data-n="' + (i % 7) + '">Like ' + (i % 7) + '</button><a href="/p/' + i + '#reply">Reply</a></div>';
+  return d;
+}
+const feed = document.getElementById("feed");
+function more(k) { for (let j = 0; j < k; j++) feed.appendChild(post(n++)); __log.push("loaded " + n); }
+more(20);
+feed.addEventListener("click", (e) => {
+  const b = e.target.closest("button.like"); if (!b) return;
+  const on = b.getAttribute("aria-pressed") !== "true";
+  const c = +b.dataset.n + (on ? 1 : 0);
+  b.setAttribute("aria-pressed", String(on)); b.textContent = "Like " + c;
+  __log.push((on ? "like " : "unlike ") + b.closest(".post").dataset.id);
+});
+let busy = false;
+new IntersectionObserver((es) => {
+  if (!es.some((x) => x.isIntersecting) || busy || n >= 60) return;
+  busy = true; feed.setAttribute("aria-busy", "true");
+  setTimeout(() => { more(10); busy = false; feed.setAttribute("aria-busy", "false"); if (n >= 60) document.getElementById("sentinel").textContent = "You're all caught up"; }, 600);
+}).observe(document.getElementById("sentinel"));
+let fresh = 0;
+const banner = document.getElementById("banner");
+setTimeout(() => { fresh = 3; banner.hidden = false; banner.textContent = "Show 3 new posts"; __log.push("banner"); }, 4000);
+banner.addEventListener("click", () => {
+  for (let j = 0; j < fresh; j++) feed.prepend(post(1000 + j, true));
+  __log.push("shown new " + fresh); fresh = 0; banner.hidden = true; scrollTo(0, 0);
+});
+</script>
+</body></html>

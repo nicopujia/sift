@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Uncontrolled input · Issue #1899 · fixture</title>
+<style>
+  body { font-family: sans-serif; margin: 0 auto; max-width: 900px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .commentBorder { border: 1px solid #ccc; border-radius: 6px; margin: 12px 0; }
+  .header { display: flex; gap: 8px; align-items: center; padding: 8px; background: #f6f8fa; }
+  .markdown-body { padding: 8px 16px; }
+  pre { background: #f6f8fa; padding: 8px; }
+  img.avatar { width: 24px; height: 24px; }
+</style>
+</head>
+<body>
+<!-- tools fixture (round 4): F326 an issue thread. The issue and each comment are posts read in full
+     (paragraphs, lists, code in order), not a folded "Comments" section of items with snippets. -->
+<header><a href="/">GitHub</a></header>
+<main>
+  <div class="contentArea">
+    <h1>Uncontrolled input <span>#1899</span></h1>
+    <p><span>Open</span></p>
+    <div data-testid="issue-body" class="react-issue-body">
+      <h2 class="sr-only">Description</h2>
+      <div class="headerRow">
+        <div class="commentBorder__V4zML9">
+          <div class="header">
+            <a class="avatarLink" href="/Crysp" aria-label="@Crysp's profile"><img class="avatar" alt="@Crysp" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></a>
+            <a class="authorLoginLink" href="/Crysp">Crysp</a>
+            <span>opened </span><a class="dateLink" href="#issue-1"><relative-time datetime="2019-08-27T10:00:00Z">on Aug 27, 2019</relative-time></a>
+            <button type="button" aria-haspopup="true" aria-expanded="false"><span>Last edited by <span>Crysp</span></span></button>
+            <button type="button" aria-labelledby="tip1" aria-haspopup="true" aria-expanded="false">⋯</button><span id="tip1" class="sr-only">Issue body actions</span>
+          </div>
+          <div class="IssueBody" id="issue-body-viewer">
+            <div class="markdown-body"><div class="markdown-body safe-html-box">
+              <p>Same logic with different libraries works different.</p>
+              <p>React ✅ <a href="https://codesandbox.io/s/react">https://codesandbox.io/s/react</a></p>
+              <p>Preact ❌ <a href="https://codesandbox.io/s/preact">https://codesandbox.io/s/preact</a></p>
+            </div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div data-testid="issue-viewer-comments-container" class="react-comments-container">
+      <div class="commentsContainer">
+        <h2 class="sr-only">Comments</h2>
+        <ol id="issue-timeline">
+          <li><div class="react-issue-comment">
+            <div class="ActivityHeaderContainer header"><div class="activityHeader">
+              <h3 class="sr-only">JoviDeCroock commented <relative-time>on Aug 28, 2019</relative-time></h3>
+              <div class="AvatarContainer"><a class="avatarLink" href="/JoviDeCroock" aria-label="@JoviDeCroock's profile"><img class="avatar" alt="@JoviDeCroock" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></a></div><div class="CommentHeaderContentContainer"><div class="TitleContainer"><a class="AuthorName" href="/JoviDeCroock">JoviDeCroock</a></div><div class="footer"><span><a href="#c1"><relative-time>on Aug 28, 2019</relative-time></a></span></div></div>
+              <div class="ActionsContainer"><div class="EditsContainer"><button type="button" aria-haspopup="true" aria-expanded="false"><span>Last edited by <span>JoviDeCroock</span></span></button></div><div class="BadgesContainer"><span aria-label="This user is a member of the organization.">Member</span></div></div>
+            </div></div>
+            <div class="IssueCommentBody"><div class="markdown-body">
+              <p>This is an inherent flaw to the inner workings of vdom and html for now.</p>
+              <p>Let me draw the situation:</p>
+              <ul><li>for your first three keystrokes you pass in a different state</li><li>the fourth keystroke returns the same state</li></ul>
+              <p>This can be prevented by forcing an update:</p>
+              <pre><code>return &lt;input value={value} onInput={onChange} maxLength={3} /&gt;;</code></pre>
+            </div></div>
+          </div></li>
+          <li><div class="react-issue-comment">
+            <div class="ActivityHeaderContainer header"><div class="activityHeader">
+              <h3 class="sr-only">dwelle commented <relative-time>on Aug 28, 2019</relative-time></h3>
+              <div class="AvatarContainer"><a class="avatarLink" href="/dwelle" aria-label="@dwelle's profile"><img class="avatar" alt="@dwelle" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></a></div><div class="CommentHeaderContentContainer"><div class="TitleContainer"><a class="AuthorName" href="/dwelle">dwelle</a></div><div class="footer"><span><a href="#c2"><relative-time>on Aug 28, 2019</relative-time></a></span></div></div>
+              <div class="ActionsContainer"><div class="EditsContainer"><button type="button" aria-haspopup="true" aria-expanded="false"><span>Last edited by <span>dwelle</span></span></button></div></div>
+            </div></div>
+            <div class="IssueCommentBody"><div class="markdown-body">
+              <p>What does React do in this case? It binds keydown and prevents it whenever an input is controlled.</p>
+            </div></div>
+          </div></li>
+          <li><div class="react-issue-comment">
+            <div class="ActivityHeaderContainer header"><div class="activityHeader">
+              <h3 class="sr-only">JoviDeCroock commented <relative-time>on Aug 29, 2019</relative-time></h3>
+              <div class="CommentHeaderContentContainer"><div class="TitleContainer"><a class="AuthorName" href="/JoviDeCroock">JoviDeCroock</a></div><div class="footer"><span><a href="#c3"><relative-time>on Aug 29, 2019</relative-time></a></span></div></div>
+              <div class="ActionsContainer"><div class="EditsContainer"><button type="button" aria-haspopup="true" aria-expanded="false"><span>Last edited by <span>JoviDeCroock</span></span></button></div><div class="BadgesContainer"><span aria-label="This user is a member of the organization.">Member</span></div></div>
+            </div></div>
+            <div class="IssueCommentBody"><div class="markdown-body">
+              <p>A second comment by the same author is its own post.</p>
+              <pre><code>const [value, setValue] = useState('');</code></pre>
+            </div></div>
+          </div></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

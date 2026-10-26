@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Directions - fixture</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  #panel { position: absolute; top: 0; left: 0; width: 408px; background: #fff; padding: 8px; box-shadow: 0 2px 6px #0003; }
+  [role=main] { position: absolute; top: 150px; left: 0; width: 408px; height: 500px; }
+  .grid { background: #fff; border: 1px solid #ccc; }
+  .row-inner { padding: 6px; cursor: pointer; }
+</style>
+</head>
+<body>
+<!-- tools fixture (round 4): F323/F324 Google Maps directions. The suggestion grid each field controls
+     shows under the field (not a copy of the directions panel), one entry per place (Google nests a row
+     in each row), named by its words, and a pick reaches the inner row, the only one that listens. -->
+<div id="app">
+<div id="panel">
+  <div role="radiogroup" aria-label="Travel modes">
+    <label><input type="radio" name="mode" checked> Best travel modes</label>
+    <label><input type="radio" name="mode"> Driving</label>
+    <label><input type="radio" name="mode"> Transit</label>
+  </div>
+  <div><label for="start">Starting point</label> <input id="start" type="text" placeholder="Choose starting point, or click on the map..." aria-controls="sbsg50" autocomplete="off"></div>
+  <div class="grid" role="grid" id="sbsg50" hidden></div>
+  <div><label for="dest">Destination Golden Gate Bridge</label> <input id="dest" type="text" value="Golden Gate Bridge" aria-controls="sbsg51" autocomplete="off"></div>
+  <div class="grid" role="grid" id="sbsg51" hidden></div>
+  <button type="button" aria-label="Close directions">✕</button>
+  <button type="button" aria-label="Reverse starting point and destination">⇅</button>
+</div>
+<div role="main" aria-label="Directions"><h1 id="route">Choose a starting point</h1></div>
+</div>
+<script>
+  const PLACES = [["Coit Tower", "Telegraph Hill Boulevard, San Francisco, CA, USA", ""], ["Coit Tower", "San Francisco, CA, USA", "Transit"], ["Coit Tower Cafe", "Telegraph Hill Boulevard, San Francisco, CA, USA", ""], ["Filbert Stairs (to Coit Tower)", "Filbert Street, San Francisco, CA, USA", ""]];
+  function wire(input, grid) {
+    input.addEventListener("input", () => {
+      const q = input.value.trim().toLowerCase();
+      grid.innerHTML = "";
+      grid.hidden = !q;
+      if (!q) return;
+      PLACES.filter(([n]) => n.toLowerCase().startsWith(q.slice(0, 3))).forEach(([name, where, icon], i) => {
+        const outer = document.createElement("div");
+        outer.setAttribute("role", "row");
+        outer.innerHTML = `<div><div><div class="row-inner" role="row"><div role="gridcell" id="${grid.id}x${i}"><span ${icon ? `role="img" aria-label="${icon}"` : 'aria-hidden="true"'}></span><span aria-label="${name}"><span aria-hidden="true">${name}</span></span> <span aria-label="${where}"><span aria-hidden="true">${where}</span></span></div></div></div></div>`;
+        // Only the inner row listens, as on Google Maps: a click sent to the outer row never reaches it.
+        outer.querySelector(".row-inner").addEventListener("click", () => {
+          input.value = `${name}, ${where}`;
+          grid.hidden = true;
+          document.getElementById("route").textContent = `Route from ${document.getElementById("start").value || "?"} to ${document.getElementById("dest").value}`;
+          history.replaceState(null, "", "#" + encodeURIComponent(input.value));
+        });
+        grid.appendChild(outer);
+      });
+    });
+  }
+  wire(document.getElementById("start"), document.getElementById("sbsg50"));
+  wire(document.getElementById("dest"), document.getElementById("sbsg51"));
+</script>
+</body>
+</html>

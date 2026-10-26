@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Shadow modal fixture</title></head>
+<body>
+<main>
+<h1>Shadow modal fixture</h1>
+<p>A design-system dialog: a native dialog inside a web component's shadow root, opened with showModal.</p>
+<button id="open" onclick="document.querySelector('x-dialog').open()">Delete account</button>
+<x-dialog></x-dialog>
+<p>More text after the button so the page has content.</p>
+</main>
+<script>
+window.__log = [];
+customElements.define("x-dialog", class extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" }).innerHTML = '<dialog id="d" aria-label="Confirm delete"><p>Delete your account for good?</p><button id="yes">Delete</button><button id="no">Cancel</button></dialog>';
+    for (const b of this.shadowRoot.querySelectorAll("button")) b.addEventListener("click", () => { __log.push(b.id); this.shadowRoot.getElementById("d").close(); });
+  }
+  open() { this.shadowRoot.getElementById("d").showModal(); }
+});
+</script>
+</body></html>

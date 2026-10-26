@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Your basket · Breadbox</title>
+<style>
+body{font-family:system-ui;margin:0;padding-bottom:80px}
+header{background:#222;color:#fff;padding:12px 24px}header a{color:#fff;margin-right:12px}
+main{max-width:600px;margin:24px auto}
+li{margin:8px 0}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #ccc;padding:12px 24px;display:flex;gap:16px;align-items:center;justify-content:space-between;box-shadow:0 -4px 12px rgba(0,0,0,.1)}
+.bar strong{font-size:20px}
+[hidden]{display:none!important}
+</style></head>
+<body>
+<header><a href="/">Breadbox</a><a href="/shop">Shop</a></header>
+<main>
+<h1>Your basket</h1>
+<ul>
+<li>Sourdough loaf × 2 — $14.00</li>
+<li>Rye bread × 1 — $6.50</li>
+</ul>
+<p>Delivery on Saturday, October 31, between 8 and 10 am.</p>
+<label><input type="checkbox" id="gift"> This is a gift (no prices on the receipt)</label>
+<p id="done" role="status"></p>
+</main>
+<div class="bar" id="bar">
+  <span>Total <strong id="tot">$20.50</strong></span>
+  <label><input type="checkbox" id="agree"> I accept the <a href="/terms">terms of sale</a></label>
+  <button type="button" id="checkout" disabled>Go to payment</button>
+</div>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+$("agree").addEventListener("change", () => { $("checkout").disabled = !$("agree").checked; __log.push("agree " + $("agree").checked); });
+$("gift").addEventListener("change", () => __log.push("gift " + $("gift").checked));
+$("checkout").onclick = () => { __log.push("checkout gift=" + $("gift").checked); $("done").textContent = "Taking you to payment…"; };
+</script>
+</body></html>

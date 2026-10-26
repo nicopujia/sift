@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Spelt is the new rye · The Crumb</title>
+<style>
+body{font-family:Georgia,serif;margin:0}
+body.locked{overflow:hidden}
+header{padding:12px 24px;border-bottom:1px solid #ccc;font-family:system-ui}
+main{max-width:680px;margin:24px auto}
+/* A consent platform's box with no dialog role: a fixed overlay that holds the choices. */
+#cmp-consent{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:flex-end;justify-content:center;font-family:system-ui}
+#cmp-consent .panel{background:#fff;width:100%;padding:24px}
+</style></head>
+<body class="locked">
+<header><a href="/">The Crumb</a> · <a href="/news">News</a></header>
+<main id="main"><p>Loading…</p></main>
+<div id="cmp-consent">
+  <div class="panel">
+    <p><strong>Your privacy choices</strong></p>
+    <p>We use cookies and similar technologies with our partners to measure traffic and show ads. Choose which cookies we may use.</p>
+    <button id="acc">Accept all cookies</button> <button id="nec">Use necessary cookies only</button> <a href="/privacy">Privacy policy</a>
+  </div>
+</div>
+<script>
+window.__log = [];
+const article = '<article><h1>Spelt is the new rye</h1><p>For years spelt was sold only in health food shops. Now supermarkets stock it next to plain flour, and bakers say demand has doubled.</p>' +
+  '<p>Spelt is an old relative of wheat. It has a nutty taste and a weaker gluten, so the dough needs a gentler hand and a shorter knead.</p>' +
+  '<p>Farmers like it because it grows on poor soil and needs little fertilizer. Millers like it because it keeps its flavor when ground fine.</p></article>';
+function close(choice) { __log.push(choice); document.getElementById("cmp-consent").remove(); document.body.classList.remove("locked"); document.getElementById("main").innerHTML = article; }
+document.getElementById("acc").onclick = () => close("accept");
+document.getElementById("nec").onclick = () => close("necessary");
+</script>
+</body></html>

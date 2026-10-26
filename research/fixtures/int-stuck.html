@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Suggest fixture</title><style>.leaflet-container { position: relative; width: 800px; height: 400px; background: #cde; overflow: hidden; }</style></head>
+<body>
+<main>
+<h1>Suggestion list fixture</h1>
+<p>The list opens while typing and closes when the field loses focus, like many autocomplete widgets.</p>
+<form id="S" onsubmit="event.preventDefault();__log.push('S submit '+q.value)" style="position:relative">
+  <label>Fruit <input id="q" role="combobox" aria-expanded="false" aria-controls="lb" autocomplete="off"></label>
+  <label>Amount <input id="amt"></label>
+  <ul id="lb" role="listbox" hidden style="position:absolute;top:40px;left:0;width:300px;background:#fff;border:1px solid #999;list-style:none;margin:0;padding:4px"></ul>
+  <button>Order</button>
+</form>
+<div id="map" class="leaflet-container" tabindex="0" aria-label="Map of the bay"><button id="zin" aria-label="Zoom in">+</button></div>
+<p>Text after the map so the page is long enough to scroll a bit more.</p>
+</main>
+<script>
+window.__log = [];
+const q = document.getElementById("q"), lb = document.getElementById("lb");
+q.addEventListener("input", () => {
+  const v = q.value;
+  const opts = ["apple", "apricot", "banana"].filter((s) => v && s.startsWith(v));
+  lb.innerHTML = opts.map((s) => '<li role="option">' + s + "</li>").join("");
+  lb.hidden = !opts.length;
+  q.setAttribute("aria-expanded", String(!lb.hidden));
+});
+// Closes on blur, as React-Select and Downshift do.
+q.addEventListener("focusout", () => { lb.hidden = true; lb.innerHTML = ""; q.setAttribute("aria-expanded", "false"); __log.push("blur closed list"); });
+lb.addEventListener("click", (e) => { const li = e.target.closest("[role=option]"); if (li) { q.value = li.textContent; lb.hidden = true; __log.push("picked " + li.textContent); } });
+</script>
+</body></html>

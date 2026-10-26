@@ -1,0 +1,15 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><title>Help centre</title></head><body>
+<main>
+<h1>Help centre</h1>
+<p>Answers to the questions customers ask most often about orders, delivery and returns. Pick a question to see its answer.</p>
+<div class="faq">
+<div class="q"><a href="#" class="question">How do I change the delivery address after I have already placed my order?</a></div>
+<div class="a" hidden><p>Open Your orders, choose the order, and press Change address before it ships.</p></div>
+<div class="q"><a href="#" class="question">Can I return an item that I bought in a shop to the online store instead?</a></div>
+<div class="a" hidden><p>Yes. Start a return online and choose the shop or a courier pickup.</p></div>
+</div>
+</main>
+<script>
+document.querySelectorAll(".question").forEach((q) => q.addEventListener("click", (e) => { e.preventDefault(); const a = q.parentElement.nextElementSibling; a.hidden = !a.hidden; }));
+</script>
+</body></html>

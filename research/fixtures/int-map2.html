@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Map two</title>
+<style>.maplibregl-map { position: relative; width: 800px; height: 480px; background: #cde; }</style></head>
+<body>
+<main>
+<h1>Map two</h1>
+<p>A map whose first tab stop is its zoom button, like Google Maps and MapLibre maps.</p>
+<div id="map" class="maplibregl-map" aria-label="Map of the bay"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">-</button>
+<div style="position:absolute;right:10px;bottom:10px"><button id="pay">Buy</button><iframe id="fr" title="Card" src="http://localhost:8876/frame.html" width="300" height="120"></iframe></div></div>
+<p><a href="#after">A link after the map</a></p>
+</main>
+<script>
+window.__log = [];
+for (const b of document.querySelectorAll("button")) b.addEventListener("click", () => __log.push("click " + b.id));
+</script>
+</body></html>

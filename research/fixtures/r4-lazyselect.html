@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Delivery address · Breadbox</title>
+<style>body{font-family:system-ui;max-width:560px;margin:24px auto}label{display:block;margin-top:12px}select,input{padding:6px;min-width:240px}</style></head>
+<body>
+<header><a href="/">Breadbox</a></header>
+<main>
+<h1>Where should we deliver?</h1>
+<p>Pick your country, then your city. We only deliver to cities on the list.</p>
+<form id="f">
+  <label for="country">Country</label>
+  <select id="country" name="country"><option value="">Loading countries…</option></select>
+  <label for="city">City</label>
+  <select id="city" name="city" disabled><option value="">Choose a country first</option></select>
+  <label for="slot">Delivery time</label>
+  <select id="slot" name="slot"><option value="">Choose a time</option></select>
+  <p><button>Save address</button></p>
+</form>
+<p id="status" aria-live="polite"></p>
+</main>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+const data = { AR: ["Buenos Aires", "Córdoba", "Rosario"], US: ["Portland", "San Francisco", "Seattle"], ES: ["Barcelona", "Madrid", "Sevilla"] };
+const names = { AR: "Argentina", US: "United States", ES: "Spain" };
+// Countries arrive from an API shortly after load.
+setTimeout(() => { $("country").innerHTML = '<option value="">Choose a country</option>' + Object.keys(names).map((k) => '<option value="' + k + '">' + names[k] + "</option>").join(""); __log.push("countries"); }, 800);
+// Cities depend on the country.
+$("country").addEventListener("change", () => {
+  const c = $("country").value; __log.push("country " + c);
+  $("city").disabled = !c;
+  $("city").innerHTML = c ? '<option value="">Choose a city</option>' + data[c].map((x) => "<option>" + x + "</option>").join("") : '<option value="">Choose a country first</option>';
+});
+$("city").addEventListener("change", () => __log.push("city " + $("city").value));
+// Delivery times load only when the user opens the list (focus or mousedown), like many booking forms.
+let loaded = false;
+function loadSlots() {
+  if (loaded) return; loaded = true; __log.push("slots requested");
+  setTimeout(() => { $("slot").innerHTML = '<option value="">Choose a time</option><option>Tomorrow 8–10 am</option><option>Tomorrow 10–12 am</option><option>Tomorrow 4–6 pm</option>'; __log.push("slots loaded"); }, 400);
+}
+$("slot").addEventListener("focus", loadSlots);
+$("slot").addEventListener("mousedown", loadSlots);
+$("slot").addEventListener("change", () => __log.push("slot " + $("slot").value));
+$("f").addEventListener("submit", (e) => { e.preventDefault(); __log.push("save " + $("country").value + "/" + $("city").value + "/" + $("slot").value); $("status").textContent = "Address saved."; });
+</script>
+</body></html>

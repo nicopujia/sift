@@ -1,0 +1,546 @@
+[button] Skip to content
+  [input:search]  Search Wikipedia
+  [button] Search
+[button] Menu
+[link] Create account
+[link] Log in
+H1 Bread
+[link] Article
+[link] Talk
+[link] Read
+[link] View source
+[link] View history
+    [link] Page semi-protected
+p: From Wikipedia, the free encyclopedia
+    [link] Bread (disambiguation)
+    [link] Loaves of bread in a basket
+    [link] leavened breads
+  td: Main ingredients
+    [link] Flour
+    [link] water
+    [link] Wikibooks logo
+    [link] Cookbook: Bread
+    [link] Wikimedia Commons logo
+    [link] Media: Bread
+    [link] baked
+    [link] flour
+    [link] yeast
+    [link] staple food
+    [link] Europe
+    [link] Middle East
+    [link] recorded history
+    [link] agriculture
+    [link] secular
+    [link] leavened
+    [link] microbes
+    [link] sourdough
+    [link] baking soda
+    [link] yeast
+    [link] unleavened
+    [link] additives
+  H2 Etymology
+    [link] cognate
+    [link] Old Norse
+    [link] Germanic languages
+    [link] Old English
+  H2 History
+    [link] History of bread
+    [link] cattails
+    [link] ferns
+    [link] flatbread
+    [link] Natufian
+    [link] Neolithic
+    [link] cereal grains
+  [link] 
+  figcaption: Woman baking bread (c. 2200 BC); Louvre
+    [link] Sumerian
+    [link] yeast
+    [link] flour
+    [link] ash
+    [link] leavening
+    [link] Pliny the Elder
+    [link] Gauls
+    [link] Iberians
+    [link] beer
+    [link] barm
+    [link] barm cake
+    [link] grape
+    [link] wine
+    [link] yeast
+    [link] starter
+  p: The ancient Egyptians, Greeks, and Romans all considered the degree of refinement in the bakery arts as a sign of civilization.
+    [link] Chorleywood bread process
+    [link] fermentation
+  H2 Types
+    [link] List of breads
+      [link] Brown bread (left) and whole grain bread
+      [link] sprouted bread
+      p: Dark
+      [link] Ruisreikäleipä
+      p: , a flat rye flour loaf with a hole
+    [link] staple food
+    [link] Middle East
+    [link] Central Asia
+    [link] North Africa
+    [link] Europe
+    [link] Americas
+    [link] Australia
+    [link] Southern Africa
+    [link] rice
+    [link] noodles
+    [link] wheat
+    [link] flour
+    [link] dough
+    [link] oven
+    [link] gluten
+    [link] common or bread wheat
+    [link] spelt
+    [link] emmer
+    [link] einkorn
+    [link] kamut
+    [link] rye
+    [link] barley
+    [link] maize
+    [link] oats
+    [link] sorghum
+    [link] millet
+    [link] rice
+    [link] Gluten-free
+    [link] xanthan gum
+    [link] guar gum
+    [link] hydroxypropyl methylcellulose
+    [link] corn starch
+    [link] eggs
+      [link] Sangak, an Iranian flatbread
+    [link] Sangak
+      [link] Strucla, a type of European sweet bread
+  p: Strucla, a type of European sweet bread
+  H2 Properties
+  H3 Physical-chemical composition
+    [link] wheat
+    [link] phenolic
+    [link] hulls
+    [link] ferulic acid
+    [link] Rye bread
+    [link] phenolic acids
+    [link] ferulic acid dehydrodimers
+    [link] natural phenolic
+    [link] secoisolariciresinol diglucoside
+    [link] p-coumaric acid glucoside
+    [link] ferulic acid glucoside
+    [link] flaxseed
+  [link] 
+  figcaption: Small homemade bread with pumpkin and sunflower seeds
+    [link] Glutenin
+    [link] gliadin
+    [link] disulfide
+    [link] foam
+    [link] styrofoam
+    [link] elastic
+    [link] plastic
+    [link] Acrylamide
+    [link] neurotoxic
+    [link] carcinogenic
+    [link] University of Hohenheim
+    [link] FODMAP
+    [link] flatulence
+    [link] irritable bowel syndrome
+    [link] spelt
+    [link] emmer
+    [link] einkorn
+    [link] percent by weight
+    [link] phytates
+    [link] trace elements
+  H3 Culinary uses
+  [link] 
+  figcaption: Bread pudding
+    [link] temperatures
+    [link] toasted
+    [link] butter
+    [link] gravy
+    [link] olive oil
+    [link] soup
+    [link] sandwiches
+    [link] meats
+    [link] condiments
+    [link] breadcrumbs
+    [link] croutons
+    [link] stuffing
+    [link] bread puddings
+    [link] French toast
+    [link] sausages
+    [link] meatballs
+  H3 Nutritional significance
+    [link] carbohydrates
+    [link] fortified
+  H3 Crust and crumb
+  [link] 
+  figcaption: Bread with crust crack (half left at the top) and (lighter) crumb inside
+  p: The mass of bread consists of two primary components: the crust and crumb.
+    [link] Maillard reaction
+    [link] Old wives' tales
+    [link] dietary fiber
+    [link] antioxidants
+    [link] pronyl
+    [link] lysine
+  p: Bread crumb is the internal porous material consisting of bubbles with elastic walls. As the bread ages (becomes stale), the crumb becomes more firm.
+  H2 Preparation
+  [link] 
+  figcaption: Steps in bread making, here for an unleavened Chilean tortilla
+    [link] baked
+    [link] steamed
+    [link] mantou
+    [link] puri
+    [link] frying pan
+    [link] tortillas
+    [link] leavened
+    [link] matzo
+    [link] Salt
+    [link] fat
+    [link] leavening agents
+    [link] yeast
+    [link] baking soda
+    [link] milk
+    [link] egg
+    [link] sugar
+    [link] spice
+    [link] fruit
+    [link] raisins
+    [link] vegetables
+    [link] onion
+    [link] nuts
+    [link] walnut
+    [link] seeds
+    [link] poppy
+    [link] straight dough process
+    [link] sourdough process
+    [link] Chorleywood bread process
+    [link] sponge and dough process
+  H3 Formulation
+  [link] 
+  figcaption: Baking bread in East Timor
+    [link] baker's percentage
+    [link] absorb
+    [link] water
+    [link] artisan bread
+  p: Dough recipes commonly call for 500 (about 1.1 pounds) of flour, which yields a single loaf of bread or two .
+  H3 Flour
+    [link] Flour
+    [link] albumin
+    [link] globulin
+    [link] proteoses
+    [link] glutenin
+    [link] gliadin
+    [link] kneading
+    [link] no-knead bread
+    [link] gluten
+    [link] autolyse
+  H4 Fortification
+    [link] wholemeal flours
+  H3 Liquids
+    [link] dairy products
+    [link] buttermilk
+    [link] yogurt
+  H3 Fats or shortenings
+  p: Fats, such as butter, vegetable oils, lard, or that contained in eggs, affect the development of gluten in breads by coating and lubricating the individual strands of protein. They also help to hold the structure togethe
+  H3 Bread improvers
+    [link] Dough conditioner
+    [link] antistaling
+  H3 Salt
+    [link] sodium chloride
+    [link] autolyse
+    [link] potassium chloride
+    [link] monosodium glutamate
+    [link] umami
+  H2 Leavening
+    [link] Unleavened bread
+  [link] 
+  figcaption: A dough trough, located in Aberdour Castle, once used for leavening bread
+    [link] Leavening
+      [link] Chemicals
+      p: A simple technique for leavening bread is the use of gas-producing chemicals. There are two common methods. The first is to use baking powder or a that includes baking powder. The second is to include an acidic ingredien
+      p: Main article: Quick bread · self-raising flour
+      [link] Yeast
+      p: Many breads are leavened by yeast. The yeast most commonly used for leavening bread is , the same species used for brewing cereal-based alcoholic beverages. This yeast ferments some of the sugars producing carbon dioxide
+      p: Main article: Baker's yeast · Compressed fresh yeast · Saccharomyces cerevisiae · Before first rising · After first rising · After proofing, ready to bake
+      [link] Sourdough
+      p: Sourdough is a type of bread produced by a long fermentation of dough using naturally occurring yeasts and . It usually has a mildly sour taste because of the lactic acid produced during anaerobic fermentation by the lac
+      p: Main article: Sourdough · Sourdough loaves · lactobacilli
+      [link] Steam
+      p: The rapid expansion of steam produced during baking leavens the bread, which is as simple as it is unpredictable. Steam-leavening is unpredictable since the steam is not produced until the bread is baked. Steam leavening
+      p: CO 2
+      [link] Bacteria
+      p: Salt-rising bread does not use yeast. Instead, it is leavened by , one of the most common sources of food-borne illness.[63][64]
+      p: Clostridium perfringens
+      [link] Aeration
+      p: Aerated bread is leavened by carbon dioxide being forced into dough under pressure. From the mid-19th to mid-20th centuries, bread made this way was somewhat popular in the United Kingdom, made by the Aerated Bread Compa
+      p: Chorleywood bread process
+  H2 Cultural significance
+    [link] Bread in culture
+  [link] 
+  figcaption: A Ukrainian woman in national dress welcoming with bread and salt
+    [link] Bread plays an important role in many cultures
+    [link] significant in Christianity
+    [link] wine
+    [link] Eucharist
+    [link] Paganism
+    [link] cultures
+    [link] metaphor
+    [link] Juvenal
+    [link] bread and circuses
+    [link] Russia
+    [link] breadbasket
+    [link] Northern
+    [link] Central
+    [link] Southern
+    [link] Eastern
+    [link] bread and salt
+    [link] India
+    [link] English
+    [link] synonyms
+    [link] money
+    [link] sliced bread
+    [link] Oxford English Dictionary
+  H2 Fraud
+    [link] food fraud
+    [link] adulteration
+    [link] medieval times
+    [link] Russo-Ukrainian war
+    [link] wheat flour
+    [link] flour fraud
+  H2 See also
+  [link] icon
+  [link] Food portal
+      [link] Bark bread
+      [link] Bread bowl
+      [link] Bread clip
+      [link] Breading
+      [link] Bread machine
+      [link] Bread pan
+      [link] Crouton
+      [link] List of breads
+      [link] List of bread dishes
+      [link] List of toast dishes
+      [link] Quick bread
+      [link] Sliced bread
+      [link] Slow Bread
+      [link] Sop
+      [link] Stuffing
+      [link] White bread
+  H2 References
+      [link] "Bread, noun: Meaning and use"
+      p: ↑. Oxford English Dictionary. Oxford University. 2026. Archived from the original on 17 May 2025. Retrieved 1 February 2026.
+      [link] Archived
+      p: Jump up to: 1 2"Bread". Online Etymology Dictionary. 2026. from the original on 2 June 2025. Retrieved 1 February 2026.
+      [link] "Middle English Compendium"
+      p: ↑. University of Michigan. 2026. Retrieved 1 February 2026.
+      [link] "The History of Bread Making: A Universal Lens"
+      p: ↑. foodmuseum.org.uk. 20 September 2024. Archived from the original on 23 May 2026. Retrieved 23 May 2026.
+      [link] "Prehistoric man ate flatbread 30,000 years ago: study"
+      p: ↑. phys.org. Science X. Agence France-Presse. 19 October 2010. Archived from the original on 5 August 2011. Retrieved 19 October 2010.
+      [link] "Indigenous Australians know we're the oldest living culture – it's in our Dreamtime"
+      p: ↑Behrendt, Larissa (22 September 2016). . The Guardian. ISSN 0261-3077. Archived from the original on 24 September 2024. Retrieved 8 February 2020.
+      [link] "Prehistoric bake-off: Scientists discover oldest evidence of bread"
+      p: ↑Briggs, Helen (17 July 2018). . BBC News. Archived from the original on 16 July 2018. Retrieved 17 July 2018.
+      [link] Wayback Machine
+      p: ↑Amaia Arranz-Otaegui, Lara Gonzalez Carretero, Monica N. Ramsey, Dorian Q. Fuller, and Tobias Richter: Archaeobotanical evidence reveals the origins of bread 14,400 years ago in northeastern Jordan. PNAS, 11 July 2018 (
+      [link] 978-0-684-80001-1
+      p: ↑McGee, Harold (2004). On food and cooking. Scribner. p.517. ISBN.
+      [link] Jump up to: Arzani A.: Emmer (Triticum turgidum spp. dicoccum) flour and breads. In Preedy V.R., Watson R.R., Patel V.B. (Eds. 2011), Flour and Breads and their Fortification in Health and Disease…
+      p: Jump up to: 1 2 Arzani A.: Emmer (Triticum turgidum spp. dicoccum) flour and breads. In Preedy V.R., Watson R.R., Patel V.B. (Eds. 2011), Flour and Breads and their Fortification in Health and Disease Prevention, Academi
+      [link] 978-0-8128-1437-8
+      p: ↑Tannahill, Reay (1973). Food in History. Stein and Day. pp.68–69. ISBN.
+      [link] Natural History
+      p: ↑Pliny the Elder (1938). . Loeb Classics. p.1.255. Archived from the original on 30 May 2023. Retrieved 30 September 2016. Generally however they do not heat it up at all, but only use the dough kept over from the day be
+      [link] "Chorleywood Industrial Bread Making Process"
+      p: ↑. allotment.org.uk. Archived from the original on 22 May 2012.
+      [link] "Chorleywood: The bread that changed Britain"
+      p: ↑. BBC. 7 June 2011. Archived from the original on 13 June 2018.
+      [link] "fob.co.uk: "History of bread – 20th century""
+      p: ↑. Federation of Bakers. Archived from the original on 19 April 2019. Retrieved 14 May 2018.
+      [link] "Impact of Leavening Agent and Wheat Variety on Bread Organoleptic and Nutritional Quality"
+      p: ↑Mietton, Lauriane; Samson, Marie-Françoise; Marlin, Thérèse; Godet, Teddy; Nolleau, Valérie; Guezenec, Stéphane; Segond, Diego; Nidelet, Thibault; Desclaux, Dominique; Sicard, Delphine (July 2022). . Microorganisms. 10 
+      [link] "Wheat for bread and other foods"
+      p: ↑Peña, R. J. . Food and Agriculture Organization. Archived from the original on 27 January 2019. Retrieved 1 October 2016. Wheat, in the form of bread, provides more nutrients to the world population than any other singl
+      [link] the original
+      p: ↑"Wheat". Grains & Legumes Nutrition Council. Archived from on 5 October 2016. Retrieved 1 October 2016. Aside from bread wheat and durum, other types of wheat include spelt, emmer, einkorn and kamut. These wheat varieti
+      [link] Technology of Breadmaking
+      p: ↑Cauvain, Stanley (2015). . Springer. p.377. ISBN 978-3-319-14687-4. In the past, maize (corn), barley, oats, sorghum, millet and rice have all found their way into bread products at some time, usually when wheat and rye
+      [link] "Cereal-based gluten-free food: how to reconcile nutritional and technological properties of wheat proteins with safety for celiac disease patients"
+      p: ↑Lamacchia C, Camarca A, Picascia S, Di Luccia A, Gianfrani C (2014). . Nutrients (Review). 6 (2): 575–90. doi:10.3390/nu6020575. ISSN 2072-6643. PMC 3942718. PMID 24481131.
+      [link] 10.1016/j.bpg.2015.04.006
+      p: ↑Volta U, Caio G, De Giorgio R, Henriksen C, Skodje G, Lundin KE (June 2015). "Non-celiac gluten sensitivity: a work-in-progress entity in the spectrum of wheat-related disorders". Best Pract Res Clin Gastroenterol. 29 (
+      [link] dermatitis herpetiformis
+      p: ↑Mulder CJ, van Wanrooij RL, Bakker SF, Wierdsma N, Bouma G (2013). "Gluten-free diet in gluten-related disorders". Dig. Dis. (Review). 31 (1): 57–62. doi:10.1159/000347180. PMID 23797124. S2CID 14124370. The only treatm
+      [link] 10.1111/j.1365-2036.2006.02768.x
+      p: ↑Hischenhuber C, Crevel R, Jarry B, Mäki M, Moneret-Vautrin DA, Romano A, Troncone R, Ward R (1 March 2006). "Review article: safe amounts of gluten for patients with wheat allergy or coeliac disease". Aliment Pharmacol 
+      [link] 10.1111/j.1365-2621.2005.01057.x
+      p: ↑Gelinas, Pierre; McKinnon, Carole M. (2006). "Effect of wheat variety, farming site, and bread-baking on total phenolics". International Journal of Food Science and Technology. 41 (3): 329. doi:.
+      [link] 10.1007/s00217-001-0417-6
+      p: ↑Boskov Hansen, H.; Andreasen, M.F.; Nielsen, M.M.; Melchior Larsen, L.; Bach Knudsen, K.E.; Meyer, A.S.; Christensen, L.P. & Hansen, Å. (2002). "Changes in dietary fibre, phenolic acids and activity of endogenous enzyme
+      [link] 10.1016/j.foodchem.2008.02.088
+      p: ↑Strandås, C.; Kamal-Eldin, A.; Andersson, R.; Åman, P. (2008). "Phenolic glucosides in bread containing flaxseed". Food Chemistry. 110 (4): 997–99. doi:. PMID 26047292.
+      [link] 10.1016/j.fm.2006.07.004
+      p: Jump up to: 1 2 Wieser, Herbert (April 2007). "Chemistry of gluten proteins". Food Microbiology. 24 (2): 115–119. doi:. PMID 17008153.
+      [link] McGee, Harold (2004). On Food and Cooking: The Science and Lore of the Kitchen. New York: Scribner. pp. 515–80.
+      p: ↑McGee, Harold (2004). On Food and Cooking: The Science and Lore of the Kitchen. New York: Scribner. pp.515–80.
+      [link] 2004JAFC...52.2047S
+      p: ↑Surdyk, Nicolas; Rosén, Johan; Andersson, Roger; Åman, Per (April 2004). "Effects of Asparagine, Fructose, and Baking Conditions on Acrylamide Content in Yeast-Leavened Wheat Bread". Journal of Agricultural and Food Che
+      [link] "Lange Teigführung ? Besser verträgliches Brot"
+      p: ↑. dhz.net (in German). 6 September 2016. Archived from the original on 13 August 2022. Retrieved 16 June 2022.
+      [link] "Wheat and the irritable bowel syndrome – FODMAP levels of modern and ancient species and their retention during bread making"
+      p: ↑Jochen U. Ziegler, Deborah Steiner, C. Friedrich H. Longin, Tobias Würschum, Ralf M. Schweiggert (August 2016), , Journal of Functional Foods (in German), vol.25, pp.257–266, doi:10.1016/j.jff.2016.05.019, archived from
+      [link] "Bread and Butter Etiquette"
+      p: ↑Grotts, Lisa Mirza (21 June 2011). . Huffington Post. Archived from the original on 5 October 2016. Retrieved 2 October 2016.
+      [link] "Sandwich Recipes"
+      p: ↑. Simply Recipes. Archived from the original on 30 September 2016. Retrieved 2 October 2016.
+      [link] "Our 10 best bread recipes"
+      p: ↑. The Guardian. 6 September 2014. Retrieved 2 October 2016. Our most dutiful mealtime companion becomes the main ingredient in this inventive array of recipes, from a hearty clam chowder to a luxurious take on a pudding
+      [link] "Health Benefits of Bread Fortification: A Systematic Review of Clinical Trials according to the PRISMA Statement"
+      p: ↑Kaim, Urszula; Goluch, Zuzanna Sabina (20 October 2023). . Nutrients. 15 (20): 4459. doi:10.3390/nu15204459. PMC 10609867. PMID 37892534.
+      [link] Dietary Guidelines for Americans 2010
+      p: ↑Archived 1 September 2016 at the Wayback Machine. U.S. Department of Agriculture, U.S. Department of Health and Human Services
+      [link] "The contribution of wheat to human diet and health"
+      p: ↑Shewry, Peter R.; Hey, Sandra J. (October 2015). . Food and Energy Security. 4 (3): 178–202. doi:10.1002/fes3.64. PMC 4998136. PMID 27610232.
+      [link] 978-0-12-394786-4
+      p: Jump up to: 1 2 Wrigley, C.W.; Corke, H.; Seetharaman, K.; Faubion, J. (2015). Encyclopedia of Food Grains. Elsevier Science. p.404. ISBN.
+      [link] 978-1-921966-73-6
+      p: ↑The Longevity List: Myth Busting the Top Ways to Live a Long and Healthy Life ISBN p. 156
+      [link] "Discovery Health "Is eating bread crust really good for you?""
+      p: ↑Winkler, Sarah (29 July 2009). . Health.howstuffworks.com. Archived from the original on 24 October 2012. Retrieved 26 October 2012.
+      [link] "Bread recipes (45 results found)"
+      p: ↑. British Broadcasting Corporation. Archived from the original on 24 September 2016. Retrieved 2 October 2016.
+      [link] Protein quality and the effects of processing
+      p: ↑Finley, John H.; Phillips, R. O. (1989). . New York: M. Dekker. p.See Figure 2. ISBN 978-0-8247-7984-9.
+      [link] "NYSAES|FST|FVC|Venture 3| Chemical Food Preservatives"
+      p: ↑. Archived from the original on 12 April 2010. Retrieved 28 February 2010.
+      [link] 978-0-471-16857-7
+      p: ↑Hamelman, Jeffrey (2004). Bread: a baker's book of techniques and recipes. New York: John Wiley. pp.7–13. ISBN. A high gluten white flour will require more mix time than a white flour with a lower gluten content,...
+      [link] Professional Chef: Level 2 Diploma
+      p: ↑Hunter, Gary; Carey, Patrick; Tinton, Terry; Walpole, Steven (2007). . Cengage Learning EMEA. pp.10–11. ISBN 978-1-84480-706-2.
+      [link] "Bread and Flour Regulations"
+      p: ↑. UK Flour Millers. October 2023. Retrieved 5 January 2025.
+      [link] "wheatmeal"
+      p: ↑. Cambridge Dictionary. Archived from the original on 27 August 2025. Retrieved 5 January 2025.
+      [link] "Hydration ratio for breads"
+      p: ↑Laurie (5 June 2009). . food.laurieashton.com. Archived from the original on 14 January 2013. Retrieved 28 March 2026.
+      [link] "Yeast & Baking Lessongs. Liquids"
+      p: ↑. Red Star Yeast. Archived from the original on 5 October 2016. Retrieved 2 October 2016.
+      [link] Technology of Breadmaking
+      p: ↑Young, Linda; Cauvain, Stanley P. (2007). . Berlin: Springer. p.54. ISBN 978-0-387-38563-1.
+      [link] "Dough and Bread Conditioners"
+      p: ↑Tenbergen, Klaus (1999). . Food and Product Design Magazine. Retrieved 2 October 2016.
+      [link] 0-679-40907-6
+      p: ↑Silverton, Nancy (1996) Breads From The La Brea Bakery, Villard, ISBN
+      [link] 1-58008-268-8
+      p: ↑Reinhart, Peter (2001) The Bread Baker's Apprentice: Mastering the Art of Extraordinary Bread, Ten Speed Press, ISBN
+      [link] "The Bread Leavening Process"
+      p: Jump up to: 1 2 3 4 5 6. Becoming a Chef. 15 August 2016. Retrieved 2 October 2016.
+      [link] Technology of Breadmaking
+      p: ↑Young, Linda; Cauvain, Stanley P. (2007). . Berlin: Springer. p.79. ISBN 978-0-387-38563-1.
+      [link] "Artisan bread baking tips: Poolish & biga"
+      p: ↑. Weekend Bakery. Archived from the original on 5 October 2016. Retrieved 2 October 2016.
+      [link] "Preferments"
+      p: ↑. King Arthur Flour. Archived from the original on 10 November 2025. Retrieved 10 November 2025.
+      [link] The Oxford Companion to Food
+      p: Jump up to: 1 2 Davidson, Alan (1999). . Oxford University Press. pp.756–57. ISBN 978-0-19-211579-9.
+      [link] 978-1-4899-9189-8
+      p: ↑Gobbetti, Marco; Gänzle, Michael, eds. (2012). Handbook on Sourdough Biotechnology. Springer. ISBN.
+      [link] "Factors Affecting Organic Acid Production by Sourdough (San Francisco) Bacteria"
+      p: ↑Ng, Henry (June 1972). . Applied Microbiology. 23 (6): 1153–1159. doi:10.1128/am.23.6.1153-1159.1972. ISSN 0003-6919. PMC 380523. PMID 5042265.
+      [link] "Supermarkets cash in on sourdough bread craze as popularity surges"
+      p: ↑Mesure, Susie (30 January 2016). . The Independent. Archived from the original on 4 September 2016. Retrieved 2 October 2016.
+      [link] The science of bakery products
+      p: ↑Edwards, W.P. (2007). . Cambridge: Royal Society of Chemistry. p.68. ISBN 978-0-85404-486-3. Retrieved 8 December 2012. When bread expands in the oven the resulting expansion is known as oven spring. It has been calcula
+      [link] "Susan R. Brown's Salt Rising Bread Project"
+      p: ↑. Home.comcast.net. Archived from the original on 17 January 2012. Retrieved 3 June 2010.
+      [link] 0043-3284
+      p: ↑Juckett, Gregory; Bardwell, Genevieve; McClane, Bruce; Brown, Susan (2008). "Microbiology of salt rising bread". The West Virginia Medical Journal. 104 (4): 26–27. ISSN. PMID 18646681.
+      [link] On the Healthy Manufacture of Bread: A Memoir on the System of Dr. Dauglish
+      p: ↑Richardson MD FRS, Benjanmin Ward. . Baillière, Tindall, & Cox, 1884. pp. 18, 20–21, 34, 62–63, 67–70, 74.
+      [link] 978-1-85573-724-2
+      p: ↑Kilcast, D.; McKenna, B. M., eds. (2003). Texture in food. Woodhead. p.448. ISBN.
+      [link] "Eucharist (Christianity) – Encyclopædia Britannica"
+      p: ↑. Archived from the original on 19 May 2008. Retrieved 2 June 2022.
+      [link] Exploring Wicca: The Beliefs, Rites, and Rituals of the Wiccan Religion
+      p: ↑Sabrina, Lady (2006). . Career Press. pp.100–. ISBN 978-1-56414-884-1.
+      [link] Juvenal's literary and cultural influence (Book IV: Satire 10.81)
+      [link] "Russia"
+      p: ↑. Encyclopædia Britannica. Archived from the original on 29 January 2010. Retrieved 3 June 2010.
+      [link] "Vladimir Lenin: From March to October. SparkNotes"
+      p: ↑. Sparknotes.com. Archived from the original on 31 December 2017. Retrieved 3 June 2010.
+      [link] 9781787134782
+      p: ↑Hayward, Tim (2020). Loaf Story. Hardie Grant Publishing. ISBN. Retrieved 25 January 2021.
+      [link] The Foundation Pillars for Change
+      p: ↑Patel, K.V. (2014). . Partridge. p.54. ISBN 978-1-4828-1563-4.
+      [link] Online Etymology Dictionary
+      p: ↑Harper, Douglas. "bread". .
+      [link] "How the Phrase 'The Best Thing Since Sliced Bread' Originated"
+      p: ↑Molella, Art (8 February 2012). . The Atlantic. Archived from the original on 29 September 2016. Retrieved 30 September 2016.
+      [link] "Break bread with"
+      p: ↑. The Free Dictionary. Archived from the original on 1 January 2017. Retrieved 1 January 2017.
+      [link] Archived
+      p: ↑"Lord". Merriam-Webster. from the original on 3 January 2017. Retrieved 1 January 2017.
+      [link] "The staff of life"
+      p: ↑. Cambridge Dictionary. Archived from the original on 20 April 2018. Retrieved 20 April 2018.
+      [link] "Chapter 9. Toward the Common Good: Punishing Fraud among the Victualers of Medieval London"
+      p: ↑. Truth and Tales: Cultural Mobility and Medieval Media. The Ohio State University Press. 2015. ISBN 9780814273739.
+      [link] "Looking for fraud in wheat flour"
+      p: ↑. foodmanufacture.co.uk. 21 September 2023. Archived from the original on 20 May 2024. Retrieved 19 May 2024.
+  H2 Further reading
+      [link] 978-0-8223-3833-8
+      p: Kaplan, Steven Laurence: Good Bread Is Back: A Contemporary History of French Bread, the Way It Is Made, and the People Who Make It. Durham/ London: Duke University Press, 2006. ISBN
+      [link] 1-55821-575-1
+      p: Jacob, Heinrich Eduard: Six Thousand Years of Bread: Its Holy and Unholy History. Garden City / New York: Doubleday, Doran and Comp., 1944. New 1997: New York: Lyons & Burford, Publishers (Foreword by Lynn Alley), ISBN &
+      [link] 1-4039-8684-3
+      p: Spiekermann, Uwe: "Brown Bread for Victory: German and British Wholemeal Politics in the Inter-War Period", in: Trentmann, Frank and Just, Flemming (ed.): Food and Conflict in Europe in the Age of the Two World Wars. Bas
+      [link] 978-0-394-56788-4
+      p: Cunningham, Marion (1990). The Fannie Farmer cookbook. illustrated by Lauren Jarrett (13thed.). New York: Alfred A. Knopf. ISBN.
+      [link] The food chronology: a food lover's compendium of events and anecdotes from prehistory to the present
+      p: Trager, James (1995). . Henry Holt. ISBN 978-0-8050-3389-2.
+      [link] The Oxford Companion to Food
+      p: Davidson, Alan (1999). . Oxford University Press. ISBN 978-0-19-211579-9.
+      [link] 0-521-45257-0
+      p: D. Samuel (2000). "Brewing and baking". In P. T. Nicholson; I. Shaw (eds.). Ancient Egyptian materials and technology. Cambridge: Cambridge University Press. pp.537–76. ISBN.
+      [link] 978-1-882005-02-4
+      p: Pyler, E. J. (1988). Baking Science & Technology 3rd Ed. vols. I & II. Sosland Publishing Company. ISBN.
+  H2 External links
+      [link] Wiktionary logo
+    [link] bread
+    [link] Bread
+      [link] Wikivoyage logo
+      [link] Bread and confectionery
+  p: travel guide from Wikivoyage
+  [button] show
+  [link] v
+  [link] t
+  [link] e
+  [link] Bread
+  [button] show
+  [link] v
+  [link] t
+  [link] e
+  [link] Wheat
+  [button] show
+  [link] v
+  [link] t
+  [link] e
+  [link] Cereals
+  [link] pseudocereals
+  [button] show
+  [link] v
+  [link] t
+  [link] e
+  [link] Cuisines
+  [button] show
+  [link] Authority control databases
+  [link] Edit this at Wikidata
+    [link] Categories
+    [link] Breads
+    [link] Ancient dishes
+    [link] Staple foods
+    [link] Types of food
+    [link] Wheat dishes
+    [link] World cuisine
+    [link] Romani cuisine
+[button] Sift

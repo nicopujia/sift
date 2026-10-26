@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Plain autocomplete (jQuery Autocomplete style)</title>
+<style>
+  body { font: 16px sans-serif; margin: 40px; }
+  #q { width: 300px; padding: 6px; }
+  .autocomplete-suggestions { border: 1px solid #999; background: #fff; overflow: auto; }
+  .autocomplete-suggestion { padding: 4px 8px; white-space: nowrap; }
+  .autocomplete-selected { background: #def; }
+</style>
+</head>
+<body>
+<header><div class="top"><div class="search"><form role="search" action="#"><div class="box"><input type="search" name="site" aria-label="Search the site"><button>Search</button></div></form></div></div></header>
+<main>
+<h1>Forecast lookup</h1>
+<p>Type a place, pick a suggestion with the arrow keys and Enter, or click one. Rows have no roles, links or buttons, like weather.gov's location field.</p>
+<div class="panel"><div class="panel-body"><div class="row">
+<form id="f">
+  <label for="q">Location</label>
+  <div class="field"><input id="q" name="q" type="text" autocomplete="off">
+  <input type="submit" value="Go"></div>
+</form>
+</div></div></div>
+<p id="out">Picked: none</p>
+</main>
+<script>
+  const places = ["Springfield, IL, USA", "Springfield, MA, USA", "Springfield, MO, USA", "Springfield, OR, USA", "Salem, OR, USA", "Seattle, WA, USA"];
+  const q = document.getElementById("q");
+  const out = document.getElementById("out");
+  const box = document.createElement("div");
+  box.className = "autocomplete-suggestions";
+  box.style.cssText = "position:absolute;display:none;z-index:9999";
+  document.body.appendChild(box);
+  let list = [], sel = -1, typed = "";
+  function show() {
+    const r = q.getBoundingClientRect();
+    box.style.top = r.bottom + scrollY + "px";
+    box.style.left = r.left + scrollX + "px";
+    box.style.width = "400px";
+    box.innerHTML = list.map((p, i) => `<div class="autocomplete-suggestion" data-index="${i}"><strong>${p.slice(0, typed.length)}</strong>${p.slice(typed.length)}</div>`).join("");
+    box.style.display = list.length ? "block" : "none";
+  }
+  function activate(i) {
+    sel = i;
+    box.querySelectorAll(".autocomplete-suggestion").forEach((d, j) => d.classList.toggle("autocomplete-selected", j === i));
+    q.value = i >= 0 ? list[i] : typed;
+  }
+  function pick(i) {
+    out.textContent = "Picked: " + list[i];
+    q.value = list[i];
+    list = [];
+    sel = -1;
+    show();
+  }
+  q.addEventListener("keyup", (e) => {
+    if (e.keyCode === 38 || e.keyCode === 40 || e.keyCode === 13) return;
+    if (q.value === typed) return;
+    typed = q.value;
+    // An answer from the network, a moment later.
+    setTimeout(() => {
+      list = typed ? places.filter((p) => p.toLowerCase().startsWith(typed.toLowerCase())) : [];
+      sel = -1;
+      show();
+    }, 250);
+  });
+  q.addEventListener("keydown", (e) => {
+    if (box.style.display === "none") return;
+    if (e.keyCode === 40) { if (sel < list.length - 1) activate(sel + 1); e.preventDefault(); }
+    else if (e.keyCode === 38) { if (sel >= 0) activate(sel - 1); e.preventDefault(); }
+    else if (e.keyCode === 13 && sel >= 0) { pick(sel); e.preventDefault(); }
+    else if (e.keyCode === 27) { list = []; show(); }
+  });
+  box.addEventListener("mouseover", (e) => { const d = e.target.closest(".autocomplete-suggestion"); if (d) activate(+d.dataset.index); });
+  box.addEventListener("click", (e) => { const d = e.target.closest(".autocomplete-suggestion"); if (d) pick(+d.dataset.index); });
+  document.getElementById("f").addEventListener("submit", (e) => { e.preventDefault(); out.textContent = "Searched: " + q.value; });
+</script>
+</body>
+</html>

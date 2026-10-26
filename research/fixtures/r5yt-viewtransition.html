@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>View transition test</title>
+<style>
+  /* A page part with its own view transition name, as YouTube names its watch page's columns. */
+  #side { position: fixed; left: 0; top: 150px; width: 220px; height: 500px; background: #111; color: #fff; view-transition-name: side; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation-duration: 5s; }
+</style>
+</head>
+<body>
+<div id="side">Original side column</div>
+<main>
+  <h1 id="title">Before the change</h1>
+  <p>This page changes its title with document.startViewTransition() about 1.5 seconds after it loads. The transition takes 5 seconds.</p>
+  <p>On the original, the dark side column on the left animates during that time. Under Sift, the original must never show over Sift's view.</p>
+</main>
+<script>
+  window.__vt = [];
+  setTimeout(() => {
+    const t0 = Math.round(performance.now());
+    const tr = document.startViewTransition(() => {
+      document.getElementById("title").textContent = "After the change";
+    });
+    window.__vt.push("start@" + t0);
+    tr.ready.then(() => window.__vt.push("ready@" + Math.round(performance.now())), (e) => window.__vt.push("skipped@" + Math.round(performance.now()) + ":" + e.name));
+    tr.updateCallbackDone.then(() => window.__vt.push("updated@" + Math.round(performance.now())));
+    tr.finished.then(() => window.__vt.push("finished@" + Math.round(performance.now())));
+  }, 1500);
+</script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+[button] Ir al contenido
+[button] Menú
+[button] Iniciar sesión
+H1 Infobae América
+    [link] La Policía francesa detuvo a 135 personas e incautó armas que llevaban manifestantes; el ministro dijo que no hubo incidentes hasta el momento
+    p: EN VIVO · Por Lucas Goyret
+    [link] Kim Jong-un visitó China cruzando un puente recién inaugurado en Dandong
+    [link] Messi protagonizó portadas tras recibir el Premio Princesa de Asturias, con frases como “Se corona” y “Príncipe Leo”
+    [link] Ucrania recuperó la conexión de Starshield y atacó redes eléctricas de la Crimea ocupada por Rusia
+    [link] Carlos Sánchez Berzaín: “La unidad boliviana es el instrumento para derrotar al narcoestado”
+    p: Por Lucas Goyret
+    [link] Un incendio destruyó el “Nido del Águila”, antiguo refugio de montaña de Adolf Hitler en Alemania
+    [link] Un plan de Colombia podría reabrir disputas marítimas con Nicaragua y poner en riesgo intereses de Managua
+    p: Por Fabián Medina Sánchez · Desde Managua
+    [link] Charles Barkley reveló que un consejo financiero de Michael Jordan lo hizo multimillonario
+    [link] Isabel Allende dijo: “Escribir es mi oxígeno”
+    p: Por Guillermo E. Pintos
+    [link] Se agotaron las entradas para la vigilia y la misa central del papa en el estadio Centenario de Uruguay
+    p: Por Pedro Tristant · Desde Montevideo
+    [link] Expertos explican por qué ocurren infartos en jóvenes y qué síntomas no deben ignorarse
+    p: Por Silvia Pardo
+H2 PROTESTAS EN FRANCIA
+    [link] La agonía de la Europa liberal
+    p: Por The Economist
+    [link] El primer ministro francés consideró “elevado” el nivel de amenazas para las protestas convocadas en todo el país
+    [link] Europa protesta por el coste de vida y la corrupción; hubo 3.100 detenidos, edificios en llamas y militares en las calles
+    p: Por Fede Sáenz · Desde Madrid
+    [link] Dos semanas de incertidumbre y un auto abandonado frente al mar rodean la desaparición de María Soledad Baasch en Chile
+    p: Por Mauricio Palazzo · Desde Santiago
+    [link] La explosión de un misil en la catástrofe de Nedelin causó más de cien muertes y Moscú la mantuvo en secreto
+    p: Por Daniel Cecchini
+H2 Elecciones en Brasil
+    [link] Lula y Bolsonaro rebajaron las acusaciones a las campañas y discutieron propuestas en el último debate antes del balotaje
+    [link] Organizaciones brasileñas expresaron su preocupación por la “censura” en redes sociales a horas de las elecciones
+    [link] Lula apuesta por promesas populistas de alto costo para remontar ante Bolsonaro
+    p: Por Mauricio Savarese
+H2 REVISTA DEF
+    [link] Las tensiones internacionales en torno al petróleo afectan la economía global
+    p: Por Redacción DEF
+    [link] El Ministerio de Defensa argentino impulsa el desarrollo de drones y las Fuerzas Armadas evalúan una flota propia
+    p: Por Patricia Fernández Mainardi
+    [link] Un desarrollo argentino combina nanotecnología y salud renal para monitorear pacientes
+    p: Por Dolores Barón
+    [link] Un actor ofreció masajes de pies en un programa antes de conquistar Hollywood y fue rechazado
+    p: Por Gabriela Cicero
+    [link] Una médica reabrió el caso de la muerte de Houdini, ocurrida en Halloween hace 100 años, y cuestiona la versión oficial
+    p: Por Robin Pogrebin
+    [link] En vivo: Pedro Sánchez promete blindar el aborto en la Constitución y proteger la eutanasia si vuelve a gobernar España
+    p: EN VIVO · Por Fede Sáenz
+    [link] Kim Jong-un exigió acelerar la “revolución militar” y construir el ejército más fuerte
+    [link] Las fuerzas saudíes afirmaron haber interceptado dos misiles disparados por los rebeldes hutíes de Yemen
+    [link] Donald Trump dijo que los buques militares estadounidenses se detendrán frente a Cuba al regresar de Irán
+H2 GUERRA RUSIA-UCRANIA
+    [link] Marco Rubio dijo que la invasión a Ucrania se reduce al Donbás e instó a Moscú y Kiev a hacer concesiones para la paz
+    [link] El ejército ucraniano acatará desde el martes la tregua humanitaria en Oleshky
+    [link] El gobierno ucraniano informó que las fallas de Starshield persisten pese al anuncio de Trump sobre la restitución del servicio
+    p: Por Francisco González Tomadin
+    [link] Presión arterial: valores considerados altos o bajos y cuándo conviene consultar al médico
+    p: Por Bautista Salaverri
+    [link] Claves para renovar una casa o departamento alquilado sin hacer obras
+    p: Por Male Eirin
+    [link] 12 ciudades europeas ideales para disfrutar del otoño, del follaje a los museos
+    p: Por Lucila Waicman
+    [link] Claves para conservar la forma de los almohadones del sillón al darles vuelta
+    p: Por Lucila Waicman
+    [link] Paul John Knowles, el “Asesino Casanova”: mató a 18 personas en 7 estados y usó su encanto como arma
+    p: Por Bautista Salaverri
+    [link] Rosa Parks, costurera, desafió al racismo en Estados Unidos
+H2 MEDIO ORIENTE
+    [link] Los rebeldes hutíes asedian una ciudad de Yemen durante una crisis de reservas de agua y alimentos
+    p: Por Fatma Khaled
+    [link] Los ataques a buques en Ormuz alcanzaron su máximo histórico desde el inicio de la guerra
+    [link] Estados Unidos reducirá su personal en cuatro embajadas de Medio Oriente por el aumento de las amenazas de Irán
+    [link] Gemelas siamesas fueron convertidas en figuras del espectáculo desde la infancia
+    p: Por Constanza Almirón
+    [link] Perimenopausia: 9 cambios físicos y emocionales que pueden aparecer desde los 35 años
+    p: Por Valeria Chavez
+    [link] Eliza Taylor cumple 37 años; la estrella de “The 100” llevó su estilo de la ficción a la alta costura
+    p: Por Cecilia Castro
+    [link] Valeria Campos Salvatierra compara la violencia con «un parásito que no se ve»
+    p: Por Felipe Vitola
+H2 Venezuela
+    [link] Transparencia Venezuela propone crear una justicia especial anticorrupción
+    p: Por Pedro Pablo Peñaloza · Desde Caracas
+    [link] El partido de Machado denunció la detención de siete personas que trabajaron en la marcha opositora
+    [link] La oposición venezolana destaca que negociación abrió el camino para revisar las inhabilitaciones políticas
+    p: Por Pedro Pablo Peñaloza
+    [link] 3 hábitos que pueden afectar silenciosamente el nivel de azúcar en sangre
+    p: Por Lucila Waicman
+H2 ESTADOS UNIDOS
+    [link] Un vehículo chocó contra una gasolinera de Florida tras un choque múltiple; arrestaron a una mujer y otra persona está hospitalizada
+    p: Por Nazareno Rosen
+    [link] Ric Flair fue hospitalizado de urgencia tras desplomarse frente a un restaurante en Tampa
+    p: Por Luciana Rivera
+    [link] Miami tendrá una «Plaza Azúcar» en honor a Celia Cruz, en la Calle Ocho de la Pequeña Habana
+    p: Por Luciana Rivera
+    [link] El Pentágono desclasificó un caso de ovnis sobre un triángulo negro que desconcertó a dos militares expertos
+    p: Por Fausto Urriste
+H2 CENTROAMÉRICA
+    [link] Pandillas haitianas difundieron un ritual con armas y ron; militares salvadoreños rezaron antes de viajar a buscar connacionales
+    p: Por José Cerón
+    [link] El oficialismo recomienda no reelegir por ocho años a la magistrada Patricia Solano y cuestiona su gestión de la inseguridad en Costa Rica
+    p: Por Fabricio Quirós Zúñiga
+    [link] El Gobierno de Guatemala convocó una visita obligatoria al campo Xan antes de licitar el cierre de 59 pozos petroleros
+    p: Por Sayda Galicia
+    [link] Lluvias inundaron calles de Puerto Cortés, Honduras, y dificultaron el tránsito de vehículos en varios sectores
+    p: Por Pamela Bustillo
+H2 BOLIVIA
+    [link] Los maestros bolivianos amenazaron con una huelga indefinida tras el paro nacional de 24 horas
+    [link] Bolivia: Ministerio Público apartó a dos funcionarios incluidos en la lista de restricción de visa a EEUU
+    p: Por María Silvia Trigo · Desde Santa Cruz de la Sierra
+    [link] Violencia en Bolivia: lanzan el tercer plan de seguridad ante incremento de asesinatos vinculados al narcotráfico
+    p: Por María Silvia Trigo
+H2 ECONOMÍA
+    [link] Francia se libra de la rebaja de la calificación de Moody's mientras se enfrenta a los disturbios
+    p: Por Leigh Thomas y Dhara Ranasinghe
+    [link] Donald Trump eliminó aranceles del 50% a nueve categorías de productos canadienses
+    [link] Wall Street cerró a la baja por el aumento del petróleo y las caídas financieras
+H2 VIDEOS DESTACADOS
+    [link] Nacen los primeros cuadrillizos genéticamente idénticos en Colombia
+    p: 1:06 Min
+    [link] Salvadoreño En El Ejército De Rusia Pide Ayuda Y Asilo Político
+    p: El Salvador · 1:47 Min
+    [link] Millones de peruanos se quedarían sin agua potable por el Fenómeno El Niño
+    p: Actualidad · 1:32 Min
+    [link] El Niño ya alarma al Perú y estos serán sus próximos efectos en el país
+    p: Actualidad · 1:32 Min
+    [link] Sin Información Sobre Los Soldados Salvadoreños Desaparecidos En Haití
+    p: El Salvador · 1:22 Min
+    [link] ¡El papa León XIV envió un mensaje al Perú tras recibir el alta hospitalaria!
+    p: Actualidad · 57 Seg
+    [link] Karol G y Feid reavivan los rumores de una posible reconciliación
+    p: Colombia · 46 Seg
+    [link] Desacuerdos Entre Gremio Médico Y Autoridades Tienen En Paro El Servicio De Salud De Honduras
+    p: 1:03 Min
+    [link] La lucha contra la tuberculosis: una nueva vacuna española
+    p: Salud · 1:06 Min
+    [link] Nicaragua Suma Más Agresiones Contra Periodistas
+    p: 1:01 Min
+H2 DEPORTES
+    [link] Lionel Messi recibió el Premio Princesa de Asturias en España y dijo: «Es un honor»
+    [link] El entrenador del Inter Miami se pronunció sobre la disputa entre Lionel Messi y Cristiano Ronaldo por el «Balón de Oro de todos los tiempos»
+    [link] La Fórmula 1 impulsa un plan que cambiaría drásticamente los monoplazas
+    [link] Un jugador de rugby pisó brutalmente a un rival en el suelo; alguien dijo: «Fue horroroso»
+H2 ENTRETENIMIENTO
+    [link] Ellen Burstyn, madre de Regan en «El exorcista», rechaza más secuelas de la saga: «Ya basta»
+    p: Por Ester Palomino
+    [link] Martin Scorsese contrató a Charli XCX para su nueva película con Leonardo DiCaprio y Jennifer Lawrence
+    p: Por Ester Palomino
+    [link] Un youtuber estadounidense podría recibir dos años de prisión por pescar un tiburón protegido
+    p: Por Bautista Salaverri
+    [link] Sylvester Stallone respalda la inteligencia artificial en el cine pese al rechazo de Hollywood: «Si no te subes, te va a pasar por encima»
+    p: Por Ester Palomino
+H2 TENDENCIAS
+    [link] Emilia Clarke a los 40: la transformación de la “Madre de Dragones” en ícono de la elegancia británica
+    p: Por Cecilia Castro
+    [link] Por qué comer siempre a la misma hora podría influir en cómo el cuerpo absorbe los nutrientes, según un estudio
+    p: Por Cecilia Castro
+    [link] El sarampión avanza sin freno en Estados Unidos con 4.588 contagios y tres muertes confirmadas
+    p: Por Fausto Urriste
+H2 TECNOLOGÍA
+    [link] Reino Unido creará un laboratorio de bioseguridad con IA financiado con OpenAI y Anthropic
+    p: Por Pedro Noriega
+    [link] Los robots pato de Nvidia que duermen y juegan, tuvieron 20.000 pedidos de preventa en un día
+    p: Por Renzo Gonzales
+    [link] Estas son las principales novedades de Cyberpunk 2077 Update 2.5
+    p: Por Renzo Gonzales
+H2 MALDITOS NERDS
+    [link] Xbox analiza cómo recuperar los 500 millones de ‘Gears of War: E-Day’
+    p: Por Gustavo Robles
+    [link] Fallout 76 supera los 25 millones y Bethesda prepara mascotas de combate
+    p: Por Lucas Rivarola
+    [link] Bandai Namco vence a Konami con ‘Tales of Eternia Remastered’ en Japón
+    p: Por Gustavo Robles
+    [link] ‘Katana Zero’ muestra su DLC tras años de espera y confirma su gran escala
+    p: Por Lucas Rivarola
+H2 Más Noticias
+    [link] Francia y el Reino Unido realizaron su primera simulación conjunta de ataque nuclear en el Mediterráneo
+    [link] Buscan voluntarios para vivir gratis en Galicia a cambio de cuidar una huerta pequeña y saber cocinar
+    p: Por Noelia Tabanera
+    [link] El tifón Champi dejó al menos un muerto y 170 heridos en Taiwán
+    [link] Emmanuel Macron calificó el tiroteo cerca de París como un “punto de inflexión” para Francia
+    [link] Humboldt, un perro que alerta sin ladrar, ayuda a científicos a encontrar fauna silvestre; Cecilia Castro destaca su olfato
+    p: Por Cecilia Castro
+    [link] Austria expulsó a cuatro diplomáticos rusos por presunto espionaje
+[button] ÚLTIMAS NOTICIAS
+    [link] EN VIVO | Francia vive una nueva jornada de protestas en medio de un fuerte operativo de seguridad
+    [link] EEUU llamó a colaborar de forma “discreta” con la CIA a quienes buscan un cambio en Cuba: “Es el momento”
+H2 DEPORTES
+    [link] Polémica por el “gol fantasma” de Cristiano Ronaldo, que lo acercó a los 1.000 tantos
+    [link] Una exfigura del Real Madrid dijo que “Atlético Mineiro es mucho más equipo que Boca” antes de la final de la Sudamericana
+    [link] Antonela Roccuzzo tuvo un gesto con un niño durante la revolución que generó Messi en España; la elogiaron por su clase
+    [link] Aseguran que el hermano de Steffi Graf se esconde en túneles para huir de la policía
+    [link] Dos figuras de UFC que pelearán por el título protagonizaron una presentación llamada “Street Fighter vs. Peaky Blinders”
+H2 ENTRETENIMIENTO
+    [link] En marcha una nueva película de ‘Alien’ que estará producida por Ridley Scott y conectada con ‘Prometheus’ y ‘Covenant’
+    [link] Jack Lowden y Margaret Qualley serían el próximo 007 y la nueva chica Bond, según las casas de apuestas
+    [link] Fin de una era en el K-pop: NMIXX cerró MIXXTOPIA con “Strange Muse” y confesó el secreto detrás de su utopía
+[button] Sift

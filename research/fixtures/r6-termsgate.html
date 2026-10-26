@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Open an account · Crumb Bank</title>
+<style>
+body{font-family:system-ui;margin:0;padding-bottom:90px}
+header{background:#123;color:#fff;padding:12px 24px}header a{color:#fff;margin-right:12px}
+main{max-width:640px;margin:24px auto}
+.terms{height:160px;overflow:auto;border:1px solid #999;padding:8px 12px;background:#fafafa}
+.terms p{margin:0 0 10px}
+.gate{position:sticky;bottom:0;background:#fff;border-top:2px solid #123;padding:12px 0;display:flex;gap:16px;align-items:center}
+.gate label[aria-disabled=true]{color:#999}
+.hint{font-size:13px;color:#555}
+.chat{position:fixed;right:16px;bottom:16px;background:#c40;color:#fff;border-radius:24px;padding:10px 16px}
+footer{max-width:640px;margin:24px auto;color:#666;font-size:12px}
+</style></head>
+<body>
+<header><a href="/">Crumb Bank</a><a href="/accounts">Accounts</a><a href="/help">Help</a></header>
+<main>
+<h1>Open a savings account</h1>
+<p>Step 2 of 2. Read the account terms. You can agree once you have scrolled to the end.</p>
+<h2 id="th">Account terms</h2>
+<div class="terms" id="terms" tabindex="0" role="region" aria-labelledby="th">
+<p>1. The account pays 3.1% a year on balances up to $50,000. Interest is paid monthly.</p>
+<p>2. You can take money out up to six times a month without a fee. Each further withdrawal costs $2.</p>
+<p>3. The account has no monthly fee. A paper statement costs $1 each month; online statements are free.</p>
+<p>4. If the account stays empty for 12 months, we close it and tell you by email 30 days before.</p>
+<p>5. We may change the interest rate. We tell you 14 days before a lower rate starts.</p>
+<p>6. You can close the account at any time from Settings, or by calling us. There is no fee to close it.</p>
+<p>7. Deposits are insured up to $250,000 per person.</p>
+<p id="end">8. These terms are governed by the law of California. End of terms.</p>
+</div>
+<p class="hint" id="hint">Scroll to the end of the terms to continue.</p>
+<p id="msg" role="status"></p>
+<div class="gate">
+  <label id="agree-l" aria-disabled="true"><input type="checkbox" id="agree" disabled> I have read and agree to the account terms</label>
+  <button type="button" id="open" disabled>Open account</button>
+</div>
+</main>
+<div class="chat" role="button" tabindex="0">Questions? Chat with us</div>
+<footer>Crumb Bank, member FDIC · <a href="/privacy">Privacy</a> · <a href="/cookies">Cookies</a></footer>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+const t = $("terms");
+function check() {
+  if (t.scrollTop + t.clientHeight >= t.scrollHeight - 4 && $("agree").disabled) {
+    $("agree").disabled = false; $("agree-l").removeAttribute("aria-disabled"); $("hint").textContent = "You can now agree to the terms."; __log.push("scrolled to end");
+  }
+}
+t.addEventListener("scroll", check);
+$("agree").addEventListener("change", () => { $("open").disabled = !$("agree").checked; __log.push("agree " + $("agree").checked); });
+$("open").onclick = () => { __log.push("open account"); $("msg").textContent = "Your savings account is open. Account number ends 4410."; };
+</script>
+</body></html>

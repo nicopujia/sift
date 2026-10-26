@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Settings · bread-app · Ovenly</title>
+<style>
+body{font-family:system-ui;margin:0}
+header{background:#24292f;color:#fff;padding:12px 24px}header a{color:#fff;margin-right:12px}
+main{max-width:640px;margin:24px auto}
+label{display:block;font-weight:600;margin-top:12px}
+.danger{border:1px solid #cf222e;border-radius:6px;padding:12px;margin-top:32px}
+.danger button{color:#cf222e}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}
+.dlg{background:#fff;padding:20px;border-radius:8px;max-width:420px}
+.dlg .x{float:right;border:0;background:none;font-size:20px}
+#toast{position:fixed;top:16px;right:16px;background:#1a7f37;color:#fff;padding:10px 16px;border-radius:6px}
+#toast.err{background:#cf222e}
+.promo{background:#ddf4ff;padding:10px;margin:16px 0}
+</style></head>
+<body>
+<header><a href="/">Ovenly</a><a href="/projects">Projects</a><a href="/docs">Docs</a></header>
+<main>
+<h1>Project settings</h1>
+<div class="promo">New: deploy previews for every branch. <a href="/pricing">Upgrade to Pro</a></div>
+<form id="f" novalidate>
+<label for="name">Project name</label><input id="name" value="bread-app">
+<label for="desc">Description</label><textarea id="desc" rows="2">Order bread from local bakeries.</textarea>
+<label for="vis">Visibility</label><select id="vis"><option>Private</option><option>Public</option></select>
+<p><button type="submit">Save settings</button></p>
+</form>
+<section class="danger" aria-labelledby="dz">
+<h2 id="dz">Danger zone</h2>
+<p>Deleting a project removes its code, its deploys and its domain. This cannot be undone.</p>
+<button type="button" id="del">Delete this project</button>
+</section>
+</main>
+<div id="toast" role="status" hidden></div>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+let saves = 0;
+function toast(text, err) { const t = $("toast"); t.className = err ? "err" : ""; t.setAttribute("role", err ? "alert" : "status"); t.innerHTML = text; t.hidden = false; clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 5000); }
+$("f").addEventListener("submit", (e) => {
+  e.preventDefault(); saves++;
+  if (saves === 2) { __log.push("save failed"); toast('Could not save. <button type="button" id="retry">Try again</button>', true); $("retry").onclick = () => { __log.push("retry"); toast("Settings saved."); }; return; }
+  __log.push("save " + $("name").value + " " + $("vis").value); toast("Settings saved.");
+});
+$("del").onclick = () => {
+  const ov = document.createElement("div"); ov.className = "ov";
+  ov.innerHTML = '<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dt"><button type="button" class="x" aria-label="Close">×</button><h2 id="dt">Delete bread-app?</h2><p>This removes the code, 41 deploys and the domain bread-app.ovenly.dev.</p><label for="conf">Type <strong>bread-app</strong> to confirm</label><input id="conf" autocomplete="off"><p><button type="button" id="go" disabled>I understand, delete this project</button></p></div>';
+  document.body.appendChild(ov); $("conf").focus(); __log.push("dialog open");
+  const close = () => { ov.remove(); $("del").focus(); __log.push("dialog closed"); };
+  ov.querySelector(".x").onclick = close;
+  ov.addEventListener("keydown", (k) => { if (k.key === "Escape") close(); });
+  $("conf").addEventListener("input", () => { $("go").disabled = $("conf").value !== "bread-app"; });
+  $("go").onclick = () => { __log.push("deleted"); ov.remove(); document.querySelector("main").innerHTML = "<h1>Project deleted</h1><p>bread-app was deleted.</p>"; };
+};
+</script>
+</body></html>

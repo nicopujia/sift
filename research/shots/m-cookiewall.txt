@@ -1,0 +1,13 @@
+[button] Skip to content
+[button] Menu
+H1 Rye is back: why bakers are turning to old grains
+p: Loading…
+H2 We value your privacy
+[button] Close
+p: We and our 842 partners store and access information on your device, such as cookies, and process personal data, such as unique identifiers, to show personalised ads and content, measure ads and content, and develop and 
+p: Partners: AdNet One, Measure Co, Trackr, Pixelworks, Audience Hub, and 837 more.
+[button] Reject all
+[button] Accept all
+[button] Manage options
+  [link] subscribe for an ad-free version without tracking
+[button] Sift

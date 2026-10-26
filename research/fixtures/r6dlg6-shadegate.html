@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- r6dlg6: a page modal with no close of its own over a backdrop that is its sibling (not its parent). It blocks the page: Sift shows no Close. ?noshade=1 drops the backdrop: then the page stays usable around it and Sift offers Close. -->
+<html lang="en"><head><meta charset="utf-8"><title>Regional menu</title>
+<style>
+#shade{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9}
+#dlg{position:fixed;left:30%;top:20%;width:40%;background:#fff;border:1px solid #888;padding:12px;z-index:10}
+</style></head>
+<body>
+<main><h1>Regional menu</h1><p>Our bakeries change the menu by region. Pick yours to see what is baked today, which loaves are sold out, and when the next batch comes out.</p>
+<p><a id="go" href="#more">Today's loaves</a></p></main>
+<script>
+window.__log = [];
+const noshade = location.search.includes("noshade=1");
+if (!noshade) { const s = document.createElement("div"); s.id = "shade"; document.body.appendChild(s); }
+const d = document.createElement("div"); d.id = "dlg"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-labelledby", "dt");
+d.innerHTML = '<h2 id="dt">Where do you shop?</h2><p>We show the menu of the region you choose.</p><button id="north">North</button> <button id="south">South</button>';
+document.body.appendChild(d);
+d.querySelector("#north").onclick = () => { __log.push("north"); d.remove(); document.getElementById("shade")?.remove(); };
+d.querySelector("#south").onclick = () => { __log.push("south"); d.remove(); document.getElementById("shade")?.remove(); };
+</script></body></html>

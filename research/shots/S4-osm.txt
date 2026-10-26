@@ -1,0 +1,15 @@
+[button] Skip to content
+  [input:search]  Search
+  [button] Search
+[button] Menu
+[link] Log In
+[link] Sign Up
+H1 OpenStreetMap
+    [link] Find directions between two points
+    [button] Where is this?
+    [button] Go
+    [link] Welcome to OpenStreetMap!
+    p: OpenStreetMap is a map of the world, created by people like you and free to use under an open license.
+    p: Hosting is supported by Fastly, , and other partners. · OSMF corporate members · Learn More Start Mapping
+[PORTAL] Interactive area from the original page: Interactive area from the original page. Press Enter to use it, Escape to come back.
+[button] Sift

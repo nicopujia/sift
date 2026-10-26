@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Snake game</title></head>
+<body>
+<main>
+<h1>Snake game</h1>
+<p>Click the board, then use the arrow keys to steer. The board takes keyboard focus (tabindex), and the game listens on the window and stops the page from scrolling, as most canvas games do.</p>
+<canvas id="c" tabindex="0" width="600" height="300" style="background:#efe"></canvas>
+<h2>How to play</h2>
+<p>Eat the apples. Do not hit the walls. Each apple makes the snake one block longer. The game speeds up every ten apples, so plan your turns early.</p>
+<p>Use the arrow keys to turn. Space pauses the game. The score shows at the top of the board, and your best score is kept for this visit.</p>
+<p>Tips: stay near the middle of the board when the snake is long. Turn early at the walls. Do not trap yourself in a corner, because there is no way out of it once the snake is long.</p>
+<p>More tips: the apples never appear under the snake. When the board is crowded, follow the edges in a loop and cut across only when an apple is close.</p>
+<p>History: snake games began in the arcades of the 1970s and became famous on mobile phones in the late 1990s. This version keeps the classic rules.</p>
+<p>Credits: made for a test of keyboard input in a game board that takes focus.</p>
+</main>
+<script>
+window.__log = [];
+const c = document.getElementById("c");
+addEventListener("keydown", (e) => {
+  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+    e.preventDefault();
+    __log.push("key " + e.key + " on " + e.target.localName);
+  }
+});
+</script>
+</body></html>

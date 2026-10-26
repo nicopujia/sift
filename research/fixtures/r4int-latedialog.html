@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Late dialog fixture</title>
+<style>
+#dlg { position: fixed; inset: 20% 30%; background: #fff; border: 2px solid #333; padding: 1em; z-index: 10; }
+#shade { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 9; }
+</style></head>
+<body>
+<header><form role="search" onsubmit="event.preventDefault(); __log.push('search ' + document.getElementById('s').value)"><input id="s" type="search" placeholder="Search recipes" aria-label="Search recipes"><button>Search</button></form></header>
+<main>
+<h1>Gluten-free bread</h1>
+<p>This loaf uses a blend of rice flour, tapioca starch and psyllium husk. It rises well and slices cleanly once it has cooled for two hours.</p>
+<p>Mix the dry ingredients first, then add warm water and oil. Let it rest for an hour before baking at 220 degrees.</p>
+<h2>Newsletter</h2>
+<form id="nl" onsubmit="event.preventDefault(); openDialog('Thanks! Check your inbox to confirm.')">
+  <label>Email <input id="email" type="email" name="email"></label>
+  <button>Subscribe</button>
+</form>
+</main>
+<script>
+window.__log = [];
+function openDialog(text) {
+  if (document.getElementById('dlg')) return;
+  const shade = document.createElement('div'); shade.id = 'shade';
+  const d = document.createElement('div'); d.id = 'dlg'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-labelledby', 'dt');
+  d.innerHTML = '<h2 id="dt">Subscribed</h2><p>' + text + '</p><button id="close">Close</button>';
+  document.body.append(shade, d);
+  d.querySelector('#close').onclick = () => { d.remove(); shade.remove(); __log.push('closed'); };
+  __log.push('dialog opened');
+}
+// A sign-in prompt the site shows a few seconds after load, as many do.
+if (location.hash === '#nag') setTimeout(() => openDialog('Sign in to save recipes.'), 6000);
+</script>
+</body></html>

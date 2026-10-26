@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Lyrics page</title></head>
+<body>
+<main>
+<h1>Song lyrics</h1>
+<p>These are the lyrics of a song that the site does not want people to copy, so it blocks text selection and copying on the whole document.</p>
+<p>Second verse of the song goes here with more words to read and select.</p>
+</main>
+<script>
+window.__log = [];
+document.onselectstart = (e) => { __log.push("selectstart " + e.target.nodeName); return false; };
+document.addEventListener("copy", (e) => { __log.push("copy"); e.preventDefault(); });
+document.addEventListener("paste", (e) => { __log.push("paste"); });
+</script>
+</body></html>

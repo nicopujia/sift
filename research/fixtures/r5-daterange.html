@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Book a cabin · Pinewood Stays</title>
+<style>
+body{font-family:system-ui;margin:0;background:#f4f4f4}
+header{background:#1b3a2b;color:#fff;padding:12px 24px}header a{color:#fff;margin-right:12px}
+main{max-width:720px;margin:24px auto;background:#fff;padding:24px}
+.dates{display:flex;gap:12px;position:relative}
+.dates label{display:block;font-weight:600}
+.dates input{padding:8px;width:180px}
+#cal{position:absolute;top:70px;left:0;background:#fff;border:1px solid #888;padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:5}
+#cal table{border-collapse:collapse}#cal td{padding:2px}
+#cal button.day{width:36px;height:36px;border:0;background:#eee;border-radius:4px}
+#cal button.day[aria-selected=true]{background:#1b3a2b;color:#fff}
+#cal button.day.inrange{background:#cfe3d6}
+#cal button.day:disabled{color:#bbb;background:#f8f8f8}
+.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.price{font-size:20px;margin-top:16px}
+.badge{background:#fc0;padding:2px 6px;font-size:12px}
+footer{max-width:720px;margin:0 auto;color:#666;font-size:12px;padding:12px}
+</style></head>
+<body>
+<header><a href="/">Pinewood Stays</a><a href="/cabins">Cabins</a><a href="/deals">Deals</a><a href="/help">Help</a></header>
+<main>
+<h1>Lakeside cabin, sleeps 4</h1>
+<p>A wood cabin on the north shore of Lake Pine, with a wood stove, a canoe and a private dock. $140 per night. Two nights minimum.</p>
+<form id="book" novalidate>
+<div class="dates">
+  <div><label for="in">Check-in</label><input id="in" name="checkin" readonly placeholder="Add date" aria-haspopup="dialog" aria-describedby="fmt"></div>
+  <div><label for="out">Check-out</label><input id="out" name="checkout" readonly placeholder="Add date" aria-haspopup="dialog" aria-describedby="fmt"></div>
+  <div id="cal" role="dialog" aria-modal="false" aria-label="Choose dates" hidden>
+    <div class="calhead"><button type="button" id="prev" aria-label="Previous month">‹</button><h2 id="mon" aria-live="polite">November 2026</h2><button type="button" id="next" aria-label="Next month">›</button></div>
+    <table role="grid" aria-labelledby="mon"><thead><tr><th abbr="Monday">Mo</th><th abbr="Tuesday">Tu</th><th abbr="Wednesday">We</th><th abbr="Thursday">Th</th><th abbr="Friday">Fr</th><th abbr="Saturday">Sa</th><th abbr="Sunday">Su</th></tr></thead><tbody id="grid"></tbody></table>
+    <p><button type="button" id="clear">Clear dates</button> <button type="button" id="done">Done</button></p>
+  </div>
+</div>
+<p id="fmt" style="font-size:12px;color:#666">Pick a check-in day, then a check-out day.</p>
+<label for="guests" style="display:block;margin-top:12px;font-weight:600">Guests</label>
+<select id="guests" name="guests"><option>1</option><option selected>2</option><option>3</option><option>4</option></select>
+<p class="price" id="price">Add dates to see the total</p>
+<p><button type="submit" id="reserve">Reserve</button> <span class="badge">Rare find!</span></p>
+<p id="msg" role="status"></p>
+</form>
+</main>
+<footer>© 2026 Pinewood Stays · <a href="/privacy">Privacy</a></footer>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+let month = 10, year = 2026, start = null, end = null, active = "in";
+const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const fmt = (d) => d ? names[d.getMonth()].slice(0,3) + " " + d.getDate() + ", " + d.getFullYear() : "";
+function render() {
+  $("mon").textContent = names[month] + " " + year;
+  const first = new Date(year, month, 1), days = new Date(year, month + 1, 0).getDate();
+  const lead = (first.getDay() + 6) % 7;
+  let html = "<tr>" + "<td></td>".repeat(lead), col = lead;
+  for (let d = 1; d <= days; d++) {
+    const dt = new Date(year, month, d);
+    const sel = (start && +dt === +start) || (end && +dt === +end);
+    const inr = start && end && dt > start && dt < end;
+    const booked = d === 20 || d === 21; // already booked
+    html += '<td><button type="button" class="day' + (inr ? " inrange" : "") + '" data-d="' + d + '" aria-label="' + names[month] + " " + d + ", " + year + (booked ? ", not available" : "") + '" aria-selected="' + !!sel + '"' + (booked ? " disabled" : "") + ">" + d + "</button></td>";
+    if (++col % 7 === 0 && d < days) html += "</tr><tr>";
+  }
+  $("grid").innerHTML = html + "</tr>";
+}
+function price() {
+  if (start && end) { const n = Math.round((end - start) / 864e5); $("price").textContent = n + " nights × $140 = $" + (n * 140) + " total"; }
+  else $("price").textContent = "Add dates to see the total";
+}
+function open(which) { active = which; $("cal").hidden = false; render(); __log.push("open " + which); }
+$("in").addEventListener("click", () => open("in"));
+$("out").addEventListener("click", () => open(start ? "out" : "in"));
+$("in").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") { e.preventDefault(); open("in"); } });
+$("out").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") { e.preventDefault(); open(start ? "out" : "in"); } });
+$("prev").onclick = () => { month--; if (month < 0) { month = 11; year--; } render(); __log.push("prev " + names[month]); };
+$("next").onclick = () => { month++; if (month > 11) { month = 0; year++; } render(); __log.push("next " + names[month]); };
+$("grid").addEventListener("click", (e) => {
+  const b = e.target.closest("button.day"); if (!b || b.disabled) return;
+  const dt = new Date(year, month, +b.dataset.d);
+  if (active === "in" || !start || dt <= start) { start = dt; end = null; active = "out"; $("in").value = fmt(start); $("out").value = ""; __log.push("in " + fmt(start)); }
+  else { end = dt; $("out").value = fmt(end); __log.push("out " + fmt(end)); $("cal").hidden = true; }
+  render(); price();
+});
+$("clear").onclick = () => { start = end = null; $("in").value = $("out").value = ""; active = "in"; render(); price(); __log.push("clear"); };
+$("done").onclick = () => { $("cal").hidden = true; __log.push("done"); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("cal").hidden) { $("cal").hidden = true; __log.push("esc"); } });
+$("book").addEventListener("submit", (e) => { e.preventDefault(); if (!start || !end) { $("msg").textContent = "Choose check-in and check-out dates."; __log.push("reserve missing"); return; } __log.push("reserve " + $("in").value + " to " + $("out").value + " guests " + $("guests").value); $("msg").textContent = "Held for 10 minutes: " + $("in").value + " to " + $("out").value + "."; });
+</script>
+</body></html>

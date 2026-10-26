@@ -1,0 +1,82 @@
+[button] Skip to content
+  [input:search]  Search
+  [button] Search
+[button] Menu
+[link] Log In
+[link] Sign Up
+H1 OpenStreetMap
+[button] Where is this?
+    [link] Find directions between two points
+H2 Way: San Francisco Ferry Building (558731934)
+H4 Version #24
+p: Survey toilet availabilities
+  [link] Lino Le Van
+  [link] 189897790
+H4 Tags
+    [link] addr:city
+    [link] addr:housename
+    [link] addr:housenumber
+    [link] addr:postcode
+    [link] addr:state
+    [link] CA
+    [link] addr:street
+    [link] amenity
+    [link] ferry_terminal
+    [link] building
+    [link] check_date
+    [link] ele
+    [link] ferry
+    [link] gnis:feature_id
+    [link] height
+    [link] historic
+    [link] name
+    [link] name:ko
+    [link] opening_hours
+    [link] Mo-Fr 07:00-22:00; Sa 07:00-22:00; Su 07:00-22:00
+    [link] public_transport
+    [link] station
+    [link] shop
+    [link] mall
+    [link] source
+    [link] toilets
+    [link] tourism
+    [link] attraction
+    [link] website
+    [link] https://www.ferrybuildingmarketplace.com/
+    [link] wheelchair
+    [link] wikidata
+[button] Wikidata item preview
+    [link] Q1408117
+H4 Part of
+    [link] 6062613
+      [link] San Francisco Ferry Building (9474554)
+H4 Nodes
+    [link] Download XML
+    [link] History
+    [link] Versions:
+    [link] 1
+    [link] 2
+    [link] 3
+    [link] 4
+    [link] 5
+    [link] 6
+    [link] 7
+    [link] 8
+    [link] 9
+    [link] 10
+    [link] 11
+    [link] 12
+    [link] 13
+    [link] 14
+    [link] 15
+    [link] 16
+    [link] 17
+    [link] 18
+    [link] 19
+    [link] 20
+    [link] 21
+    [link] 22
+    [link] 23
+    [link] 24
+[PORTAL] Interactive area from the original page: Interactive area from the original page. Press Enter to use it, Escape to come back.
+[button] Sift

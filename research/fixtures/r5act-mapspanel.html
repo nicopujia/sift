@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Map panel - fixture</title>
+<style>
+body { font-family: sans-serif; margin: 0; }
+#app { position: absolute; inset: 0; }
+#map { position: absolute; inset: 0; background: #cde; }
+#panel { position: absolute; top: 0; left: 72px; width: 392px; background: #fff; box-shadow: 0 2px 6px #0003; padding: 8px; }
+#panel.focused { box-shadow: 0 2px 10px #0006; }
+.grid { background: #fff; border: 1px solid #ccc; }
+.row-inner { padding: 6px; cursor: pointer; }
+</style></head>
+<body>
+<!-- act fixture (round 5): F511, F514, F323, Google Maps. One positioned panel holds the field(s)
+     and a card. Entering a field changes the panel (a class), typing changes the field's own
+     attributes, and the grid the field controls fills in a moment later. The panel must never
+     show as a modal sheet with a copy of the field: the grid shows under Sift's field instead.
+     ?mode=search (default): the top search box and a 'This area' card (F511, F514).
+     ?mode=dir: a directions form with a start and a destination field (F323). -->
+<div id="app">
+  <div id="map" role="application" aria-label="Map" tabindex="0"></div>
+  <div id="panel"></div>
+</div>
+<script>
+window.__log = [];
+const mode = new URLSearchParams(location.search).get("mode") ?? "search";
+const PLACES = [["Ferry Building", "San Francisco, CA, USA"], ["Ferry Building", "Quay Street, Auckland, New Zealand"], ["Coit Tower", "Telegraph Hill Boulevard, San Francisco, CA, USA"], ["Coit Tower Cafe", "Telegraph Hill Boulevard, San Francisco, CA, USA"]];
+const panel = document.getElementById("panel");
+if (mode === "dir") {
+  panel.innerHTML = `
+    <div role="radiogroup" aria-label="Travel modes"><label><input type="radio" name="m" checked> Driving</label> <label><input type="radio" name="m"> Transit</label></div>
+    <div><input id="start" type="text" aria-label="Starting point Ferry Building" value="Ferry Building, 1 Ferry Building, San Francisco, CA 94105, United States" aria-controls="g0" role="combobox" autocomplete="off"></div>
+    <div class="grid" role="grid" id="g0" hidden></div>
+    <div><input id="dest" type="text" aria-label="Destination Golden Gate Bridge" value="Golden Gate Bridge, San Francisco, CA, United States" aria-controls="g1" role="combobox" autocomplete="off"></div>
+    <div class="grid" role="grid" id="g1" hidden></div>
+    <button type="button" aria-label="Close directions">✕</button>
+    <h1>via US-101</h1><p>23 min, 4.4 miles</p>`;
+} else {
+  panel.innerHTML = `
+    <div role="search"><form id="sf" onsubmit="event.preventDefault(); __log.push('search ' + this.q.value)">
+      <input name="q" role="combobox" aria-controls="ucc-0" aria-expanded="false" aria-haspopup="grid" autocomplete="off" placeholder="Search Maps" aria-label="Search Maps">
+    </form><button type="button" aria-label="Search" onclick="__log.push('search button')">Go</button> <button type="button">Directions</button></div>
+    <div class="grid" role="grid" id="ucc-0" hidden></div>
+    <div class="card"><h1>This area</h1><p>16°</p><p>No traffic information to display</p></div>`;
+}
+for (const input of panel.querySelectorAll("input[aria-controls]")) {
+  const grid = document.getElementById(input.getAttribute("aria-controls"));
+  let timer = 0;
+  // Google selects the whole text when the field is entered.
+  input.addEventListener("focus", () => { panel.classList.add("focused"); input.select(); __log.push("focus " + (input.id || input.name)); });
+  input.addEventListener("blur", () => { panel.classList.remove("focused"); grid.hidden = true; input.setAttribute("aria-expanded", "false"); });
+  input.addEventListener("input", () => {
+    __log.push("input " + input.value);
+    // The field says what it holds as it changes (Google rewrites its aria-label).
+    if (mode === "dir") input.setAttribute("aria-label", (input.id === "start" ? "Starting point " : "Destination ") + input.value);
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const q = input.value.trim().toLowerCase();
+      grid.innerHTML = "";
+      const hits = q ? PLACES.filter(([n]) => n.toLowerCase().startsWith(q.slice(0, 4))) : [];
+      grid.hidden = !hits.length;
+      input.setAttribute("aria-expanded", String(!!hits.length));
+      hits.forEach(([name, where], i) => {
+        const outer = document.createElement("div");
+        outer.setAttribute("role", "row");
+        outer.innerHTML = `<div class="row-inner" role="row"><div role="gridcell" id="${grid.id}x${i}">${name} ${where}</div></div>`;
+        outer.querySelector(".row-inner").addEventListener("click", () => { input.value = name + ", " + where; __log.push("pick " + name + ", " + where); grid.hidden = true; });
+        grid.appendChild(outer);
+      });
+    }, 400);
+  });
+}
+</script>
+</body></html>

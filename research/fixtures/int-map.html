@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Map fixture</title>
+<style>
+.leaflet-container { position: relative; width: 800px; height: 480px; background: #cde; overflow: hidden; }
+.leaflet-container .tiles { position: absolute; inset: 0; background: repeating-linear-gradient(45deg, #bcd 0 20px, #cde 20px 40px); }
+.zoom { position: absolute; left: 10px; top: 10px; display: grid; gap: 4px; }
+.attr { position: absolute; right: 4px; bottom: 4px; background: #fff; font-size: 12px; }
+</style></head>
+<body>
+<main>
+<h1>Map fixture</h1>
+<p>A map that keeps its own controls, a frame from another origin, and a link after them.</p>
+<div id="map" class="leaflet-container" tabindex="0" aria-label="Map of the bay">
+  <div class="tiles"></div>
+  <div class="zoom"><button id="zin" aria-label="Zoom in">+</button><button id="zout" aria-label="Zoom out">−</button></div>
+  <div class="attr"><a href="#about">About the tiles</a></div>
+</div>
+<p>Text between the map and the frame.</p>
+<iframe id="fr" title="Booking form" src="http://localhost:8876/frame.html" width="640" height="300"></iframe>
+<p><a href="#after">A link after the frame</a></p>
+<button id="pagepop" popovertarget="menu1">Open page menu</button>
+<div id="menu1" popover="auto" role="menu"><button role="menuitem" id="mi1" onclick="__log.push('mi1')">First item</button><button role="menuitem" id="mi2" onclick="__log.push('mi2')">Second item</button></div>
+</main>
+<script>
+window.__log = [];
+document.getElementById("zin").onclick = () => __log.push("zoom in");
+document.getElementById("map").addEventListener("keydown", (e) => { if (e.key.startsWith("Arrow")) __log.push("pan " + e.key); });
+</script>
+</body></html>

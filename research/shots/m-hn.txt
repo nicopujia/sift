@@ -1,0 +1,143 @@
+[button] Skip to content
+  [input:search]  Search
+  [button] Search
+H1 Hacker News
+  [link] Hacker News
+  [link] new
+  [link] past
+  [link] comments
+  [link] ask
+  [link] show
+  [link] jobs
+  [link] submit
+    [link] login
+    [link] No Signs of AI Payoff Outside the Tech Sector
+    p: (apollo.com) · 120 points by the-mitr 49 minutes ago
+    [link] upvote
+    [link] 92 comments
+    [link] The Goose Programming Language
+    p: (aardappel.github.io) · 61 points by andsoitis 1 hour ago
+    [link] upvote
+    [link] 21 comments
+    [link] Roku developer repositories moved from GitHub to GitLab
+    p: (roku.com) · 197 points by cxr 4 hours ago
+    [link] upvote
+    [link] 134 comments
+    [link] Listen and read USA nuclear forces Emergency Action Messages, heard on 11175 kHz
+    p: (missileer.watch) · 29 points by liotier 52 minutes ago
+    [link] upvote
+    [link] 12 comments
+    [link] John Carmack on the Goose Language: multiple data stacks and relative references
+    p: (twitter.com/id_aa_carmack) · 64 points by bobbydigitales 1 hour ago
+    [link] upvote
+    [link] 27 comments
+    [link] Dream-1
+    p: (dreamlabs.ai) · 92 points by GaggiX 2 hours ago
+    [link] upvote
+    [link] 51 comments
+    [link] The St. Helena 5 pence coin shows Jonathan, a roughly 190 year old tortoise
+    p: (numista.com) · 65 points by schleck8 3 hours ago
+    [link] upvote
+    [link] 14 comments
+    [link] FreeDNS
+    p: (afraid.org) · 196 points by esher 5 hours ago
+    [link] upvote
+    [link] 54 comments
+    [link] Neural chip decodes interactions between brain regions
+    p: (epfl.ch) · 65 points by giuliomagnifico 4 hours ago
+    [link] upvote
+    [link] 18 comments
+    [link] Danish Government silently drops plan to dump MS Office
+    p: (computerworld.dk) · 107 points by lowkeyokay 2 hours ago
+    [link] upvote
+    [link] 50 comments
+    [link] I don't understand quantum physics (2018)
+    p: (southampton.ac.uk) · 238 points by rramadass 10 hours ago
+    [link] upvote
+    [link] 174 comments
+    [link] OBS Studio 33
+    p: (github.com/obsproject) · 413 points by pentagrama 15 hours ago
+    [link] upvote
+    [link] 147 comments
+    [link] Node2Shell evolves to HTTP2Shell, blast radius affects many HTTP libs and apps
+    p: (aikido.dev) · 239 points by theanonymousone 12 hours ago
+    [link] upvote
+    [link] 120 comments
+    [link] Symbolic Learning in Python and Julia
+    p: (github.com/astroautomata) · 28 points by alex_hirner 3 hours ago
+    [link] upvote
+    [link] 4 comments
+    [link] Physicists trap a single antimatter particle for a month
+    p: (scientificamerican.com) · 251 points by mooreds 13 hours ago
+    [link] upvote
+    [link] 74 comments
+    [link] GPU-unlock: FP/BF16 instruction issue rate on Nvidia 3000's cards
+    p: (github.com/zagitta) · 135 points by fragebogen 10 hours ago
+    [link] upvote
+    [link] 50 comments
+    [link] TornadoVM 7 Enables GPU-Native Workloads from Java Applications
+    p: (infoq.com) · 77 points by pjmlp 7 hours ago
+    [link] upvote
+    [link] 13 comments
+    [link] Zac-OS-9: The classic Platinum desktop, reborn for modern PCs
+    p: (sourceforge.net) · 23 points by felixding 3 hours ago
+    [link] upvote
+    [link] 11 comments
+    [link] Why is AI generated language so hard to understand?
+    p: (arxiv.org) · 83 points by canjobear 2 hours ago
+    [link] upvote
+    [link] 72 comments
+    [link] PHP Foundation 'under-funded' with one full-time staff member, director says
+    p: (reuters.com) · 73 points by firesteelrain 1 hour ago
+    [link] upvote
+    [link] 24 comments
+    [link] Local Wikipedia: Wikipedia, but only for things a half hour walk from you
+    p: (edjefferson.com) · 1514 points by sohkamyung 1 day ago
+    [link] upvote
+    [link] 240 comments
+    [link] Twelve years of distributed SQLite
+    p: (philipotoole.com) · 346 points by otoolep 19 hours ago
+    [link] upvote
+    [link] 53 comments
+    [link] Oai-math-revised: a community hub for revising OpenAI's math write-ups
+    p: (terrytao.wordpress.com) · 21 points by tokepi 5 hours ago
+    [link] upvote
+    [link] 15 comments
+    [link] Apple Music 404 Not Found
+    p: (music.apple.com) · 901 points by frizlab 1 day ago
+    [link] upvote
+    [link] 265 comments
+    [link] Cecilia Berdichevsky, Clementina expert (1961)
+    p: (wikipedia.org) · 23 points by fedecaccia 4 hours ago
+    [link] upvote
+    [link] 1 comment
+    [link] Tiling Noise – Procedural GPU Patterns
+    p: (catlikecoding.com) · 55 points by ibobev 8 hours ago
+    [link] upvote
+    [link] 1 comment
+    [link] Bringing uv and ty together
+    p: (astral.sh) · 278 points by Ravencentric 21 hours ago
+    [link] upvote
+    [link] 92 comments
+    [link] How close can pure functional programming get to C?
+    p: (rtfeldman.com) · 236 points by stmonty 16 hours ago
+    [link] upvote
+    [link] 72 comments
+    [link] A practical guide to AI image generation, from diffusion to agents
+    p: (danielball.com) · 228 points by westsmith 17 hours ago
+    [link] upvote
+    [link] 71 comments
+    [link] Dessa: Conversation Model trained only on speech
+    p: (block.xyz) · 489 points by dsr12 1 day ago
+    [link] upvote
+    [link] 184 comments
+    [link] More
+  [link] Guidelines
+  [link] FAQ
+  [link] Lists
+  [link] API
+  [link] Security
+  [link] Legal
+  [link] Apply to YC
+  [link] Contact
+[button] Sift

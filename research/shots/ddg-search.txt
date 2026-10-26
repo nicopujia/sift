@@ -1,0 +1,17 @@
+[link] Sift view
+H1 DuckDuckGo
+    [link] DuckDuckGo
+p: Unfortunately, bots use DuckDuckGo too.
+p: Please complete the following challenge to confirm this search was made by a human.
+p: Select all squares containing a duck:
+  [input:checkbox] on 
+  [input:checkbox] on 
+  [input:checkbox] on 
+  [input:checkbox] on 
+  [input:checkbox] on 
+  [input:checkbox] on 
+  [input:checkbox] on 
+  [input:checkbox] on 
+  [input:checkbox] on 
+  [button] Submit
+[button] Sift

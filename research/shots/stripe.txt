@@ -1,0 +1,19 @@
+[button] Skip to content
+H1 Full page
+[button] Change demo
+[button] Start building
+H2 Full page
+[button] Close
+p: No code
+p: Low code
+H2 Full page
+H2 Launch payments out-of-the-box
+  li: Customize colors and fonts
+  li: Support subscriptions, tax, and more
+p: More code
+H2 Elements
+H2 Build a custom flow with UI components
+  li: Use custom CSS to match your brand
+  li: Reduce friction with built-in logic
+[button] View demo
+[button] Sift

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Filter fixture</title></head>
+<body>
+<main>
+<h1>Filter fixture</h1>
+<p>Type to filter. The address follows what you type, like many search pages.</p>
+<form id="f" onsubmit="event.preventDefault()">
+  <label for="q">Filter fruits</label>
+  <input id="q" name="q" type="text">
+  <label for="n">Notes</label>
+  <input id="n" name="n" type="text">
+  <button type="submit">Apply</button>
+</form>
+<ul id="res"></ul>
+</main>
+<script>
+const fruits = ["apple","apricot","banana","blueberry","cherry","grape","kiwi","lemon","mango","melon","orange","peach","pear","plum"];
+function draw(q){ res.innerHTML = fruits.filter(f=>f.includes(q)).map(f=>`<li><a href="#${f}">${f}</a></li>`).join(""); }
+draw("");
+q.addEventListener("input", () => { history.replaceState(null, "", "?q=" + encodeURIComponent(q.value)); draw(q.value); });
+</script>
+</body></html>

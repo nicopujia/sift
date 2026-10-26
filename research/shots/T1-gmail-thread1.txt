@@ -1,0 +1,22 @@
+[button] Skip to content
+  [input:search]  Search mail
+  [button] Search
+[button] Menu
+[button] Compose
+[button] Back to Inbox
+[button] Archive
+[button] Delete
+[button] Mark as unread
+H1 Your class schedule for next week
+H2 Minerva University
+p: <noreply@minerva.edu> · 6:42 AM · to me
+p: Hi Nico,
+p: Here is your updated schedule for next week. CS110 moves to Tuesday at 10 AM Pacific because of the instructor's travel. The pre-class work is due Monday at 5 PM. Hi Nico,
+p: Here is your updated schedule for next week. CS110 moves to Tuesday at 10 AM Pacific because of the instructor's travel. The pre-class work is due Monday at 5 PM. Hi Nico,
+p: Here is your updated schedule for next week. CS110 moves to Tuesday at 10 AM Pacific because of the instructor's travel. The pre-class work is due Monday at 5 PM. Hi Nico,
+p: Here is your updated schedule for next week. CS110 moves to Tuesday at 10 AM Pacific because of the instructor's travel. The pre-class work is due Monday at 5 PM.
+p: Best,
+p: Registrar
+[button] Reply
+[button] Forward
+[button] Sift

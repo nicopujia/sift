@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Closed widget fixture</title></head>
+<body>
+<main>
+<h1>Closed widget fixture</h1>
+<p>A drawing tool built as a web component with a closed shadow root.</p>
+<x-tool name="Drawing tool" style="display:block;width:520px;height:320px;border:1px solid #888"></x-tool>
+<p><a href="#after">A link after the tool</a></p>
+</main>
+<script>
+window.__log = [];
+customElements.define("x-tool", class extends HTMLElement {
+  constructor() {
+    super();
+    const sr = this.attachShadow({ mode: "closed" });
+    sr.innerHTML = '<div style="padding:8px"><button id="pen">Pen</button> <button id="eraser">Eraser</button> <button id="clear">Clear</button></div><canvas width="500" height="250" style="background:#eef"></canvas>';
+    sr.addEventListener("focusin", (e) => __log.push("focus:" + e.target.id)); for (const b of sr.querySelectorAll("button")) b.addEventListener("click", () => __log.push(b.id));
+  }
+});
+</script>
+</body></html>

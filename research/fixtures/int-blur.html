@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Blurring map</title></head>
+<body><main><h1>Blurring map</h1><p>Like Google Maps: its buttons blur the active element after a click.</p>
+<div><button id="zin">Zoom in</button> <button id="zout">Zoom out</button></div>
+<p><a href="#x">A link after</a></p></main>
+<script>window.__log = [];
+for (const b of document.querySelectorAll("button")) b.addEventListener("click", () => { __log.push(b.id); document.activeElement && document.activeElement.blur(); });
+</script></body></html>

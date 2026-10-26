@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tools misc - fixture</title>
+<style>
+  body { font-family: sans-serif; margin: 0 auto; max-width: 900px; }
+  .chips button { display: inline-block; border: 0; background: none; padding: 0; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .chips button span { display: inline-flex; padding: 0 6px; border-radius: 10px; background: #ddd; }
+  textarea.code { color: transparent; background: transparent; width: 100%; height: 60px; }
+  .chart { position: relative; height: 60px; }
+  .layer { position: relative; display: inline-block; width: 120px; height: 40px; }
+  .layer label { position: absolute; inset: 0; }
+  .layer a { position: absolute; right: 0; top: 0; }
+</style>
+</head>
+<body>
+<!-- tools fixture (round 4): F325 a section filled late inside two nested shadow roots;
+     F330 a read-only code box; F337 a chart drawn as role=img; F334 icon links in layer labels. -->
+<main>
+  <h1>Tools misc</h1>
+  <section aria-labelledby="compat">
+    <h2 id="compat">Browser compatibility</h2>
+    <compat-lazy></compat-lazy>
+  </section>
+  <h2>index.js</h2>
+  <textarea class="code" aria-label="file content" aria-readonly="true" inputmode="none" readonly>import { options } from 'preact';
+let currentIndex;
+export function useState(initialState) {
+  return useReducer(invokeOrReturn, initialState);
+}</textarea>
+  <h2>Walking route</h2>
+  <div class="elev"><span><span><span aria-hidden="true">↗</span>243&nbsp;ft</span> · <span><span aria-hidden="true">↘</span>72&nbsp;ft</span></span>
+    <div role="img" class="chart" aria-label="Total ascent of 243 ft. Total descent of 72 ft."><canvas width="300" height="50"></canvas><span>174&nbsp;ft</span><span>3&nbsp;ft</span></div></div>
+  <h2>Map Layers</h2>
+  <form>
+    <div class="layer"><input type="radio" name="layer" id="l1" checked><label for="l1"><span>Standard</span><a href="https://wiki.openstreetmap.org/wiki/Standard_tile_layer" title="Layer Info"><i class="bi bi-info-circle"></i></a></label></div>
+    <div class="layer"><input type="radio" name="layer" id="l2"><label for="l2"><span>CyclOSM</span><a href="https://wiki.openstreetmap.org/wiki/CyclOSM" title="Layer Info"><i class="bi bi-info-circle"></i></a></label></div>
+    <div class="layer"><input type="radio" name="layer" id="l3"><label for="l3"><span>Cycle Map</span><a href="https://wiki.openstreetmap.org/wiki/OpenCycleMap" title="Layer Info"><i class="bi bi-info-circle"></i></a></label></div>
+  </form>
+</main>
+<script>
+  // Like MDN's mdn-compat-table-lazy: an empty element whose shadow root gets a second
+  // component later, whose own shadow root gets the table later still. No change in the document.
+  class CompatTable extends HTMLElement {
+    constructor() { super(); this.attachShadow({ mode: "open" }); }
+    connectedCallback() {
+      setTimeout(() => {
+        this.shadowRoot.innerHTML = "<table><thead><tr><th></th><th>Chrome</th><th>Firefox</th></tr></thead><tbody><tr><th>details</th><td><button type='button' aria-expanded='false'><abbr title='Chrome – Full support'>✓</abbr> 12</button></td><td><button type='button' aria-expanded='false'><abbr title='Firefox – Full support'>✓</abbr> 49 <abbr title='See implementation notes.'>*</abbr></button></td></tr></tbody></table>";
+        for (const b of this.shadowRoot.querySelectorAll("button")) b.addEventListener("click", () => b.setAttribute("aria-expanded", String(b.getAttribute("aria-expanded") !== "true")));
+      }, 1500);
+    }
+  }
+  class CompatLazy extends HTMLElement {
+    constructor() { super(); this.attachShadow({ mode: "open" }); }
+    connectedCallback() { setTimeout(() => this.shadowRoot.appendChild(document.createElement("compat-table")), 1500); }
+  }
+  customElements.define("compat-table", CompatTable);
+  customElements.define("compat-lazy", CompatLazy);
+</script>
+</body>
+</html>

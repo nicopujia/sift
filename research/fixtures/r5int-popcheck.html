@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Shopping list</title>
+<style>
+.pop { position: absolute; top: 120px; left: 40px; width: 320px; background: #fff; border: 1px solid #999; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+</style></head>
+<body>
+<main>
+<h1>Shopping list</h1>
+<p>Three things to buy this week. Use People to choose who sees the list.</p>
+<ul><li>Rice flour</li><li>Psyllium husk</li><li>Tapioca starch</li></ul>
+<div style="position:relative">
+<button id="ppl">People</button>
+</div>
+</main>
+<script>
+// A role-less popup (an absolutely placed div, as many sites draw them) with
+// plain checkboxes, a select and a Save button. Checking a box changes no markup.
+window.__log = [];
+document.getElementById('ppl').onclick = () => {
+  if (document.querySelector('.pop')) return;
+  const p = document.createElement('div');
+  p.className = 'pop';
+  p.innerHTML = '<p>Who can see this list</p><label><input type="checkbox" id="c1"> Ana</label><br><label><input type="checkbox" id="c2"> Luis</label><br><label>Access <select id="acc"><option>Can view</option><option>Can edit</option></select></label><div><button id="save">Save</button> <button id="cancel">Cancel</button></div>';
+  document.body.appendChild(p);
+  p.querySelector('#save').onclick = () => { __log.push('saved ana=' + p.querySelector('#c1').checked + ' luis=' + p.querySelector('#c2').checked + ' acc=' + p.querySelector('#acc').value); p.remove(); };
+  p.querySelector('#cancel').onclick = () => { p.remove(); __log.push('cancel'); };
+  __log.push('opened');
+};
+</script>
+</body></html>

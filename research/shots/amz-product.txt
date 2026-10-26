@@ -1,0 +1,46 @@
+[button] Skip to content
+  [input:search]  Search Amazon
+  [button] Search
+[button] Menu
+[link] Cart 1
+[link] Hello, sign in
+[link] Orders
+[img] Test Headphones
+H1 soundcore by Anker Q20i Hybrid Active Noise Cancelling Headphones, Wireless Over-Ear Bluetooth, 40H Long ANC Playtime, Hi-Res Audio
+  [link] Visit the soundcore Store
+dt: Price
+dd: $39.97 (list $69.99)
+dt: Availability
+dd: In Stock
+dt: Delivery
+dd: FREE delivery Saturday, October 25 Or fastest delivery Tomorrow
+dt: Sold by
+dd: Amazon.com
+p: Color: Black
+[button] Black
+[button] Blue
+[button] White
+  [select:select-one] 1 
+  [button] Add to Cart
+  [button] Buy Now
+H2 About this item
+  [button] Show full text
+  H3 Soundcore Q20i Headphones
+  p: The Anker Soundcore Q20i are wireless over-ear headphones with hybrid noise cancelling, 40-hour battery life, and Hi-Res audio support.
+  H3 Noise Cancelling
+    li: Two internal and two external microphones reduce up to 90% of external noise.
+    li: Works in airplanes, subways, and offices.
+  H3 Audio Quality
+    li: 40mm dynamic drivers produce detailed sound and bass.
+    li: BassUp technology enhances beats.
+    li: Hi-Res certified audio is available only via the included AUX cable.
+  H3 Battery Life
+    li: 40 hours of playtime with Active Noise Cancelling (ANC) on.
+    li: 60 hours of playtime in normal mode.
+    li: A 5-minute charge provides 4 hours of playtime.
+  H3 Comfort and Fit
+    li: Memory foam earcups with soft protein leather.
+    li: Lightweight design for long wear.
+    li: Adjustable headband fits most head sizes.
+    li: Earcups rotate for storage in the included travel pouch.
+[button] Sift

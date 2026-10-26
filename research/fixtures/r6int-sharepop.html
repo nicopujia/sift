@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Rice bread recipe</title>
+<style>.pop { position: absolute; top: 140px; left: 40px; width: 300px; background: #fff; border: 1px solid #999; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.3); }</style></head>
+<body>
+<main>
+<h1>Rice bread recipe</h1>
+<p>A soft gluten-free loaf made with rice flour, psyllium husk and yeast. It takes two hours, most of it waiting for the dough to rise.</p>
+<ul><li>Rice flour</li><li>Psyllium husk</li><li>Yeast</li></ul>
+<div style="position:relative"><button id="srv">Servings</button></div>
+</main>
+<script>
+// A role-less share popup: "Copy link" changes nothing on the page (it only copies), as on most sites.
+window.__log = [];
+document.getElementById('srv').onclick = () => {
+  if (document.querySelector('.pop')) return;
+  const p = document.createElement('div');
+  p.className = 'pop';
+  p.innerHTML = '<p>How many people will eat</p><button id="copy">Double it</button> <button id="mail">Halve it</button> <button id="done">Done</button>';
+  document.body.appendChild(p);
+  p.querySelector('#copy').onclick = () => { __log.push('copied'); };
+  p.querySelector('#mail').onclick = () => { __log.push('mail'); };
+  p.querySelector('#done').onclick = () => { p.remove(); __log.push('done'); };
+  __log.push('opened');
+};
+</script>
+</body></html>

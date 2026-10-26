@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Check tables · tbl6</title>
+<style>
+body{font-family:system-ui;margin:0}main{max-width:860px;margin:24px auto}
+table{border-collapse:collapse;width:100%;margin:16px 0}th,td{border-bottom:1px solid #ddd;padding:6px;text-align:left}
+[role=checkbox]{display:inline-block;width:14px;height:14px;border:1px solid #333;cursor:pointer}
+[role=checkbox][aria-checked=true]{background:#333}
+</style></head>
+<body>
+<main>
+<h1>Check tables</h1>
+<h2>Matrix</h2>
+<table id="matrix">
+<caption>Notification settings</caption>
+<thead><tr><th>Event</th><th>Email</th><th>Push</th></tr></thead>
+<tbody>
+<tr><td>New comment</td><td><input type="checkbox" aria-label="New comment by email" checked></td><td><input type="checkbox" aria-label="New comment by push"></td></tr>
+<tr><td>New follower</td><td><input type="checkbox" aria-label="New follower by email"></td><td><input type="checkbox" aria-label="New follower by push" checked></td></tr>
+</tbody></table>
+<h2>Cart</h2>
+<table id="cart">
+<caption>Your cart: 2 items</caption>
+<thead><tr><th>Keep</th><th>Item</th><th>Price</th><th>Quantity</th></tr></thead>
+<tbody>
+<tr><td><input type="checkbox" aria-label="Keep rye loaf" checked></td><td>Rye loaf</td><td>$6</td><td><input type="number" aria-label="Quantity of rye loaf" value="1"></td></tr>
+<tr><td><input type="checkbox" aria-label="Keep seed bread" checked></td><td>Seed bread</td><td>$7</td><td><input type="number" aria-label="Quantity of seed bread" value="2"></td></tr>
+</tbody></table>
+<h2>Mail</h2>
+<table id="mail">
+<caption>Inbox 1-3 of 40</caption>
+<thead><tr><th><div role="checkbox" tabindex="0" aria-checked="false" aria-label="Select all" id="mall"></div></th><th>From</th><th>Subject</th><th>Date</th></tr></thead>
+<tbody>
+<tr><td><div role="checkbox" tabindex="0" aria-checked="false" aria-label="Select mail from Ana" class="m"></div></td><td>Ana</td><td>Bread order</td><td>Oct 20</td></tr>
+<tr><td><div role="checkbox" tabindex="0" aria-checked="false" aria-label="Select mail from Ben" class="m"></div></td><td>Ben</td><td>Delivery time</td><td>Oct 19</td></tr>
+<tr style="display:none"><td><div role="checkbox" tabindex="0" aria-checked="false" aria-label="Select mail from Hidden" class="m"></div></td><td>Hidden</td><td>Hidden row</td><td>Oct 18</td></tr>
+<tr><td><div role="checkbox" tabindex="0" aria-checked="false" aria-label="Select mail from Chen" class="m"></div></td><td>Chen</td><td>Invoice</td><td>Oct 17</td></tr>
+</tbody></table>
+</main>
+<script>
+window.__log = [];
+const boxes = [...document.querySelectorAll(".m")];
+const mall = document.getElementById("mall");
+function sync() { const n = boxes.filter((b) => b.getAttribute("aria-checked") === "true").length; mall.setAttribute("aria-checked", n === 0 ? "false" : n === boxes.length ? "true" : "mixed"); }
+const flip = (b) => { b.setAttribute("aria-checked", String(b.getAttribute("aria-checked") !== "true")); __log.push(b.getAttribute("aria-label") + " " + b.getAttribute("aria-checked")); sync(); };
+boxes.forEach((b) => { b.addEventListener("click", () => flip(b)); b.addEventListener("keydown", (e) => { if (e.key === " ") { e.preventDefault(); flip(b); } }); });
+mall.addEventListener("click", () => { const on = mall.getAttribute("aria-checked") !== "true"; boxes.forEach((b) => b.setAttribute("aria-checked", String(on))); __log.push("all " + on); sync(); });
+document.querySelectorAll("input").forEach((i) => i.addEventListener("change", () => __log.push(i.getAttribute("aria-label") + " " + (i.type === "checkbox" ? i.checked : i.value))));
+</script>
+</body></html>

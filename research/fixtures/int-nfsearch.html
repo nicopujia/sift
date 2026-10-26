@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Shop search</title></head>
+<body><header><a href="/">Shop</a>
+<div><input id="q" type="search" placeholder="Search products" aria-label="Search products"><button id="go">Search</button></div></header>
+<main><h1>Shop home</h1><p>Products and offers with enough text for a real page that Sift will show to the reader.</p><p id="res">Another paragraph with more words about the shop and its products.</p></main>
+<script>
+const log = (s) => sessionStorage.setItem("log", (sessionStorage.getItem("log") || "") + s + ";");
+const mode = new URLSearchParams(location.search).get("mode") || "async";
+// Like an app router: the URL changes only after the results are fetched.
+function search(via) {
+  log(via + " " + q.value);
+  const v = q.value;
+  if (mode === "inpage") { res.textContent = "Results for " + v; return; }
+  setTimeout(() => history.pushState(null, "", "/nfsearch.html?mode=" + mode + "&q=" + encodeURIComponent(v)), 700);
+}
+q.addEventListener("keydown", (e) => { if (e.key === "Enter") search("enter"); });
+go.addEventListener("click", () => search("button"));
+</script></body></html>

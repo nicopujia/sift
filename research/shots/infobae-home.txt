@@ -1,0 +1,185 @@
+[link] Vista Sift
+[button] Menú
+[button] Iniciar sesión
+H1 Infobae América
+    [link] Trump dijo que los buques militares estadounidenses se detendrán frente a Cuba al regresar de Irán
+    p: La iniciativa fue expuesta durante un acto electoral en Fort Myers, Florida, donde el mandatario dijo que enviaría a Marco Rubio para resolver un eventual entendimiento con el Gobierno de la isla
+    [link] Un incendio destruyó el “Nido del Águila”, el antiguo refugio de montaña de Adolf Hitler en Alemania
+    [link] El sentido mensaje de Lionel Messi tras recibir el Premio Princesa de Asturias en España: “Es un honor”
+    [link] El Ejército israelí comenzó una operación en Hebrón tras el ataque terrorista que dejó dos soldados muertos
+    [link] Lula y Bolsonaro rebajaron las acusaciones a las campañas y discutieron propuestas en último debate antes del balotaje
+    [link] Irán analiza atacar cables submarinos si Estados Unidos e Israel vuelven a bombardear el país
+    [link] El triángulo negro que desconcertó a dos militares expertos: el nuevo caso de ovnis desclasificado por el Pentágono
+    p: Por Fausto Urriste
+    [link] Estupor en el rugby por el brutal pisotón que le dio un jugador a un rival que estaba en el suelo: "Fue horroroso"
+    [link] Emilia Clarke a los 40: la transformación de la “Madre de Dragones” en ícono de la elegancia británica
+    p: Por Cecilia Castro
+    [img] 
+    [link] Elon Musk donó otros USD 76 millones a las legislativas de Estados Unidos en dos semanas
+    p: Por Isabela Durán San Juan
+    [link] INFOBAE
+    [link] Lula apuesta por promesas populistas de alto costo para remontar ante Bolsonaro
+    p: Por Mauricio Savarese
+    [link] Tierras y deforestación: la disputa que impulsa a Bolsonaro en un bastión amazónico
+    p: Por Fabiano Maisonnave
+    [link] Lula y Flávio Bolsonaro disputan una elección clave para Brasil: “La batalla digital va a ser clave en esto”
+    p: Por Brisa Bujakiewicz
+    [link] Buscan voluntarios para vivir gratis en Galicia: solo hay que cuidar una pequeña huerta y saber cocinar
+    p: Por Noelia Tabanera
+    [link] El “ambicioso” plan que impulsa la Fórmula 1 y provocaría un cambio drástico en los monoplazas
+    [link] Francia desplegó 70.000 agentes para contrarrestar las protestas del sábado
+    [link] Trump niega que las negociaciones comerciales con México estén estancadas: “Estamos muy cerca de un acuerdo”
+    p: Por Samantha Godinez
+    [link] Al menos un muerto y 170 heridos tras el paso del tifón Champi por Taiwán
+    [link] Humboldt, el perro que alerta sin ladrar y ayuda a los científicos a encontrar fauna silvestre: “Tiene un olfato impresionante”
+    p: Por Cecilia Castro
+    [link] El primer encuentro entre un padre y su hijo tras darle en adopción hace 42 años: “Quiero darle todo el cariño y el amor que nunca le di”
+    p: Por Irene Herrero Alonso
+    [link] La caída de la sociedad occidental
+    p: OPINIÓN · Por Damian Valenzuela Mayer
+    [link] La justicia ecuatoriana ordenó prisión preventiva para Luisa González por presunto lavado de activos
+    [link] Fue blanco de burlas por errar “el penal más lento del mundo” y 8 días después repitió la secuencia: el desenlace que lo puso otra vez en el foco
+    [link] Un estudio identificó que pequeñas moléculas naturales podrían ayudar a frenar el crecimiento del cáncer de páncreas
+    [link] La historia detrás del Premio Princesa de Asturias que le entregan a Lionel Messi en España: quiénes lo ganaron y cuánto dinero recibirá
+    p: Por Salomón Pineda
+    [link] El petróleo cerró su quinta jornada consecutiva de alzas y tocó máximos de varios meses
+    [link] Panamá inicia el retiro de bandera a siete buques sancionados por Estados Unidos por vínculos con Irán
+    p: Por Alex Hernández
+    [link] El Departamento de Justicia de Estados Unidos quiere bloquear la certificación del Senado de Alaska si el senador republicano pierde
+    [link] INFOBAE
+    [link] Ucrania celebró la liberación de 270 prisioneros de guerra que estaban en cautiverio ruso
+    [link] El gobierno ucraniano informó que las fallas de Starshield persisten pese al anuncio de restitución de Trump
+    p: Por Francisco González Tomadin
+    [link] Melania Trump anunció un cese del fuego en la ciudad ucraniana de Oleshky a partir del 29 de octubre
+    [link] Rumania acusó a Rusia tras el naufragio de un carguero en el mar Negro: un marinero muerto y tres desaparecidos
+    [link] Un modelo de Anthropic siguió un ciberataque contra una persona real aunque sabía que le causaba daño
+    p: Por Renzo Gonzales
+    [link] Emmanuel Macron calificó el tiroteo cerca de París como un “punto de inflexión” para Francia
+    [link] Gael Monfils salió a defender a Elina Svitolina tras el divorcio con una profunda reflexión: “Una separación es un campo minado de sentimientos confusos”
+    [link] Austria expulsó a cuatro diplomáticos rusos por presunto espionaje
+    [link] Una novela ganó un premio de 20.000 euros que vetaba la IA, pero un detector señala que el 99% del texto fue escrito con tecnología generativa
+    [link] INFOBAE
+    [link] EEUU reducirá su personal en cuatro embajadas de Medio Oriente debido al aumento de las amenazas de Irán
+    [link] El mensaje de Netanyahu tras ordenar el cierre de Hebrón en Cisjordania: “Destruiremos y transformaremos este lugar”
+    [link] Los cancilleres de ocho países piden en Estambul una salida diplomática para frenar la escalada en Medio Oriente
+    [link] INFOBAE
+    [link] Transparencia Venezuela propone crear una justicia especial anticorrupción
+    p: Por Pedro Pablo Peñaloza · | Desde Caracas
+    [link] El partido de Machado denunció la detención de siete personas que trabajaron en la marcha opositora
+    [link] La oposición venezolana destaca que negociación abrió el camino para revisar las inhabilitaciones políticas
+    p: Por Pedro Pablo Peñaloza
+    [link] INFOBAE
+    [link] Advierten sobre freidoras de aire que pueden causar quemaduras de segundo grado por un fallo en sus puertas
+    p: Por Maricielo Grados Córdova
+    [link] Se reportaron más de 90 casos de norovirus en una escuela primaria de Estados Unidos
+    p: Por Maricielo Grados Córdova
+    [link] “Quiero disculparme por no haber salvado a sus bebés”: habló el hombre que abatió al atacante del tiroteo mortal en la escuela primaria de Oregón
+    p: Por Lucila Gomez
+    [link] La joven que denunció la violación grupal en una fraternidad de la Universidad Cornell vive con “miedo constante”
+    p: Por Lucila Gomez
+    [link] INFOBAE
+    [link] Pandillas haitianas difundieron un ritual con armas y ron, mientras militares salvadoreños rezaron antes de viajar en busca de connacionales
+    p: Por José Cerón
+    [link] Oficialismo recomienda no reelegir por ocho años más a magistrada Patricia Solano: cuestiona su gestión frente a la inseguridad en Costa Rica
+    p: Por Fabricio Quirós Zúñiga
+    [link] Gobierno de Guatemala convoca a una visita obligatoria al campo Xan antes de licitar el cierre de 59 pozos petroleros
+    p: Por Sayda Galicia
+    [link] Honduras: Lluvias inundan calles de Puerto Cortés y dificultan el paso de vehículos en varios sectores
+    p: Por Pamela Bustillo
+    [link] INFOBAE
+    [link] Bolivia: Ministerio Público apartó a dos funcionarios incluidos en la lista de restricción de visa a EEUU
+    p: Por María Silvia Trigo · | Desde Santa Cruz de la Sierra
+    [link] Jueces, diputados, fiscales: quiénes son los bolivianos a los que Estados Unidos restringió la visa por presunto narcotráfico
+    p: Por María Silvia Trigo
+    [link] Violencia en Bolivia: lanzan el tercer plan de seguridad ante incremento de asesinatos vinculados al narcotráfico
+    p: Por María Silvia Trigo
+H2 ECONOMÍA
+    [link] Donald Trump eliminó aranceles del 50% a nueve categorías de productos canadienses
+    [link] Francia se libra de la rebaja de la calificación de Moody's mientras se enfrenta a los disturbios
+    p: Por Leigh Thomas y Dhara Ranasinghe
+    [link] Wall Street cerró a la baja por el aumento del petróleo y las caídas financieras
+    [link] VIDEOS DESTACADOS
+    [link] Nacen los primeros cuadrillizos genéticamente idénticos en Colombia
+    p: 1:06 Min
+    [link] Millones de peruanos se quedarían sin agua potable por el Fenómeno El Niño
+    p: Actualidad · 1:32 Min
+    [link] El Niño ya alarma al Perú y estos serán sus próximos efectos en el país
+    p: Actualidad · 1:32 Min
+    [link] Sin Información Sobre Los Soldados Salvadoreños Desaparecidos En Haití
+    p: El Salvador · 1:22 Min
+    [link] ¡El papa León XIV envió un mensaje al Perú tras recibir el alta hospitalaria!
+    p: Actualidad · 57 Seg
+    [link] Karol G y Feid reavivan los rumores de una posible reconciliación
+    p: Colombia · 46 Seg
+    [link] Desacuerdos Entre Gremio Médico Y Autoridades Tienen En Paro El Servicio De Salud De Honduras
+    p: 1:03 Min
+    [link] La lucha contra la tuberculosis: una nueva vacuna española
+    p: Salud · 1:06 Min
+    [link] Nicaragua Suma Más Agresiones Contra Periodistas
+    p: 1:01 Min
+    [link] INFOBAE
+    [link] Marshall Faulk, leyenda de la NFL e integrante del Salón de la Fama, reveló que padece Parkinson
+    p: Por Fausto Urriste
+    [link] Polémica por el “gol fantasma” de Cristiano Ronaldo que le permitió dar un paso más rumbo a los 1.000 tantos
+    [link] Omar Chávez lanza reto a Saúl ‘Canelo’ Álvarez para enfrentarlo en el Estadio Azteca
+    p: Por Mariana Campos
+    [link] INFOBAE
+    [link] Martin Scorsese ficha a Charli XCX para su nueva película con Leonardo DiCaprio y Jennifer Lawrence
+    p: Por Ester Palomino
+    [link] Un reconocido youtuber estadounidense podría enfrentar dos años de prisión por pescar un tiburón protegido
+    p: Por Bautista Salaverri
+    [link] Sylvester Stallone respalda la IA en el cine pese al rechazo de Hollywood: “Si no te subes, te va a pasar por encima”
+    p: Por Ester Palomino
+    [link] Nick Reiner y los administradores del fideicomiso de sus padres asesinados negociarán quién paga su defensa
+    p: Por Fausto Urriste
+    [link] INFOBAE
+    [link] Por qué comer siempre a la misma hora podría influir en cómo el cuerpo absorbe los nutrientes, según un estudio
+    p: Por Cecilia Castro
+    [link] Seis objetos que conviene sacar del dormitorio antes del verano para ganar espacio y adaptarlo al calor
+    [link] Jugo de limón para la ropa: 5 maneras de aprovecharlo en el lavado
+    p: Por Lucila Waicman
+    [link] El sarampión avanza sin freno en Estados Unidos con 4.588 contagios y tres muertes confirmadas
+    p: Por Fausto Urriste
+H2 TECNOLOGÍA
+    [link] Los robots pato de Nvidia que duermen y juegan, tuvieron 20.000 pedidos de preventa en un día
+    p: Por Renzo Gonzales
+    [link] Estas son las principales novedades de Cyberpunk 2077 Update 2.5
+    p: Por Renzo Gonzales
+    [link] La primera directora de operaciones de Xbox dejó Microsoft apenas tres meses después de asumir el cargo
+    p: Por Isabela Durán San Juan
+H2 MALDITOS NERDS
+    [link] Xbox analiza cómo recuperar los 500 millones de ‘Gears of War: E-Day’
+    p: Por Gustavo Robles
+    [link] Fallout 76 supera los 25 millones y Bethesda prepara mascotas de combate
+    p: Por Lucas Rivarola
+    [link] Bandai Namco vence a Konami con ‘Tales of Eternia Remastered’ en Japón
+    p: Por Gustavo Robles
+    [link] ‘Katana Zero’ muestra su DLC tras años de espera y confirma su gran escala
+    p: Por Lucas Rivarola
+H2 MÁS NOTICIAS
+    [link] Estados Unidos incorporó a Paraguay a la declaración Pax Silica para proyectos de superinteligencia
+    [link] Para controlar la diabetes y la obesidad: cómo funciona el chip subcutáneo diseñado por científicos suizos que “electrocuta” la glucosa
+    [link] Sorpresa en la Fórmula 1: un piloto brindó un recital en la previa al Gran Premio de Estados Unidos
+    [link] Preocupación en Alemania: el entrenador del Bayern Múnich Vincent Kompany se desplomó en la práctica y fue trasladado de urgencia al hospital
+    [link] El corto camino latinoamericano al fracaso
+    p: Por Luis Almagro
+    [link] Ocho presos muertos y diez heridos en dos motines carcelarios en Ecuador
+    p: Por Yalilé Loaiza
+H2 ÚLTIMAS NOTICIAS
+    [link] EEUU reducirá su personal en cuatro embajadas de Medio Oriente debido al aumento de las amenazas de Irán
+    [link] EEUU llamó a colaborar de forma “discreta” con la CIA a quienes buscan un cambio en Cuba: “Es el momento”
+    [link] El dictador Kim Jong-un exigió a empresas norcoreanas acelerar la “revolución militar” y construir el ejército más fuerte
+    [link] Organizaciones brasileñas expresaron su preocupación por la “censura” en redes sociales a horas de las elecciones
+    [link] DEPORTES
+    [link] Polémica por el “gol fantasma” de Cristiano Ronaldo que le permitió dar un paso más rumbo a los 1.000 tantos
+    [link] “Atlético Mineiro es mucho más equipo que Boca”: la sentencia de una ex figura del Real Madrid que calentó la final de la Sudamericana
+    [link] El gesto de Antonela Roccuzzo con un niño en medio de la revolución que generó Messi en España: “Qué pareja con clase”
+    [link] El escabroso escándalo con el hermano de la leyenda del tenis Steffi Graf: aseguran que se esconde en túneles para huir de la policía
+    [link] “Street Fighter vs. Peaky blinders”: la insolita presentación entre dos figuras de UFC que pelearán por el título
+    [link] ENTRETENIMIENTO
+    [link] Sylvester Stallone respalda la IA en el cine pese al rechazo de Hollywood: “Si no te subes, te va a pasar por encima”
+    [link] Fin de una era en el K-pop: NMIXX cerró MIXXTOPIA con “Strange Muse” y confesó el secreto detrás de su utopía
+    [link] Martin Scorsese ficha a Charli XCX para su nueva película con Leonardo DiCaprio y Jennifer Lawrence
+    [link] Hayao Miyazaki y su hijo Gorō: una relación marcada por la distancia y reparada a través de la animación
+    [link] Rosalía revive el meme de la doctora Polo en pleno discurso de los Latin Billboard: “Ningún hello, ni ningún good afternoon”
+[button] Sift

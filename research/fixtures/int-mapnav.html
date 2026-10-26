@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Trail map</title>
+<style>.leaflet-container { position: relative; width: 800px; height: 420px; background: #cde; overflow: hidden; }</style></head>
+<body>
+<header><nav aria-label="Main"><a href="/mapnav.html">Map</a> <a id="about" href="/mapnav.html?about">About the trails</a> <a href="/mapnav.html?c">Contact</a> <a href="/mapnav.html?d">Events</a> <a href="/mapnav.html?e">Shop</a></nav></header>
+<main><h1 id="h">Trail map</h1><p id="t">All the hiking trails of the valley on one map. Zoom in to see the huts and the water points along each trail.</p>
+<div id="map" class="leaflet-container" tabindex="0" aria-label="Map of the trails"><button id="zin" aria-label="Zoom in">+</button></div>
+</main>
+<script>window.__log = [];
+zin.onclick = () => __log.push("zoom in");
+document.getElementById("about").addEventListener("click", (e) => { e.preventDefault(); history.pushState(null, "", "/mapnav.html?about"); h.textContent = "About the trails"; t.textContent = "The trails are kept by volunteers from the hiking club, who mark them every spring and repair the bridges after floods."; map.style.display = "none"; });
+</script></body></html>

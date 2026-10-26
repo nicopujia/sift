@@ -1,0 +1,30 @@
+url: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+first sift content: 1852 ms
+logs:
+
+--- outline (25 lines) ---
+[button] Skip to content
+  [input:search]  Search
+  [button] Search
+[button] Menu
+[link] Sign in
+[button] Settings
+[PORTAL] Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)
+[button] Pause
+[button] Back 10s
+[button] Ahead 10s
+[button] Mute
+[button] Captions
+[button] Full screen
+[input:range] 5 
+H1 Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)
+  [link] Rick Astley
+p: 1,830,237,663 views · Oct 25, 2009
+[button] Subscribe
+[button] Like 19M
+[button] Dislike this video
+[button] Save
+  H2 Description
+  H2 Up next
+  H2 2,460,574 Comments
+[button] Sift

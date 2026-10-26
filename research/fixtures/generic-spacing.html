@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spacing cases</title>
+<style>
+  body { font-family: sans-serif; max-width: 700px; margin: 2em auto; }
+  .tags a { display: inline-block; margin-right: 6px; }
+  .tags2 a + a::before { content: "·"; padding: 0 4px; color: #888; }
+  dt.sig { font-family: Menlo, Consolas, monospace; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Spacing cases</h1>
+  <p id="c1">This is <a href="/a">un</a><a href="/b">believable</a> text, and we keep reading after it.</p>
+  <p id="c2">Tags: </p>
+  <div class="tags" id="c3"><a href="/t/1">Adolf Hitler</a><a href="/t/2">Alemania</a><a href="/t/3">Europa</a></div>
+  <div class="tags2" id="c4"><a href="/t/4">Política</a><a href="/t/5">Economía</a></div>
+  <p id="c5">It was <span>done.</span><span>Next</span> we moved on to the second step of the plan.</p>
+  <dl>
+    <dt class="sig" id="c6"><em>class </em><span>pathlib.</span><span>PurePath</span>(<em>*pathsegments</em>)</dt>
+    <dd><p>A generic class that represents the system's path flavour. Instantiating it creates either a PurePosixPath or a PureWindowsPath.</p>
+      <pre>&gt;&gt;&gt; PurePath('setup.py')
+PurePosixPath('setup.py')</pre>
+      <p>Each element of pathsegments can be either a string representing a path segment, or an object implementing the os.PathLike interface.</p></dd>
+  </dl>
+</main>
+</body>
+</html>

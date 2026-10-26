@@ -1,0 +1,312 @@
+[button] Skip to content
+  [input:search]  Enter your search
+  [button] Search
+H1 US Home
+    [link] A US intelligence memo warns that Iran's plots to assassinate American officials are in advanced stages; diplomats are being pulled from Middle East embassies
+    p: News · 28 Comments
+    [link] A school bus carrying more than 20 passengers, including a Georgia high school football team, overturned on a highway; hospitals prepared for a possible mass casualty event
+    p: News · 24 Comments
+    [link] Three women allegedly lured a Detroit mother into an ambush; her four-week-old baby was left bruised with a swollen eye
+    p: News · 174 Comments
+    [link] A landlord accuses influencer Clavicular, whose real name is Braden Peters, of skipping rent; he also faces accusations over party antics
+    p: News · 53 Comments
+    [link] Jordan Chymbor, 21, died after a sudden medical emergency
+    p: News · 4 Comments
+    [link] Halle appears alongside her fiancé amid a custody dispute
+    [link] Dolly's niece, who has cancer, was named an ambassador for her estate
+    [link] Cindy visited daughter Kaia after speaking about her son's death
+    [link] Martha criticized people seeking work-life balance
+    [link] Kate's former nanny claims she saw Kate abuse her son Collin
+    [link] A star of The Goldbergs says he considered taking his own life
+    [link] Exclusive: Video shows Iowa Republican Joe Mitchell, then 19, using vulgar language about Black women and white people and boasting about his manhood
+    p: News · 117 Comments
+    [link] Why did Meghan tell Netflix: 'I've been a Daddy's Girl my whole life' four years after Met received a letter making such disturbing allegations?
+    p: News · 33 Comments
+    [link] Sonny received a heart transplant from Terry Cottle, later married Cottle's widow, and died by suicide; his family questions whether the heart was to blame
+    p: News · 41 Comments
+    [link] Opinion: Maureen Callahan says Prince Harry looks exhausted and should admit that his public standing is over
+    p: Debate · 624 Comments
+    [link] A New York City broker allegedly texted a property owner, “Ugh, they are black,” about prospective renters, accidentally including one of them
+    p: News · 1.4k Comments
+    [link] Opinion: Tom Leonard writes that allegations by Thomas Markle's son have intensified the feud in Meghan's family
+    p: Royals · 32 Comments
+    [link] Pete Hegseth's office reportedly tried to stop US military personnel from taking part in the NFL's first game in Paris, then backed down
+    p: Sport · 130 Comments
+    [link] New Jersey Democrats proposed a law that could ban chewing gum, tea bags, and cutlery to limit microplastics
+    p: News · 2 Comments
+    [link] Surviving Friends cast members will not appear in a Netflix documentary about Matthew Perry; his family and friends say the cast remains haunted
+    p: Showbiz · 29 Comments
+    [link] Jana Hocking says she knows what it is like to date Anthony Kiedis and that his much younger girlfriend is half his age
+    p: Lifestyle · 37 Comments
+p: Smug Karoline Leavitt cracks Apprentice joke about Trump as Bill Maher puts her on the spot over fired Katie Zacharia
+    [link] The former White House Press Secretary was asked by the HBO comic if she had any advice for Zacharia, who lasted less than a week doing her old job.
+    [link] News
+    [link] 80 Comments
+    [link] A Cornell accuser will remain anonymous as Jane Doe during the civil trial; a judge warned against revealing her identity. She alleges seven men drugged and gang-raped her in 2024; they deny it
+    p: News · 37 Comments
+    [link] Simone Biles shared her sadness over selling the $1 million mansion she shared with her NFL star husband; it sold four days after listing
+    p: Sport · 159 Comments
+    [link] Elizabeth Hurley and Billy Ray Cyrus are engaged; she wants a large event with Elton John singing, while he wants to elope
+    p: Showbiz · 25 Comments
+    [link] A 14-year-old who mastered calculus and aced his tests cannot continue college classes because teachers refuse to let him graduate high school early
+    p: News · 183 Comments
+    [link] Officer Hunter Foster quit the Senatobia Police Department after an investigation into the fatal shooting of 1-year-old Kohen Wiley outside Walmart
+    p: News · 120 Comments
+    [link] Opinion: Dan McLaughlin argues Melania Trump's intervention in the Russia-Ukraine war signals Trump sees a foreign-policy opportunity
+    p: Debate · 68 Comments
+    [link] William Devane, former face of Rosland Capital, says he is shocked by its bankruptcy and allegations it bilked investors; elderly clients say they lost retirement savings
+    p: News · 19 Comments
+    [link] Pemberton Township Mayor Matthew Bianchini had to be restrained after charging at a resident during a tense public meeting
+    p: News · 266 Comments
+    [link] The Milwaukee Brewers beat the Tampa Bay Rays 3-2 in Game 1 of the 2026 World Series, earning their first World Series win in 44 years
+    p: Sport · 1 Comment
+H2 MIDTERMS LATEST
+    [link] Neighbors at Vivek Ramaswamy's Circleville rally displayed signs supporting his Democratic rival, Amy Acton
+    p: News · 110 Comments
+    [link] The Trump administration ordered California officials to identify suspected noncitizen voters within 48 hours and set aside questionable ballots
+    p: News · 21 Comments
+    [link] Greg Abbott warned a Democratic win in Texas could hurt Republicans' White House hopes as polls showed James Talarico leading Ken Paxton
+    p: News · 150 Comments
+    [link] Trump revealed a private chat with former press secretary Katie Zacharia and urged Florida rally supporters to check out RFK Jr.'s body
+    p: News · 239 Comments
+    [link] The Trump Justice Department is suing to block Alaska from certifying its Senate election results if Republican Dan Sullivan loses
+    p: News · 271 Comments
+    [link] Opinion: Amanda Platell asks whether Meghan deserves sympathy and suggests she may have kept a disturbing secret
+    p: Debate · 395 Comments
+    [link] Dale Brown, the LSU basketball coach credited with discovering 13-year-old Shaquille O'Neal, died at 90
+    p: Sport · 1 Comment
+    [link] Brittany Curran was arrested for public intoxication, nine months after being booked for drunk and disorderly conduct
+    p: Showbiz · 6 Comments
+    [link] Opinion: Amanda Platell says a private conversation with JD Vance changed how she sees the election and that Democratic sources privately agree
+    p: Debate · 372 Comments
+    [link] Exclusive: Leaked Kimberly Guilfoyle texts include “I'm gonna kill you cause I love you” and reportedly led to her downfall
+    p: News · 71 Comments
+    [link] Vanessa Trump says she is free of breast cancer after a clear test
+    p: Lifestyle · 68 Comments
+    [link] MLB owners seek a salary cap as the union calls the proposal a “nuclear bomb”
+    p: Sport · 7 Comments
+p: Shorts
+H3 THE ROYALS
+    [link] Police received an image allegedly showing Thomas Markle having sex with a girl who appears underage
+    p: News · 65 Comments
+    [link] Thomas Markle says child sex abuse allegations against him are “the worst thing anyone can accuse me of”
+    p: News · 28 Comments
+    [link] A 2018 letter to police accused Thomas Markle of child sexual abuse; Meghan says she cut contact after learning of disturbing allegations
+    p: News · 85 Comments
+    [link] Beverly Hills school board election candidates trade insults
+    p: News · 5 Comments
+    [link] Tabatha Kerr says she is “in hell on Earth” 10 years after her daughter’s death and alleges her lawyer stole her $600,000 settlement
+    p: News · 16 Comments
+    [link] Prosecutors say Lauren Winans, 31, sexually abused a young relative; she faces up to 120 years in prison if convicted
+    p: News · 131 Comments
+    [link] The Knicks plan $3.7 million championship rings for staff after an email falsely promised them rings
+    p: Sport · 4 Comments
+    [link] A doctor says the US could face two flu seasons this winter as cases rise early on the West Coast
+    p: Health · 31 Comments
+    [link] Britt McHenry resigned from a State Department press adviser role after a confrontation with fans at an NBA game
+    p: Sport · 148 Comments
+    [link] Andrew Luster, 62, was released from prison early and is banned for life from a California town where he preyed on women
+    p: News · 43 Comments
+    [link] Maryland mother Unique Wiggins says a man living in a sewer harasses and chases children
+    p: News · 22 Comments
+    [link] Al Roker sparked outrage on the Today show with a controversial nickname for Jenna Bush Hager
+    p: Lifestyle · 228 Comments
+    [link] A Texas Christian University study suggests US drinking water may contain twice as many forever chemicals as health agencies report
+    p: Health · 42 Comments
+    [link] A study suggests walking 8,800 steps a day could improve brain health
+    p: Health · 54 Comments
+    [link] Celebrities criticized Megyn Kelly over a jibe about Christina Applegate’s MS misdiagnosis
+    p: Showbiz · 123 Comments
+    [link] Hackers breached Quest Diagnostics, potentially exposing private records of millions of patients
+    p: Science · 57 Comments
+    [link] Prosecutors say Antonio Moore, 29, tried to steal a $5.4 million mansion in Oklahoma City
+    p: News · 20 Comments
+    [link] Hilaria Baldwin’s daughter Carmen, 13, appeared taller than her at a Beverly Hills gala
+    p: Showbiz · 220 Comments
+    [link] Laura Michelle Owens, daughter of radio host Ron Owen, is set to learn her fate over a fake twin pregnancy scheme involving a Bachelor star
+    p: News · 16 Comments
+    [link] The Dallas Cowboys recognized their cheerleaders’ association as their union representative after the squad won the right to unionize
+    p: Sport · 47 Comments
+    [link] Selma Blair appeared with her 15-year-old son Arthur and the service dog that was with her during an in-flight incident
+    p: Showbiz · 126 Comments
+    [link] Promise Holmes Skinner is accused of falsely claiming Indigenous ancestry; she says she learned the culture in other ways
+    p: News · 93 Comments
+    [link] Stevie Wonder sued ex-girlfriend Carmen Efferson to evict her from a Los Angeles home he says she has lived in rent-free since 1988
+    p: Showbiz · 68 Comments
+    [link] Kimberly Guilfoyle’s leaked texts, obtained by the Daily Mail, are presented in full
+    p: 71 comments
+    [link] 'Wiles gave the kill order': Brutal inside story of Zacharia's firing and how Trump's Ice Maiden laid primetime 'trap'
+    p: 608 comments
+    [link] A leaked list names five people drafted to replace Susie Wiles
+    p: 174 comments
+H3 DON'T MISS
+    [link] Halle Berry left court holding fiancé Van Hunt’s hand as her custody battle with ex Olivier Martinez continued over claims she abused their 13-year-old son
+    [link] Matthew Perry’s family revealed what they say drove his habit of taking ketamine eight times a day
+    [link] Kim Kardashian celebrated her 46th birthday in Rome with her mother Kris Jenner, wearing a sheer lace gown
+    [link] Al Roker jokingly called Jenna Bush Hager “big” on the Today show, leaving her speechless
+    [link] Thieves burglarized Vanderpump Rules star Ariana Madix’s Los Angeles home and stole jewelry
+    [link] Kylie Jenner and Timothée Chalamet went for a casual bike ride after Jenner was criticized for wearing a $50 million Victoria’s Secret Fantasy Bra
+    [link] Police did not investigate Thomas Markle as they searched for a letter Meghan revealed
+    [link] Molly Ringwald shared a rare glimpse of her daughter Mathilda on her 23rd birthday
+    [link] Salma Hayek’s 19-year-old daughter Valentina Pinault topped a list of 200 eligible people
+    [link] Candice Swanepoel and Joan Smalls sparked feud rumors after a deleted “backstabber” comment went viral
+    [link] James Bond screen tests are scheduled for this weekend as the search for Daniel Craig’s replacement narrows to three actors
+    [link] David Spade and Dana Carvey defended Shane Gillis over outrage about a joke called misogynistic; Spade asked, “How about we just relax?”
+    [link] Kristen Bell says she cries weekly while navigating marriage to Dax Shepard and raising two children in puberty
+    [link] Jeremy Renner kisses his 13-year-old daughter on the red carpet at the Alice nella Città film festival in Rome
+    [link] Sally Jessy Raphael cuts the asking price of her New York mansion by $2.5 million
+    [link] Meghan debuts a $54,000 emerald necklace, a $2,400 ivory dress and a $33,000 bracelet in her Christmas collection
+    [link] Kim Kardashian discusses her romance with Lewis Hamilton and hints she has found a partner who fulfils everything she wants
+    [link] Meghan's eight-year estrangement from her father, Thomas Markle, continues as he faces a probe over child abuse images
+    [link] North West, 13, sees the Baddies star she dressed as for Halloween now dress up as her
+    [link] Insiders describe Maura Higgins as ruthless in her pursuit of A-list status
+    [link] Meghan Markle says she is “deeply distressed” by allegations that her father possessed child sex abuse images and reveals a letter with “disturbing” claims
+    [link] Insiders say Trisha Yearwood's weight loss may be linked to private pain
+    [link] Hilary Swank, 52, says she kept her pregnancy secret until her third trimester
+    [link] H3 podcast host Hila Klein accuses her husband Ethan of an affair as producers cut ties, saying, “The betrayal is immeasurable”
+    [link] Meghan first learned of allegations against her father, Thomas, in 2018 after marrying Harry; he now faces a probe over child sex abuse images
+    [link] Jason Momoa buys the late actor Sam Neill's $15 million estate
+    [link] Opinion: Graham Norton appearances can be risky for royals; this is why William appeared
+    [link] Kristen Bell discusses walking the Paris catwalk with Jane Fonda, her love story with Dax Shepard and her Hollywood career
+    [link] A former child star from the 1970s sitcom The Partridge Family is spotted on a rare outing in New Orleans
+    [link] Michael J. Fox reunites with Back to the Future co-star Christopher Lloyd for Lloyd's 88th birthday
+    [link] Victoria Beckham wears a camisole under a suit as she announces her second collaboration with Gap
+    [link] Matthew Perry's sister says she saw his addiction as a “terminal illness” that eventually killed him
+    [link] Charissa Thompson criticizes her ex-husbands during live TV coverage of an NFL game
+    [link] A PR guru says Prince William's appearance on The Graham Norton Show shows how angry he is about his brother
+    [link] Tom Cruise faces protests as he flies by helicopter to an annual Scientology gathering in England
+    [link] The truth behind Harry's heated exchange in NYC
+    [link] A child sex abuse task force in the Philippines is investigating Meghan Markle's father, Thomas; the FBI is considering next steps
+    [link] Kris Jenner shows off the results of her $150,000 facelift as she joins Kim at Bvlgari in Rome for Kim's 46th birthday celebrations
+    [link] Sydney Sweeney shaves her face and sticks out her tongue while modelling lingerie from her SYRN line
+    [link] Dolly Parton's sister Stella says a voting machine repeatedly changed her ballot to a Republican candidate she would never vote for
+    [link] Exclusive: Dominic West is banned from driving for six months after being caught speeding
+    [link] Meghan says she cut off contact with Thomas Markle to protect Archie and Lilibet: “I had to protect my children”
+    [link] Andrew may have to testify in a High Court fraud case after an elderly Turkish woman gave gifts worth up to $1 million
+    [link] Hugh Jackman leaves lunch with girlfriend Sutton Foster carrying a box of leftovers
+    [link] Kim Kardashian wears a plunging white gown while visiting the Bvlgari store in Rome during her 46th birthday celebrations
+    [link] Megan Fox is “unbothered” by ex Machine Gun Kelly's romance with Dakota Johnson
+    [link] Padma Lakshmi wears a sheer white dress and Freida Pinto wears a pink mini for Pirelli's 2027 calendar
+    [link] The Gentlemen season 3 confirms new cast after Meghan Markle was linked to the Netflix show
+    [link] Helen Mirren, 81, wears a corset as the piece is presented as suitable for women of any age
+    [link] Janet Jackson, 60, joins Carmen Electra and Tori Spelling at the Gala of the Stars in Los Angeles
+    [link] Richard Eden says the late Queen supported her son marrying his mistress and calls on the King to support William's wishes
+    [link] Exclusive: The manager of R.J. Mitte is identified after the actor claimed her company stole his Breaking Bad fortune
+    [link] Julia Roberts leads celebrity tributes to Tom Skerritt, calling him a “gentle man” after the Top Gun star died at 93
+    [link] Helen Mirren says Queen Elizabeth introduced her to a sheikh, saying, “She played me in a film, you know”; he did not know who she was
+    [link] Billie Eilish debuts a short strawberry-blonde bob after replacing her long black hair
+    [link] Gypsy Rose Blanchard says she is “100 percent” certain her ex-fiancé Ken Urker’s death was not suicide
+    [link] Brandi Glanville says she is “taking her face off” before surgery to remove “something alive” amid facial disfigurement
+    [link] Ariana Grande debuts a bob, replacing her signature ponytail during her hiatus from fame
+    [link] Halle Berry attends a court hearing amid a custody battle with ex Olivier Martinez
+    [link] Prince William appears on The Graham Norton Show, discussing films and his Earthshot Prize
+    [link] Amanda Bynes, 40, steps out in a miniskirt amid her Ozempic weight-loss journey
+    [link] Eric Dane said the first “weird” sign of ALS, which later killed him, appeared during a family dinner
+    [link] Sophia Bush says One Tree Hill co-star Hilarie Burton warned her about dating Chad Michael Murray
+    [link] Josh Brolin attends Alcoholics Anonymous meetings daily at 6 a.m. to stay sober after waking on a sidewalk from drinking
+p: Showbiz
+    [link] Ric Flair’s daughter Charlotte says he is doing “OK” after the 77-year-old wrestling icon was rushed to a Florida hospital
+    p: Sport · 31 Comments
+    [link] Max Verstappen says Austin’s bumpy US Grand Prix track is damaging his spine and calls it “unacceptable” and “out of control”
+    p: Sport · 19 Comments
+    [link] A Detroit woman developed a debilitating illness after starting cannabis at 15; hot showers are now the only relief
+    p: News · 26 Comments
+    [link] A tourist’s attempt to climb a dangerous California mountain in running shoes and a sweater triggered a multi-day rescue operation
+    p: News · 95 Comments
+    [link] McDonald’s brings the McRib back early, but the sandwich is not available everywhere
+    p: Money · 63 Comments
+    [link] An Emmy-winning TV reporter is accused of helping release 2.4 million opioid doses in a $14 million scheme
+    p: News · 21 Comments
+    [link] Police say DNA from an envelope licked by cold-case suspect David Tibbett helped crack the 1986 murder of Mary Ann Turner
+    p: Crime Desk · 26 Comments
+    [link] Adoptive parents Felicia Adams and Jesse Franks starved and abused 15-year-old Karreon Adams-Franks to death; a social worker had found no present danger six days earlier
+    p: News · 38 Comments
+    [link] A woman was arrested after being filmed slapping and abusing a driving instructor in a parking dispute in Langley, British Columbia
+    p: News · 146 Comments
+    [link] David Vulin will not be charged for punching influencer Ryley Niemi, who approached Vulin and his husband with questions about child molestation
+    p: News · 2 Comments
+    [link] Police say school worker Edward Villa, 45, murdered three generations of his girlfriend’s family in Happy Valley, Oregon, then apparently killed himself
+    p: News · 48 Comments
+    [link] The CDC will screen foreign travelers to the US to check whether they traveled to the Democratic Republic of the Congo amid an Ebola outbreak
+    p: Health · 1 Comment
+    [link] LeBron James debuted a handshake with Joel Embiid after a national anthem controversy; the 76ers beat the Cleveland Cavaliers after a comeback
+    p: Sport · 14 Comments
+    [link] Prosecutors say Xavian Collins, 17, shot and killed Darrel Rodriguez, 26, after Rodriguez told him to stop smoking marijuana on a New York subway
+    p: Crime Desk · 47 Comments
+    [link] Sandra Birchmore, who was pregnant, was found hanged after telling a Boston police officer she was expecting his child
+    p: 11 comments
+    [link] Read letters from the Alexander brothers before their sentencing
+    p: 76 comments
+    [link] Alex Murdaugh’s lawyer suggests the murders were a “$165k drug deal gone bad”
+    p: 78 comments
+    [link] A person says they realized they were next on a killer’s hit list when a sheriff was shot dead
+    p: 3 comments
+    [link] A step-by-step account of what happened the night Tupac died
+    p: 26 comments
+    [link] What happens inside the body after a person stops drinking
+    p: 70 comments
+    [link] Opinion: Maureen Callahan says Prince Harry should admit that it is all over
+    [link] Opinion: Meghan is hard to bear, but Prince Harry is worse
+    [link] Opinion: Richard Eden says the King should support William as the late Queen supported him
+    [link] A writer says Harry’s new interview stirred up their royal WhatsApp group
+H3 DON'T MISS
+    [link] Michael Gray, the actor who starred in the 1970s superhero series “Shazam!”, died at 75
+    [link] Blake Shelton recalls his final exchange with John Anderson days before the country singer died at 71: “I am sick and stunned”
+    [link] Ryan Seacrest revealed what is in his freezer after showing his muscular physique at 51
+    [link] Actor Tom Skerritt, known for “Top Gun” and “Alien,” died at 93; his family paid tribute
+    [link] Meghan releases a second holiday collection of As Ever products, including candles, a notebook and a $535 hamper
+    [link] Timothée Chalamet goes viral for looking only at Kylie Jenner at a Victoria’s Secret event
+    [link] Mariska Hargitay’s 20-year-old son August towers over her at a Knicks game during a rare outing together
+    [link] An ESPN host turned Trump staffer is booed out of an NBA arena after throwing a drink at a fan
+    [link] John Goodman says he weighed almost 400 pounds and was “eating alcoholically” after quitting drinking
+    [link] Peg Munson, 63, dumps Golden Bachelor Mel Owens, 67, after his past dismissal of women over 60
+    [link] Kim Kardashian credits unusual skin treatments, not plastic surgery, for changes to her appearance over 20 years of fame
+    [link] Influencer Clavicular brings a leashed barking dog to court as he faces rape charges
+    [link] North West dresses as Baddies star Natalie Nunn for Halloween and receives praise from the rapper
+    [link] Anthony Kiedis’s 31-year-old girlfriend attends a Red Hot Chili Peppers concert after criticism of his relationships with much younger women
+    [link] Insiders say Taylor Swift is “aggravated and at boiling point” and question whether her public image has cracked
+    [link] Harry Styles reacts angrily after being recognized during a quiet walk in New York City
+    [link] Kate says she misses Prince George and looks forward to his return from Eton during half-term break
+    [link] Court hears Russell Brand told fans his age range for sex was “16 to death” and invited women before choosing them
+    [link] Country singer John Anderson dies at 71; his family says his voice and songs touched countless lives
+    [link] Joe Amabile says he had no symptoms before doctors discovered a brain tumor when he was 40
+    [link] Evangeline Lilly says she left Hollywood because she has “always hated being famous”
+    [link] Inside story: Ron Duguay spent a night with Cher in Gene Simmons’s bed and could not settle down with her
+    [link] Raye wears a green feathered dress at the 2026 Mercury Prize event in the UK, alongside Jade Thirlwall and Olivia Dean
+    [link] Ron Duguay, Sarah Palin’s boyfriend and a hockey legend, dies at 69 after colon cancer
+    [link] Kylie Jenner poses on a beach with a horse in a lingerie-inspired dress for a Stella McCartney campaign
+    [link] Kourtney Kardashian says she and sister Kim had a weeks-long feud after Kourtney exposed Kim's secret wedding at 19
+    [link] Millie Bobby Brown wears a stylish outfit with husband Jake Bongiovi for a New York City date night
+    [link] Exclusive: Former Hollywood actress who starred in an ’80s sitcom with Sarah Jessica Parker is seen on a rare Los Angeles outing
+    [link] Opinion: Robert Jobson says Harry's new interview upset his royal WhatsApp group and William and Kate's response will be hard for Harry to accept
+    [link] Matthew Perry's sister reveals a painful truth behind a Friends wedding episode
+    [link] Kristin Cavallari is accused of driving 88 mph in a Porsche 911 in Tennessee
+    [link] A Hollywood stuntman who doubled for Brad Pitt in F1: The Movie sues for $200,000 over a drainage problem in his new home
+    [link] A 60-year-old Brooklyn man was filmed making racist, profane remarks while being escorted off a Delta plane; he was arrested and charged with assault and disorderly conduct
+    p: News · 89 Comments
+    [link] Knicks staffers and coaches were reportedly tricked by a fake email about championship rings as part of a phishing test
+    p: Sport · 20 Comments
+    [link] ACLU Indiana lawyers resigned in protest after the branch hired Nikkita Oliver, accused of driving out Jewish lawyers
+    p: News · 23 Comments
+H3 Showbiz extra
+    [link] Meghan McCain urges Republicans to stop highlighting women who have had “bizarre or botched plastic surgery”
+    [link] Exclusive: Model Sahara Ray, 34, died months after becoming a mother; her family says they made the agonizing decision to end life support
+    [link] Alex Cooper announces the birth of her baby boy with husband Matt Kaplan
+    [link] A volunteer challenged Meghan's questions about filling a donation bag during her visit to a food bank
+    [link] Jay-Z reportedly chose himself for the 2027 Super Bowl halftime show, leaving out Miley Cyrus and Justin Bieber
+    [link] High Potential child star Matthew Lamb, 14, says his mother has died in a social media post
+    [link] Brooklyn Beckham and wife Nicola Peltz share photos of themselves feeding each other pizza
+    [link] Kate, William, Charles and Camilla host the Sultan of Oman on a state visit to the UK
+    [link] Netflix is reportedly cutting series with “zero financial return” as executives leave and the streaming service targets royal vanity projects
+    [link] Rachael Ray discusses her diet and hormone replacement months after her changed appearance raised concern
+    [link] Machine Gun Kelly parties with fans as Dakota Johnson reportedly says she is having the best sex of her life with him
+    [link] The Pentagon releases UFO files describing alleged non-human bodies and an egg-shaped craft in a guarded hangar
+    p: Science · 693 Comments
+    [link] A Boston father is convicted of molesting a 17-year-old girl through a seat gap on a JetBlue flight
+    p: News · 141 Comments
+    [link] Experts say Six Flags could take years to regain riders’ trust after Hassan Kariem’s death; the company’s shares hit a record low
+    p: Travel · 19 Comments
+H3 TOP US SPORTS STORIES
+    [link] Indiana Fever fire GM after Caitlin Clark & Co. fail to reach WNBA playoff semis amid growing impatience from fans Sixth place isn't enough
+    [link] Trump warns WNBA stars will 'destroy themselves' in blistering attack over national anthem walk-offs and urges fans to stop watching
+[button] Sift

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Star labels · tbl6</title>
+<style>
+body{font-family:system-ui;margin:0}main{max-width:680px;margin:24px auto}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.stars{color:#c80}
+</style></head>
+<body>
+<main>
+<h1>Star labels</h1>
+<article><h2><span class="stars" aria-label="5 out of 5 stars">★★★★★</span> A: aria-label span in a heading</h2>
+<p>Text one. The bakery is open every day from seven to seven, and the rye is baked twice a day.</p></article>
+<article><h2><span class="stars" aria-hidden="true">★★★★☆</span><span class="sr-only">4 out of 5 stars</span> B: hidden glyphs, sr-only twin</h2>
+<p>Text two. Delivery takes one day inside the city, and two days for the rest of the county.</p></article>
+<article><h2><span class="stars" role="img" aria-label="3 out of 5 stars">★★★☆☆</span> C: role img in a heading</h2>
+<p>Text three. Every loaf is weighed before it leaves, and the label says its weight in grams.</p></article>
+<p id="pa">Rated <span class="stars" aria-label="2 out of 5 stars">★★☆☆☆</span> by Dara on October 9.</p>
+<p id="pb">Rated <span class="stars" aria-hidden="true">★☆☆☆☆</span><span class="sr-only">1 out of 5 stars</span> by Eli on October 8.</p>
+<p id="pc">Our best seller <span aria-label="fire">🔥</span> stays an emoji, and so does a close mark <button type="button" aria-label="Close">×</button>.</p>
+</main>
+</body></html>

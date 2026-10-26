@@ -1,0 +1,17 @@
+url: http://127.0.0.1:8799/fx/r5-stickybar.html
+first sift content: 471 ms
+logs:
+
+--- outline (12 lines) ---
+[button] Skip to content
+[button] Menu
+H1 Your basket
+  li: Sourdough loaf × 2 — $14.00
+  li: Rye bread × 1 — $6.50
+p: Delivery on Saturday, October 31, between 8 and 10 am.
+  [input:checkbox] on 
+p: Total $20.50
+  [input:checkbox] on 
+  [link] terms of sale
+  [button] Go to payment
+[button] Sift

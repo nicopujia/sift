@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Combo fixture</title></head>
+<body>
+<main>
+<h1>Order fruit</h1>
+<p>Pick a fruit from the list. The list opens while you type. Escape closes it, as the ARIA combobox pattern says.</p>
+<form id="S" onsubmit="event.preventDefault();__log.push('submit '+q.value)" style="position:relative">
+  <label>Fruit <input id="q" role="combobox" aria-expanded="false" aria-controls="lb" autocomplete="off"></label>
+  <label>Amount <input id="amt"></label>
+  <ul id="lb" role="listbox" hidden style="position:absolute;top:40px;left:0;width:300px;background:#fff;border:1px solid #999;list-style:none;margin:0;padding:4px"></ul>
+  <button>Order</button>
+</form>
+</main>
+<script>
+window.__log = [];
+const q = document.getElementById("q"), lb = document.getElementById("lb");
+let active = -1;
+function draw() {
+  const v = q.value;
+  const opts = ["apple", "apricot", "banana"].filter((s) => v && s.startsWith(v));
+  lb.innerHTML = opts.map((s, i) => '<li role="option" id="o' + i + '">' + s + "</li>").join("");
+  lb.hidden = !opts.length; active = -1;
+  q.setAttribute("aria-expanded", String(!lb.hidden));
+}
+q.addEventListener("input", draw);
+q.addEventListener("change", () => __log.push("change " + q.value));
+q.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !lb.hidden) { lb.hidden = true; q.setAttribute("aria-expanded", "false"); __log.push("escape closed list"); e.preventDefault(); }
+  else if (e.key === "ArrowDown" && !lb.hidden) { active = Math.min(active + 1, lb.children.length - 1); e.preventDefault(); }
+  else if (e.key === "Enter" && !lb.hidden && active >= 0) { q.value = lb.children[active].textContent; lb.hidden = true; __log.push("enter picked " + q.value); e.preventDefault(); }
+});
+lb.addEventListener("click", (e) => { const li = e.target.closest("[role=option]"); if (li) { q.value = li.textContent; lb.hidden = true; __log.push("picked " + li.textContent); } });
+</script>
+</body></html>

@@ -1,0 +1,30 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><title>Showtimes</title>
+<style>
+body{font:16px sans-serif;margin:20px}
+.dates,.slots{display:flex;gap:8px;flex-wrap:nowrap;overflow-x:auto}
+.dates button,.slots button{padding:6px 10px;white-space:nowrap}
+.dates button.sel{background:#036;color:#fff}
+.days{display:flex;gap:6px}
+.days .d{padding:4px}
+</style></head><body>
+<main>
+<h1>Dune: Part Two</h1>
+<p>Pick a day and a time to book your seats at Cinema City Leeds. Tickets are held for ten minutes while you pay.</p>
+<h2>Choose a day</h2>
+<div class="dates" id="dates"></div>
+<h2>Times</h2>
+<div class="slots" id="slots"></div>
+<p id="picked">No time picked yet.</p>
+<h2>Other days</h2>
+<div class="days" id="days"></div>
+</main>
+<script>
+const days=["Fri 24","Sat 25","Sun 26","Mon 27","Tue 28","Wed 29","Thu 30","Fri 31","Sat 1","Sun 2"];
+const d=document.getElementById("dates");
+days.forEach((x,i)=>{const b=document.createElement("button");b.textContent=x;if(!i)b.className="sel";b.onclick=()=>{d.querySelectorAll("button").forEach(o=>o.className="");b.className="sel";document.getElementById("picked").textContent="Day picked: "+x;};d.appendChild(b);});
+const s=document.getElementById("slots");
+["10:30 AM","11:45 AM","1:00 PM","2:15 PM","3:30 PM","4:45 PM","6:00 PM","7:15 PM","8:30 PM","9:45 PM"].forEach(x=>{const b=document.createElement("button");b.textContent=x;b.onclick=()=>{document.getElementById("picked").textContent="Time picked: "+x;};s.appendChild(b);});
+const w=document.getElementById("days");
+days.forEach((x,i)=>{const c=document.createElement("div");c.className="d";c.innerHTML='<a href="/showtimes?day='+i+'">'+x+'</a>';w.appendChild(c);});
+</script>
+</body></html>

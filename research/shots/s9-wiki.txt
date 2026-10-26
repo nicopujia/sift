@@ -1,0 +1,80 @@
+[button] Skip to content
+  [input:search]  Search Wikipedia
+  [button] Search
+[button] Menu
+[link] Create account
+[link] Log in
+H1 Sourdough
+p: From Wikipedia, the free encyclopedia
+  p: SHORTENING…
+    [link] Sourdough (disambiguation)
+  [link] 
+  figcaption: a freshly baked sourdough bread loaf
+  td: a freshly baked sourdough bread loaf
+  td: Type
+    [link] Bread
+  td: Main ingredients
+    [link] Flour
+    [link] water
+    [link] salt
+    [link] Media: Sourdough bread
+    [link] leavening agent
+    [link] yeast
+    [link] lactobacillus bacteria
+    [link] lactic acid
+  H2 History
+    [link] Middle Ages
+    [link] barm
+    [link] baker's yeast
+    [link] fermentation
+    [link] Fertile Crescent
+    [link] leavening agent
+    [link] Pliny the Elder
+    [link] beer
+    [link] Northern California
+    [link] California Gold Rush
+    [link] San Francisco
+    [link] Sourdough Sam
+    [link] mascot
+    [link] San Francisco 49ers
+    [link] Fructilactobacillus sanfranciscensis
+    [link] Department of Alaska
+    [link] Yukon Territory
+    [link] Klondike Gold Rush
+    [link] Robert Service
+    [link] Songs of a Sourdough
+    [link] germ theory
+    [link] Louis Pasteur
+    [link] celiac disease
+    [link] medical citation needed
+  H2 Preparation
+  [link] 
+  figcaption: How to make and maintain firm sourdough
+  H3 Starter
+    [link] pre-ferment
+    [link] microorganisms
+    [link] yeast
+    [link] lactobacilli
+    [link] amylase
+    [link] starch
+    [link] glucose
+    [link] maltose
+  H3 Refreshment or feeding of the starter
+  [link] 
+  figcaption: Recently refreshed sourdough
+  p: As it ferments, sometimes for several days, the volume of the starter is increased by periodic additions of flour and water, called refreshments or referred to as a feeding. As long as this starter culture is fed flour a
+    [link] ratio
+  p: A starter prepared from scratch with a salted wheat-rye dough takes about 54 hours at 27 °C (81 °F) to stabilise at a pH between 4.4 and 4.6. 4% salt inhibits L. sanfranciscensis, while C. milleri can withstand 8%.
+    [link] acetic acid
+    [link] Desem
+  H3 Intervals between refreshments
+    [link] F. sanfranciscensis
+  p: The intervals between refreshments of the starter may be reduced in order to increase the rate of gas (CO2) production, a process described as "acceleration." In this process, the ratio of yeasts to lactobacilli may be a
+    [link] petri dishes
+  p: Maintaining metabolically active sourdough with high leavening activity typically requires several refreshments per day, which is achieved in bakeries that use sourdough as sole leavening agents but not by amateur bakers
+  H3 Local methods
+    [link] Unbleached
+    [link] unbromated flour
+    [link] Bran
+    [link] grapes
+    [link] must

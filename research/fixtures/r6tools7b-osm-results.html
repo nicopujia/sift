@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Search | OpenStreetMap</title>
+<style>body{font-family:sans-serif;margin:0;display:flex}#sidebar{width:350px;padding:8px}#map{flex:1;height:100vh;background:#cde}li{padding:6px 0;border-bottom:1px solid #ddd;list-style:none}small{color:#666;display:block}</style></head>
+<body>
+<div id="sidebar">
+  <form action="/search"><input name="query" value="Main Street Springfield" aria-label="Search"><button>Go</button></form>
+  <h2>Search Results</h2>
+  <h4>Results from <a href="https://nominatim.openstreetmap.org/">OpenStreetMap Nominatim</a></h4>
+  <ul class="results-list">
+    <li><small>Secondary Road</small><a class="set_position" href="/way/1001">Main Street, Indian Orchard, Springfield, Hampden County, Massachusetts, 01151, United States</a></li>
+    <li><small>Primary Road</small><a class="set_position" href="/way/1002">Main Street, Downtown Springfield Railroad District, North End, Metro Center, McKnight, Springfield, Hampden County, Massachusetts, 01144, United States</a></li>
+    <li><small>Primary Road</small><a class="set_position" href="/way/1003">Main Street, North End, Metro Center, Springfield, Hampden County, Massachusetts, 01115, United States</a></li>
+    <li><small>Secondary Road</small><a class="set_position" href="/way/1004">Main Street, Springfield, Sangamon County, Illinois, 62701, United States</a></li>
+    <li><small>Residential Road</small><a class="set_position" href="/way/1005">Main Street, Springfield, Greene County, Missouri, 65802, United States</a></li>
+    <li><small>Secondary Road</small><a class="set_position" href="/way/1006">Main Street, Springfield, Clark County, Ohio, 45502, United States</a></li>
+  </ul>
+  <a href="/search?query=Main+Street+Springfield&more=1">More results</a>
+</div>
+<div id="map" role="application" aria-label="Map"></div>
+</body></html>

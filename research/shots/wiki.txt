@@ -1,0 +1,600 @@
+[button] Skip to content
+  [input:search]  Search Wikipedia
+  [button] Search
+[button] Menu
+[link] Create account
+[link] Log in
+H1 Sourdough
+[link] Article
+[link] Talk
+[link] Read
+[link] Edit
+[link] View history
+p: From Wikipedia, the free encyclopedia
+    [link] Sourdough (disambiguation)
+  td: a freshly baked sourdough bread loaf
+  td: Type
+    [link] Bread
+  td: Main ingredients
+    [link] Flour
+    [link] water
+    [link] salt
+    [link] Media: Sourdough bread
+    [link] leavening agent
+    [link] yeast
+    [link] lactobacillus bacteria
+    [link] lactic acid
+  H2 History
+    [link] Middle Ages
+    [link] barm
+    [link] baker's yeast
+    [link] fermentation
+    [link] Fertile Crescent
+    [link] leavening agent
+    [link] Pliny the Elder
+    [link] beer
+    [link] Northern California
+    [link] California Gold Rush
+    [link] San Francisco
+    [link] Sourdough Sam
+    [link] mascot
+    [link] San Francisco 49ers
+    [link] Fructilactobacillus sanfranciscensis
+    [link] Department of Alaska
+    [link] Yukon Territory
+    [link] Klondike Gold Rush
+    [link] Robert Service
+    [link] Songs of a Sourdough
+    [link] germ theory
+    [link] Louis Pasteur
+    [link] celiac disease
+    [link] medical citation needed
+  H2 Preparation
+  [link] 
+  figcaption: How to make and maintain firm sourdough
+  H3 Starter
+    [link] pre-ferment
+    [link] microorganisms
+    [link] yeast
+    [link] lactobacilli
+    [link] amylase
+    [link] starch
+    [link] glucose
+    [link] maltose
+  H3 Refreshment or feeding of the starter
+  [link] 
+  figcaption: Recently refreshed sourdough
+  p: As it ferments, sometimes for several days, the volume of the starter is increased by periodic additions of flour and water, called refreshments or referred to as a feeding. As long as this starter culture is fed flour a
+    [link] ratio
+  p: A starter prepared from scratch with a salted wheat-rye dough takes about 54 hours at 27 °C (81 °F) to stabilise at a pH between 4.4 and 4.6. 4% salt inhibits L. sanfranciscensis, while C. milleri can withstand 8%.
+    [link] acetic acid
+    [link] Desem
+  H3 Intervals between refreshments
+    [link] F. sanfranciscensis
+  p: The intervals between refreshments of the starter may be reduced in order to increase the rate of gas (CO2) production, a process described as "acceleration." In this process, the ratio of yeasts to lactobacilli may be a
+    [link] petri dishes
+  p: Maintaining metabolically active sourdough with high leavening activity typically requires several refreshments per day, which is achieved in bakeries that use sourdough as sole leavening agents but not by amateur bakers
+  H3 Local methods
+    [link] Unbleached
+    [link] unbromated flour
+    [link] Bran
+    [link] grapes
+    [link] must
+    [link] chlorination
+    [link] chloramination
+    [link] chloramines
+    [link] carbon filters
+    [link] diastatic
+    [link] malt
+    [link] maltase
+  p: The flavor of sourdough bread varies from place to place according to the method used, the hydration of the starter and the final dough, the refreshment ratio, the length of the fermentation periods, ambient temperature,
+  H3 Mixing and shaping the bread
+  p: The starter is typically fed 4 to 12 hours prior to being added to dough. Feeding means mixing flour and water into the starter. This creates an active leaven, which should grow in size and is ready to use when it is bub
+  p: A portion of the leaven is mixed with flour and water to make a final dough of the desired consistency. The starter weight is usually 13–25% of the total flour weight, though formulas may vary. Using a smaller ratio of c
+  p: A number of 'no knead' methods are available for sourdough bread.
+  [link] 
+  figcaption: Homemade sourdough bakers commonly use cast iron dutch ovens for baking.
+    [link] proof
+  p: Obtaining a satisfactory rise from sourdough takes longer than a dough leavened with baker's yeast because the yeast in a sourdough is less vigorous. In the presence of lactic acid bacteria, however, some sourdough yeast
+    [link] bread machine
+    [link] apple cider vinegar
+    [link] sourdough starter
+    [link] mother dough
+    [link] baking stone
+  [link] 
+  figcaption: A sourdough loaf featuring both deep and decorative scoring
+  p: In sourdough baking, one or more deep primary cuts are often made to allow controlled expansion during oven spring, and additional shallow slashes are added for decorative effect.
+  p: Once baked, sourdough products keep fresh for a longer time than many other breads, and are good at resisting spoilage and mold without the additives required to retard spoiling of other types of bread.
+  H3 Continuing the cycle
+  p: Bakers almost never make a new starter every time they bake. They generally maintain an unbroken line of starter from the original first batch. This line is called the mother dough, mother sponge, chef, or seed sour), Th
+  p: The first simply reserves a portion of the starter culture for another day. Because of their pH level and the presence of antibacterial agents, such cultures are stable and able to prevent colonization by unwanted yeasts
+  p: The other approach is the French-style levain technique. Instead of preserving a portion of the sourdough starter, it preserves a portion of raw, unbaked bread dough. The next day, the dough is put into a bowl with the o
+  H2 Biology and chemistry
+    [link] Lactic acid fermentation
+    [link] List of microorganisms found in sourdough
+  [link] 
+  figcaption: Sourdough starter made with flour and liquid refreshed for three or more days
+    [link] lactic acid bacteria
+    [link] yeast
+    [link] flour
+    [link] water
+    [link] carbon dioxide
+    [link] lactic acid fermentation
+  H3 Lactic acid bacteria
+    [link] Lactic acid bacteria
+    [link] gram-positive bacteria
+  p: Lactic acid bacteria commonly found in sourdough include Leuconostoc, Pediococcus, Weissella and other genera. The most prevalent species belong to the very large and diverse genus Lactobacillus.
+    [link] aerotolerant anaerobes
+    [link] microaerophiles
+  p: Major lactic acid bacteria in sourdough are heterofermentative (producing more than one product) organisms and convert hexoses by the phosphoketolase pathway to lactate, CO2 and acetate or ethanol; heterofermentative lac
+  H3 Yeasts
+    [link] Kazachstania exigua
+    [link] Saccharomyces cerevisiae
+    [link] Candida milleri
+    [link] Candida humilis
+  H3 Type I sourdough
+    [link] Fructilactobacillus sanfranciscensis
+    [link] endemic
+    [link] Fructilactobacillus sanfranciscensis
+    [link] taxonomy
+    [link] fructose
+    [link] polyfructosanes
+    [link] glucose
+    [link] sucrose
+    [link] fructans
+    [link] wheat
+    [link] spelt
+  p: Investigations of wheat sourdough found that S. cerevisiae died off after two refreshment cycles. S. cerevisiae has less tolerance to acetic acid than other sourdough yeasts. Continuously maintained, stable sourdough can
+  H3 Type II sourdough
+    [link] baker's yeast
+    [link] Saccharomyces cerevisiae
+  p: In Type II sourdoughs, yeast growth is slowed or stopped due to higher fermentation temperatures. These doughs are more liquid and once fermented may be chilled and stored for up to a week. They are pumpable and used in 
+  H3 Type III sourdough
+    [link] spray
+    [link] drum drying
+    [link] caramelization
+    [link] bread improver
+  H2 Types of bread
+    [link] List of sourdough breads
+  [link] 
+  figcaption: Slices of sourdough bread paired with vinegar and oil for dipping
+    [link] rugbrød
+    [link] smørrebrød
+    [link] birote salado
+    [link] Guadalajara
+    [link] baguette
+    [link] yeast
+    [link] Amish friendship bread
+    [link] sugar
+    [link] milk
+    [link] pumpernickel
+    [link] citric acid
+    [link] lactic acid
+    [link] desem
+    [link] teff
+    [link] injera
+    [link] lahoh
+    [link] idlis
+    [link] dosa
+    [link] black gram
+  H2 Possible fermentation effects
+    [link] glycemic index
+    [link] phytates
+    [link] dietary minerals
+    [link] irritable bowel syndrome
+    [link] gluten-free
+    [link] shelf life
+    [link] review
+  H2 Modern culture
+  [link] 
+  figcaption: Sourdough starter
+    [link] Internet
+    [link] social media
+    [link] pyramids of Giza
+    [link] Carl Griffith's 1847 starter
+  [link] 
+  figcaption: Bubbly active starter
+    [link] COVID-19 pandemic
+  [link] 
+  figcaption: Mixing bread using sourdough starter
+  p: Sourdough baking requires minimal equipment and simple ingredients– flour, salt, and water– but invites practice. Purism is a part of the appeal for some people. As described by one enthusiast, "If you take flour, water,
+  H3 Regional preferences
+    [link] rye
+    [link] gluten
+    [link] pentosans
+    [link] amylase
+    [link] pH
+    [link] panettone
+  H2 See also
+  [link] icon
+  [link] Food portal
+      [link] List of sourdough breads
+      [link] Biga
+      [link] Herman cake
+      [link] History of California bread
+      [link] Injera
+      [link] Kyselo
+      [link] Czech
+      [link] List of microorganisms found in sourdough
+      [link] Salt-rising bread
+      [link] Sour mash
+      [link] Sour rye soup
+  H2 Notes
+    li: Michael Gänzle has said Markus Brandt estimated that, in a properly maintained sourdough of sufficient age, the yeasts and lactobacilli each contribute roughly 50% of the total CO2. Gänzle pointed out that while there ar
+      [link] sponge
+  H2 References
+      [link] Jump up to:
+      [link] "Enzymatic and bacterial conversions during sourdough fermentation"
+      [link] doi
+      [link] 10.1016/j.fm.2013.04.007
+      [link] ISSN
+      [link] 0740-0020
+      [link] PMID
+      [link] 24230468
+      [link] "The Biology of... Sourdough"
+      [link] Jump up to:
+      [link] ISBN
+      [link] 978-0123847300
+      [link] Handbook on Sourdough Biotechnology
+      [link] ISBN
+      [link] 978-1-4614-5425-0
+    li: Peters, Erica J. San Francisco: A Food Biography. Rowman & Littlefield, 2013, p. 189.
+      [link] Jump up to:
+      [link] The Oxford Companion to Food
+      [link] 756–757
+      [link] ISBN
+      [link] 978-0192115799
+      [link] "A taxonomic note on the genus Lactobacillus: Description of 23 novel genera, emended description of the genus Lactobacillus Beijerinck 1901, and union of Lactobacillaceae and Leuconostocaceae"
+      [link] doi
+      [link] 10.1099/ijsem.0.004107
+      [link] hdl
+      [link] 10067/1738330151162165141
+      [link] ISSN
+      [link] 1466-5026
+      [link] PMID
+      [link] 32293557
+      [link] "Sourdough Baking"
+      [link] the original
+      [link] "Disclaimer / Avertissement"
+      [link] "The ale-barm method: Worthy of revival or just barmy bread?"
+      [link] "Biomedicine and Health: The Germ Theory of Disease"
+      [link] Jump up to:
+      [link] doi
+      [link] 10.1016/j.ijfoodmicro.2018.08.019
+      [link] ISSN
+      [link] 1879-3460
+      [link] PMID
+      [link] 30172443
+      [link] S2CID
+      [link] 52143236
+      [link] "The rise and rise of sourdough bread"
+      [link] "#Sourdough vs. #sourfaux"
+      [link] "Sourdough or sourfaux? Artisan bread label row erupts"
+      [link] "What is #RealBread? | Real Bread Campaign"
+      [link] "Keep it for cakes Not #RealBread #sourdough | Real Bread Campaign"
+      [link] Jump up to:
+      [link] ISBN
+      [link] 978-0-471-16857-7
+      [link] The Bread Baker's Apprentice: Mastering the Art of Extraordinary Bread
+      [link] ISBN
+      [link] 978-1-60774-865-6
+      [link] Jump up to:
+      [link] ISBN
+      [link] 978-0-19-175627-6
+      [link] Oxford Reference Online
+      [link] ISBN
+      [link] 978-0521439800
+      [link] Jump up to:
+      [link] "Population dynamics and metabolite target analysis of lactic acid bacteria during laboratory fermentations of wheat and spelt sourdoughs"
+      [link] Bibcode
+      [link] 2007ApEnM..73.4741V
+      [link] doi
+      [link] 10.1128/AEM.00315-07
+      [link] PMC
+      [link] 1951026
+      [link] PMID
+      [link] 17557853
+      [link] Jump up to:
+      [link] "Bread technology and sourdough technology"
+      [link] doi
+      [link] 10.1016/j.tifs.2004.04.012
+      [link] the original
+      [link] Jump up to:
+      [link] "Utilisation of maltose and glucose by lactobacilli isolated from sourdough"
+      [link] doi
+      [link] 10.1016/0378-1097(93)90026-x
+      [link] ISSN
+      [link] 0378-1097
+      [link] Jump up to:
+      [link] "Microorganisms of the San Francisco sour dough bread process. I. Yeasts responsible for the leavening action"
+      [link] doi
+      [link] 10.1128/AEM.21.3.456-458.1971
+      [link] PMC
+      [link] 377202
+      [link] PMID
+      [link] 5553284
+      [link] Jump up to:
+      [link] "Microorganisms of the San Francisco sour dough bread process. II. Isolation and characterization of undescribed bacterial species responsible for the souring activity"
+      [link] doi
+      [link] 10.1128/AEM.21.3.459-465.1971
+      [link] PMC
+      [link] 377203
+      [link] PMID
+      [link] 5553285
+      [link] Jump up to:
+      [link] "Microbial ecology of fermenting plant materials"
+      [link] doi
+      [link] 10.1111/j.1574-6968.1987.tb02472.x
+      [link] Jump up to:
+      [link] "Dan Woods long posts 1–4"
+      [link] the original
+      [link] Manual for army bakers
+      [link] 22
+      [link] "Sourdough Bread: How To Begin (easy sourdough for the beginner or novice)"
+      [link] the original
+      [link] The Complete Sourdough Cookbook
+      [link] 40
+      [link] ISBN
+      [link] 978-0-87004-223-2
+      [link] Jump up to:
+      [link] ISBN
+      [link] 978-0-471-18570-3
+      [link] "Lactobacillus hammesii sp. nov., isolated from French sourdough"
+      [link] doi
+      [link] 10.1099/ijs.0.63311-0
+      [link] PMID
+      [link] 15774659
+      [link] "Sourdough Rise Time Table"
+      [link] Applications of Biotechnology in Traditional Fermented Foods
+      [link] ISBN
+      [link] 9780309046855
+      [link] The taste of bread
+      [link] ISBN
+      [link] 978-0-8342-1646-4
+      [link] Jump up to:
+      [link] "Modeling of Growth of Lactobacillus sanfranciscensis and Candida milleri in Response to Process Parameters of Sourdough Fermentation"
+      [link] Bibcode
+      [link] 1998ApEnM..64.2616G
+      [link] doi
+      [link] 10.1128/AEM.64.7.2616-2623.1998
+      [link] PMC
+      [link] 106434
+      [link] PMID
+      [link] 9647838
+      [link] Jump up to:
+      [link] "Lactic Acid Fermentation in Sourdough"
+      [link] "Section - 22. What is the Microbiology of San Francisco Sourdough?"
+      [link] Food Biochemistry and Food Processing
+      [link] ISBN
+      [link] 978-0-8138-0874-1
+      [link] Wikibooks:Cookbook:Sourdough Starter
+      [link] Bakery products: science and technology
+      [link] 551
+      [link] ISBN
+      [link] 978-0-8138-0187-2
+      [link] "The effects of wheat sourdough on glutenin patterns, dough rheology and bread properties"
+      [link] doi
+      [link] 10.1007/s00217-006-0487-6
+      [link] S2CID
+      [link] 83885854
+      [link] the original
+      [link] "Taxonomic structure and monitoring of the dominant population of lactic acid bacteria during wheat flour sourdough type I propagation using Fructilactobacillus sanfranciscensis (formerly Lactobacillus sanfranciscensis) starters"
+      [link] doi
+      [link] 10.1128/AEM.01524-08
+      [link] PMC
+      [link] 2643576
+      [link] PMID
+      [link] 19088320
+      [link] Jump up to:
+      [link] "Pain au Levain Production"
+      [link] Biology of Microorganisms on Grapes, in Must and in Wine
+      [link] ISBN
+      [link] 978-3-540-85462-3
+      [link] Lactic acid bacteria: genetics, metabolism, and applications: proceedings of the Sixth Symposium on lactic acid bacteria: genetics, metabolism and applications, 19–23 September 1999, Veldhoven, The Netherlands
+      [link] ISBN
+      [link] 978-0-7923-5953-1
+      [link] "Taxonomy of Lactobacilli and Bifidobacteria"
+      [link] PMID
+      [link] 17542335
+      [link] "Lactobacilli on plants"
+      [link] doi
+      [link] 10.1128/AEM.16.9.1326-1330.1968
+      [link] PMC
+      [link] 547649
+      [link] PMID
+      [link] 5676407
+      [link] Jump up to:
+      [link] "The biodiversity of lactic acid bacteria in Greek traditional wheat sourdoughs is reflected in both composition and metabolite formation"
+      [link] Bibcode
+      [link] 2002ApEnM..68.6059D
+      [link] doi
+      [link] 10.1128/aem.68.12.6059-6069.2002
+      [link] PMC
+      [link] 134406
+      [link] PMID
+      [link] 12450829
+      [link] Replacement of Renal Function by Dialysis: A Text Book of Dialysis
+      [link] ISBN
+      [link] 978-0898384147
+      [link] Crust & Crumb: Master Formulas For Serious Bakers
+      [link] ISBN
+      [link] 978-1-58008-003-3
+      [link] "Contribution of Sourdough Lactobacilli, Yeast, and Cereal Enzymes to the Generation of Amino Acids in Dough Relevant for Bread Flavor"
+      [link] doi
+      [link] 10.1094/CCHEM.2002.79.1.45
+      [link] the original
+      [link] "Calculated sourdough rise times at various temperatures"
+      [link] Glorious French food: a fresh approach to the classics
+      [link] ISBN
+      [link] 978-0-471-44276-9
+      [link] Easy Breadmaking for Special Diets: Use Your Bread Machine, Food Processor, Mixer, or Tortilla Maker to Make the Bread YOU Need Quickly and Easily
+      [link] ISBN
+      [link] 978-1-887624-11-4
+      [link] "Microbial re-inoculation reveals differences in the leavening power of sourdough yeast strains"
+      [link] doi
+      [link] 10.1016/j.lwt.2007.02.001
+      [link] On food and cooking: the science and lore of the kitchen
+      [link] ISBN
+      [link] 978-0-684-80001-1
+      [link] "Light Sourdough Bread"
+      [link] "Bread scoring patterns and techniques"
+      [link] "Master the Art of Sourdough Scoring for Bakery-Quality Loaves"
+      [link] Jump up to:
+      [link] "Biochemistry and physiology of sourdough lactic acid bacteria"
+      [link] doi
+      [link] 10.1016/j.tifs.2004.02.013
+      [link] Ciao Italia in Tuscany: traditional recipes from one of Italy's most famous regions
+      [link] ISBN
+      [link] 978-0-312-32174-1
+      [link] Momofuku Milk Bar
+      [link] ISBN
+      [link] 978-0307720498
+      [link] Jump up to:
+      [link] "Lactic metabolism revisited: metabolism of lactic acid bacteria in food fermentations and food spoilage"
+      [link] doi
+      [link] 10.1016/j.cofs.2015.03.001
+      [link] ISSN
+      [link] 2214-7993
+      [link] doi
+      [link] 10.1016/j.fm.2006.07.006
+      [link] ISSN
+      [link] 0740-0020
+      [link] PMID
+      [link] 17008155
+      [link] "Influences of Ingredients and Bakers on the Bacteria and Fungi in Sourdough Starters and Bread"
+      [link] doi
+      [link] 10.1128/mSphere.00950-19
+      [link] PMC
+      [link] 6968659
+      [link] PMID
+      [link] 31941818
+      [link] doi
+      [link] 10.1016/j.fbio.2022.101615
+      [link] S2CID
+      [link] 246920460
+      [link] "Fermentations in Sourdough"
+      [link] "Stress physiology of lactic acid bacteria"
+      [link] doi
+      [link] 10.1128/mmbr.00076-15
+      [link] PMC
+      [link] 4981675
+      [link] PMID
+      [link] 27466284
+      [link] doi
+      [link] 10.1016/j.ijfoodmicro.2016.07.018
+      [link] ISSN
+      [link] 1879-3460
+      [link] PMID
+      [link] 27470533
+      [link] Jump up to:
+      [link] CRC Press
+      [link] ISBN
+      [link] 978-1439849040
+      [link] Jump up to:
+      [link] Modern food microbiology
+      [link] ISBN
+      [link] 978-0-387-23180-8
+      [link] Jump up to:
+      [link] "Impact of sourdough on the texture of bread"
+      [link] doi
+      [link] 10.1016/j.fm.2006.07.011
+      [link] PMID
+      [link] 17008161
+      [link] the original
+      [link] Jump up to:
+      [link] Handbook of food science, technology, and engineering
+      [link] ISBN
+      [link] 978-0-8493-9849-0
+      [link] Jump up to:
+      [link] Yeast Biotechnology: Diversity and Applications
+      [link] Bibcode
+      [link] 2009ybda.book.....S
+      [link] ISBN
+      [link] 978-1-4020-8291-7
+      [link] "Mechanism of maltose uptake and glucose excretion in Lactobacillus sanfrancisco"
+      [link] doi
+      [link] 10.1128/jb.176.10.3007-3012.1994
+      [link] PMC
+      [link] 205458
+      [link] PMID
+      [link] 8188601
+      [link] Jump up to:
+      [link] Handbook of dough fermentations
+      [link] ISBN
+      [link] 978-0-8247-4264-5
+      [link] "Lactobacillus sanfrancisco a key sourdough lactic acid bacterium: a review"
+      [link] doi
+      [link] 10.1006/fmic.1996.0083
+      [link] "Microbial ecology of cereal fermentations"
+      [link] "Fructans"
+      [link] ISBN
+      [link] 978-0-12-675414-8
+      [link] Jump up to:
+      [link] The Bread Builders: Hearth Loaves and Masonry Ovens
+      [link] ISBN
+      [link] 978-1-890132-05-7
+      [link] doi
+      [link] 10.1016/j.ijfoodmicro.2016.05.025
+      [link] ISSN
+      [link] 1879-3460
+      [link] PMID
+      [link] 27240218
+      [link] S2CID
+      [link] 21591819
+      [link] Bakery products: science and technology
+      [link] ISBN
+      [link] 978-0-8138-0187-2
+      [link] Molecular techniques in the microbial ecology of fermented foods
+      [link] ISBN
+      [link] 978-0-387-74519-0
+      [link] Handbook of food products manufacturing
+      [link] ISBN
+      [link] 978-0-470-12524-3
+      [link] Technology of reduced additive foods
+      [link] ISBN
+      [link] 978-0-632-05532-6
+      [link] "Recipes: Baking that dark, sour bread (Rugbrød) -The official website of Denmark"
+      [link] the original
+      [link] "Discovering Danish Rye Bread"
+      [link] "Birote bread: the unique taste of Jalisco"
+      [link] "How to Bake Traditional German-Style Pumpernickel at Home"
+      [link] The Laurel's Kitchen Bread Book: A Guide to Whole-Grain Breadmaking
+      [link] ISBN
+      [link] 978-0-307-76116-3
+      [link] "10.4. Forgotten Foods Comparison of the Cuisines of Northern and Southern Azerbaijan by Pirouz Khanlou"
+      [link] "Recipe: Ethiopian Injera"
+      [link] "Lahoh Sana'ani"
+      [link] Handbook of Indigenous Fermented Foods, Second Edition
+      [link] ISBN
+      [link] 978-0-8247-9352-4
+      [link] "Bread making technology influences postprandial glucose response: a review of the clinical evidence"
+      [link] doi
+      [link] 10.1017/S0007114517000770
+      [link] PMID
+      [link] 28462730
+      [link] "Mediterranean diet pyramid: A proposal for Italian people"
+      [link] doi
+      [link] 10.3390/nu6104302
+      [link] PMC
+      [link] 4210917
+      [link] PMID
+      [link] 25325250
+      [link] Jump up to:
+      [link] doi
+      [link] 10.1016/j.ijfoodmicro.2018.05.018
+      [link] ISSN
+      [link] 1879-3460
+      [link] PMID
+      [link] 29801967
+      [link] S2CID
+      [link] 44105613
+      [link] "Use of Sourdough in Low FODMAP Baking"
+      [link] doi
+      [link] 10.3390/foods7070096
+      [link] ISSN
+      [link] 2304-8158
+      [link] PMC
+      [link] 6068548
+      [link] PMID
+      [link] 29932101
+      [link] "Sourdough Fermentation Degrades Wheat Alpha-Amylase/Trypsin Inhibitor (ATI) and Reduces Pro-Inflammatory Activity"

@@ -1,0 +1,10 @@
+[button] Skip to content
+H1 whoa there, pardner!
+p: Your request has been blocked due to a network policy.
+  [link] here
+  [link] here
+  [link] here
+  [link] here
+p: When contacting us, please include your Reddit account along with the following code:
+p: 01a16cc5-b0b0-7902-a954-dbb795dbc5c4
+[button] Sift

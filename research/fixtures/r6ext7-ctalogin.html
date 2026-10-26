@@ -1,0 +1,14 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><title>Create your account</title></head><body>
+<!-- F627 (round 6, ext7): a strip with one button-styled link to the site's own subdomain.
+     Sign-in and help strips are real actions and must stay. Only a strip that sells another
+     product of the site (the radio) is a cross-promotion and goes. Serve it at a host with a
+     subdomain link (the harness serves it as http://fixture.test/page). -->
+<main>
+<h1>Create your account</h1>
+<p>Join to save articles, follow topics and get the morning briefing in your inbox every weekday.</p>
+<form action="/signup" method="post" onsubmit="event.preventDefault()"><label>Email <input type="email" name="email"></label> <button type="submit">Create account</button></form>
+<div class="signin-strip">Already have an account? <a class="btn btn-secondary" href="https://account.fixture.test/login">Log in</a></div>
+<div class="help">Need help? <a class="btn" href="https://help.fixture.test/">Visit the help centre</a></div>
+<div class="radio-strip"><span>The world needs more music</span> <a class="ln-button cta" href="https://radio.fixture.test/">Listen to our radio</a></div>
+</main>
+</body></html>

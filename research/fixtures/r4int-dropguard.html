@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Upload photos</title></head>
+<body>
+<main>
+<h1>Upload photos</h1>
+<p>Drop photos anywhere on this page to add them to your album, or choose them with the button below. Dropping a file never leaves the page.</p>
+<form onsubmit="event.preventDefault()">
+  <label>Album name <input id="album" type="text"></label>
+  <label>Photos <input id="f" type="file" multiple></label>
+  <button>Save album</button>
+</form>
+<p id="status">No photos yet.</p>
+</main>
+<script>
+window.__log = [];
+// The common guard: a file dropped anywhere is taken by the page, never opened by the browser.
+addEventListener('dragover', (e) => { e.preventDefault(); });
+addEventListener('drop', (e) => { e.preventDefault(); const n = e.dataTransfer?.files?.length ?? 0; __log.push('page took ' + n + ' file(s)'); document.getElementById('status').textContent = n + ' photo(s) added.'; });
+</script>
+</body></html>

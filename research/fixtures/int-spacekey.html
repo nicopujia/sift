@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Player page</title></head>
+<body><main><h1>Player page</h1><p>Space plays and pauses, like on a video site. The page binds it on the document.</p><p>More text so the page has content.</p></main>
+<script>window.__log = [];
+document.addEventListener("keydown", (e) => { if (e.key === " " && !/input|textarea|button/i.test(e.target.localName)) { e.preventDefault(); __log.push("space on " + e.target.localName); } });
+</script></body></html>

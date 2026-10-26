@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Popover fixture</title>
+<style>.leaflet-container { position: relative; width: 800px; height: 480px; background: #cde; }</style></head>
+<body>
+<main>
+<h1>Popover fixture</h1>
+<p>The page shows a toast as a manual popover now and then.</p>
+<form onsubmit="event.preventDefault()">
+<label for="name">Your name</label><input id="name" type="text">
+<label for="city">City</label><input id="city" type="text">
+<button type="submit">Save</button>
+</form>
+<div id="map" class="leaflet-container" tabindex="0" aria-label="Map"><button id="zin">Zoom in</button><button id="zout">Zoom out</button></div>
+<div id="toast" popover="manual" style="background:rgb(255,0,0);width:300px;height:100px">Saved a draft</div>
+<div id="auto" popover="auto">Auto popover text</div>
+</main>
+<script>
+window.toast = () => { const t = document.getElementById("toast"); t.hidePopover(); t.showPopover(); };
+</script>
+</body></html>

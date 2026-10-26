@@ -1,0 +1,143 @@
+[button] Skip to content
+  [input:search]  Search
+  [button] Search
+H1 Hacker News
+  [link] Hacker News
+  [link] new
+  [link] past
+  [link] comments
+  [link] ask
+  [link] show
+  [link] jobs
+  [link] submit
+    [link] login
+    [link] TornadoVM 7 Enables GPU-Native Workloads from Java Applications
+    p: (infoq.com) · 33 points by pjmlp 2 hours ago
+    [link] upvote
+    [link] 2 comments
+    [link] Google illegally cut down 250K trees in Finland for data center
+    p: (nypost.com) · 86 points by rustybolt 43 minutes ago
+    [link] upvote
+    [link] 34 comments
+    [link] OBS Studio 33
+    p: (github.com/obsproject) · 318 points by pentagrama 10 hours ago
+    [link] upvote
+    [link] 100 comments
+    [link] Around a dozen banking apps began specifically permitting GrapheneOS
+    p: (grapheneos.social) · 381 points by privacyishuman 14 hours ago
+    [link] upvote
+    [link] 119 comments
+    [link] Node2Shell evolves to HTTP2Shell, blast radius affects many HTTP libs and apps
+    p: (aikido.dev) · 121 points by theanonymousone 7 hours ago
+    [link] upvote
+    [link] 62 comments
+    [link] I Don't Understand Quantum Physics (2018)
+    p: (southampton.ac.uk) · 182 points by rramadass 5 hours ago
+    [link] upvote
+    [link] 123 comments
+    [link] Kimi K3.1 Pro and K3.1 Pro Highspeed
+    p: (kimi.ai) · 1001 points by Jowsey 22 hours ago
+    [link] upvote
+    [link] 601 comments
+    [link] Physicists trap a single antimatter particle for a month
+    p: (scientificamerican.com) · 159 points by mooreds 8 hours ago
+    [link] upvote
+    [link] 56 comments
+    [link] Today, we hacked what we'd set out to hack: the iPhone
+    p: (calif.io) · 999 points by pavel_lishin 22 hours ago
+    [link] upvote
+    [link] 625 comments
+    [link] Appreciating the beauty of all your body's scars and scratches
+    p: (1000awesomethings.com) · 45 points by surprisetalk 4 hours ago
+    [link] upvote
+    [link] 27 comments
+    [link] Twelve years of distributed SQLite
+    p: (philipotoole.com) · 289 points by otoolep 14 hours ago
+    [link] upvote
+    [link] 43 comments
+    [link] Local Wikipedia: Wikipedia, but only for things a half hour walk from you
+    p: (edjefferson.com) · 1459 points by sohkamyung 1 day ago
+    [link] upvote
+    [link] 238 comments
+    [link] Apple Music 404 Not Found
+    p: (music.apple.com) · 846 points by frizlab 22 hours ago
+    [link] upvote
+    [link] 247 comments
+    [link] How to run a city builder on 16 MHz
+    p: (larstofus.com) · 57 points by rex64 7 hours ago
+    [link] upvote
+    [link] 13 comments
+    [link] How close can pure functional programming get to C?
+    p: (rtfeldman.com) · 182 points by stmonty 11 hours ago
+    [link] upvote
+    [link] 44 comments
+    [link] A practical guide to AI image generation, from diffusion to agents
+    p: (danielball.com) · 171 points by westsmith 12 hours ago
+    [link] upvote
+    [link] 52 comments
+    [link] Bringing uv and ty together
+    p: (astral.sh) · 220 points by Ravencentric 15 hours ago
+    [link] upvote
+    [link] 71 comments
+    [link] Show HN: Autonomous root for Tcl Android TV via CVE-2022-22706
+    p: (gitlab.com/c4psu13) · 21 points by t20n 4 hours ago
+    [link] upvote
+    [link] 2 comments
+    [link] Dessa: Conversation Model trained only on speech
+    p: (block.xyz) · 431 points by dsr12 20 hours ago
+    [link] upvote
+    [link] 163 comments
+    [link] Canadians are running out of time to oppose Bill C-22
+    p: (eff.org) · 468 points by hn_acker 1 day ago
+    [link] upvote
+    [link] 242 comments
+    [link] AI-Assisted Paper on Z-Library Cites a TorrentFreak Article That Doesn't Exist
+    p: (torrentfreak.com) · 64 points by TangerineDream 4 hours ago
+    [link] upvote
+    [link] 22 comments
+    [link] I built a neural network using DOOM games
+    p: (github.com/mottopanikeiku) · 4 points by falperc 1 hour ago
+    [link] upvote
+    [link] discuss
+    [link] GPU-unlock: FP/BF16 instruction issue rate on Nvidia 3000's cards
+    p: (github.com/zagitta) · 24 points by fragebogen 5 hours ago
+    [link] upvote
+    [link] 15 comments
+    [link] Hacker reverses Samsung TV, finds on-board AI listening OpenAI account suspended
+    p: (reddit.com) · 368 points by testing22321 9 hours ago
+    [link] upvote
+    [link] 119 comments
+    [link] The Chalk and the Airplane
+    p: (unintendedconsequenc.es) · 20 points by paulorlando 5 hours ago
+    [link] upvote
+    [link] 7 comments
+    [link] Tiling Noise – Procedural GPU Patterns
+    p: (catlikecoding.com) · 16 points by ibobev 3 hours ago
+    [link] upvote
+    [link] 1 comment
+    [link] Apple Security Research Device
+    p: (security.apple.com) · 110 points by neom 12 hours ago
+    [link] upvote
+    [link] 49 comments
+    [link] The Real Kevin Bacon
+    p: (pudding.cool) · 340 points by xnx 1 day ago
+    [link] upvote
+    [link] 87 comments
+    [link] CVE Tracker
+    p: (0xosprey.com) · 199 points by Group_B 18 hours ago
+    [link] upvote
+    [link] 70 comments
+    [link] C vs. C#: racing VLC's Gaussian blur
+    p: (martinfinkel.com) · 112 points by martz 15 hours ago
+    [link] upvote
+    [link] 36 comments
+    [link] More
+  [link] Guidelines
+  [link] FAQ
+  [link] Lists
+  [link] API
+  [link] Security
+  [link] Legal
+  [link] Apply to YC
+  [link] Contact
+[button] Sift

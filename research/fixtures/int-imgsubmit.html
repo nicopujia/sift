@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Login</title></head>
+<body><main><h1>Member login</h1><p>Sign in to see your orders. This older site uses an image as its sign-in button.</p>
+<form id="f" onsubmit="event.preventDefault();__log.push('submit by '+(event.submitter?event.submitter.name:'none'))">
+<label>User <input name="user" id="user"></label>
+<label>Password <input name="pass" type="password" id="pass"></label>
+<input type="image" name="go" alt="Sign in" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" width="80" height="24">
+</form></main>
+<script>window.__log = [];</script></body></html>

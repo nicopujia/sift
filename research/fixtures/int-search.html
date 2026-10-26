@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Diario</title></head>
+<body><header><a href="/">Diario</a>
+<button id="open" title="Ir al buscador" aria-label="Ir al buscador">Buscar</button>
+<div id="sb" hidden><input id="q" type="search" placeholder="Buscar" aria-label="Buscar"></div></header>
+<main><h1>Diario de hoy</h1><p>Noticias del día con mucho texto para que la página tenga contenido de verdad y Sift la muestre.</p><p>Otro párrafo de noticias con más texto, como en un diario real.</p></main>
+<script>
+const log = (s) => sessionStorage.setItem("log", (sessionStorage.getItem("log") || "") + s + ";");
+document.getElementById("open").addEventListener("click", () => { log("open"); sb.hidden = !sb.hidden; });
+q.addEventListener("keydown", (e) => { if (e.key === "Enter") { log("enter " + q.value); location.assign("/results.html?q=" + encodeURIComponent(q.value)); } });
+</script></body></html>

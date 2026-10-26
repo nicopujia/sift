@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Book a table</title>
+<style>#cal{position:absolute;top:34px;left:0;background:#fff;border:1px solid #888;padding:8px;width:280px;z-index:5}#cal table{border-collapse:collapse}#cal td{padding:2px}#cal button{width:34px;height:30px}</style></head>
+<body><main><h1>Book a table</h1><p>Pick a day for your booking. A calendar opens when the date field gets focus or a click, like flatpickr and most booking sites. The field is read-only, so the calendar is the only way to choose.</p>
+<form id="f" onsubmit="event.preventDefault();__log.push('book '+day.value)" style="position:relative">
+<label for="day">Day</label> <input id="day" name="day" readonly placeholder="Choose a day">
+<div id="cal" role="dialog" aria-label="Choose a day" hidden>
+<p id="month">November 2026</p>
+<table role="grid"><tbody></tbody></table>
+</div>
+<p><label for="ppl">People</label> <input id="ppl" name="ppl" type="number" value="2"></p>
+<button>Book</button>
+</form></main>
+<script>window.__log = [];
+const tb = cal.querySelector("tbody");
+for (let w = 0; w < 5; w++) { const tr = document.createElement("tr"); for (let d = 1; d <= 7; d++) { const n = w * 7 + d; if (n > 30) break; const td = document.createElement("td"); td.innerHTML = '<button type="button" data-d="' + n + ' Nov">' + n + '</button>'; tr.appendChild(td); } tb.appendChild(tr); }
+const open = () => { if (!cal.hidden) return; cal.hidden = false; __log.push("calendar opened"); };
+day.addEventListener("focus", open); day.addEventListener("click", open);
+// Like flatpickr: a press outside the field and the calendar closes it.
+document.addEventListener("mousedown", (e) => { if (!cal.hidden && !cal.contains(e.target) && e.target !== day) { cal.hidden = true; __log.push("calendar closed"); } });
+cal.addEventListener("click", (e) => { const d = e.target.dataset.d; if (d) { day.value = d; cal.hidden = true; __log.push("picked " + d); day.dispatchEvent(new Event("change", { bubbles: true })); } });
+</script></body></html>

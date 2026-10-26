@@ -1,0 +1,104 @@
+# Round 5 polish notes (taste-level, not fixed this round)
+
+- T1-youtube: Settings: after Back from a sub-page, the dialog keeps the sub-page's name. It is 'Display language' while showing the main menu, because settingsMenu() reads the h2 of the hidden #submenu header inside the main menu.
+- T1-youtube: Menu: after 'Show more' is clicked, focus jumps to Close instead of staying on the new 'Show less'.
+- T1-youtube: Playlist/Mix section collapses again after every move to another item (mouse or keyboard), so picking the next item means reopening it each time.
+- T1-youtube: Playlist section repeats its name: the summary is 'Gluten-Free Bread · 1 / 28', and the first line under it is 'Gluten-Free Bread · Ela Vegan · 1 / 28'.
+- T1-youtube: Bot-checked playlist items and autoplay targets show the H1 'YouTube'. The playlist row already knows the real title (e.g. watch?v=BD4rtOCkuM0&list=PLhFMh...&index=2).
+- T1-youtube: The playlist 'Now playing' row is marked only by a visible badge, with no aria-current.
+- T1-youtube: Comment controls are described by the comment's time only: the 'Show more replies' aria-describedby points to '2 months ago', not to the author.
+- T1-youtube: Comment items show likes ('8.8K likes') between the author/time line and the text. The original puts likes after the text.
+- T1-youtube: Home meta splits a two-channel credit around the duration: 'ROSÉ · 2:54 · and Bruno Mars · 2.7B views', 'Dschinghis Khan · 4:29 · and Mein Herz schlägt Schlager · 80M views'.
+- T1-youtube: During load (about 1.4-6 s), 'Show transcript' sits alone under the watch actions, then moves into Description.
+- T1-youtube: Search field: no aria-expanded/aria-controls while the suggestion sheet (role=group 'Suggestions') is open.
+- T1-youtube: At 640x450@2x (200% zoom) the switch sits in a black rectangle cut out of the video picture (/home/nico/projects/sift-test-1/research/shots/R5T1-watch-zoom200-b.png).
+- T1-youtube: Up next stops at 20 items. The original's #related has a continuation that loads more.
+- T1-youtube: Before its one-liner arrives, a raw home title showed a U+FFFC box: 'SpongeBob, but it’s just the CGI parts.￼'.
+- T2-news: Guardian home: an empty 'H2 Newsletters' heading is left after the sign-up links are dropped.
+- T2-news: Guardian home: the 'Most popular' block (Most viewed / Deeply read) is dropped. 18 of its 20 stories appear elsewhere, but the Aberfan op-ed and 'Father who killed Oregon school shooter speaks out' are reachable nowhere in Sift.
+- T2-news: Guardian articles (Lula, Meghan, Hebron): the 'last modified' <details> becomes an H2 'Sat 24 Oct 2026 14.52 BST' inside the Short version.
+- T2-news: Guardian articles: 'Explore more on these topics' tags and a 'Reuse this content' link sit inside the Short version. 'More on this story' keeps 'Move carousel backwards/forwards' buttons though every item is listed.
+- T2-news: BBC Limoges: the first video's caption is repeated as a paragraph under its named portal (and at 600 px the second's too).
+- T2-news: BBC live page and Clarín home: video portals are named only 'Video' (the post heading or headline is right above).
+- T2-news: BBC search: the results page H1 is just 'BBC'. The Search dialog also lists the site nav (Home, News, Sport...) as buttons under the field.
+- T2-news: BBC paywall sheet: the payment iframe portal is wider than Sift's sheet and spills out of it, and the sheet title is the iframe's 'Payment and account management'.
+- T2-news: Infobae search dialog: an extra empty 'Search Suggestion' text field, and English field labels 'Search Suggestion' / 'Search' on a Spanish page.
+- T2-news: Infobae home line adds an inference: '...y hacer que Managua pierda territorio' for the source's 'qué puede perder Managua'.
+- T2-news: La Nación home: quiz 'Edición especial: ¿De qué año son estas fotos de Charly García?' + 'Juegos', radio promo 'El mundo necesita más música / Escuchá + música', empty headings 'Ln Juegos', 'Que Sale', 'Selección del Editor'.
+- T2-news: La Nación search: 'Ordenar por:' appears both as a paragraph and as a button. The 20 filter controls come before the results (the original puts them in a side column).
+- T2-news: La Nación login: the divider 'ó ingresá con tu email' comes after the email form and before the Google/Facebook/Apple buttons. The original order is social buttons, divider, email.
+- T2-news: Daily Mail home: each story's category ('News', 'Showbiz') is now a separate link, about 77 extra tab stops (round 4 showed it as plain text).
+- T2-news: Le Monde (lemonde.fr redirected to /en/ here): the 'Le Monde's app / Follow your favorite topics / Download' promo is kept, and photo credits ('SAMEER AL-DOUMY/AFP') show as meta lines with no photo. lemonde.fr/international/ returned a captcha ('Client Challenge'), so I stopped there.
+- T2-news: Clarín Menu: one link is named by its raw URL 'https://365.clarin.com' (an icon-only link).
+- T2-news: Guardian live blog: 'Mail Philip' (a mailto link) and permalink timestamps as links on every post add many tab stops.
+- T3-tools: MDN compat table: an expanded cell's history is squeezed into its narrow column, one word per line, and the icon alt text leaks as 'footnote footnote' (details page, Safari 26.2 and Firefox 49 cells).
+- T3-tools: MDN compat: while the Settings dialog is open, Sift shows a yellow 'notice warn' box with the whole dialog text ('Browser compatibility settings Exit modal Select the browsers…'). Tab inside the dialog cycled close button ↔ body in Sift; not compared with the original.
+- T3-tools: OpenStreetMap: with a single search result, its type label ('Tower') is dropped; with several results the types show.
+- T3-tools: OpenStreetMap /directions: the '31 Day OSM Challenge 2026' banner link and its Close stay in Sift.
+- T3-tools: weather.com daily rows are inconsistent: 'Tonight' is a link with the data in a paragraph below, while 'Sun 25 Sunny 8% 49° 61°' is all one link. Temperatures are not marked high/low.
+- T3-tools: weather.com: label/value pairs are split across lines ('Moon Phase' / 'Waxing Gibbous'; 'Humidity' / '58%' in day details). The 10-day page shows orphan column labels 'Day / Conditions / Temperature'.
+- T3-tools: weather.com picker: the top bar gets a second 'Search for a location' field that mirrors the sheet; 'Improve location precision' appears twice; the 'Favorite places, at your fingertips… free account' promo is kept.
+- T3-tools: GitHub issue: the reactions toggle renders as a checkbox labeled '👍 2 reactions'; '#4419' sits alone under the title with no context; the issue page has no repository name or tabs, while the issues list has them.
+- T3-tools: GitHub issues list with no results: 'No results matched your search… Learn more…' is printed twice.
+- T3-tools: GitHub file view: no line numbers and no branch name ('main').
+- T3-tools: Google Maps: both 'Browse Street View images' and 'Street View' buttons; 'Next page' and 'Close' sit above the opened place card; transit Details lose the line icons ('F , then').
+- T3-tools: Google Maps: after picking a start suggestion by keyboard, focus lands on main, not on a route element; Escape in the search field does not close the Suggestions sheet; the map box goes blank grey while any sheet is open.
+- T3-tools: Wikipedia: the Categories list is kept at the end; the Bagel infobox repeats the image caption 'Sesame bagel' as an empty row.
+- T3-tools: Wikipedia Bread Short version is 2851 of 4001 words (0.71), the same ratio round 4 logged in ai.md.
+- T3-tools: Google Maps at 640 CSS px: the route runs off the right edge of the map box, but the original frames it the same way (R5-T3-zoom-gdir.png vs R5-T3-zoom-gdir-orig.png).
+- T4-generic: Python docs pathlib: short API entries (Path.lstat(), Path.rmdir(), is_symlink()) are still two-column facts rows, while long ones are bold paragraphs followed by blocks. The 'Pattern language' table is split into a 4-row facts list plus a separate '[!seq]' row.
+- T4-generic: Discourse thread header: 4 stat buttons ('411 views', '38 likes', '1 link', '14 users'), 5 "X's profile" links and 'read 8 min' come before the first post.
+- T4-generic: Discourse latest: a row with a single poster still reads "patatinhasdopapa's profile". At 640 px the Welcome row shows "notriddle's profile".
+- T4-generic: Craigslist sort dialog: the current sort is not marked (no aria-pressed or aria-current), and the price options are named '﹩→ $$$' and '$$$ → ﹩'.
+- T4-generic: HN Search: 'Stories', 'Popularity' and 'All time' are links with href='#' and no aria-haspopup or aria-expanded. The pagination drops the original's two icon-only next/last buttons, leaving only 1-6.
+- T4-generic: HN thread and front page: the site nav line 'Hacker News new | past | comments | ask | show | jobs | submit' and 'login' sit above the story, not in Menu. On the front page the author and domain are plain text, not links.
+- T4-generic: arXiv search: the 'Search v0.5.6 released 2020-02-24' banner link is kept at the top. The Field, results-per-page and sort selects get labels that include every option's text, because the label wraps the select.
+- T4-generic: Allbirds at 1280x900: the 734 px main photo fills the first screen, so the title, price and swatches start below the fold.
+- T4-generic: OSM wiki Key:highway: the icon links run together as 'may be used on nodesmay be used on waysmay be used on areas'.
+- T4-generic: Booking city page: the date picker becomes a flat list of 66 day checkboxes, and Sift's header submit button is labelled 'Calendar'.
+- T4-generic: Stack Overflow 927358: after 'Show 8 more comments', focus moves to the answers sort select, not into the new comments.
+- T4-generic: GitHub Status: each component shows a bare 'Normal' line under the uptime line. The text is in the original, but it adds no meaning next to 'Operational'.
+- T5-amazon-gmail-a11y: amazon-search: 'Click to see price' links (rows 13, 16) have no item description, though the 'Add to cart' buttons beside them now do.
+- T5-amazon-gmail-a11y: fx/amazon-product.html: the Black/Blue/White swatches sit in a div.row with no role=group or 'Color' label, so tabbing reads 'Black, toggle button, pressed' with no group name (a visible 'Color: Black' line comes before them).
+- T5-amazon-gmail-a11y: amazon-search pager: the links '2', '3' and 'Next' lose the original's names 'Go to page 2', 'Go to page 3' and 'Go to next page, page 2'.
+- T5-amazon-gmail-a11y: amazon-search rows 3 and 8: the price line reads 'You pay $22.09 15% off coupon appliedYou pay $22.09 with coupon' (glued and repeated). With Amazon's CSS blocked I cannot tell whether the original shows one copy.
+- T5-amazon-gmail-a11y: amazon-search one-liner, row 4 (first generation): 'black memory foam ear cups' moves the product's color onto the ear cups. A second generation put it right ('…120-hour playtime, black').
+- T5-amazon-gmail-a11y: amazon-search: 'Hello, sign in' is drawn as a button while the original is a link (role mismatch; see the finding for the dead click).
+- T5-amazon-gmail-a11y: Switch: pressing Space on the switch to go back to Sift moves focus to main, so the switch's new state is never read and nothing is announced.
+- T5-amazon-gmail-a11y: amazon-search with Amazon's CSS blocked: Amazon's hidden #nav-flyout-icp (role=dialog) shows as a 'Change language' modal on every load, and Tab stops twice on the switch. Both are probably test artifacts of the guard, but a site whose CSS fails to load would get the same modal.
+- T6-fixtures: r4-checkout: visible field errors are still plain black text placed above the label, unlike the red text between the label and the field on the original. Only the field border turns red.
+- T6-fixtures: r5-tabs: the success toast 'Profile saved.' is styled as a yellow warning notice.
+- T6-fixtures: r5-chips: 'Remove Pastry' renders after the Skills input, away from the 'Pastry' chip text. 'Skills' is shown twice (a paragraph and the field label).
+- T6-fixtures: r5-chips: the 'Workly Premium: see who viewed your profile. Try free for 30 days' upsell is kept.
+- T6-fixtures: r5-daterange: the 'Rare find!' urgency badge is kept as a paragraph.
+- T6-fixtures: r5-faq: 'Was this helpful? Yes / No' is kept. After Yes, focus jumps to the next question, and 'Thanks for your feedback.' is not announced.
+- T6-fixtures: r5-table: the header shows '127.0.0.1' instead of the app name 'Crumb Admin' from the side nav, and the current-page nav link 'Orders' sits in the top bar as a dark button.
+- T6-fixtures: r5-table: the inline filter box is moved into Sift's header with a 'Search' button the original does not have (typing still filters live).
+- T6-fixtures: r5-table at 200% zoom: dates wrap mid-value ('2026-' / '10-24').
+- T6-fixtures: r5-table and the native-confirm case: after a row is deleted, focus lands on the next row's same-named Delete with no announcement (the F351 pattern).
+- T6-fixtures: core-consentwall-norole: the sheet heading 'Your privacy choices' is repeated as the sheet's first paragraph.
+- T6-fixtures: r4-rtl: the in-main 'اقرأ أيضاً' (Read also) list of 3 links is dropped (same as round 4).
+- T6-fixtures: r4-feed: after 'Show 3 new posts', the three posts added at the top are not announced.
+- T6-fixtures: Harness note: I changed the screenshot paths in the round-4 scripts under scratchpad/r4-t6/x (sel, feed, late*, co*, wid, zoom, cw) from r4t6- to r5t6-, so they no longer overwrite the round-4 shots.
+- T6-fixtures: New fixtures for later rounds: /home/nico/projects/sift/research/fixtures/r5-daterange.html, r5-chips.html, r5-table.html, r5-tabs.html, r5-wizard.html, r5-faq.html, r5-stickybar.html, r5-rowmenu.html (?all=1 shows all 6 rows). Scripts: /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r5/*.ts (run with SIFT_PORT=9466 SIFT_TAB=T6-fixtures).
+- R1-extractor: generic.ts:2151/2262 toItem: a long teaser that is a separate link (YouTube search snapshot's 'Hey what's up guys welcome back…' key-moment link) now lands in the meta line as a 120-char entry instead of the snippet text (http://127.0.0.1:8799/youtube-search.html, Babish result).
+- R1-extractor: generic.ts:2142 toItem: toggle anchors are collected from the whole entry including the comment body that is walked separately (bodyEl), so a 'more' anchor inside a body could appear twice (code reading, not run).
+- R1-extractor: generic.ts:312-316: the nameTwins doc comment sits above boxButton's doc comment, orphaned.
+- R1-extractor: dom.ts:746 SOCIAL_HOSTS: 'reddit\.com\/submit' can never match, since it is tested against hostOf() (host only).
+- R1-extractor: generic.ts:195 budgetCut keeps an unused _out parameter now that it only sets the flag.
+- R1-extractor: generic.ts:3723 trailingRelated: stray space in 'blocks.splice(i) .filter('.
+- R1-extractor: Extraction of a long Wikipedia article (United States, 22k elements) takes 1.0-1.5 s per pass, the same before and after round 4; profile shows findArticle ~450 ms and list/inlineNodes ~700 ms, with no single superlinear hotspot.
+- R2-interaction: src/content/ui/app.tsx:821-822 (tiedTo): an aria-modal dialog that contains a role=listbox/option/grid and opens within 3 s of typing is still anchored as a non-modal dropdown under the field. In fx/r5int-storemodal.html after Enter in ZIP, main is not inert and Escape does not close it. Checking aria-modal before the listbox rule would fix it.
+- R2-interaction: src/content/index.ts:1104-1108 and 2298: 'N new items' is said only after Sift's own Load more or scrolling to the end. A page 'Load more' shown as a plain action button (fx/r5int-morenav.html, 6 to 12 entries) adds entries silently, and focus stays on the button.
+- R2-interaction: src/content/index.ts:1103-1108: moreAsked is not reset on single-page navigation. Within 10 s of asking for more, the next page's list growing past the old count would be announced as new items. This is from the code. I did not reproduce it.
+- R2-interaction: src/content/ui/app.tsx:494-505: the video seek slider's value and aria-valuetext change every second during playback. A screen reader focused on it may read the time every second. Not checked with a real screen reader.
+- R2-interaction: src/main/index.ts:58-77 and 101-112: the page-world overrides can be seen by page scripts. HTMLElement.prototype.focus.toString() gives 'function(...args) { const r = focus.apply(...' with name '', and the activeElement getter is 'get() {...}' with name 'get' (checked in the test Chrome). Scripts that look for tampered native functions can detect them.
+- R2-interaction: src/content/index.ts:884 and 901-908: editorEscape is never reset when the user leaves a code editor by Tab or a click. On the next visit, the first Escape in that editor leaves the original at once instead of going to the editor.
+- R2-interaction: src/content/portal.ts syncWheel: the non-passive window wheel listener is now on whenever any original is shown (maps, frames, payment fields), not only video, so scrolling waits on the page's main thread there.
+- R2-interaction: src/content/index.ts:2083-2084 (showPlace): it subtracts the bar's height even when the bar is flat (static), so the target lands a bar-height lower than needed at zoom.
+- R2-interaction: src/content/i18n.ts (ar): upNext and next are both 'التالي', so 'Up next' and the pagination 'Next' sound the same.
+- R3-ai-background: src/content/short.ts:367 and :369: a placeholder the model writes as '[[B 0]]' or '[[b0]]' is not recognized. It shows as literal text, and the block is also put back next to it (r5ai/mine/misc.ts).
+- R3-ai-background: src/content/short.ts:470: a link the model moves onto a heading line that matches a source heading ('## Getting a [pass](L0)') counts as kept. It is neither shown nor listed under 'Links in the full text' (r5ai/mine/misc.ts: extra list empty).
+- R3-ai-background: src/content/ai.ts:161 (DATELINE): also strips names and phrases in the news context. 'Entrevista exclusiva con Lula Da Silva' is sent as 'Entrevista exclusiva con Lula', and 'Messages From Kyiv' as 'Messages'.
+- R3-ai-background: src/background/index.ts:605 (doCondense hit path): a signed-in request that hits an entry saved earlier for 30 days does not shorten it to 7 days (only the 'private' message re-saves, and only what this port saved). This only matters when an earlier load never detected the page as signed-in.
+- R3-ai-background: Test harness, scripts/launch.ts + chrome.sh start on an existing profile: the 9469 profile kept running an old background.js (the mock received the old 'Write at most 90 words' prompt) until `chrome.sh reload`. AI checks on a profile started without a reload can test stale worker code.

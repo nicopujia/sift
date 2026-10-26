@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Rye is back: why bakers are turning to old grains · The Crumb</title>
+<style>
+body{font-family:Georgia,serif;margin:0}
+body.locked{overflow:hidden}
+body.locked main{filter:blur(4px)}
+header{padding:12px 24px;border-bottom:1px solid #ccc;font-family:system-ui}
+main{max-width:680px;margin:24px auto}
+.wall{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:system-ui}
+.box{background:#fff;max-width:520px;padding:24px;border-radius:8px}
+.box .vendors{font-size:12px;color:#555;max-height:80px;overflow:auto}
+</style></head>
+<body class="locked">
+<header><a href="/">The Crumb</a> · <a href="/news">News</a> · <a href="/recipes">Recipes</a> · <a href="/subscribe">Subscribe</a></header>
+<main id="main">
+</main>
+<div class="wall" id="wall" role="dialog" aria-modal="true" aria-labelledby="cw-t">
+  <div class="box">
+    <h2 id="cw-t">We value your privacy</h2>
+    <p>We and our 842 partners store and access information on your device, such as cookies, and process personal data, such as unique identifiers, to show personalised ads and content, measure ads and content, and develop and improve products.</p>
+    <p class="vendors">Partners: AdNet One, Measure Co, Trackr, Pixelworks, Audience Hub, and 837 more.</p>
+    <p><button id="acc">Accept all</button> <button id="rej">Reject all</button> <button id="mng">Manage options</button></p>
+    <p>Or <a href="/subscribe?nocookies=1">subscribe for an ad-free version without tracking</a>.</p>
+  </div>
+</div>
+<script>
+window.__log = [];
+const gated = new URLSearchParams(location.search).has("gate");
+const article = '<article><h1>Rye is back: why bakers are turning to old grains</h1><p class="byline">By Ana Ruiz · 24 October 2026</p>' +
+  '<p>For most of the last century, rye was the bread of hard times. Now small bakeries across the country are baking it again, and customers are lining up for it.</p>' +
+  '<p>Bakers say the grain is easier on the soil and tastes of something. "People want bread that has a story," said one baker in Portland, who now sells more rye than white.</p>' +
+  '<p>Rye needs less fertilizer than wheat and grows in poor, cold soil. Farmers in the northern states have begun to plant it again as a winter crop.</p>' +
+  '<p>The dough is sticky and hard to shape, so most bakers mix rye with some wheat. A pure rye loaf takes two days and a sourdough starter.</p></article>';
+function load() { document.getElementById("main").innerHTML = article; __log.push("article loaded"); }
+if (!gated) load(); else document.getElementById("main").innerHTML = "<p>Loading…</p>";
+function close(choice) { __log.push(choice); document.getElementById("wall").remove(); document.body.classList.remove("locked"); if (gated) load(); }
+document.getElementById("acc").onclick = () => close("accept");
+document.getElementById("rej").onclick = () => close("reject");
+document.getElementById("mng").onclick = () => __log.push("manage");
+</script>
+</body></html>

@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Runner fixture</title></head>
+<body><main><h1>Runner fixture</h1><p>An interactive example runner with its own header inside a shadow root, like MDN's.</p>
+<x-runner style="display:block;width:600px;height:300px;border:1px solid #888"></x-runner>
+<p><a href="#after">A link after the runner</a></p></main>
+<script>
+customElements.define("x-runner", class extends HTMLElement {
+  constructor() { super(); this.attachShadow({ mode: "open" }).innerHTML = '<header><h2>Try it</h2><nav aria-label="Tabs"><button>HTML</button><button>CSS</button></nav></header><button id="run">Run</button><canvas width="500" height="200"></canvas>'; }
+});
+</script></body></html>

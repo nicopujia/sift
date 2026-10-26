@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Shop</title></head>
+<body><header><a href="/">Shop</a>
+<div><input id="q" type="search" placeholder="Search products" aria-label="Search products"><button id="go" aria-label="Search">Search</button></div></header>
+<main><h1>Shop home</h1><p>Products and offers with enough text for a real page that Sift will show to the reader.</p><p>Another paragraph with more words about the shop and its products.</p></main>
+<script>
+const log = (s) => sessionStorage.setItem("log", (sessionStorage.getItem("log") || "") + s + ";");
+document.getElementById("go").addEventListener("click", () => { log("go " + q.value); history.pushState(null, "", "/search2.html?q=" + encodeURIComponent(q.value)); });
+</script></body></html>

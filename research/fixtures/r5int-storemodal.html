@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Store picker</title>
+<style>
+#dlg { position: fixed; inset: 15% 25%; background: #fff; border: 2px solid #333; padding: 1em; z-index: 10; }
+#shade { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 9; }
+[role=option] { padding: .3em; cursor: pointer; }
+</style></head>
+<body>
+<main>
+<h1>Pick up in store</h1>
+<p>Enter your ZIP code and press Enter to see the stores near you. Pickup is free and usually ready in two hours.</p>
+<form id="f" onsubmit="event.preventDefault(); openDialog()">
+  <label>ZIP code <input id="zip" name="zip" inputmode="numeric"></label>
+  <button>Find stores</button>
+</form>
+<p>Other text on the page about delivery times and returns, so the page has some content.</p>
+</main>
+<script>
+window.__log = [];
+function openDialog() {
+  if (document.getElementById('dlg')) return;
+  const shade = document.createElement('div'); shade.id = 'shade';
+  const d = document.createElement('div'); d.id = 'dlg'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-labelledby', 'dt');
+  d.innerHTML = '<h2 id="dt">Choose your store</h2><div role="listbox" aria-label="Stores"><div role="option" tabindex="-1">Mission St store, 0.4 mi</div><div role="option" tabindex="-1">Market St store, 1.1 mi</div><div role="option" tabindex="-1">Geary Blvd store, 2.3 mi</div></div><button id="close">Close</button>';
+  document.body.append(shade, d);
+  for (const o of d.querySelectorAll('[role=option]')) o.onclick = () => { __log.push('picked ' + o.textContent); d.remove(); shade.remove(); };
+  d.querySelector('#close').onclick = () => { d.remove(); shade.remove(); __log.push('closed'); };
+  __log.push('dialog opened');
+}
+</script>
+</body></html>

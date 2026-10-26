@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Team notes</title></head>
+<body>
+<main><h1>Team notes</h1><p>Notes from the weekly meeting, kept by the team. Write a new note in the box at the bottom right; drafts are saved when you press Save draft.</p>
+<p>Last week we agreed to move the planning meeting to Tuesdays and to share the agenda the day before.</p></main>
+<section id="compose" aria-label="New note" style="width:360px;height:240px;background:#fff;border:1px solid #888;padding:8px">
+ <h2>New note</h2>
+ <form onsubmit="event.preventDefault()">
+ <div id="ed" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Note text" style="height:110px;border:1px solid #ccc"></div>
+ <button type="button" id="save">Save draft</button>
+ </form>
+</section>
+<script>window.__log = [];
+document.getElementById("save").addEventListener("click", () => __log.push("saved: " + document.getElementById("ed").innerText));
+</script>
+</body></html>

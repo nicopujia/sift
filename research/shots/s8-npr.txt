@@ -1,0 +1,80 @@
+[button] Skip to content
+[button] Menu
+[link] Search
+H1 NPR - Breaking News, Analysis, Music, Arts & Podcasts
+    [link] Flooding in Four Corners region displaces residents, as storms move southeast
+    p: Intense rainfall slammed the Four Corners region late this week. As rivers flooded, towns declared evacuations and emergencies and made rescues.
+      [link] Extreme Weather
+    [button] toggle caption
+    [link] U.S. birth rate drops to record low, but older women are having more babies
+      [link] National
+    [link] This decade has been missing its big-impact midterm
+      [link] Elections
+      [link] What's behind the early voting surge? It's more than voter enthusiasm, expert says
+    [link] Americans can't get enough of mahjong. These traditional makers are cashing in
+      [link] Only on NPR
+    [link] Russia steps up election influence efforts in final stretch of midterms
+      [link] Elections
+    [link] Ohio could decide control of the Senate. Its rural voters might decide the winner
+      [link] Elections
+    [link] Gunmen open fire at a church during a funeral in Jordan, killing 7 and wounding 40
+      [link] Middle East
+    [link] Ex-FBI employees charged with lying to Congress over Hunter Biden inquiries
+      [link] Law
+    [link] Feeling squeezed by high prices? Here are tips for managing your finances
+    p: According to the latest government data, inflation is up 3.7 percent since last September. People are struggling to pay for things like rent, gas, electricity, and groceries. We talk to a personal finance expert about ho
+      [link] Consider This from NPR
+      [link] Why these 5 everyday items fluctuate in price at the grocery store
+      [link] Weddings are expensive. How about a grocery store cake?
+    [button] toggle caption
+    [link] A sweet breakfast of mamounieh in Syria invites stories from fellow diners
+    p: A breakfast pudding in the ancient city of Aleppo, Syria, evokes memories both sweet and bitter.
+      [link] Breakfast Around the World
+    [button] toggle caption
+    [link] Father who killed Silver Rail school shooter grapples with the aftermath
+    p: In an exclusive interview with OPB, Kaylub Giamanco, the man who fatally shot the teenage school shooter at Silver Rail Elementary, shares his experience of what happened.
+    p: OPB · Eli Imadali / OPB
+    [button] toggle caption
+    [link] Fired OpenAI researchers give their first interview since their dramatic dismissal
+    p: In their first interview since being fired, OpenAI safety researchers Mikita Balesni and Tomek Korbak take us inside the Hugging Face hack probe and explain why OpenAI's story doesn't add up.
+      [link] Machine Gods
+    [link] Judge pushes back Charlie Kirk murder trial date decision
+    p: It'll be a few more weeks before a judge sets a trial date for the man accused of shooting and killing conservative influencer Charlie Kirk at Utah Valley University.
+    p: KUER 90.1 · Erin Hooley/Deseret News, pool
+    [button] toggle caption
+    [link] Make a 'sick day' kit for cold and flu season before your household gets hit
+    p: Cold and flu season is here. Before someone in your household gets hit, make sure you have these essential meds and comfort items in your medicine cabinet.
+      [link] Life Kit
+    [link] Newsom could commute California's death sentences. Will he pay a political price?
+    p: Hundreds of people remain on California's death row. In his final weeks in office, Gov. Gavin Newsom is considering whether to commute their sentences to life without the possibility of parole.
+    p: KQED · Jeff Chiu/AP Photo
+    [button] toggle caption
+    [link] Will a macaque eat a grape sitting on a pile of poo? A study on germophobia
+    p: When an outbreak strikes, humans try to avoid germs. (Remember wiping off groceries at the start of the pandemic?) What about ... monkeys?
+      [link] Global Health
+    [button] toggle caption
+    [link] Drinking water supplies dwindle in Yemeni city besieged by Houthi rebels
+    p: Taiz, a city in southwestern Yemen, faces a severe water crisis as Houthi rebels backed by Iran tighten their encirclement. The city has struggled with water issues for over a decade, but the situation has worsened in re
+      [link] World
+    [button] toggle caption
+    [link] Jet fuel prices hit a record and holiday airfares soar higher
+    p: If you're planning to fly this holiday season, be prepared to pay more than you did last year. The price of jet fuel — one of airlines' biggest expenses — is at an all-time high in the U.S.
+      [link] Transportation
+    [button] toggle caption
+    [link] After Sloth World fallout, two Florida lawmakers seek federal ban on wild sloth imports
+    p: Knowingly violating the proposed SLOTHS Act could lead to criminal fines of up to $100,000.
+    p: Central Florida Public Media · Courtesy image/Central Florida Zoo & Botanical Gardens
+    [button] toggle caption
+    [link] Gen Z is 'in the thick' of high housing costs. These candidates aim to solve it
+    p: Young candidates who rent or live with parents say their generation is "in the thick" of the country's housing affordability crisis. They argue this gives them new energy to solve it for everyone.
+      [link] Only on NPR
+      [link] How long does it take to save up for a starter home? Twice as long as it did in 2019
+    [button] toggle caption
+    [link] The Pentagon's guidelines for 'responsible AI' aren't always followed, report shows
+    p: The Pentagon is building weapons and projects with AI capabilities that officials say don't always closely adhere to the agency's own guidelines for AI, according to a congressional watchdog report published in October.
+      [link] National Security
+    [button] toggle caption
+    [link] Why going on a 'say no' retreat is a gift to your future self
+    p: It's a day to think about all the upcoming appointments and commitments you're dreading — and then decline some of them. Writer Caroline Sylge shares a suggested schedule for the day.
+      [link] Life Kit
+    [button] toggle caption

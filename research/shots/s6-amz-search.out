@@ -1,0 +1,85 @@
+url: http://127.0.0.1:8799/amazon-search
+first sift content: 1707 ms
+logs:
+[pageerror] ReferenceError: P is not defined
+--- outline (83 lines) ---
+[button] Skip to content
+  [input:search] wireless headphones Search Amazon
+  [button] Search
+[button] Menu
+[link] Cart 0
+[link] Hello, sign in
+[link] Returns & Orders
+H1 Search: wireless headphones
+  [select:select-one] relevanceblender 
+  H2 Filters
+H2 1-16 of over 50,000 results for "wireless headphones"
+    [img] 
+    [link] Foldable Bluetooth over-ear headphones with noise cancellation and 35-hour playtime
+    p: $20.98 (Typical price: $199.99) · Exclusive Prime price · 4.5★ · 531 ratings · 1K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29 on $35 of items sh
+    [img] 
+    [link] Soundcore by Anker Q20i black over-ear headphones with noise cancellation and 40-hour ANC playtime
+    p: $39.97 (List: $69.99) · 4.5★ · 78,026 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29
+    [button] Add to cart
+    [img] 
+    [link] Open-ear Bluetooth clip-on headphones, 4.6 g each, IPX5 waterproof, with 32-hour playtime
+    p: $25.99 · You pay $22.09 15% off coupon appliedYou pay $22.09 with coupon · 4.2★ · 11 ratings · New on Amazon in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29
+    [button] Add to cart
+    [img] 
+    [link] Wireless over-ear headphones with noise cancellation, 120-hour battery, Hi-Res audio, and black memory foam ear cups
+    p: $29.99 (Typical price: $299.99) · Exclusive Prime price · 4.3★ · 1,118 ratings · 3K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29 on $35 of items 
+    [img] 
+    [link] Apple AirPods Pro 3 earbuds with noise cancellation, live translation, heart rate sensing, and USB-C charging
+    p: $199.00 (List: $249.00) · 4.4★ · 16,928 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29 · More Buying Choices $183.44(7+ used & new of
+    [button] Add to cart
+    [img] 
+    [link] HAOYUYAN black wireless sports earbuds with 80-hour battery, LED display, noise cancellation, and IPX7 waterproofing
+    p: $23.98 (Typical price: $25.98) · Exclusive Prime price · 4.5★ · 1,671 ratings · 7K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29 on $35 of items s
+    [img] 
+    [link] Wireless TV headphones with 45-hour battery, low-latency audio, and optical, RCA, and AUX connections
+    p: $59.99 (List Price: $79.99) · Exclusive Prime price · 4.2★ · 305 ratings · 100+ bought in past month · Join Prime to get FREE delivery Mon, Oct 26 · Or Non-members get FREE delivery Thu, Oct 29
+    [img] 
+    [link] Wireless over-ear headphones with noise cancellation, 120-hour battery, six microphones, and Bluetooth 6.0
+    p: $99.96 (List: $179.99) · You pay $49.98 50% off coupon appliedYou pay $49.98 with coupon · 4.9★ · 129 ratings · 1K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delive
+    [button] Add to cart
+    [img] 
+    [link] White wireless earbuds with Bluetooth 6.0, 50-hour playback, LED display, and IPX7 waterproofing
+    p: $18.97 (Typical price: $19.97) · Exclusive Prime price · 4.8★ · 252 ratings · 7K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29 on $35 of items shi
+    [img] 
+    [link] Black open-ear wireless earbuds with earhooks, 80-hour battery, and IPX7 waterproofing
+    p: $25.63 (Typical price: $26.98) · Exclusive Prime price · 4.7★ · 74 ratings · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29 on $35 of items shipped by Amazon
+    [img] 
+    [link] White Soundcore by Anker Q20i over-ear headphones with noise cancellation and 40-hour ANC battery
+    p: $39.97 (List: $69.99) · 4.5★ · 78,026 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29
+    [button] Add to cart
+    [img] 
+    [link] Matte Black Beats Solo 4 wireless on-ear headphones with 50-hour battery
+    p: $149.95 (List: $199.95) · 4.6★ · 29,891 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29 · More Buying Choices $109.71(8+ used & new of
+    [button] Add to cart
+    [img] 
+    [link] Black Sony WH-CH520 wireless on-ear headphones with microphone, 50-hour battery, and multipoint connection
+    p: 90 days free of Amazon Music with purchase · 4.4★ · 36,142 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29
+    [link] Click to see price
+    [button] Add to cart
+    [img] 
+    [link] Apple AirPods 5 earbuds with noise cancellation, spatial audio, live translation, USB-C case, and H2 chip
+    p: $129.00 · 4.4★ · 329 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29 · More Buying Choices $118.91(6+ used & new offers)
+    [button] Add to cart
+    [img] 
+    [link] BERIBES wireless over-ear headphones, 65-hour battery, six EQ modes, Bluetooth 6.0
+    p: $23.99 (List: $28.99) · 4.5★ · 48,840 ratings · 10K+ bought in past month · FREE delivery Thu, Oct 29 on $35 of items shipped by Amazon · Or fastest delivery Tue, Oct 27
+    [button] Add to cart
+    [img] 
+    [link] Sony WH-CH720N black wireless noise-cancelling over-ear headphones, up to 35-hour battery
+    p: 90 days free of Amazon Music with purchase · 4.3★ · 17,157 ratings · 10K+ bought in past month · Join Prime to get FREE delivery Tomorrow, Oct 25 · Or Non-members get FREE delivery Thu, Oct 29
+    [link] Click to see price
+    [button] Add to cart
+[button] Previous
+[link] 1
+[link] 2
+[link] 3
+[button] … 20
+[link] Next
+H2 Change language
+[button] Close
+  [link] Learn more

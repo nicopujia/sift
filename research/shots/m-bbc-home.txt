@@ -1,0 +1,111 @@
+[button] Skip to content
+[button] Menu
+[button] Search
+[link] Sign In
+H1 Breaking news, video and the latest top stories from the U.S. and around the world
+    [link] Almost 1,000 arrested in protests across France, minister says, as clashes erupt
+    p: Hundreds of thousands earlier attended largely peaceful protests, with demonstrations also taking place in Italy, Belgium and Albania.
+    p: LIVE
+    [link] Watch: BBC in Paris as police charge protesters and use tear gas during unrest
+    p: Europe correspondent Nick Beake reports from Paris where mostly peaceful protests turned into unrest after nightfall.
+    p: 60 mins ago Europe
+    [link] Iran trying harder to target US personnel in Middle East, intelligence chief warns
+    p: The warning comes as the US State Department makes adjustments to staffing at diplomatic posts in the region.
+    p: 13 hrs ago World
+    [link] Vanessa Trump says she is cancer-free six months after revealing diagnosis
+    p: The ex-wife of Donald Trump Jr, with whom she shares five children, announced in May that she had been diagnosed with breast cancer.
+    p: 1 hr ago US & Canada
+    [link] Met Police says letter with claims about Meghan's father not shared with other law enforcement
+    p: The Met said it passed information to the duchess but did not share it with other law enforcement agencies.
+    p: 8 hrs ago UK
+    [link] Watch: Fire engulfs Hitler's mountaintop Eagle's Nest retreat
+    p: Police in the southern German state of Bavaria have detained a 33-year-old German man following the fire.
+    p: 5 hrs ago Europe
+    [link] Infantino tells BBC Sport he is backed by 'vast majority' of world football
+    p: Fifa president Gianni Infantino laughs off questions about whether he considered resigning over the World Cup sell-off debacle.
+    p: 10 hrs ago Football
+    [link] Palestinian families displaced as Israeli forces demolish Hebron homes
+    p: The crackdown follows the killing of two Israeli soldiers by two Palestinian gunmen on Friday - and comes just days ahead of Israel's election.
+    p: 3 hrs ago Middle East
+    [link] Minneapolis withdrawal was 'surrender', Trump's ex-border patrol chief tells BBC
+    [link] British woman dies after trying to rescue sons swept away at sea in the Bahamas
+    [link] Six Flags adding seat belts to Goliath rollercoaster following death
+    [link] Father who killed Oregon school gunman describes anguish over children he couldn't save
+    [link] Are California voters about to impose 'world's first' tax on billionaires?
+H2 More to explore
+    [link] The rise of AI election ads in US midterms campaign
+    p: BBC Verify has tracked dozens of AI ads to assess how they are being used by campaigns in the midterms.
+    p: 16 hrs ago BBC Verify
+    [link] Home distillers rejoice as US Supreme Court considers whether to finally legalise moonshine
+    p: The Supreme Court will consider in the new year whether the 1868 legislation forbidding home distilling should be overturned.
+    p: 1 day ago US & Canada
+    [link] Between quick wins and big dreams lies the UK PM's biggest test
+    p: The prime minister might be dreaming of gold medals in 2040, but he must first navigate the difficult years in between, writes Laura Kuenssberg.
+    p: 10 hrs ago BBC InDepth
+    [link] Before you crank up the thermostat, try these tips to keep you and your home warmer for longer
+    p: With storms hitting parts of the UK and the clocks going back, here are some practical ways to cope with falling temperatures.
+    p: 21 hrs ago Business
+    [link] Who actually controls Ukraine's access to Starlink?
+    p: President Zelensky says limits to the technology continue to affect Ukrainian forces, while US officials and Elon Musk offer conflicting accounts of who controls it.
+    p: 22 hrs ago US & Canada
+    [link] How Brazil's changing working class is reshaping the presidential race
+    p: Calls for change present a challenge to President Lula in the second round of the election on Sunday.
+    p: 16 hrs ago Latin America
+H2 Most watched
+    [link] Fire engulfs Hitler's mountaintop Eagle's Nest retreat
+    [link] Which emergency foods should you stock up on?
+    [link] Watch: At the scene of Berlin Pride attack as manhunt continues
+    [link] Fireworks and tear gas as protesters and riot police clash in Paris
+    [link] Why is John Travolta's old luxury jet in a small Australian town?
+H2 Also in news
+    [link] Trump administration sues to block certification of upcoming Alaska election
+    p: The justice department has filed a lawsuit arguing that the inclusion of two candidates named Dan Sullivan could confuse voters.
+    p: 1 day ago US & Canada
+    [link] Australian MP's condition improves after alleged car attack
+    p: The independent MP is now in a serious but stable condition, according to the Melbourne hospital.
+    p: 19 hrs ago Australia
+    [link] Student movement takes Serbia's Vučić to the wire in neck-and-neck election
+    p: The Student List has emerged from almost two years of anti-corruption protests to form the biggest challenge to Vučić's rule.
+    p: 21 hrs ago Europe
+    [link] Why is John Travolta's old luxury jet in a small Australian town?
+    p: The BBC goes on board Travolta’s old Boeing 707 which is being reassembled in a small coastal town.
+    p: 23 hrs ago Australia
+    [link] Plan for Northern Olympics to get £7m in UK chancellor's Budget
+    p: The full feasibility study will look in detail at how hosting the Games in northern England could work.
+    p: 5 hrs ago Politics
+    [link] Woman, 65, becomes second patient to die of Ebola in Kenya
+    p: She was a close family member of the first victim, a man who had travelled from the Democratic Republic of Congo.
+    p: 11 hrs ago Africa
+H2 Most read
+    [link] Met Police says letter with claims about Meghan's father not shared with other law enforcement
+    [link] Vanessa Trump says she is cancer-free six months after revealing diagnosis
+    [link] Mum who died trying to save sons was hero, husband says
+    [link] Man arrested after fire at Hitler's mountaintop Eagle's Nest retreat
+    [link] White House lifts tariffs on some Canadian goods as midterm elections loom
+    [link] Before you crank up the thermostat, try these tips to keep you and your home warmer for longer
+    [link] Palestinian families displaced as Israeli forces demolish Hebron homes
+    [link] What a spectre - Bond boys bounce around London
+    [link] Six Flags adding seat belts to Goliath rollercoaster following death
+    [link] Minneapolis withdrawal was 'surrender', Trump's ex-border patrol chief tells BBC
+H2 Sport
+    [link] US Grand Prix qualifying with Ferrari the team to beat so far
+    p: Follow live text updates and listen to BBC Radio 5 Sports Extra commentary of qualifying for the US Grand Prix.
+    p: LIVE
+    [link] Spurs enjoy rare win at Chelsea as Palmer sent off
+    p: Tottenham win at Stamford Bridge for only the second time in the league for 36 years as 10-man Chelsea miss the chance to go third in the Premier League table.
+    [link] Man City's leaky defence highlights Donnarumma & Guehi struggles
+    p: Manchester City's 100% winning start to the Premier League season comes to an abrupt end against Aston Villa - leaving Enzo Maresca with glaring defensive issues to resolve.
+    p: 6 hrs ago Man City
+    [link] From Chelsea reject to Watkins 'upgrade' - Jackson makes fast Villa start
+    p: Nicolas Jackson continues an excellent start to his Aston Villa career with a match-winning double against Manchester City.
+    p: 4 hrs ago Aston Villa
+    [link] Penders error & Palmer sees red - player ratings for Chelsea v Spurs
+    p: Goalkeeper Mike Penders endures a difficult first Premier League start, scoring an own goal in Spurs' 2-0 win at Chelsea. Here's how we - and you - rated the players.
+    p: 2 hrs ago Premier League
+    [link] Britain's Smith starts well in WBC title defence v Puello
+    p: Live text and radio as Dalton Smith continues on the path to becoming British boxing's next superstar with a WBC title defence against Alberto Puello in Sheffield.
+    p: LIVE
+    [link] 'A massive storage of images': Arteta has technical area receipts
+    p: Wandering Premier League managers beware, Arsenal's Mikel Arteta has compiled a dossier of bosses leaving their technical area.
+    p: 3 hrs ago Arsenal
+[button] Sift

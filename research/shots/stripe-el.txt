@@ -1,0 +1,115 @@
+[button] Skip to content
+[button] Menu
+H1 Accept a payment
+H2 Securely accept payments online.
+[button] Ask about this page
+[button] Copy for LLM
+[button] View as Markdown
+[button] Set up agent
+p: Build a payment form or use a prebuilt checkout page to start accepting online payments.
+H4 Not a developer?
+  [link] no-code options
+  [link] our partners
+    [input:radio] on 
+    [input:radio] on 
+    [input:radio] on 
+  [button] Stripe-hosted page
+  [button] Full embedded page
+  [link] Stripe Checkout
+  [link] compares to Stripe’s other integration types
+  [link] code quickstart
+    [link] Checkout preview
+H3 Integration effort
+H3 Integration type
+p: Redirect to Stripe-hosted payment page
+H3 UI customization
+[button] Limited customization
+    [link] Try it out
+  [link] register
+p: Use our official libraries to access the Stripe API from your application:
+p: Command Line
+p: Select a language
+[button] Select a language
+[button] Report incorrect code
+[button] Copy
+[button] Explain using AI
+p: Gemfile
+p: Select a language
+    [link] Redirect your customer to Stripe CheckoutClient-sideServer-side
+    [link] Checkout Session
+      [link] line_items
+      p: to set the price and currency of what you’re charging
+      [link] success_url
+      p: to redirect your customer after they complete the payment
+      [link] integration_identifier
+      p: to group and track Checkout Sessions
+    [link] customer
+    [link] create a Checkout Session
+    [link] URL
+  H4 Note
+  p: Checkout Sessions expire 24 hours after creation by default.
+  p: Select a language
+  H3 Add a checkout button to your website
+  p: Create an HTML page with a checkout button that sends your customer to the server-side endpoint you created.
+  p: checkout.html
+  H3 Payment methods
+    [link] Stripe Dashboard
+    [link] payment methods review
+    [link] test wallets
+  H3 Verify your integration
+  p: You should now have a working checkout button that redirects your customer to Stripe Checkout.
+    li: Click the checkout button.
+    li: You’re redirected to the Stripe Checkout payment form.
+  p: If your integration isn’t working:
+    li: Open the Network tab in your browser’s developer tools.
+    li: Click the checkout button and confirm it sent an XHR request to your server-side endpoint (POST /create-checkout-session).
+    li: Verify the request is returning a 200 status.
+    li: Use console.log(session) inside your button click listener to confirm the correct data returned.
+    [link] Show a success pageClient-sideServer-side
+p: It’s important for your customer to see a success page after they submit the payment form. Host this success page on your site.
+p: Create a minimal success page:
+p: success.html
+  [link] success_url
+H4 Note
+  [link] custom success page
+    [link] Handle post-payment eventsServer-side
+  [link] checkout.session.completed
+  [link] Dashboard webhook tool
+  [link] webhook guide
+  li: Send an order confirmation email to your customer.
+  li: Log the sale in a database.
+  li: Start a shipping workflow.
+p: Listen to events rather than waiting for your customer to be redirected back to your website. Triggering fulfillment only from your Checkout success page is unreliable.
+  [link] fulfillment guide for Checkout
+    [link] Test your integration
+p: To test your Stripe-hosted payment form integration:
+  li: Enter any future date for card expiration.
+  li: Enter any 3-digit number for CVC.
+  li: Enter any billing postal code.
+p: Pay
+p: success_url
+    [link] Transactions page
+p: checkout.session.completed
+[button] Cards
+[button] Wallets
+[button] Bank redirects
+[button] Bank debits
+[button] Vouchers
+[button] 4242424242424242
+[button] 4000002500003155
+    [link] authentication
+[button] 4000000000009995
+p: insufficient_funds
+[button] 6205500000000000004
+  [link] Testing
+    [link] OptionalCreate products and pricesServer-side
+    [link] OptionalPrefill customer dataServer-side
+    [link] OptionalSave payment method detailsServer-side
+    [link] OptionalSeparate authorization and captureServer-side
+H2 See also
+    [link] Add discounts
+    [link] Collect taxes
+    [link] Collect tax IDs
+    [link] Add shipping
+    [link] Customize your branding
+[button] Sift

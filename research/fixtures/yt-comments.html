@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="sift-test-url" content="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
+<title>Fixture video - YouTube</title>
+<style>
+  body { font-family: sans-serif; }
+  ytd-watch-flexy, ytd-watch-metadata, ytd-comments, ytd-comment-thread-renderer, #comment-container, #content-text, ytw-comment-image-attachment-view-model { display: block; }
+  #content-text { white-space: pre-wrap; }
+  #pinned-comment-badge[hidden] { display: none; }
+</style>
+</head>
+<body>
+<!-- yt fixture (round 4, F304 and F312): comment bodies with a timestamp link, a site link,
+     a pinned badge, paragraphs, custom emoji, an image-only comment and a text-plus-image comment. -->
+<ytd-app>
+<ytd-watch-flexy video-id="dQw4w9WgXcQ">
+  <ytd-watch-metadata>
+    <div id="title"><h1>Fixture video with comments</h1></div>
+  </ytd-watch-metadata>
+  <ytd-comments id="comments">
+    <ytd-comments-header-renderer><h2 id="count">4 Comments</h2></ytd-comments-header-renderer>
+    <div id="contents">
+      <ytd-comment-thread-renderer>
+        <div id="comment-container">
+          <div id="pinned-comment-badge"><span role="text">Pinned by @FixtureChannel</span></div>
+          <a id="author-text" href="/@FixtureChannel">@FixtureChannel</a>
+          <a id="published-time-text" href="/watch?v=dQw4w9WgXcQ&amp;lc=1">2 days ago</a>
+          <yt-attributed-string id="content-text"><span>Printable recipe: <a href="https://www.youtube.com/redirect?event=comments&amp;q=https%3A%2F%2Fexample.com%2Frecipe%2F">https://example.com/recipe/</a> <img alt="💚" src="https://www.youtube.com/s/gaming/emoji/7ff574f2/emoji_u1f49a.png" width="16" height="16">
+
+You can also use green split peas</span></yt-attributed-string>
+          <span id="vote-count-middle">11</span>
+        </div>
+      </ytd-comment-thread-renderer>
+      <ytd-comment-thread-renderer>
+        <div id="comment-container">
+          <div id="pinned-comment-badge" hidden><span role="text">Pinned by @FixtureChannel</span></div>
+          <a id="author-text" href="/@CrowWithA_Bow">@CrowWithA_Bow</a>
+          <a id="published-time-text" href="/watch?v=dQw4w9WgXcQ&amp;lc=2">1 year ago</a>
+          <yt-attributed-string id="content-text"><span>The best part starts at <a href="/watch?v=dQw4w9WgXcQ&amp;t=720s">12:00</a>, and again at <a href="/watch?v=dQw4w9WgXcQ&amp;t=95s">1:35</a>.</span></yt-attributed-string>
+          <span id="vote-count-middle">3.4K</span>
+        </div>
+      </ytd-comment-thread-renderer>
+      <ytd-comment-thread-renderer>
+        <div id="comment-container">
+          <a id="author-text" href="/@nightcat7444">@nightcat7444</a>
+          <a id="published-time-text" href="/watch?v=dQw4w9WgXcQ&amp;lc=3">23 hours ago</a>
+          <yt-attributed-string id="content-text"><span></span></yt-attributed-string>
+          <ytw-comment-image-attachment-view-model><img alt="Comment image attachment" src="https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg" width="240" height="180"></ytw-comment-image-attachment-view-model>
+          <span id="vote-count-middle">112</span>
+        </div>
+      </ytd-comment-thread-renderer>
+      <ytd-comment-thread-renderer>
+        <div id="comment-container">
+          <a id="author-text" href="/@BrianaWanless">@BrianaWanless</a>
+          <a id="published-time-text" href="/watch?v=dQw4w9WgXcQ&amp;lc=4">3 hours ago</a>
+          <yt-attributed-string id="content-text"><span>Look what I found</span></yt-attributed-string>
+          <ytw-comment-image-attachment-view-model><img alt="Comment image attachment" src="https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg" width="240" height="180"></ytw-comment-image-attachment-view-model>
+          <span id="vote-count-middle">5</span>
+        </div>
+      </ytd-comment-thread-renderer>
+    </div>
+  </ytd-comments>
+</ytd-watch-flexy>
+</ytd-app>
+</body>
+</html>

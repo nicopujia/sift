@@ -1,0 +1,10 @@
+[button] Skip to content
+H1 Sign in to GitHub
+  [input:text]  
+  [input:password]  
+    [link] Forgot password?
+[button] Sign in
+p: or
+[button] Continue with Google
+[button] Continue with Apple
+[button] Sift

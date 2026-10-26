@@ -1,0 +1,5 @@
+[button] Skip to content
+    [link] timeanddate logo
+H1 Just a moment…
+p: Ray ID: a4f73c058893ab54
+[button] Sift

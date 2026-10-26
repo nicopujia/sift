@@ -1,0 +1,20 @@
+[button] Skip to content
+H1 OpenTopoMap - Topographische Karten aus OpenStreetMap
+  [link] vector map
+  [link] Garmin
+  [link] About
+  [link] Credits
+  [link] +
+  [link] -
+    [link] Suchen...
+    [link] Position bestimmen
+    [link] gpx
+    [link] Add marker to map
+    [link] Layers
+p: 3 km
+  [link] OpenStreetMap
+  [link] SRTM
+  [link] Sonny
+  [link] OpenTopoMap
+  [link] CC-BY-SA
+[button] Sift

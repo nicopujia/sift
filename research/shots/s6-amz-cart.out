@@ -1,0 +1,24 @@
+url: http://127.0.0.1:8799/fx/amazon-cart.html
+first sift content: 204 ms
+logs:
+
+--- outline (19 lines) ---
+[button] Skip to content
+[link] Cart 3
+H1 Shopping Cart
+    [img] 
+    [link] soundcore by Anker Q20i Hybrid Active Noise Cancelling Headphones
+    p: $39.97 · Qty 2 · In Stock
+    [button] Decrease quantity by one
+    [button] Increase quantity by one
+    [button] Delete
+    [button] Save for later
+    [link] Gluten-free sourdough starter, 2 oz
+    p: $12.99 · Qty 1
+    [button] Decrease quantity by one
+    [button] Increase quantity by one
+    [button] Delete
+dt: Subtotal (3 items):
+dd: $92.93
+[button] Proceed to checkout
+[button] Sift

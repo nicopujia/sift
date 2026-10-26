@@ -1,0 +1,103 @@
+[button] Skip to content
+  [input:search]  Search…
+  [button] Search
+[button] Menu
+[link] Log in
+[link] Sign up
+[link] Create a workspace
+H1 How do JavaScript closures work?
+p: Sep 21, 2008
+[button] Up vote
+p: 7608
+[button] Down vote
+[button] Save
+    [link] Timeline
+  [link] community effort
+p: How would you explain JavaScript closures to someone with a knowledge of the concepts they consist of (for example functions, variables and the like), but does not understand closures themselves?
+  [link] the Scheme example
+    [link] javascript
+    [link] function
+    [link] variables
+    [link] scope
+    [link] closures
+[button] Follow
+    [link] edited Apr 9, 2017 at 13:55
+p: community wiki
+  [link] 28 revs, 21 users 17%
+  [link] Zaheer Ahmed
+p: Comments disabled on deleted / locked posts / reviews
+  [button] Show full text
+  p: A JavaScript closure lets a function use variables from where it was created, even after that outer function has finished.
+  H3 Main answer: A function and its outer scope
+  p: A closure pairs a function with a reference to its outer lexical environment. That environment maps variable names to values. Every JavaScript function keeps a reference to its outer environment. When called, the functio
+  p: These references form a scope chain through nested functions.
+  p: In this example, `inner` keeps access to `secret` after `foo` returns:
+  p: ```js function foo() { const secret = Math.trunc(Math.random() * 100) return function inner() { console.log(`The secret number is ${secret}.`) } } const f = foo() f() ```
+  p: Code outside `foo` cannot access `secret` directly. Calling `f` is the only way to retrieve it.
+  p: A closure gives a function access to private state that its caller cannot see. Other functions created in the same lexical environment can also access that state. This supports data hiding and encapsulation.
+  p: JavaScript functions can be passed around like values, so a function and its state can be passed around together. Without closures, more state would need to be passed between functions as arguments.
+  p: Use a closure when a function needs lasting access to private state. This is like associating a class’s private variable with its methods.
+  p: In many languages, local variables become inaccessible when a function returns and its stack frame is destroyed. In JavaScript, an inner function can keep the outer function’s local variables accessible after the outer f
+  H3 Uses of Closures
+  p: Closures are useful when a function needs private state. JavaScript added class syntax in 2015. The source says it does not have private field syntax.
+  H4 Private Instance Variables
+  p: Here, `toString` keeps access to the car’s details:
+  p: ```js function Car(manufacturer, model, year, color) { return { toString() { return `${manufacturer} ${model} (${year}, ${color})` } } }
+  p: const car = new Car('Aston Martin', 'V8 Vantage', '2012', 'Quantum Silver') console.log(car.toString()) ```
+  H4 Functional Programming
+  p: Here, `inner` keeps access to `fn` and `args`:
+  p: ```js function curry(fn) { const args = [] return function inner(arg) { if (args.length === fn.length) return fn(...args) args.push(arg) return inner } }
+  p: function add(a, b) { return a + b }
+  p: const curriedAdd = curry(add) console.log(curriedAdd(2)(3)()) // 5 ```
+  H4 Event-Oriented Programming
+  p: Here, `onClick` keeps access to `BACKGROUND_COLOR`:
+  p: ```js const $ = document.querySelector.bind(document) const BACKGROUND_COLOR = 'rgba(200, 200, 242, 1)'
+  p: function onClick() { $('body').style.background = BACKGROUND_COLOR }
+  p: $('button').addEventListener('click', onClick) <button>Set background color</button> ```
+  H4 Modularization
+  p: This example hides implementation details inside an immediately invoked function expression. `tick` and `toString` use closures to access the private state and functions they need:
+  p: ```js let namespace = {};
+  p: (function foo(n) { let numbers = []
+  p: function format(n) { return Math.trunc(n) }
+  p: function tick() { numbers.push(Math.random() * 100) }
+  p: function toString() { return numbers.map(format) }
+  p: n.counter = { tick, toString } }(namespace))
+  p: const counter = namespace.counter counter.tick() counter.tick() console.log(counter.toString()) ```
+  H4 Examples
+  H4 Example 1
+  p: A closure refers to the original variable; it does not copy the variable. The variable stays available after the outer function returns:
+  p: ```js function foo() { let x = 42 let inner = () => console.log(x) x = x + 1 return inner }
+  p: foo()() // logs 43 ```
+  H4 Example 2
+  p: `log`, `increment`, and `update` share the same lexical environment. Each call to `createObject` creates a new execution context, a new `x`, and new functions that refer to that `x`.
+  p: ```js function createObject() { let x = 42; return { log() { console.log(x) }, increment() { x++ }, update(value) { x = value } } }
+  p: const o = createObject() o.increment() o.log() // 43 o.update(5) o.log() // 5 const p = createObject() p.log() // 42 ```
+  H4 Example 3
+  p: Be careful when closures use `var`. It is hoisted outside the loop, so all three functions below refer to the same `i`. They print its final value, `3`, three times. Modern JavaScript’s `let` and `const` reduce this prob
+  p: ```js function foo() { var result = [] for (var i = 0; i < 3; i++) { result.push(function inner() { console.log(i) }) } return result }
+  p: const result = foo() for (var i = 0; i < 3; i++) { result[i]() } ```
+  H4 Final points
+    li: Declaring a function creates a closure.
+    li: A returned inner function can keep using the outer function’s state after the outer function ends.
+    li: `eval()` inside a function uses a closure. Evaluated text can access that function’s local variables. In non-strict mode, `eval('var foo = …')` can also create local variables.
+    li: A function created with `new Function(…)` does not close over the local environment. It closes over the global context and cannot access the outer function’s local variables.
+    li: A closure keeps references, not copies, to variables in its environment and outer environments, up to the global object.
+    li: The closure helps configure the function’s execution context when it is called.
+    li: Each function call creates a new set of local variables.
+  H4 Links
+    li: Douglas Crockford’s example of simulated private object attributes and methods using closures.
+    li: An explanation of how closures can cause memory leaks in IE if used carelessly.
+    li: MDN’s JavaScript Closures documentation.
+    li: The Beginner’s Guide to JavaScript Closures.
+  H3 Answer: Persistent private variables
+  p: Closures let a function keep private variables between calls. The function can track information from earlier calls, like an object with private attributes.
+  p: The outer function below runs once, sets `plusCount` to `0`, and returns an inner function. Each call to `iplus1()` increases `plusCount`. No other script on the page can access or change `plusCount`.
+  p: ```js var iplus1 = (function () { var plusCount = 0; return function () { return ++plusCount; } })(); ```
+  H3 Answer: Inner functions can access outer variables and parameters
+  p: A closure lets an inner function access variables and parameters from its outer function.
+  p: ```js function addNumbers(firstNumber, secondNumber) { var returnValue = "Result is : ";
+  p: function add() { return returnValue + (firstNumber + secondNumber); }
+  p: return add(); }
+  p: var result =
+  p: …
+[button] Sift

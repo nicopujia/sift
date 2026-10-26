@@ -1,0 +1,311 @@
+[button] Ir al contenido
+  [input:search]  Buscá en LA NACION
+  [button] Buscar
+[button] Menú
+[button] INICIAR SESIÓN
+H1 LA NACION
+    [link] La Justicia descartó una estafa en el caso $LIBRA y sobreseyó a los acusados; la causa incluía a Milei, reuniones y transferencias
+    p: Política Por Federico González del Solar
+    [link] En un debate antes del balotaje, Bolsonaro llamó “presidente nueve dedos” a Lula, quien dijo que por Milei se come carne de burro
+    p: Por Marcelo Silva de Sousa
+    [link] La Justicia sobreseyó a Javier Milei y Karina Milei en el caso de la criptomoneda $LIBRA
+    p: Por Hugo Alconada Mon
+    [link] Una columna sobre Milei en Madrid y los aplausos que recibió
+    p: Por Carlos M. Reymundo Roberts
+    [link] Milei denunció un plan golpista, acusó a periodistas y dijo que deben quemarlos en la hoguera
+    p: VIDEO
+    [link] Cinco experiencias en América Latina buscan romper el ciclo de pobreza entre generaciones
+    p: Por Micaela Urdinez
+    [link] Bullrich presiona por la estrategia electoral y agita la interna en una semana difícil para Milei
+    p: Por Matías Moreno
+    [link] Flamengo reclamó ante la Conmebol por la supuesta inclusión incorrecta de Rojo en Estudiantes
+    p: VIDEO
+    [link] Un exjugador de River de 20 años hizo un gesto de juego limpio, fue abucheado y terminó llorando
+    p: video
+    [link] Lluvias intensas reactivaron cañadones secos en Neuquén y causaron daños, sobre todo en Vaca Muerta
+    p: VIDEO · Por Paz García Pastormerlo
+H3 Selección del Editor
+[PORTAL] Video
+[button] Reproducir
+[button] Atrás 10 s
+[button] Adelante 10 s
+[button] Activar sonido
+[button] Pantalla completa
+H3 Política y economía
+    [link] Detuvieron a Ariel Vallejo, dueño de Sur Finanzas y allegado a la AFA, por una causa de lavado de dinero
+    p: Por Hernán Cappiello
+    [link] Un análisis sobre Javier Milei y las muertes del día 20
+    p: ANÁLISIS · Por Martín Rodríguez Yebra
+    [link] Una columna sostiene que el frente anti-Milei toma forma y Sergio Massa vuelve al centro de la escena
+    p: Por Fernando Laborda
+    [link] Un fallo ordenó investigar al municipio de Pilar por obras en un predio usado como vacunatorio contra el Covid
+    p: Por Hernán Cappiello
+    [link] Un peaje de $62.000 por 5 kilómetros, fijado por un intendente de Kicillof, preocupa a la industria
+    p: Por Sofía Diamante
+    [link] Identificaron a ocho nuevos desaparecidos en el centro de detención La Perla
+    p: VIDEO · Por Gabriela Origlia
+H3 Actualidad
+    [link] A un año de la redada más letal, Brasil elegirá en el balotaje entre dos modelos de seguridad
+    p: LA NACION EN RIO DE JANEIRO · Por Guido Bovone, enviado especial
+    [link] Denunciaron en Bariloche a un candidato del oficialismo de Río Negro por apología del terrorismo de Estado
+    p: Por Paz García Pastormerlo
+    [link] El debate entre Lula y Flavio Bolsonaro incluyó varias menciones a Argentina, entre ellas “comen carne de burro”
+    p: VIDEOS
+    [link] Colapinto, que fue 15.º en los ensayos, recibió una penalización y buscó remontar desde el fondo en una carrera con muchos sobrepasos
+    p: VIDEO · Por Orlando Ríos
+    [link] Intiman a retirar el único puesto de diarios de Puerto Madero; el dueño pide quedarse y los vecinos lo respaldan
+    p: Por Aldana Rizzuto
+    [link] Messi y Borges coincidieron ante el rey de España en un acto en Asturias
+    p: LA NACION EN ESPAÑA · Por Laura Ventura
+    [link] Detuvieron en Esquel a un bioquímico acusado de mantener cautivos a su esposa y sus hijos
+    [link] Una valija ensangrentada hallada en un contenedor llevó al hallazgo de una joven asesinada
+    p: Por Gabriela Origlia
+    [link] La SIP debatió presiones políticas, impunidad, desinformación y cómo recuperar la relación directa con los lectores
+    p: Por Gastón Roitberg, enviado especial
+    [link] Una mujer fue filmada robando carteras en dos restaurantes el mismo día mientras simulaba ser clienta
+    p: Videos
+    [link] Rosendo Grobocopatel afirmó que se puede construir una cultura de poder distinta
+    p: Por Gabriel Sánchez Sorondo
+    [link] Bienestar Fest comienza en Palermo con más de 60 experiencias, incluidas actividades para chicos
+    p: Por Dolores Pasman y Andrea Ventura
+[PORTAL] Área interactiva de la página original: YouTube video player. Pulsá Enter para usarla y Escape para volver.
+    [link] Deportes
+    [link] Alfredo Berti habló de Maradona, Bianchi, su carrera como DT y su vínculo con Independiente Rivadavia
+    p: Entrevista · Deportes Por Cristian Grosso
+    [link] Tras fallar goles en Tigre-Atlético Tucumán, un DT renunció después de casi dos años
+    p: video · Por Franco Tossi
+    [link] Cardona marcó un gol desde mitad de cancha ante el mismo rival y en el mismo arco
+    [link] La agenda deportiva del sábado incluye a Colapinto en Austin, San Lorenzo, Messi, ligas europeas y polo
+    [link] El Mundo
+    [link] Convulsión en Francia. Museos y Apple Stores cerrados y más de 70.000 efectivos: París se prepara para otra jornada de furia
+    p: Por Luisa Corradini
+    [link] Viaje tormentoso. El principal rival de Pedro Sánchez toma distancia de Milei: "No comparto ni el lenguaje ni las formas"
+    p: VIDEO
+    [link] En una llamada. Gran Bretaña le advirtió a Trump sobre las “consecuencias económicas” de la ofensiva de Milei por Malvinas
+H3 Más noticias
+    [link] Trece personas fueron detenidas en Mar del Plata; la policía secuestró armas, municiones y drogas
+    p: Por Darío Palavecino
+    [link] Emanuel Ortega publicó un comunicado y calificó de lamentables e innecesarias las palabras de Julieta Prandi
+    [link] La demanda de pastas creció un 6% y las familias eligen variedades más económicas
+    p: Por Belkis Martínez
+    [link] Un análisis sostiene que la seguridad jurídica es el verdadero capital del RIGI
+    p: Por Ezequiel Cassagne
+    [link] Una fábrica de 128 años mantiene viva la cocina a leña en puestos patagónicos
+    p: Por Paula Urien
+    [link] El artículo informa cuánto rating tuvo la primera gala de eliminación de Masterchef Junior
+    p: Por Ariel López Cucatto
+    [link] Selección de películas y series de Netflix para ver el fin de semana del 24 y 25 de octubre
+    [link] Una monarca decidió poner fin al sufrimiento del parto tras la llegada de su octavo hijo
+    p: Por Germán Wille
+    [link] Un museo de Escocia retiró una momia de exhibición por falta de consentimiento, lo que desató un debate
+    [link] Los argentinos se interesan cada vez más por la cultura K-pop
+    p: Por Laura Marajofsky y Soledad Venesio
+    [link] Un caso de bullying durante un viaje de egresados conmociona a Catamarca; un joven sufrió un brote psicótico
+    [link] John Banville dice que el arte es un juego sublime
+    p: Por Berna González Harbour
+H3 Historias y personajes
+    [link] Q’ Lokura agotó diez Movistar Arenas y prepara su primer show en el estadio Vélez ante más de 40.000 personas
+    p: Espectáculos Por Ornella Tiesso
+    [link] Fotos de los looks de Kim Kardashian, Dua Lipa y Jenna Ortega
+    [link] Anita B Queen, DJ y telonera de BTS, dejó medicina para dedicarse a la música electrónica
+    p: Por Mauro Apicella
+    [link] Grace Gold habla de su debut como actriz, sus consejos ignorados y su vínculo con el público joven
+    p: Por Renata Salem
+    [link] Daniel Aráoz habla de su debut en un clásico teatral, su proceso de sanación y su amistad con Fontanarrosa
+    p: Por Liliana Podestá
+H3 Otros temas
+    [link] Una encuesta señala que la incertidumbre electoral para 2027 es el principal freno a las inversiones de los productores
+    [link] Los departamentos de Villa Olímpica ya están a la venta, con financiación a 20 años y una tasa entre las más bajas del mercado
+    [link] Toyota vende en Argentina un sedán híbrido de lujo; el artículo informa cuánto consume en ciudad y ruta
+    [link] Virginie Despentes cuestiona por qué la sexualidad heterosexual puede ser mortífera, rabiosa y siniestra
+    p: Por Berna González Harbour
+    [link] Sophia Loren vende su casa en Roma por US$23 millones
+    p: fotos
+    [link] A 25 años de su lanzamiento, el iPod es recordado por salvar a Apple y cambiar cómo se escucha música
+    p: Por Ricardo Sametband
+    [link] El tránsito fantasma genera atascos sin accidentes ni carriles cortados
+    [link] Un juego propone adivinar de qué año son unas fotos de Charly García
+    p: Juegos
+p: El mundo necesita más música
+    [link] Escuchá + música
+    [link] Opinión
+    [link] La semilla crece lento y Milei apuesta a un peronismo espantapájaros
+    p: Por Francisco Olivera
+    [link] Una excursión a Neuquén, el país ideal de Milei
+    p: Por Sergio Suppo
+    [link] Chile y la Argentina: la responsabilidad de la confianza
+    p: Por Alfredo Moreno Charme y Alberto van Klaveren
+    [link] EDITORIALES
+    [link] Las consecuencias de El Niño
+    [link] Educación, indiferencia ciudadana
+    [link] Malvinas: el costo de carecer de poder
+    p: Por Juan Martín Paleo
+    [link] Ln Juegos
+    [link] Rompecabezas
+    p: nuevo · ¿Podés armar la foto? · Jugar
+    [link] Cruci experto
+    p: Jugar
+H3 propiedades
+    [link] Dos hermanos crearon un negocio que ayuda a conservar el Barolo, donde trabajaron su bisabuelo y su tío
+    p: FOTOS · Propiedades Por Candela Contreras
+    [link] La casa icónica diseñada por Miguel Ángel Roca se vende por US$732.000
+    p: Por Gabriela Origlia
+    [link] Construyen un hotel de 500 habitaciones y US$120 millones de inversión en una manzana emblemática de Palermo
+    p: Por Candela Contreras
+    [link] Un banco bajó la tasa de un crédito hipotecario para quienes venden una propiedad para comprar otra
+    [link] Bienestar Fest 2026
+    [link] El médico taoísta Liu Ming, quien atendió al papa Francisco, participará en Bienestar Fest en Palermo el próximo fin de semana
+    p: Por Victoria Vera Ziccardi
+    [link] Conrado Estol afirma que cerca del 90% de los ACV se explican por diez factores de riesgo modificables
+    p: Por Dolores Pasman
+    [link] Animal Flow ofrecerá una actividad de movimiento en Bienestar Fest
+    [link] Natalia Lobo ofrecerá una experiencia de Sound Healing en Bienestar Fest
+    p: Por Dolores Pasman
+    [link] Foodit
+  [link] Aprendé en la cocina
+  [link] Cociná facil
+  [link] Menú semanal
+  [link] todas las recetas
+    [link] Recetas, menús y consejos para cocinar
+    p: SUSCRIBITE gratis
+    [link] 10 recetas fáciles de panqueques dulces y salados para preparar en casa
+    [link] El chef Germán Sitz da consejos para preparar bife de chorizo dorado y jugoso en casa
+    [link] Cómo preparar un budín de mandarina húmedo y esponjoso
+    [link] Una teoría sostiene que la Formación Durupınar en Turquía son restos enterrados del Arca de Noé
+    [link] Juan Alberto Mateyko reaccionó a las declaraciones de Julieta Prandi
+    [link] El chef Fran Rosat dice que revolver el arroz libera almidón y arruina la paella
+    [link] Una amiga de Ana Paula Dutil habría confirmado una infidelidad de Emanuel Ortega a Julieta Prandi con Josefina Lynch
+    [link] Nutricionistas recomiendan para los 50 una tostada de masa madre con huevo cocido y café con leche vegetal
+    [link] Un video muestra la reacción de Anto Roccuzzo cuando un guardia impidió que un niño se acercara a Messi
+    [link] Moyano le dijo a Moria en un audio que fue al programa después de tomar whisky
+H3 Lo más visto
+    [link] Que Sale
+    [link] Futuria
+  [link] Inteligencia Artificial
+  [link] Criptomonedas
+  [link] Bitcoin
+  [link] Robótica
+    [link] A 25 años del iPod. El dispositivo que salvó a Apple y cambió para siempre la forma de escuchar música
+    p: El 23 de octubre de 2001 Steve Jobs presentó un dispositivo por entonces novedoso: un reproductor de audio portátil que entraba en un bolsillo y guardaba mil canciones
+    p: Tecnología Por Ricardo Sametband
+    [link] ¿Nuevas inversiones? Un grupo de empresas se alió para crear la Cámara Argentina de los centros de datos
+    p: Por María Josefina Lanzi
+    [link] Nueva propuesta. Amazon cambia el nombre de Kindle Unlimited a Kindle+ e incluye audiolibros sin costo adicional
+    [link] Tecnología
+    [link] No obstruyas. Este es el gran riesgo de sobrecalentamiento al usar el truco de moda
+    [link] Claude Duet. Cómo funciona el agente de IA de Anthropic, quiénes pueden probarlo y qué tareas hace sin que se las pidan
+    [link] A tener en cuenta. Cómo saber si una aplicación te está escuchando y cómo bloquearla
+H3 Más leídas
+    [link] Asia Kate Dillon, actriz de John Wick, busca trabajo en gastronomía por falta de propuestas actorales
+    [link] Sophia Loren vende su casa en Roma por US$23 millones
+    [link] Una valija ensangrentada hallada en un contenedor llevó al hallazgo de una joven asesinada
+    [link] Messi cumplió el deseo de su padre durante 36 horas de emociones y cautivó sin la pelota
+    [link] Milei denunció un plan golpista, acusó a periodistas y dijo que deben quemarlos en la hoguera
+    [link] Galicia celebró el año con más de 600 clientes de Banca Mayorista en La Rural
+    p: CONTENT LAB
+    [link] Comunidad de Negocios
+  [link] Dólar Hoy
+  [link] Índices
+  [link] Campo
+  [link] Negocios
+  [link] Emprendedores
+  [link] Propiedades
+  [link] FAL
+    [link] Emilio García-Ruiz dice que, si fundara un medio hoy, empezaría por el audio y el video
+    p: Escuchar con la voz del autor Por Gastón Roitberg
+    [link] Mercado Libre invirtió US$9,7 millones para ampliar su red de envíos aéreos y sumar una provincia
+    [link] El artículo analiza qué tienen en común los negocios argentinos que triunfan en Europa
+    p: Por Gabriela Origlia
+    [link] La principal duda en Wall Street es si Milei mantendrá el apoyo electoral
+    p: Por Agustín Maza
+    [link] Corona Sunsets reunió a una multitud en Ciudad Universitaria con música de Lee Burridge y Danny Tenaglia
+    p: CONTENT LAB
+    [link] Espectáculos
+    [link] "Lujos obscenos". Ryan Reynolds cumple 50 años convertido en un magnate casi inmune a las críticas
+    p: El canadiense traspasó la barrera de la interpretación para encabezar un imperio que incluye una productora, equipos de fútbol y otro de vela; su humor es una eficaz herramienta, pero la reciente batalla legal de su muje
+    [link] "Fue increíble". Hunter Schafer, protagonista de Euphoria, reveló que se sometió a una cirugía de reasignación de género
+    [link] Filarmónica de Berlín. Extraordinario concierto de una de las mejores orquestas del mundo
+    p: Por Pablo Kohan
+    [link] Que Sale?
+  [link] Estrenos de cine
+  [link] Estrenos de teatro
+  [link] Vinos
+  [link] Restaurantes
+    [link] Robleis anticipa que su show en Generación tendrá la energía del POV ROB POP Tour
+    p: Video
+    [link] Cómo visitar gratis el Parque Nacional Ciervo de los Pantanos, a 70 km de Buenos Aires
+    p: Por Alejandro Rapetti
+    [link] La Noche de las Embajadas propone recorrer palacios y disfrutar de música y gastronomía en Buenos Aires
+    [link] Restaurantes ofrecen promociones y menús especiales para probar sabores japoneses más allá del sushi
+    p: Por Paula Ikeda
+    [link] LN Bienestar
+  [link] Vida Sana
+  [link] Nutrición
+  [link] Fitness
+  [link] Mente
+  [link] Descanso
+  [link] Viajes
+  [link] Sustentabilidad
+    [link] Winston Churchill habló de convicciones personales, críticas y el precio de defender principios
+    p: Por El Comercio Perú
+    [link] El cepillado no basta: las encías son una puerta de entrada a la salud general
+    p: CONTENT LAB
+    [link] Denzel Washington dijo que los sueños sin metas alimentan la decepción
+    p: Por El Tiempo/Colombia
+    [link] La madera y el bambú son alternativas versátiles y sustentables para construir
+    p: Por Carla Quiroga
+    [link] LN Movilidad
+  [link] Tendencias
+  [link] Test Drive
+  [link] Eléctricos e Híbridos
+    [link] Tesla desarrolló junto a SpaceX la tecnología de un auto que puede “volar”
+    [link] Lewis Hamilton restauró un Ferrari legendario de los años 90 que llevaba más de 30 años guardado
+    p: VIDEO
+    [link] Precios de más de 100 autos chinos que se venden en la Argentina
+    [link] Porsche lanzó en la Argentina una nueva generación de un modelo emblemático con un precio más bajo
+    [link] Propiedades
+  [link] Casas y Departamentos
+  [link] Construcción y Diseño
+  [link] Inmuebles Comerciales
+  [link] Inversiones
+    [link] Un banco amplió las condiciones de financiación para comprar casas modulares
+    [link] Costantini invertirá hasta US$30 millones para ampliar un edificio icónico de Palermo
+    p: FOTOS
+    [link] Lugares de la costa argentina donde conviene comprar propiedades para alquilar
+    [link] Terminó una etapa de los alquileres que generó fuertes tensiones en el mercado inmobiliario argentino
+    p: Por Candela Contreras
+    [link] Campo
+  [link] Remates
+  [link] Agricultura
+  [link] Ganadería
+  [link] Tecnologías
+  [link] Regionales
+    [link] Habilitan una modalidad para negociar el premio de la soja Visec sobre la soja tradicional
+    p: Por Fernando Bertello
+    [link] No se puede impedir El Niño, pero sí evitar buena parte de sus daños
+    p: OPINIÖN · Por Marina Justo
+    [link] Un referente de la industria alimentaria de Brasil dijo que las medidas de Milei son muy duras y perjudican sobre todo a los más pobres
+    p: Por Belkis Martínez
+    [link] Un temporal con mucho granizo mató a decenas de animales y causó graves daños
+    p: Por José E. Bordón
+    [link] Lifestyle
+    [link] Richard “Bebbo” Russel, empleado de aeropuerto sin experiencia como piloto, robó un avión, despegó e hizo una acrobacia
+    p: Lifestyle Por Germán Wille
+    [link] Una pareja se reencontró después de 44 años; ella no le atraía hasta que subió al auto
+    p: Por Señorita Heart
+    [link] La historia de la plaza de Villa Urquiza que antes tuvo otra función y cuyo enterratorio querían eliminar
+    p: Por Jessica Blady
+    [link] Parrillas integradas al interior permiten reunirse en invierno y verano, incluso con lluvia
+    [link] Un parque de la Patagonia reúne pumas en libertad, cañadones y pinturas milenarias
+    p: Por Franco Spinetta
+    [link] Un video recorre un PH con terraza, luz y silencio en el centro de Belgrano
+    p: Por Mariana Kratochwil
+    [link] Un arquitecto proyectó su casa en un antiguo local comercial; dice que no fue amor a primera vista
+    p: Por Daniela Rossi
+H3 Te puede interesar
+    [link] Cómo aprovechar la temporada de Escorpio según tu signo y tu ascendente
+    p: Por Vera Picabea
+    [link] A qué santo rezarle en noviembre
+    [link] Horario del debate entre Flavio Bolsonaro y Lula para el balotaje de las elecciones de Brasil
+    [link] Un método de siembra con drones busca recuperar 200 hectáreas de bosque patagónico con semillas de araucaria
+[button] Sift

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Shopping list</title>
+<style>
+.pop { position: absolute; top: 120px; left: 40px; width: 320px; background: #fff; border: 1px solid #999; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+</style></head>
+<body>
+<main>
+<h1>Shopping list</h1>
+<p>Three things to buy this week. Use Rename to change the list's name.</p>
+<ul><li>Rice flour</li><li>Psyllium husk</li><li>Tapioca starch</li></ul>
+<div style="position:relative">
+<button id="ren">Rename list</button>
+</div>
+</main>
+<script>
+window.__log = [];
+document.getElementById('ren').onclick = () => {
+  if (document.querySelector('.pop')) return;
+  const p = document.createElement('div');
+  p.className = 'pop';
+  p.innerHTML = '<p>New name for this list</p><input id="nm" type="text" value="Shopping list"><div><button id="save">Save</button> <button id="cancel">Cancel</button></div>';
+  document.body.appendChild(p);
+  p.querySelector('#save').onclick = () => { __log.push('saved ' + p.querySelector('#nm').value); document.querySelector('h1').textContent = p.querySelector('#nm').value; p.remove(); };
+  p.querySelector('#cancel').onclick = () => { p.remove(); __log.push('cancel'); };
+  if (location.search.includes('mut')) p.querySelector('#nm').addEventListener('focus', () => p.classList.add('editing'));
+  __log.push('opened');
+};
+</script>
+</body></html>

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Profile</title></head>
+<body>
+<main>
+<h1>Your profile</h1>
+<p>Change your display name and save. The page keeps its model up to date on change, like Vue's v-model.lazy or Knockout's value binding.</p>
+<div id="form">
+  <label>Display name <input id="name" type="text" value="Nico"></label>
+  <button id="save" type="button">Save</button>
+</div>
+<p id="out">Saved name: Nico</p>
+</main>
+<script>
+window.__log = [];
+const model = { name: 'Nico' };
+const name = document.getElementById('name');
+name.addEventListener('change', () => { model.name = name.value; __log.push('change ' + name.value); });
+name.addEventListener('blur', () => __log.push('blur'));
+document.getElementById('save').addEventListener('click', () => { __log.push('save ' + model.name); document.getElementById('out').textContent = 'Saved name: ' + model.name; });
+</script>
+</body></html>

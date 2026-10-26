@@ -1,0 +1,95 @@
+[button] Skip to content
+  [input:search] is:issue state:open Search issues
+  [button] Search
+[button] Menu
+[button] Sign in
+[button] Sign up
+    [link] Repository navigation
+    p: preactjs · preact · Code · Issues17 (17) · Pull requests23 (23) · Discussions
+H1 Issues
+    [link] New issue
+[button] Search
+H2 Issues
+    [link] Open 17 (17)
+    [link] Closed 1,936 (1,936)
+[button] Filter by author
+[button] Filter by labels
+[button] Filter by projects
+[button] Filter by milestones
+[button] Filter by assignees
+[button] Filter by issue type
+[button] More Issue list controls
+[button] Comfortable display density
+[button] Compact display density
+    [link] Support custom element registries
+    p: Unread · preactjs/preact#5325 · opened · on Oct 21, 2026
+    [button] Filter by label feature request
+    [button] Filter by author jakearchibald
+    [link] Support REACT_RECOVERABLE_TYPE in use
+    p: Unread · preactjs/preact#5261 · opened · on Sep 14, 2026 · 1
+    [button] Filter by label feature request
+    [button] Filter by author upupming
+    [link] JSX types reflect core + compat, when compat may or may not be used
+    p: Unread · preactjs/preact#4994 · opened · on Jan 9, 2026 · 1 · 3
+    [button] Filter by label feature request
+    [button] Filter by label types
+    [button] Filter by author rschristian
+    [link] Add compatibility with React 19 <Activity />
+    p: Unread · preactjs/preact#4977 · opened · on Dec 17, 2025 · 2
+    [button] Filter by label feature request
+    [button] Filter by author shacha086
+    [link] Support for Document Metadata in Preact
+    p: Unread · preactjs/preact#4695 · opened · on Feb 18, 2025 · 4
+    [button] Filter by label compat
+    [button] Filter by label feature request
+    [button] Filter by author alcompilor
+    [link] syntax for choosing setting a property vs attribute on elements
+    p: Unread · preactjs/preact#4416 · opened · on Jun 20, 2024 · 1 · 11
+    [button] Filter by label feature request
+    [button] Filter by author trusktr
+    [link] conditional debug
+    p: Unread · preactjs/preact#3894 · opened · on Feb 14, 2023 · 2
+    [button] Filter by label feature request
+    [button] Filter by author Haroenv
+    [link] Add ARIA attribute typings
+    p: Unread · preactjs/preact#3853 · opened · on Jan 6, 2023 · 8
+    [button] Filter by label feature request
+    [button] Filter by label types
+    [button] Filter by author andrewiggins
+    [link] Add support for multiple roots with useId
+    p: Unread · preactjs/preact#3781 · opened · on Oct 27, 2022 · 1 · 3
+    [button] Filter by author marvinhagemeister
+    [link] [preact/compat] radix-ui Slider component drag points (Thumbs) not working
+    p: Unread · preactjs/preact#3666 · opened · on Aug 12, 2022 · 4
+    [button] Filter by label compat
+    [button] Filter by author nikuda
+    [button] 2 linked pull requests
+    [link] Is it possible to make useDeferredValue to actually do something?
+    p: Unread · preactjs/preact#3649 · opened · on Aug 7, 2022 · 7
+    [button] Filter by label discussion
+    [button] Filter by label feature request
+    [button] Filter by author zsolt-dev
+    [link] Preact toChildArray does not assign keys
+    p: Unread · preactjs/preact#2888 · opened · on Dec 28, 2020 · 2
+    [button] Filter by label compat
+    [button] Filter by author just-boris
+    [button] 2 linked pull requests
+    [link] Summoning the holy 2-phase commit renderer
+    p: Unread · preactjs/preact#2139 · opened · on Nov 18, 2019 · 1
+    [button] Filter by label 2-phase-commit
+    [button] Filter by author marvinhagemeister
+    [link] Uncontrolled input
+    p: Unread · preactjs/preact#1899 · opened · on Aug 27, 2019 · 1 · 21
+    [button] Filter by author Crysp
+    [link] Support multiple select values in core
+    p: Unread · preactjs/preact#1562 · opened · on Apr 23, 2019 · 1 · 3
+    [button] Filter by author marvinhagemeister
+    [link] Checking prop in elem fails with deferred custom element definitions
+    p: Unread · preactjs/preact#678 · opened · on Apr 27, 2017 · 11
+    [button] Filter by author treshugart
+    [link] Main thread is locked up during bootup
+    p: Unread · preactjs/preact#407 · opened · on Nov 17, 2016 · 6
+    [button] Filter by label discussion
+    [button] Filter by label performance
+    [button] Filter by author paullewis
+[button] Sift

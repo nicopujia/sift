@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Blue mug · Clayworks</title>
+<style>body{font-family:system-ui;max-width:600px;margin:24px auto}.sl{display:inline-block;width:200px;height:6px;background:#ccc;position:relative;margin:0 8px}.sl span{position:absolute;top:-6px;width:18px;height:18px;border-radius:50%;background:#06c}[role=switch]{display:inline-block;width:40px;height:20px;border-radius:10px;background:#ccc}[role=switch][aria-checked=true]{background:#0a0}</style></head>
+<body><main>
+<h1>Blue mug</h1>
+<p>A hand-thrown stoneware mug with a deep blue glaze. $24.</p>
+<div class="row">Engraving size <div class="sl" id="track"><span id="knob" role="slider" tabindex="0" aria-label="Engraving size" aria-valuemin="8" aria-valuemax="20" aria-valuenow="12" aria-valuetext="12 pt"></span></div> <output id="out">12 pt</output></div>
+<p><label for="qty">Quantity</label> <button type="button" id="minus" aria-label="Fewer">−</button> <input id="qty" type="number" min="1" max="9" value="1" style="width:3em"> <button type="button" id="plus" aria-label="More">+</button></p>
+<p>Gift wrap <span id="gift" role="switch" tabindex="0" aria-checked="false" aria-label="Gift wrap"></span></p>
+<p><label for="glaze">Glaze shade</label> <input type="range" id="glaze" min="1" max="5" value="3"> <span id="gout">3</span></p>
+<p><button type="button" id="add">Add to cart</button></p>
+<p id="msg" aria-live="polite"></p>
+</main>
+<script>
+window.__log = [];
+const knob = document.getElementById("knob"), out = document.getElementById("out");
+let v = 12;
+function setV(n) { v = Math.max(8, Math.min(20, n)); knob.setAttribute("aria-valuenow", String(v)); knob.setAttribute("aria-valuetext", v + " pt"); knob.style.left = ((v - 8) / 12 * 182) + "px"; out.textContent = v + " pt"; __log.push("size " + v); }
+setV(12); __log.length = 0;
+knob.addEventListener("keydown", (e) => { if (e.key === "ArrowRight" || e.key === "ArrowUp") { setV(v + 1); e.preventDefault(); } if (e.key === "ArrowLeft" || e.key === "ArrowDown") { setV(v - 1); e.preventDefault(); } if (e.key === "Home") setV(8); if (e.key === "End") setV(20); });
+document.getElementById("track").addEventListener("click", (e) => { const r = e.currentTarget.getBoundingClientRect(); setV(Math.round(8 + (e.clientX - r.left) / r.width * 12)); });
+const qty = document.getElementById("qty");
+document.getElementById("minus").onclick = () => { qty.value = Math.max(1, +qty.value - 1); __log.push("qty " + qty.value); };
+document.getElementById("plus").onclick = () => { qty.value = Math.min(9, +qty.value + 1); __log.push("qty " + qty.value); };
+const gift = document.getElementById("gift");
+const flip = () => { const on = gift.getAttribute("aria-checked") !== "true"; gift.setAttribute("aria-checked", String(on)); __log.push("gift " + on); };
+gift.addEventListener("click", flip); gift.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); flip(); } });
+document.getElementById("glaze").addEventListener("input", (e) => { document.getElementById("gout").textContent = e.target.value; __log.push("glaze " + e.target.value); });
+document.getElementById("add").onclick = () => { __log.push("add size=" + v + " qty=" + qty.value + " gift=" + gift.getAttribute("aria-checked") + " glaze=" + document.getElementById("glaze").value); document.getElementById("msg").textContent = "Added to cart."; };
+</script></body></html>

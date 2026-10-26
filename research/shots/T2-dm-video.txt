@@ -1,0 +1,80 @@
+[button] Skip to content
+  [input:search]  Enter your search
+  [button] Search
+H1 Wild moment New Jersey mayor charges at a resident in front of shocked locals during out-of-control public meeting
+[img] Hero video poster
+p: Council meeting erupts into chaos as mayor goes after constituent
+[PORTAL] Video
+[button] Play
+[button] Back 10s
+[button] Ahead 10s
+[button] Mute
+[button] Full screen
+[button] play video
+[button] video progress bar
+p: LIVE
+[button] Mute 00:00
+p: Current Time 0:00
+p: Duration Time 1:02
+[button] Full Size
+[button] Video Quality 1024p 960p 640p 480p
+p: Foreground
+  [select:select-one]  
+  [select:select-one]  
+p: Background
+  [select:select-one]  
+  [select:select-one]  
+p: Window
+  [select:select-one]  
+  [select:select-one]  
+p: Font Size
+  [select:select-one] 1.00 
+p: Text Edge Style
+  [select:select-one] none 
+p: Font Family
+  [select:select-one]  
+  [button] Defaults
+  [button] Done
+  [button] pause video
+H2 Wild moment New Jersey mayor charges at a resident in front of shocked locals during out-of-control public meeting
+p: Rachel Bowman · Oct 23, 2026, 10:53 PM
+    [link] 266 comments
+    [link] New Jersey
+  p: Pemberton Township Republican Mayor Matthew Bianchini, 59, had to be manhandled on Wednesday night after charging at a resident and telling him: 'I am f****** getting you.'
+    [link] Pine Barrens Tribute
+  p: Mayor Bianchini is seen leaving his seat after pointing his finger towards the resident, identified as Michael Sawka, and charging across the room to the public gallery.
+  p: As the mayor approaches Sawka, a man in a blue checked suit steps between them and shouts 'stop' at Bianchini.
+  p: Another man gets involved, and the two pin Bianchini against a wall, where he raises his hands as if accepting defeat.
+  p: 'You should resign,' Sawka said, causing the mayor to try to lunge at him again; at this point, three men hold him back.
+  p: The mayor was then led away by one man in a bear hug, as he shouted at the man: 'I am getting you, I am f****** getting you.'
+  [button] +4 View gallery
+  p: Pemberton Township Mayor Matthew Bianchini, 59, had to be held back from attacking a constituent during a tense town meeting
+  p: Bianchini claimed he has a fraught relationship with the man and alleged the man had made rude comments to his family
+  p: 'He just threatened me; that's on video. I want the police to arrest him; that is assault,' Sawka said.
+  p: Bianchini was led away to a side room, and according to the tribute, everyone involved in the spat was asked to leave the meeting.
+  p: Another angle captured by the township's own livestream showed the mayor and the man trading words across the room as others spoke.
+  p: Just seconds before the mayor jumped out of his seat, the man was seen flipping him off with his middle finger.
+    [link] WPVI
+  p: 'I just basically snapped,' Bianchini said. 'I hate to put it this way, but it's a long time coming.'
+  p: According to Bianchini, Sawka and another resident were making rude comments to his wife and daughter, who were sitting in the back of the room during the meeting.
+  p: 'Was it wrong? Absolutely. Was it justified? Absolutely. And I would do it again if I had to,' Bianchini said.
+  p: Mayor Bianchini is seen leaving his seat after pointing his finger towards the resident, identified as Michael Sawka, and charging across the room to the public gallery
+  p: Another angle captured by the township's own livestream showed the mayor and the man trading words across the room as others spoke
+  p: 'Don't attack my family. I think any good husband, any good father, would've done just what I did.'
+  p: Bianchini apologized for his actions, saying, 'I should not have said that. That was wrong. It was in the heat of the moment. I'm not gonna get anybody.'
+  p: Sawka denied saying anything to the mayor's family and told the local news station he remained calm during the situation.
+  p: 'I'm just sitting there. I never got up. I sat there the whole time. I was calm the whole time,' he said.
+  p: Sawka said he wants the mayor to step down from office and be charged for his actions.
+  p: 'I would like to see Mr Bianchini resign as soon as possible and sign something that he will never be involved in any politics again,' he said.
+  p: The Daily Mail contacted Bianchini's office for comment.
+    [link] New Jersey
+    [link] MailOnline iPhone app
+  li: Follow Daily Mail
+  li: Subscribe Daily Mail
+  li: Follow @DailyMail
+  li: Follow Daily Mail
+  li: Follow @dailymailuk
+  li: Follow Daily Mail
+    [link] From the Makers of Candy Crush
+    p: Farm Heroes Saga, the #4 Game on iTunes. Play it now! · more
+[button] Sift

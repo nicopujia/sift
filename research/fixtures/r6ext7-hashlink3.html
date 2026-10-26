@@ -1,0 +1,20 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><title>Delivery guide - Shop help</title></head><body>
+<!-- F566 (round 6, ext7): questions inside a story, links to "#" wired with addEventListener only
+     (no onclick, aria-* or role). src/main/index.ts marks them data-sift-click, so they stay links
+     and a click opens the answer. -->
+<main><article>
+<h1>Delivery guide</h1>
+<p>Every order ships from our warehouse within two working days. Couriers deliver on weekdays between eight in the morning and six in the evening, and you get a message with a time window on the morning of delivery. If nobody is home, the courier leaves a card and tries again the next working day.</p>
+<p>Large items such as furniture travel with a two-person crew, who carry the item to the room you choose and take the packaging away. Small parcels can go to a pickup point instead, where they wait for fourteen days before they come back to us.</p>
+<p>Below are the questions customers ask most often about changing a delivery after the order is placed, with the steps to follow in your account.</p>
+<div class="faq">
+<div class="q"><a href="#" class="question">How do I change the delivery address after I have already placed my order?</a></div>
+<div class="a" id="a1" hidden><p>Open Your orders, choose the order, and press Change address before it ships.</p></div>
+<div class="q"><a href="#" class="question">Can I move my delivery to another day after the courier has already picked it up?</a></div>
+<div class="a" id="a2" hidden><p>Yes. Use the link in the courier message to pick another weekday.</p></div>
+</div>
+</article></main>
+<script>
+document.querySelectorAll(".question").forEach((q) => q.addEventListener("click", (e) => { e.preventDefault(); const a = q.parentElement.nextElementSibling; a.hidden = !a.hidden; }));
+</script>
+</body></html>

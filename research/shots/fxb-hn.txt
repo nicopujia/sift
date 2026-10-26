@@ -1,0 +1,203 @@
+[button] Skip to content
+  [input:search]  Search
+  [button] Search
+H1 Hacker News
+  [link] Hacker News
+  [link] new
+  [link] past
+  [link] comments
+  [link] ask
+  [link] show
+  [link] jobs
+  [link] submit
+  [link] login
+  [link] I Don't Understand Quantum Physics (2018)
+  [link] southampton.ac.uk
+  [link] rramadass
+  [link] 1 hour ago
+  [link] hide
+  [link] 36 comments
+  [link] OBS Studio 33
+  [link] github.com/obsproject
+  [link] pentagrama
+  [link] 6 hours ago
+  [link] hide
+  [link] 55 comments
+  [link] Kimi K3.1 Pro and K3.1 Pro Highspeed
+  [link] kimi.ai
+  [link] Jowsey
+  [link] 18 hours ago
+  [link] hide
+  [link] 553 comments
+  [link] Physicists trap a single antimatter particle for a month
+  [link] scientificamerican.com
+  [link] mooreds
+  [link] 4 hours ago
+  [link] hide
+  [link] 26 comments
+  [link] Today, we hacked what we'd set out to hack: the iPhone
+  [link] calif.io
+  [link] pavel_lishin
+  [link] 18 hours ago
+  [link] hide
+  [link] 589 comments
+  [link] Twelve years of distributed SQLite
+  [link] philipotoole.com
+  [link] otoolep
+  [link] 10 hours ago
+  [link] hide
+  [link] 33 comments
+  [link] How close can pure functional programming get to C?
+  [link] rtfeldman.com
+  [link] stmonty
+  [link] 7 hours ago
+  [link] hide
+  [link] 20 comments
+  [link] Around a dozen banking apps began specifically permitting GrapheneOS
+  [link] grapheneos.social
+  [link] privacyishuman
+  [link] 10 hours ago
+  [link] hide
+  [link] 25 comments
+  [link] Apple Music 404 Not Found
+  [link] music.apple.com
+  [link] frizlab
+  [link] 18 hours ago
+  [link] hide
+  [link] 237 comments
+  [link] How to run a city builder on 16 MHz
+  [link] larstofus.com
+  [link] rex64
+  [link] 3 hours ago
+  [link] hide
+  [link] 7 comments
+  [link] Local Wikipedia: Wikipedia, but only for things a half hour walk from you
+  [link] edjefferson.com
+  [link] sohkamyung
+  [link] 1 day ago
+  [link] hide
+  [link] 236 comments
+  [link] A practical guide to AI image generation, from diffusion to agents
+  [link] danielball.com
+  [link] westsmith
+  [link] 8 hours ago
+  [link] hide
+  [link] 30 comments
+  [link] Bringing uv and ty together
+  [link] astral.sh
+  [link] Ravencentric
+  [link] 11 hours ago
+  [link] hide
+  [link] 43 comments
+  [link] Dessa: Conversation Model trained only on speech
+  [link] block.xyz
+  [link] dsr12
+  [link] 16 hours ago
+  [link] hide
+  [link] 146 comments
+  [link] Apple Security Research Device
+  [link] security.apple.com
+  [link] neom
+  [link] 8 hours ago
+  [link] hide
+  [link] 26 comments
+  [link] Hacker reverses Samsung TV, finds on-board AI listening OpenAI account suspended
+  [link] reddit.com
+  [link] testing22321
+  [link] 5 hours ago
+  [link] hide
+  [link] 48 comments
+  [link] Canadians are running out of time to oppose Bill C-22
+  [link] eff.org
+  [link] hn_acker
+  [link] 23 hours ago
+  [link] hide
+  [link] 224 comments
+  [link] CVE Tracker
+  [link] 0xosprey.com
+  [link] Group_B
+  [link] 13 hours ago
+  [link] hide
+  [link] 67 comments
+  [link] Node2Shell evolves to HTTP2Shell, blast radius affects many HTTP libs and apps
+  [link] aikido.dev
+  [link] theanonymousone
+  [link] 3 hours ago
+  [link] hide
+  [link] 4 comments
+  [link] The Real Kevin Bacon
+  [link] pudding.cool
+  [link] xnx
+  [link] 20 hours ago
+  [link] hide
+  [link] 79 comments
+  [link] The Best Monopoly Strategy, Tested on 300M Games [video]
+  [link] youtube.com
+  [link] zdw
+  [link] 6 hours ago
+  [link] hide
+  [link] 25 comments
+  [link] C vs. C#: racing VLC's Gaussian blur
+  [link] martinfinkel.com
+  [link] martz
+  [link] 11 hours ago
+  [link] hide
+  [link] 23 comments
+  [link] The Chalk and the Airplane
+  [link] unintendedconsequenc.es
+  [link] paulorlando
+  [link] 1 hour ago
+  [link] hide
+  [link] discuss
+  [link] How Block Blast harvests its players for ad money
+  [link] ayoships.com
+  [link] motionlessveloc
+  [link] 8 hours ago
+  [link] hide
+  [link] 23 comments
+  [link] The Quake Fan who built the map editor everybody uses
+  [link] funcarena.com
+  [link] klaussilveira
+  [link] 9 hours ago
+  [link] hide
+  [link] 14 comments
+  [link] Air Purifiers as White Noise Machines
+  [link] jefftk.com
+  [link] luu
+  [link] 17 hours ago
+  [link] hide
+  [link] 124 comments
+  [link] One Man's Pan Am 747 Replica [video]
+  [link] youtube.com
+  [link] Teever
+  [link] 8 hours ago
+  [link] hide
+  [link] 2 comments
+  [link] Show HN: Corgi, a helpful {agent, terminal} multiplexer
+  [link] corgi.computer
+  [link] eiopa
+  [link] 13 hours ago
+  [link] hide
+  [link] 24 comments
+  [link] Rise of collagen-eating microbes may help explain gaps in the fossil record
+  [link] cam.ac.uk
+  [link] gmays
+  [link] 12 hours ago
+  [link] hide
+  [link] 5 comments
+  [link] Node.js Vulnerability Blog
+  [link] nodejs.org
+  [link] Brysonbw
+  [link] 11 minutes ago
+  [link] hide
+  [link] 1 comment
+    [link] More
+  [link] Guidelines
+  [link] FAQ
+  [link] Lists
+  [link] API
+  [link] Security
+  [link] Legal
+  [link] Apply to YC
+  [link] Contact
+[button] Sift

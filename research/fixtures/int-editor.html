@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Editor fixture</title></head>
+<body>
+<main>
+<h1>Editor fixture</h1>
+<p>Rich editors that Sift mirrors as plain text fields. Every input event is logged in window.__log.</p>
+<form id="f1" onsubmit="event.preventDefault()">
+  <label for="pe">Paragraph editor</label>
+  <div id="pe" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Paragraph editor" style="min-height:60px;border:1px solid #999"><p>ab</p><p>c<b>d</b></p></div>
+  <label for="ee">Emoji editor</label>
+  <div id="ee" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Emoji editor" style="min-height:60px;border:1px solid #999">😀 a<b>b</b></div>
+  <label for="de">Line editor</label>
+  <div id="de" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Line editor" style="min-height:60px;border:1px solid #999"><div>first line</div><div>second <i>line</i></div><div class="sig">-- <br>Signature</div></div>
+  <button type="button" id="post" onclick="window.__posted=(window.__posted||[]).concat([pe.innerHTML])">Post</button>
+</form>
+</main>
+<script>
+window.__log = [];
+for (const id of ["pe", "ee", "de"]) document.getElementById(id).addEventListener("input", (e) => window.__log.push(id + ":" + e.inputType));
+</script>
+</body></html>

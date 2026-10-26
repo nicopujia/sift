@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Sign in · Breadbox</title>
+<style>
+body{font-family:system-ui;margin:0;background:#f3f1ec}
+header{display:flex;gap:16px;align-items:center;padding:12px 24px;background:#222;color:#fff}
+header a{color:#fff}
+main{max-width:420px;margin:40px auto;background:#fff;padding:24px;border-radius:8px}
+label{display:block;margin-top:12px}
+input[type=email],input[type=password],input[type=text]{width:100%;padding:8px;box-sizing:border-box}
+.pw{position:relative}
+.pw button{position:absolute;right:4px;top:4px}
+#err{background:#fde;border:1px solid #c33;padding:8px;margin-bottom:8px}
+.promo{background:#ffd;padding:8px;margin-top:24px;font-size:13px}
+footer{text-align:center;font-size:12px;padding:24px}
+</style></head>
+<body>
+<header><a href="/">Breadbox</a><nav><a href="/shop">Shop</a> <a href="/recipes">Recipes</a> <a href="/help">Help</a></nav></header>
+<main>
+<h1>Sign in</h1>
+<div id="err" role="alert" hidden></div>
+<form id="f" novalidate>
+  <label for="email">Email</label>
+  <input id="email" name="email" type="email" autocomplete="username" required>
+  <label for="pw">Password</label>
+  <div class="pw"><input id="pw" name="password" type="password" autocomplete="current-password" required><button type="button" id="show" aria-label="Show password" aria-pressed="false">&#128065;</button></div>
+  <label><input type="checkbox" id="remember" name="remember"> Remember me</label>
+  <p><a href="/forgot">Forgot password?</a></p>
+  <button type="submit" id="go">Sign in</button>
+</form>
+<p>New to Breadbox? <a href="/signup">Create an account</a></p>
+<p><button type="button" id="google">Continue with Google</button></p>
+<div class="promo">Free delivery on your first three orders! Use code BREAD3 at checkout.</div>
+</main>
+<footer><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · © 2026 Breadbox</footer>
+<script>
+window.__log = [];
+const pw = document.getElementById("pw"), show = document.getElementById("show"), email = document.getElementById("email"), err = document.getElementById("err");
+show.addEventListener("click", () => {
+  const reveal = pw.type === "password";
+  pw.type = reveal ? "text" : "password";
+  show.setAttribute("aria-pressed", String(reveal));
+  show.setAttribute("aria-label", reveal ? "Hide password" : "Show password");
+  __log.push("toggle " + pw.type);
+});
+document.getElementById("f").addEventListener("submit", (e) => {
+  e.preventDefault();
+  __log.push("submit " + email.value + " pwlen=" + pw.value.length + " remember=" + document.getElementById("remember").checked);
+  email.removeAttribute("aria-invalid"); pw.removeAttribute("aria-invalid");
+  if (!email.value) { err.hidden = false; err.textContent = "Enter your email address."; email.setAttribute("aria-invalid", "true"); return; }
+  if (!pw.value) { err.hidden = false; err.textContent = "Enter your password."; pw.setAttribute("aria-invalid", "true"); return; }
+  err.hidden = false; err.textContent = "Wrong email or password. Try again, or reset your password.";
+  pw.value = ""; pw.setAttribute("aria-invalid", "true");
+});
+document.getElementById("google").addEventListener("click", () => __log.push("google"));
+</script>
+</body></html>

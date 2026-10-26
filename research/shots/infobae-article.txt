@@ -1,0 +1,82 @@
+[link] Vista Sift
+[button] Menú
+[button] Iniciar sesión
+    [link] MUNDO
+H1 Un incendio destruyó el “Nido del Águila”, el antiguo refugio de montaña de Adolf Hitler en Alemania
+H2 Los primeros equipos de emergencia llegaron al edificio a las 21:52 del viernes, y encontraron la construcción “completamente en llamas”. Los bomberos enfrentaron dificultades por la ubicación remota a 1.834 metros de altitud mientras efectivos policiales arrestaron al presunto autor del hecho
+    [link] Seguir
+  [button] Ver texto completo
+  [PORTAL] Video
+  [button] Reproducir
+  [button] −10s
+  [button] +10s
+  [button] Silenciar
+  [button] Pantalla completa
+  H3 Un incendio destruyó el “Nido del Águila”, el antiguo refugio de montaña de Adolf Hitler en Alemania
+  p: Un incendio destruyó el viernes la Kehlsteinhaus, el antiguo refugio de montaña de Adolf Hitler en Baviera, Alemania. La policía detuvo temporalmente a un sospechoso.
+    li: La Policía de Alta Baviera Sur detuvo temporalmente a una persona.
+    li: Las autoridades investigan si el arrestado tiene relación con el fuego.
+    li: La causa del incendio no está establecida.
+    li: Los equipos de emergencia llegaron a las 21.52 del viernes.
+    li: Encontraron el edificio completamente en llamas.
+    li: La ubicación remota, a 1.834 metros de altitud sobre Berchtesgaden, dificultó el trabajo de los bomberos.
+    li: La nieve caía sobre la cima mientras el edificio seguía en llamas en las primeras horas del sábado.
+    li: La portavoz policial Lisa Maier indicó que no se hallaron personas dentro del inmueble.
+    li: No se esperaban heridos.
+    li: La División de Investigación Criminal de Traunstein dirige las pesquisas.
+    li: El diario Bild informó que la hipótesis de un incendio intencional forma parte de la investigación.
+    li: Esa posibilidad no cuenta con confirmación oficial.
+    li: Los investigadores no determinaron todavía el origen de las llamas.
+  H3 El Nido del Águila: los secretos del faraónico refugio de Hitler
+  p: La Kehlsteinhaus se ubica a 1.834 metros de altura sobre Berchtesgaden. Es uno de los destinos turísticos más visitados de esa zona de Baviera.
+    li: El edificio se construyó entre 1937 y 1938 como una casa de té para Adolf Hitler.
+    li: Hitler acudió al lugar en pocas ocasiones.
+    li: La construcción buscaba impresionar a invitados y representantes diplomáticos extranjeros.
+    li: La Asociación Berchtesgaden Mountain Experience señala que la casa estaba destinada a servir como un lugar de representación política alejado de la mirada pública durante la era nazi.
+    li: La Kehlsteinhaus sobrevivió a la Segunda Guerra Mundial con pocos daños.
+    li: Desde 1952 funciona como una posada de montaña.
+    li: Pertenece actualmente al Estado Libre de Baviera.
+    li: El lugar alberga una exposición dedicada a la historia de la construcción durante el régimen nazi.
+  H3 El "Nido del Aguila" se convirtió en una atracción turística
+  p: La Kehlsteinhaus formó parte del complejo de Obersalzberg, donde Hitler tenía su segunda residencia oficial, el Berghof.
+    li: La obra fue un regalo de Martin Bormann para el 50° cumpleaños de Hitler.
+    li: El proyecto debía concluir a tiempo para la celebración de 1939.
+    li: Bormann ordenó jornadas continuas durante las 24 horas.
+    li: La construcción costó la vida de 12 trabajadores.
+    li: La casa se levantó en la cima de una montaña, a unos 10 kilómetros de Salzburgo.
+    li: La construcción exigió la apertura y pavimentación de una carretera de más de seis kilómetros.
+    li: Se perforó la roca y se instaló un ascensor dentro de la montaña.
+    li: Se utilizó un teleférico para transportar materiales.
+    li: Se contrataron cientos de obreros.
+    li: El costo de la obra superó, según estimaciones, los USD 150 millones a valores actuales.
+    li: Albert Speer, arquitecto y ex Ministro de Armamento y Guerra del Reich, recordó en sus memorias que el proyecto reflejaba el aislamiento creciente de Hitler y el cambio de su estilo de vida.
+    li: El embajador francés en Alemania, André François-Poncet, bautizó la construcción como el Nido del Águila, en referencia al escudo de la Alemania nazi.
+    li: El nombre se adoptó de inmediato.
+    li: Aunque se ideó como un espacio de descanso para Hitler y como sitio para recibir a mandatarios extranjeros, el dictador nazi acudió pocas veces.
+    li: La construcción tenía también una función de representación política.
+    li: El Nido del Águila se ubicaba cerca del Berghof, una residencia que Hitler compró en 1932 y amplió hasta convertirla en una mansión de 30 habitaciones.
+    li: A su alrededor, Bormann impulsó la transformación de Obersalzberg en un centro de poder del régimen nazi.
+    li: Bormann compró, expropió y desalojó propiedades vecinas.
+    li: Ordenó demoler las viviendas de la zona.
+    li: El complejo incluyó residencias para jerarcas nazis, hoteles, oficinas, restaurantes, barracas para obreros y soldados.
+    li: Allí funcionó una sede alternativa del régimen alemán.
+    li: Los Aliados devolvieron Kehlsteinhaus a las autoridades bávaras en 1960.
+H2 ÚLTIMAS NOTICIAS
+    [link] Examen de admisión San Marcos 2027-I: Código de vestimenta y los documentos que necesitas este sábado 24 y domingo 25 de octubre
+    [link] Examen de admisión San Marcos 2027-I: la hora límite que dejará fuera a los postulantes este sábado 24 y domingo 25 de octubre
+    [link] Resultados Lotería de Santander hoy 24 de octubre: revise su billete y cobre el premio mayor
+    [link] Temblor hoy en México: noticias actividad sísmica 24 de octubre de 2026
+    [link] Concordia: denunciaron otro caso de alumnos que habrían creado imágenes íntimas falsas de sus compañeras con IA
+    [link] DEPORTES
+    [link] Scaloni define la primera lista de convocados de la era post Messi: ausencias obligadas y notables, y dos grandes dudas
+    [link] De calar bolsas de cereales a ser el único periodista argentino que cubrió la épica definición Lauda vs. Hunt, con Fangio de comentarista
+    [link] La Montada en las tribunas y “palos para todos”: cuando la dictadura detuvo a la hinchada de Nueva Chicago por cantar la marcha peronista
+    [link] Se inició la fecha 14 del Torneo Clausura con triunfos de Platense, Gimnasia de La Plata y Atlético Tucumán
+    [link] Comenzó la fecha 14 del Torneo Clausura: así está la lucha por el ingreso a las copas internacionales y los playoffs
+    [link] ENTRETENIMIENTO
+    [link] Ellen Burstyn, la madre de Regan en ‘El exorcista’, rechaza más secuelas de la saga: “Ya basta”
+    [link] Sylvester Stallone respalda la IA en el cine pese al rechazo de Hollywood: “Si no te subes, te va a pasar por encima”
+    [link] Fin de una era en el K-pop: NMIXX cerró MIXXTOPIA con “Strange Muse” y confesó el secreto detrás de su utopía
+    [link] Martin Scorsese ficha a Charli XCX para su nueva película con Leonardo DiCaprio y Jennifer Lawrence
+    [link] Hayao Miyazaki y su hijo Gorō: una relación marcada por la distancia y reparada a través de la animación
+[button] Sift

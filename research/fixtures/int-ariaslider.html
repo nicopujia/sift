@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Speaker settings</title>
+<style>.sl{display:inline-block;position:relative;width:200px;height:8px;background:#ccc;margin:0 8px}.sl span{position:absolute;top:-4px;width:16px;height:16px;background:#333;border-radius:50%}</style></head>
+<body><main><h1>Speaker settings</h1>
+<p>Set the volume and the bass for the kitchen speaker. Changes apply at once.</p>
+<div class="vol">Volume <span role="slider" id="vol" aria-valuenow="5" aria-valuemin="0" aria-valuemax="10" tabindex="0">5</span></div>
+<div class="row">Bass <div class="sl" id="track"><span id="bass" role="slider" tabindex="0" aria-label="Bass" aria-valuemin="-6" aria-valuemax="6" aria-valuenow="0" aria-valuetext="0 dB"></span></div></div>
+<p><button type="button" id="save">Save</button></p>
+</main>
+<script>
+window.__log = [];
+// Volume: updates at once, with keyCode (an older widget).
+const vol = document.getElementById("vol");
+let v = 5;
+function setVol(n) { v = Math.max(0, Math.min(10, n)); vol.setAttribute("aria-valuenow", String(v)); vol.textContent = String(v); __log.push("vol " + v); }
+vol.addEventListener("keydown", (e) => { if (e.keyCode === 39 || e.keyCode === 38) { setVol(v + 1); e.preventDefault(); } if (e.keyCode === 37 || e.keyCode === 40) { setVol(v - 1); e.preventDefault(); } if (e.keyCode === 36) setVol(0); if (e.keyCode === 35) setVol(10); });
+// Bass: like a framework widget, the attribute follows a moment later.
+const bass = document.getElementById("bass");
+let b = 0;
+function setBass(n) { b = Math.max(-6, Math.min(6, n)); __log.push("bass " + b); setTimeout(() => { bass.setAttribute("aria-valuenow", String(b)); bass.setAttribute("aria-valuetext", b + " dB"); bass.style.left = ((b + 6) / 12 * 184) + "px"; }, 10); }
+bass.addEventListener("keydown", (e) => { if (e.key === "ArrowRight" || e.key === "ArrowUp") { setBass(b + 1); e.preventDefault(); } if (e.key === "ArrowLeft" || e.key === "ArrowDown") { setBass(b - 1); e.preventDefault(); } if (e.key === "PageUp") setBass(b + 3); if (e.key === "PageDown") setBass(b - 3); if (e.key === "Home") setBass(-6); if (e.key === "End") setBass(6); });
+document.getElementById("track").addEventListener("click", (e) => { const r = e.currentTarget.getBoundingClientRect(); setBass(Math.round(-6 + (e.clientX - r.left) / r.width * 12)); });
+document.getElementById("save").onclick = () => __log.push("save vol=" + v + " bass=" + b);
+</script></body></html>

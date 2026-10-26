@@ -1,0 +1,186 @@
+[button] Ir al contenido
+[button] Menú
+[button] Iniciar sesión
+H1 Infobae América
+    [link] Rubio dijo que la invasión rusa se centra en el Donbás y pidió concesiones a Moscú y Kiev; Rusia busca el 11% de Ucrania
+    [link] Un incendio destruyó el antiguo refugio de montaña de Adolf Hitler, conocido como el Nido del Águila, en Alemania
+    [link] Emilia Clarke cumple 40 años y es presentada como un ícono de la elegancia británica
+    p: Por Cecilia Castro
+    [link] El ejército ucraniano acatará desde el martes la tregua humanitaria en Oleshky
+    [link] Donald Trump dijo que los buques militares estadounidenses se detendrán frente a Cuba al regresar de Irán
+    [link] El Ejército israelí inició una operación en Hebrón tras un ataque que mató a dos soldados
+    [link] Lula y Bolsonaro debatieron propuestas y moderaron sus acusaciones en el último debate antes del balotaje
+    [link] Lionel Messi dijo que recibir el Premio Princesa de Asturias en España es un honor
+    [link] Irán estuda atacar cables submarinos se Estados Unidos e Israel volven bombardear o país
+    [link] El Pentágono desclasificó un caso de ovnis: dos militares expertos quedaron desconcertados por un triángulo negro
+    p: Por Fausto Urriste
+    [link] Un jugador de rugby pisó brutalmente a un rival en el suelo; el incidente provocó indignación
+    [link] INFOBAE
+    [link] Lula propone medidas de alto costo para intentar remontar frente a Bolsonaro
+    p: Por Mauricio Savarese
+    [link] La disputa por las tierras y la deforestación impulsa a Bolsonaro en un bastión amazónico
+    p: Por Fabiano Maisonnave
+    [link] Lula y Flávio Bolsonaro disputan una elección clave en Brasil, donde la batalla digital será importante
+    p: Por Brisa Bujakiewicz
+    [link] Buscan voluntarios para vivir gratis en Galicia a cambio de cuidar una huerta y cocinar
+    p: Por Noelia Tabanera
+    [link] La Fórmula 1 impulsa un plan que podría cambiar drásticamente los monoplazas
+    [link] Francia desplegó 70.000 agentes para responder a las protestas del sábado
+    [link] Trump negó que las negociaciones comerciales con México estén estancadas y dijo que están cerca de un acuerdo
+    p: Por Samantha Godinez
+    [link] Elon Musk donó otros 76 millones de dólares a las elecciones legislativas estadounidenses en dos semanas
+    p: Por Isabela Durán San Juan
+    [link] Humboldt, un perro entrenado para alertar sin ladrar, ayuda a científicos a encontrar fauna silvestre
+    p: Por Cecilia Castro
+    [link] Kily González opinó sobre la disputa entre Lionel Messi y Cristiano Ronaldo por el “Balón de Oro de todos los tiempos”
+    [link] Opinión de Damián Valenzuela Mayer sobre la caída de la sociedad occidental
+    p: OPINIÓN · Por Damian Valenzuela Mayer
+    [link] La justicia ecuatoriana ordenó prisión preventiva para Luisa González por presunto lavado de activos
+    [link] Un futbolista volvió a errar un penal lento ocho días después de recibir burlas por otro fallo
+    [link] Un estudio identificó moléculas naturales que podrían frenar el crecimiento del cáncer de páncreas
+    [link] Lionel Messi recibirá el Premio Princesa de Asturias en España; el artículo repasa su historia, ganadores y dotación
+    p: Por Salomón Pineda
+    [link] El petróleo subió por quinta jornada consecutiva y alcanzó máximos de varios meses
+    [link] Panamá inició el retiro de bandera a siete buques sancionados por Estados Unidos por vínculos con Irán
+    p: Por Alex Hernández
+    [link] El Departamento de Justicia de Estados Unidos busca bloquear la certificación del Senado de Alaska si pierde el senador republicano
+    [link] INFOBAE
+    [link] Ucrania celebró la liberación de 270 prisioneros de guerra que estaban cautivos en Rusia
+    [link] Ucrania informó que persisten las fallas de Starshield pese al anuncio de restitución de Trump
+    p: Por Francisco González Tomadin
+    [link] Melania Trump anunció un cese del fuego en Oleshky, Ucrania, a partir del 29 de octubre
+    [link] Rumania culpó a Rusia por el naufragio de un carguero en el mar Negro, con un muerto y tres desaparecidos
+    [link] Un modelo de Anthropic siguió un ciberataque contra una persona real pese a saber que le causaba daño
+    p: Por Renzo Gonzales
+    [link] Emmanuel Macron calificó de “punto de inflexión” el tiroteo ocurrido cerca de París
+    [link] Gael Monfils defendió a Elina Svitolina tras su divorcio y habló de los sentimientos confusos de una separación
+    [link] Austria expulsó a cuatro diplomáticos rusos por presunto espionaje
+    [link] Una novela ganó un premio de 20.000 euros que prohibía la IA; un detector atribuyó el 99% del texto a tecnología generativa
+    [link] INFOBAE
+    [link] EEUU reducirá su personal en cuatro embajadas de Medio Oriente debido al aumento de las amenazas de Irán
+    [link] El mensaje de Netanyahu tras ordenar el cierre de Hebrón en Cisjordania: “Destruiremos y transformaremos este lugar”
+    [link] Los cancilleres de ocho países piden en Estambul una salida diplomática para frenar la escalada en Medio Oriente
+    [link] INFOBAE
+    [link] Transparencia Venezuela propone crear una justicia especial anticorrupción
+    p: Por Pedro Pablo Peñaloza · | Desde Caracas
+    [link] El partido de Machado denunció la detención de siete personas que trabajaron en la marcha opositora
+    [link] La oposición venezolana destaca que negociación abrió el camino para revisar las inhabilitaciones políticas
+    p: Por Pedro Pablo Peñaloza
+    [link] INFOBAE
+    [link] Advierten que un fallo en las puertas de algunas freidoras de aire puede causar quemaduras de segundo grado
+    p: Por Maricielo Grados Córdova
+    [link] Se reportaron más de 90 casos de norovirus en una escuela primaria de Estados Unidos
+    p: Por Maricielo Grados Córdova
+    [link] El hombre que abatió al atacante de una escuela primaria de Oregón se disculpó por no salvar a los bebés
+    p: Por Lucila Gomez
+    [link] La joven que denunció una violación grupal en una fraternidad de Cornell dice vivir con miedo constante
+    p: Por Lucila Gomez
+    [link] INFOBAE
+    [link] Pandillas haitianas difundieron un ritual con armas y ron; militares salvadoreños rezaron antes de viajar a buscar connacionales
+    p: Por José Cerón
+    [link] El oficialismo recomienda no reelegir por ocho años a Patricia Solano y cuestiona su gestión de la inseguridad en Costa Rica
+    p: Por Fabricio Quirós Zúñiga
+    [link] Guatemala convocó una visita obligatoria al campo Xan antes de licitar el cierre de 59 pozos petroleros
+    p: Por Sayda Galicia
+    [link] Lluvias inundaron calles de Puerto Cortés, Honduras, y dificultaron el paso de vehículos en varios sectores
+    p: Por Pamela Bustillo
+    [link] INFOBAE
+    [link] Bolivia: Ministerio Público apartó a dos funcionarios incluidos en la lista de restricción de visa a EEUU
+    p: Por María Silvia Trigo · | Desde Santa Cruz de la Sierra
+    [link] Jueces, diputados, fiscales: quiénes son los bolivianos a los que Estados Unidos restringió la visa por presunto narcotráfico
+    p: Por María Silvia Trigo
+    [link] Violencia en Bolivia: lanzan el tercer plan de seguridad ante incremento de asesinatos vinculados al narcotráfico
+    p: Por María Silvia Trigo
+H2 ECONOMÍA
+    [link] Francia se libra de la rebaja de la calificación de Moody's mientras se enfrenta a los disturbios
+    p: Por Leigh Thomas y Dhara Ranasinghe
+    [link] Donald Trump eliminó aranceles del 50% a nueve categorías de productos canadienses
+    [link] Wall Street cerró a la baja por el aumento del petróleo y las caídas financieras
+    [link] VIDEOS DESTACADOS
+    [link] Nacen los primeros cuadrillizos genéticamente idénticos en Colombia
+    p: 1:06 Min
+    [link] Salvadoreño En El Ejército De Rusia Pide Ayuda Y Asilo Político
+    p: El Salvador · 1:47 Min
+    [link] Millones de peruanos se quedarían sin agua potable por el Fenómeno El Niño
+    p: Actualidad · 1:32 Min
+    [link] El Niño ya alarma al Perú y estos serán sus próximos efectos en el país
+    p: Actualidad · 1:32 Min
+    [link] Sin Información Sobre Los Soldados Salvadoreños Desaparecidos En Haití
+    p: El Salvador · 1:22 Min
+    [link] ¡El papa León XIV envió un mensaje al Perú tras recibir el alta hospitalaria!
+    p: Actualidad · 57 Seg
+    [link] Karol G y Feid reavivan los rumores de una posible reconciliación
+    p: Colombia · 46 Seg
+    [link] Desacuerdos Entre Gremio Médico Y Autoridades Tienen En Paro El Servicio De Salud De Honduras
+    p: 1:03 Min
+    [link] La lucha contra la tuberculosis: una nueva vacuna española
+    p: Salud · 1:06 Min
+    [link] Nicaragua Suma Más Agresiones Contra Periodistas
+    p: 1:01 Min
+    [link] INFOBAE
+    [link] Marshall Faulk, leyenda de la NFL e integrante del Salón de la Fama, reveló que padece Parkinson
+    p: Por Fausto Urriste
+    [link] Polémica por el “gol fantasma” de Cristiano Ronaldo que le permitió dar un paso más rumbo a los 1.000 tantos
+    [link] Omar Chávez lanza reto a Saúl ‘Canelo’ Álvarez para enfrentarlo en el Estadio Azteca
+    p: Por Mariana Campos
+    [link] INFOBAE
+    [link] Martin Scorsese eligió a Charli XCX para su nueva película con Leonardo DiCaprio y Jennifer Lawrence
+    p: Por Ester Palomino
+    [link] Un youtuber estadounidense podría recibir dos años de prisión por pescar un tiburón protegido
+    p: Por Bautista Salaverri
+    [link] Sylvester Stallone respalda el uso de inteligencia artificial en el cine pese al rechazo de Hollywood
+    p: Por Ester Palomino
+    [link] Nick Reiner y los administradores del fideicomiso de sus padres asesinados negociarán quién paga su defensa
+    p: Por Fausto Urriste
+    [link] INFOBAE
+    [link] Un estudio analiza cómo comer a la misma hora podría influir en la absorción de nutrientes
+    p: Por Cecilia Castro
+    [link] Seis objetos que conviene sacar del dormitorio antes del verano para ganar espacio y adaptarlo al calor
+    [link] Cinco maneras de usar jugo de limón para lavar la ropa
+    p: Por Lucila Waicman
+    [link] Estados Unidos confirmó 4.588 casos de sarampión y tres muertes
+    p: Por Fausto Urriste
+H2 TECNOLOGÍA
+    [link] Los robots pato de Nvidia que duermen y juegan, tuvieron 20.000 pedidos de preventa en un día
+    p: Por Renzo Gonzales
+    [link] Estas son las principales novedades de Cyberpunk 2077 Update 2.5
+    p: Por Renzo Gonzales
+    [link] La primera directora de operaciones de Xbox dejó Microsoft apenas tres meses después de asumir el cargo
+    p: Por Isabela Durán San Juan
+H2 MALDITOS NERDS
+    [link] Xbox analiza cómo recuperar los 500 millones de ‘Gears of War: E-Day’
+    p: Por Gustavo Robles
+    [link] Fallout 76 supera los 25 millones y Bethesda prepara mascotas de combate
+    p: Por Lucas Rivarola
+    [link] Bandai Namco vence a Konami con ‘Tales of Eternia Remastered’ en Japón
+    p: Por Gustavo Robles
+    [link] ‘Katana Zero’ muestra su DLC tras años de espera y confirma su gran escala
+    p: Por Lucas Rivarola
+H2 Más Noticias
+    [link] Estados Unidos incorporó a Paraguay a la declaración Pax Silica para proyectos de superinteligencia
+    [link] Científicos suizos diseñaron un chip subcutáneo que electrocuta la glucosa para controlar diabetes y obesidad
+    [link] El tifón Champi dejó al menos un muerto y 170 heridos en Taiwán
+    [link] El entrenador del Bayern Múnich, Vincent Kompany, se desplomó durante una práctica y fue trasladado de urgencia al hospital
+    [link] Luis Almagro analiza el camino de América Latina al fracaso
+    p: Por Luis Almagro
+    [link] Dos motines carcelarios en Ecuador dejaron ocho presos muertos y diez heridos
+    p: Por Yalilé Loaiza
+H2 ÚLTIMAS NOTICIAS
+    [link] Marco Rubio dijo que la invasión rusa de Ucrania se centra en el Donbás e instó a Moscú y Kiev a hacer concesiones
+    [link] EEUU reducirá personal en cuatro embajadas de Medio Oriente por el aumento de las amenazas de Irán
+    [link] EEUU invitó a quienes buscan un cambio en Cuba a colaborar discretamente con la CIA
+    [link] Kim Jong-un exigió a empresas norcoreanas acelerar la revolución militar y construir el ejército más fuerte
+    [link] Organizaciones brasileñas expresaron preocupación por la censura en redes sociales antes de las elecciones
+    [link] DEPORTES
+    [link] Un gol fantasma de Cristiano Ronaldo generó polémica y lo acercó a los 1.000 tantos
+    [link] Una exfigura del Real Madrid dijo que Atlético Mineiro es mucho mejor equipo que Boca antes de la final de la Sudamericana
+    [link] Antonela Roccuzzo tuvo un gesto con un niño durante la revolución que generó Messi en España
+    [link] Aseguran que el hermano de Steffi Graf se esconde en túneles para huir de la policía
+    [link] Dos figuras de UFC que pelearán por el título se presentaron con referencias a Street Fighter y Peaky Blinders
+    [link] ENTRETENIMIENTO
+    [link] Sylvester Stallone respalda el uso de inteligencia artificial en el cine pese al rechazo de Hollywood
+    [link] NMIXX cerró MIXXTOPIA con «Strange Muse» y reveló el secreto detrás de su utopía
+    [link] Martin Scorsese eligió a Charli XCX para su nueva película con Leonardo DiCaprio y Jennifer Lawrence
+    [link] Hayao Miyazaki y su hijo Gorō repararon con la animación una relación marcada por la distancia
+    [link] Rosalía revivió el meme de la doctora Polo durante su discurso en los Latin Billboard
+[button] Sift
