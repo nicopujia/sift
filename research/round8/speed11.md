@@ -1,0 +1,45 @@
+# Round 8 findings: speed11
+
+Each was reproduced by a skeptic. F8xx are new in round 8; older ids are findings a round 8 recheck found not fully fixed. The suspected cause and fix are leads, not orders.
+
+## F872 (high): GitHub file view: the code appears 0.7 to 2.2 s later than on the original
+
+Found by: T3-tools. Where: https://github.com/preactjs/preact/blob/main/hooks/src/index.js
+
+Evidence: fp2.ts timed when the original's .react-code-lines and Sift's code ('import { options') each first appeared, 3 runs per set. Set 1 (load ~10): original 4189/2646/1707 ms vs Sift 6309/3931/2943 ms. Set 2 (load ~12): 4116/2712/1756 vs 6287/4849/2573. Set 3 (load ~2): 2002/1085/1042 vs 3013/1831/1770. Sift was slower in 9 of 9 runs; the medians across the 9 are 2646 vs 3931 ms. A poll during one load shows the original's code visible at 2734 ms. Sift then showed only 285 chars (nav, H1, Details) through its runs 4-6, until run 7 added the code at 5744 ms (that run took 301 ms). Other GitHub pages were equal to the original: the issue #4416 (3704/2213/1374 both) and the repo file list (4200/2801/2018 both).
+
+Repro: cd /home/nico/projects/sift-test-3; export SIFT_PORT=9463 SIFT_TAB=T3-tools; S=/tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad; bun $S/r7t3/fp2.ts https://github.com/preactjs/preact/blob/main/hooks/src/index.js ".react-code-lines" "import \\{ options" 3 20000  (Sift later than the original in each run). Trace: bun scripts/act.ts goto:about:blank; (bun scripts/act.ts goto:https://github.com/preactjs/preact/blob/main/hooks/src/index.js &); bun $S/r7t3/poll.ts 9 "(()=>{const e=document.querySelector('.react-code-lines');const r=document.querySelector('sift-root')?.shadowRoot;const m=r?.querySelector('main');return 'orig='+(!!e&&e.getBoundingClientRect().height>0)+' sift='+(!!m&&/import \\{ options/.test(m.innerText))+' runs='+r?.host.dataset.runs})()" 50
+
+Suspected cause: After the page renders the code there is no prompt re-extraction: the next run comes about 2 s later, or the runs right after the code appears do not yet read it, perhaps because the code view is still marked as loading.
+
+Skeptic: Reproduced, but the cause is not scheduling, and I rate it medium, not high. fp2.ts at load average about 1 gave original vs Sift: 2057/2809, 822/1582, 1133/1831, 1289/1912 and 1139/1808 ms. Sift was later in 5 of 5. Poll traces show .react-code-lines with the code text at 742 to 942 ms, and Sift adding the code only at 2521 to 2632 ms, while runs 4 to 6 in between stayed at 285 chars. Why: GitHub's visible code container (div.react-code-file-contents) is aria-hidden=true, and Sift skips aria-hidden content (generic.ts around line 3414). Sift waits for the screen-reader textarea #read-only-cursor-text-area, which GitHub mounts at about 2.6 s. Sift shows the code in the same run that textarea appears. So code a sighted user sees on the original after about 0.8 to 0.9 s appears 0.7 to 1.7 s later in Sift.
+
+Skeptic's fix lead: src/content/extract/generic.ts: when a code view's accessible textarea is not there yet, read the aria-hidden visual code lines (.react-code-lines, or an aria-hidden block with no accessible twin) as a fallback. In general, do not drop an aria-hidden block when no accessible copy of its text exists.
+
+## F873 (medium): weather.com today: the current temperature and forecast often show up later than on the original under load
+
+Found by: T3-tools. Where: https://weather.com/weather/today/l/37.7749,-122.4194 (redirects to /us/california/city/san-francisco/today)
+
+Evidence: fp2.ts timed when the original's [data-testid=TemperatureValue] and Sift's first '\d+°' appeared, 13 runs. Under load (load 10-14), 10 runs (orig vs Sift): 6237/7661, 6299/7115, 5721/6881, 5428/5648, 4423/4726, 6259/7256, 4199/5530, 4443/4443, 4772/4772, 5642/7087. That is Sift later by 0 to 1445 ms; medians are original 5535 vs Sift 6264. At load ~2: 4229/5222, 3591/3591, 3832/3832. The H1 is equal (1041/660/750 both). Poll trace of one load: the page's temperature was visible at 6728 ms, and Sift's run 11 was at 4527 ms. The next run came at 7732 ms and added the forecast (siftlen 105 to 2198).
+
+Repro: cd /home/nico/projects/sift-test-3; export SIFT_PORT=9463 SIFT_TAB=T3-tools; S=/tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad; bun $S/r7t3/fp2.ts "https://weather.com/weather/today/l/37.7749,-122.4194" "[data-testid=TemperatureValue]" "\\d+°" 4 25000  (run while other test Chromes are busy; Sift is often 1-1.4 s later)
+
+Suspected cause: Sift's re-extraction is scheduled for an idle moment, and the page's main thread is busy while it hydrates. The run that picks up the forecast waits about 1 s after the page shows it.
+
+Skeptic: Reproduced only under CPU pressure, and caused by Sift. Unthrottled at load average about 1, Sift matched the original in 5 of 5 runs (for example 3680/3680 and 3879/3879). With 2x CPU throttle (my fp2t.ts), Sift was later in 5 of 5: 6114/7447, 7360/8396, 5786/7784, 6762/7835 and 5529/7819 ms. With 4x it was later in 5 of 5, by 0.9 to 4.5 s (for example 10481/15022). A 4x poll trace shows the page's TemperatureValue visible at 13425 ms. Sift's last run before that was at 8215 ms (still 105 chars), and the next run, which added the temperature, came at 14740 ms. Cause in src/content/index.ts schedule(): once contentShown() is true, routine pacing is used. That pacing waits max(lastDur*6, backoff), or lastDur*9 when a run took over 80 ms, then requestIdleCallback with a 600 ms timeout. contentShown() also becomes true 10 s after load starts, and slow CPUs pass that while still loading. On a slow machine the page's main content shows in Sift 1 to 2 s after the original has it.
+
+Skeptic's fix lead: src/content/index.ts schedule()/contentShown(): keep the loading pacing (run right after the change, not at idle) while the page is still adding large subtrees or document.readyState is not 'complete'. Do not count 'performance.now() - loadStart > 10000' as content shown while Sift still has thin content. Or cap the idle wait for big additions (many new nodes or new text) at about 200 ms.
+
+## F874 (medium): OpenStreetMap: the opened Layers panel pushes the map off the first screen, so picking a layer shows no visible change
+
+Found by: T3-tools. Where: https://www.openstreetmap.org/#map=16/37.7994/-122.3998 (Layers control in the map portal); same on /directions
+
+Evidence: After a real click on the map's Layers control (viewport 1280x813), Sift scrolls to the new 'Map Layers' panel, which sits above the map: the first radio is at y=368. The map portal starts at y=996, entirely below the screen. After 'Cycle Map' is picked, the radios are on screen but the map is at y=1265, so the user cannot see the new layer without scrolling down, then back up to try another. The 8 'Layer Info: …' buttons add 3 more rows. In the original, the 810 px panel sits beside the map and both are visible. This follows from the F752 fix, which expanded the panel above the map.
+
+Repro: cd /home/nico/projects/sift-test-3; export SIFT_PORT=9463 SIFT_TAB=T3-tools; S=/tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad; bun scripts/act.ts "goto:https://www.openstreetmap.org/#map=16/37.7994/-122.3998" wait:8000; bun $S/r7t3/osmlayers.ts; bun scripts/act.ts shot:x "eval:(()=>{const r=document.querySelector('sift-root').shadowRoot;const rd=[...r.querySelectorAll('input[type=radio]')];return 'first radio@'+Math.round(rd[0].getBoundingClientRect().top)+' map@'+Math.round(r.querySelector('.portal').getBoundingClientRect().top)+' vh='+innerHeight})()"  (prints first radio@368 map@996 vh=813). Afterwards: bun scripts/act.ts click:Standard click:Close. Shot: /home/nico/projects/sift-test-3/research/shots/R8-T3-osm-after-layers-click.png
+
+Suspected cause: The layers panel, a sibling of the map in the original's layout, is placed before the portal in Sift's flow and shown expanded.
+
+Skeptic: Reproduced at 1280x813 after a real click on the map's Layers control. Sift showed the Map Layers panel (8 radios) with the first radio at y=368 and the map portal top at y=996, entirely below the screen. Picking 'Cycle Map' switched the layer (hash layers=C), but the map was not on screen (portal top at 1265 after the click scrolled), so the change cannot be seen without scrolling. Below the radios are 8 'Layer Info' buttons. Original with Sift off: the layers panel is at x=1030 (250 wide) beside the map (0 to 1030, 758 tall), so both are visible. I reset the layer to Standard afterwards (hash has no layers= now) and did not click the welcome Close. This is a usability problem on a tool page. It is not about a few pixels, but it is closer to medium-low than high.
+
+Skeptic's fix lead: src/content/extract/generic.ts: put the map-UI panel that the F752 change now expands (the narrow sidebar panel beside the map portal) after the portal in Sift's flow, not before. Or, when a panel's controls act on a portal, scroll so the portal stays in view after a choice.

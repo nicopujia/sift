@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Rye recipes · Breadbox</title>
+<style>body{font-family:system-ui;margin:0} main{max-width:680px;margin:24px auto} li{padding:8px 0}</style></head>
+<body>
+<main>
+<h1>Rye recipes</h1>
+<ul id="list"></ul>
+<button type="button" id="more">Show more recipes</button>
+<h2>Need help?</h2>
+<p><a href="#help">Ask the bakery</a></p>
+</main>
+<script>
+window.__log = [];
+const names = ["Rye sourdough", "Seeded rye", "Light rye", "Rye crispbread", "Pumpernickel", "Rye and caraway", "Dark rye rolls", "Rye and fig loaf", "Rye pretzel", "Rye focaccia", "Rye bagels", "Rye pancakes", "Rye scones", "Rye brownies", "Rye crackers", "Rye waffles"];
+const add = (from, to) => { for (let i = from; i < to; i++) { const li = document.createElement("li"); li.innerHTML = '<a href="#r' + i + '">' + names[i] + '</a>'; document.getElementById("list").appendChild(li); } };
+add(0, 8);
+document.getElementById("more").onclick = () => { add(8, 16); document.getElementById("more").remove(); __log.push("more"); };
+</script>
+</body></html>

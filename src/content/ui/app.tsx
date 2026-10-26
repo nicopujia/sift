@@ -183,6 +183,9 @@ function useMirror(f: Field) {
   return ref;
 }
 
+/** A combobox on the page is one here: its list is Sift's suggestion sheet (markSuggest sets aria-expanded and aria-controls, F804). */
+const comboProps = (f: Field): any => (f.combo ? { role: "combobox", "aria-expanded": "false", "aria-autocomplete": f.combo !== "none" ? f.combo : undefined } : {});
+
 function TextField({ f, formRef }: { f: Field; formRef?: string }) {
   const ref = useMirror(f);
   useEffect(() => {
@@ -203,6 +206,9 @@ function TextField({ f, formRef }: { f: Field; formRef?: string }) {
     disabled: f.disabled,
     readOnly: f.readOnly,
     autoComplete: f.autocomplete,
+    // The page field's limits hold here too: typing stops at its maxlength, as on the original (F801).
+    maxLength: f.maxLength,
+    minLength: f.minLength,
     onInput: (e: Event) => {
       noteTyping(e);
       H.input(f.ref, (e.currentTarget as HTMLInputElement).value);
@@ -211,8 +217,9 @@ function TextField({ f, formRef }: { f: Field; formRef?: string }) {
     ...fieldEvents(f.ref),
     // The page says the value is wrong, and why (its error text is read with the field).
     "aria-invalid": f.invalid || undefined,
-    "aria-describedby": f.error ? "err-" + f.key : undefined,
+    "aria-describedby": [f.error && "err-" + f.key, f.desc && "desc-" + f.key].filter(Boolean).join(" ") || undefined,
   };
+  const combo = comboProps(f);
   return (
     <>
       <label class="field">
@@ -220,10 +227,11 @@ function TextField({ f, formRef }: { f: Field; formRef?: string }) {
         {f.kind === "textarea" || f.kind === "editable" ? (
           <textarea {...common} />
         ) : (
-          <input {...common} type={f.kind as any} name={f.name} min={f.min} max={f.max} step={f.step} aria-valuetext={f.valueText} />
+          <input {...common} {...combo} type={f.kind as any} name={f.name} min={f.min} max={f.max} step={f.step} pattern={f.pattern} aria-valuetext={f.valueText} />
         )}
       </label>
       {f.error && <span class="sr" id={"err-" + f.key}>{f.error}</span>}
+      {f.desc && <span class="sr" id={"desc-" + f.key}>{f.desc}</span>}
     </>
   );
 }
@@ -733,7 +741,8 @@ export function BlockView({ b }: { b: Block }) {
     }
     case "facts":
       return (
-        <dl class="facts">
+        // Several short readings ("Humidity 67%", "Wind Speed 5 MPH") sit two to a row on a wide screen (F636).
+        <dl class={b.rows.length >= 4 && b.rows.every((r) => r.k.length <= 20 && textOf(r.v).length <= 30) ? "facts short" : "facts"}>
           {b.rows.map((r, i) => (
             <Fragment key={i}>
               <dt>{r.k}</dt>
@@ -802,6 +811,7 @@ function SearchBox({ f }: { f: Field }) {
           H.input(f.ref, (e.currentTarget as HTMLInputElement).value);
         }}
         {...fieldEvents(f.ref)}
+        {...comboProps(f)}
       />
       <button type="submit" class="btn primary">{f.submitLabel || t("search")}</button>
     </form>
@@ -907,6 +917,58 @@ function anchorOf(d: Dialog): HTMLElement | null {
   return anchor.el?.isConnected ? anchor.el : null;
 }
 
+/**
+ * A popup found by layout that opened while the user was in a page-view field they had just
+ * entered, with no action since: it is not what they asked for, so it takes neither the focus
+ * nor the keys from that field (F870). It still shows, and Tab reaches it.
+ */
+let over: { key: string; yes: boolean } = { key: "", yes: false };
+function typedOver(d: Dialog): boolean {
+  if (over.key !== d.key) {
+    const f = typingField();
+    const at = f ? lastTouched(f) : 0;
+    over = { key: d.key, yes: /^pop:/.test(d.key) && !!f && !f.closest(".layer, .sheet") && !(f as HTMLInputElement).readOnly && at > store.actAt && Date.now() - at < 3000 };
+  }
+  return over.yes;
+}
+
+/** The Sift field shown as expanded with its suggestion list. */
+let expanded: HTMLElement | null = null;
+/** The suggestion list last counted aloud, and how many it had. */
+let counted = "";
+
+/**
+ * A field with suggestions says so, as the page's combobox does (F804): it is expanded and
+ * controls Sift's list, the list's choices are options, and how many there are is said
+ * politely when the list appears or their number changes.
+ */
+function markSuggest(field: HTMLElement | null, sheet: HTMLElement | null, key: string, chosen?: Set<string>) {
+  if (expanded && expanded !== field) {
+    if (expanded.getAttribute("role") === "combobox") expanded.setAttribute("aria-expanded", "false");
+    expanded.removeAttribute("aria-controls");
+    expanded.removeAttribute("aria-activedescendant");
+  }
+  expanded = field;
+  if (!field || !sheet) {
+    counted = "";
+    return;
+  }
+  if (field.getAttribute("role") === "combobox") field.setAttribute("aria-expanded", "true");
+  field.setAttribute("aria-controls", sheet.id);
+  if (sheet.getAttribute("role") !== "listbox") return;
+  const opts = Array.from(sheet.querySelectorAll<HTMLElement>("button, a[href]"));
+  opts.forEach((o, i) => {
+    o.setAttribute("role", "option");
+    o.id = "sift-opt-" + i;
+    // A chosen one (a skill already added) is selected, as the page's option is; an option is never "pressed".
+    o.setAttribute("aria-selected", chosen?.has(o.dataset.ref ?? "") ? "true" : "false");
+    o.removeAttribute("aria-pressed");
+  });
+  const now = key + "|" + opts.length;
+  if (now !== counted && opts.length) H.say(t("nSuggestions", { n: opts.length }));
+  counted = now;
+}
+
 /** The Sift field the shown suggestion list belongs to, if one is shown. */
 export function suggestAnchor(): HTMLElement | null {
   const root = document.querySelector("sift-root")?.shadowRoot;
@@ -920,6 +982,10 @@ function DialogView({ page }: { page: Page }) {
   const started = useRef<{ key: string; el: HTMLElement | null }>({ key: "", el: null });
   useEffect(() => {
     if (anchor.el) return;
+    if (typedOver(d)) {
+      started.current = { key: d.key, el: null };
+      return;
+    }
     // Where the page put focus in its dialog (a session warning's "Stay signed in"), as on the original.
     const own = d.focus ? box.current?.querySelector<HTMLElement>(`[data-ref="${CSS.escape(d.focus)}"]`) : null;
     if (started.current.key === d.key) {
@@ -938,6 +1004,11 @@ function DialogView({ page }: { page: Page }) {
     started.current = { key: d.key, el: el ?? null };
     el?.focus();
   }, [d.key, d.focus]);
+  // The anchored list is a combobox's list box when it holds only choices (F804).
+  const close = !!d.close && !JSON.stringify(d.blocks).includes(`"ref":"${d.close.ref}"`);
+  const choices = !!field && !close && d.blocks.length === 1 && d.blocks[0].t === "actions";
+  useEffect(() => markSuggest(field, field ? box.current : null, d.key, choices ? new Set((d.blocks[0] as Extract<Block, { t: "actions" }>).actions.filter((a) => a.pressed).map((a) => a.ref)) : undefined));
+  useEffect(() => () => markSuggest(null, null, ""), []);
   const name = d.title || firstLine(d.blocks) || page.title;
   if (field) {
     const r = field.getBoundingClientRect();
@@ -948,14 +1019,24 @@ function DialogView({ page }: { page: Page }) {
     return (
       <div
         class="sheet suggest"
-        role="group"
+        id="sift-suggest"
+        role={choices ? "listbox" : "group"}
         aria-label={d.title || t("suggestions")}
         ref={box}
+        // The option the keys moved to is the field's active one (F804).
+        onFocusIn={(e) => {
+          const o = e.target as HTMLElement;
+          if (o.getAttribute("role") === "option") field.setAttribute("aria-activedescendant", o.id);
+        }}
+        onFocusOut={(e) => {
+          const to = e.relatedTarget as HTMLElement | null;
+          if (to?.getAttribute("role") !== "option" || !box.current?.contains(to)) field.removeAttribute("aria-activedescendant");
+        }}
         style={{ ...place, left: Math.round(r.left) + "px", width: Math.round(Math.max(r.width, 240)) + "px" }}
       >
         <Blocks blocks={d.blocks} />
         {/* The page's own close control, when the list has one and Sift shows it nowhere else. */}
-        {d.close && !JSON.stringify(d.blocks).includes(`"ref":"${d.close.ref}"`) && (
+        {close && (
           <button type="button" class="btn quiet" onClick={() => H.closeDialog(d.key, d.close?.ref, d.ref)}>{t("close")}</button>
         )}
       </div>
@@ -965,7 +1046,7 @@ function DialogView({ page }: { page: Page }) {
   return (
     <div class="layer" onClick={(e) => e.target === e.currentTarget && !d.blocking && H.closeDialog(d.key, d.close?.ref, d.ref)}>
       {/* tabIndex: a click on the sheet's text keeps focus in the sheet. */}
-      <div class="sheet" role={d.role ?? "dialog"} aria-modal="true" aria-label={name} aria-describedby={d.desc ? "sift-dialog-desc" : undefined} ref={box} tabIndex={-1}>
+      <div class="sheet" role={d.role ?? "dialog"} aria-modal={typedOver(d) ? undefined : "true"} aria-label={name} aria-describedby={d.desc ? "sift-dialog-desc" : undefined} ref={box} tabIndex={-1}>
         <div class="sheet-head">
           {d.title ? <h2>{d.title}</h2> : <span />}
           {!d.blocking && <button type="button" class="btn quiet" onClick={() => H.closeDialog(d.key, d.close?.ref, d.ref)}>{t("close")}</button>}
@@ -1040,7 +1121,7 @@ export function App() {
   const dialog = page?.dialog && !store.dismissed.has(page.dialog.key) && !store.pageModal ? page.dialog : undefined;
   // A modal sheet is open: what is behind it is out of reach, as its aria-modal says.
   // The live region and the switch stay usable.
-  const behind = store.menuOpen || (!!dialog && !anchorOf(dialog));
+  const behind = store.menuOpen || (!!dialog && !anchorOf(dialog) && !typedOver(dialog));
   return (
     <div class="sift" lang={page?.lang || undefined} dir={dirOf(page?.lang)}>
       <button type="button" class="skip" inert={behind} onClick={(e) => (e.currentTarget.getRootNode() as ShadowRoot).getElementById("sift-main")?.focus()}>

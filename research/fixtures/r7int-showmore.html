@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Rye starter question</title>
+<style>body{font-family:system-ui;margin:0} main{max-width:680px;margin:24px auto} .c{border-top:1px solid #ddd;padding:6px 0;font-size:14px}</style></head>
+<body>
+<main>
+<h1>Why does my rye starter smell like nail polish?</h1>
+<p>My rye starter is ten days old. Since yesterday it smells sharply of acetone. I feed it once a day with equal weights of whole rye flour and water, and keep it at about 24 degrees. Is it ruined, or is this a normal stage?</p>
+<div id="comments">
+<p class="c">It is hungry. Acetone means the yeast ran out of food. Feed it twice a day for a few days. – Ana</p>
+<p class="c">Try a cooler spot too; 24 degrees is warm for a once-a-day feeding. – Ben</p>
+<p class="c">Totally normal at day ten. Mine did the same and settled down by day fourteen. – Chen</p>
+</div>
+<button type="button" id="more">Show 8 more comments</button>
+<h2>Your answer</h2>
+<p><a href="#answer">Add an answer</a></p>
+<h2>Related questions</h2>
+<ul><li><a href="#q1">How often should I feed a rye starter?</a></li><li><a href="#q2">Can I switch a wheat starter to rye?</a></li></ul>
+</main>
+<script>
+window.__log = [];
+document.getElementById("more").onclick = () => {
+  const box = document.getElementById("comments");
+  const names = ["Dara", "Eli", "Fay", "Gus", "Hana", "Ivo", "Jun", "Kai"];
+  for (let i = 0; i < 8; i++) {
+    const p = document.createElement("p"); p.className = "c";
+    p.textContent = "New comment " + (i + 1) + ": the smell is a sign of a hungry starter; discard more before each feed and use a little more flour than water for a week, then go back to equal weights. – " + names[i];
+    box.appendChild(p);
+  }
+  document.getElementById("more").remove();
+  __log.push("more");
+};
+</script>
+</body></html>

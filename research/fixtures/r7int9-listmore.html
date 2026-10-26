@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Bread search · Breadbox</title>
+<style>body{font-family:system-ui;margin:0} main{max-width:680px;margin:24px auto} li{padding:10px 0;border-bottom:1px solid #ddd} li a{font-weight:600}</style></head>
+<body>
+<main>
+<h1>Results for "rye"</h1>
+<p id="count">Showing 4 of 9 breads.</p>
+<ol id="list">
+<li><a href="#b1">Rye sourdough</a><p>Dense, sour, 700 g. Keeps a week in paper.</p></li>
+<li><a href="#b2">Seeded rye</a><p>Sunflower and pumpkin seeds, 650 g.</p></li>
+<li><a href="#b3">Light rye</a><p>Half rye, half wheat, a soft crumb, 600 g.</p></li>
+<li><a href="#b4">Rye crispbread</a><p>Thin and dry, a box of 20, keeps three months.</p></li>
+</ol>
+<button type="button" id="more">Show more results</button>
+<h2>Need help?</h2>
+<p><a href="#help">Ask the bakery</a></p>
+<p><a href="#stores">Find a store</a></p>
+</main>
+<script>
+window.__log = [];
+document.getElementById("more").onclick = () => {
+  const names = ["Pumpernickel", "Rye and caraway", "Dark rye rolls", "Rye and fig loaf", "Rye pretzel"];
+  for (const [i, n] of names.entries()) {
+    const li = document.createElement("li"); li.id = "n" + i;
+    li.innerHTML = '<a href="#x' + i + '">' + n + '</a><p>Made with whole rye flour from the mill in Petaluma, ' + (500 + i * 50) + ' g.</p>';
+    document.getElementById("list").appendChild(li);
+  }
+  document.getElementById("count").textContent = "Showing 9 of 9 breads.";
+  document.getElementById("more").remove();
+  __log.push("more");
+};
+</script>
+</body></html>

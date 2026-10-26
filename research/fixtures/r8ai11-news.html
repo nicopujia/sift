@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Portada de noticias de prueba</title></head>
+<body>
+<header><nav><a href="/">Inicio</a> <a href="/politica">Política</a></nav></header>
+<main>
+  <h1>Últimas noticias</h1>
+  <section id="list"></section>
+</main>
+<footer><a href="/terminos">Términos</a></footer>
+<script>
+const v = Number(new URLSearchParams(location.search).get("v") || 1);
+const H = [
+  "Un conductor alcoholizado embistió a un grupo de 30 ciclistas en un paseo de Halloween y dejó dos muertos en la ruta",
+  "El día que Diego Maradona compró el icónico auto de Rocky: la reacción del vendedor y una frase para la posteridad",
+  "Debemos dejar propina en el delivery? Analizamos todos los ángulos del debate y la respuesta es sorprendente para muchos",
+  "El presidente dijo que la elección fue limpia y pidió a la oposición que reconozca el resultado del balotaje provincial",
+  "La inflación de octubre fue la más baja del año según el instituto de estadísticas y los mercados reaccionaron con subas",
+  "El Gobierno anunció un plan de obras para las provincias del norte que incluye rutas, escuelas y hospitales nuevos",
+];
+const list = document.getElementById("list");
+H.forEach((h, i) => {
+  const a = document.createElement("article");
+  a.innerHTML = `<h3><a href="/nota-${i}">${h}</a></h3><p>hace ${v + i} horas</p>`;
+  list.appendChild(a);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Las claves del balotaje en la provincia</title></head>
+<body>
+<header><nav><a href="/">Inicio</a> <a href="/politica">Política</a></nav></header>
+<main>
+<article>
+  <h1>Las claves del balotaje en la provincia</h1>
+  <p id="share"></p>
+  <p id="read"></p>
+  <p>El candidato oficialista ganó el balotaje con el 55 por ciento de los votos, según el escrutinio provisorio que publicó la autoridad electoral pasada la medianoche del domingo.</p>
+  <p>La diferencia se definió en el conurbano, donde el ganador sacó ventaja en once de los doce distritos más poblados y revirtió el resultado de la primera vuelta.</p>
+  <p>El presidente dijo que la elección fue “limpia y ordenada” y pidió a la oposición que reconozca el resultado. La oposición, por su parte, habló de “irregularidades” en algunas mesas y anunció que revisará las actas.</p>
+  <p>Los analistas coinciden en que la participación, cercana al 70 por ciento, fue más baja que en las elecciones anteriores, y que el voto en blanco creció en los barrios del sur de la capital provincial.</p>
+  <p>El nuevo gobernador asumirá el 10 de diciembre y deberá negociar con una legislatura en la que no tendrá mayoría propia, por lo que necesitará acuerdos con los bloques provinciales para aprobar el presupuesto.</p>
+  <p>Durante la campaña, el ganador prometió bajar impuestos a las pequeñas empresas, ampliar el transporte público hacia el oeste y construir dos hospitales nuevos en los próximos cuatro años de gestión.</p>
+  <p>La oposición, que gobernó la provincia durante los últimos ocho años, deberá ahora reorganizarse y elegir nuevas autoridades partidarias antes de las elecciones legislativas del año próximo.</p>
+  <p id="comments"></p>
+</article>
+</main>
+<footer><a href="/terminos">Términos</a></footer>
+<script>
+const q = new URLSearchParams(location.search);
+const v = Number(q.get("v") || 1);
+document.getElementById("share").textContent = v % 2 ? "Compartir" : "";
+document.getElementById("read").textContent = (10 + v) + "’ minutos de lectura";
+document.getElementById("comments").textContent = String(90 + v * 7);
+if (q.get("long")) { document.title = "LONG " + document.title; document.querySelector("h1").textContent = "LONG " + document.querySelector("h1").textContent; }
+</script>
+</body>
+</html>

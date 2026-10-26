@@ -159,17 +159,29 @@ export async function entryLang(text: string, pageLang: string, detect: (t: stri
   return page;
 }
 
+/** Fewest titles that can move a list away from its page's language. */
+const LIST_SAMPLE = 4;
+/** Share of titles, each read alone, that must be clearly in another language for the list to be in it. */
+const LIST_OTHER = 0.8;
+
 /**
- * The language a list's lines are written in: the page's, unless its titles,
- * read together, are clearly in another one (a site that marks Spanish pages
- * lang="en"): a reliable detection backed by that language's common words or
- * script, as for one entry. One language for the whole list, never per title.
- * "" when neither the page's language nor the titles' is known.
+ * The language a list's lines are written in: the page's, unless nearly all
+ * its titles are clearly in another one (a site that marks Spanish pages
+ * lang="en"): read together, and each alone, a reliable detection backed by
+ * that language's common words or script, as for one entry. A few titles, or
+ * a mixed list (English songs on a Spanish YouTube page), keep the page's
+ * language. One language for the whole list, never per title. "" when neither
+ * the page's language nor the titles' is known.
  */
 export async function listLang(titles: string[], pageLang: string, detect: (t: string) => Promise<Detection | null>): Promise<string> {
+  const page = base(pageLang);
   const text = titles.join("\n");
-  if (!text.trim()) return base(pageLang);
-  return entryLang(text, pageLang, detect);
+  if (!text.trim()) return page;
+  const all = await entryLang(text, pageLang, detect);
+  if (!page || !all || all === page) return all;
+  if (titles.length < LIST_SAMPLE) return page;
+  const each = await Promise.all(titles.map((t) => entryLang(t, pageLang, detect)));
+  return each.filter((l) => l === all).length >= titles.length * LIST_OTHER ? all : page;
 }
 
 // ---------- quotes ----------
@@ -231,8 +243,9 @@ function verbatim(inner: string, words: string, tight: string): boolean {
  * never presents its own words as someone's. Another quote on the same topic
  * (another speaker's, often) is never swapped in: the source quote must share
  * most of the model's distinctive words, agree on "not", and clearly beat
- * every other source quote. Short quotes (a name, a title, a scare quote)
- * stay as they are.
+ * every other source quote. A short quote (a name, a title, a scare quote)
+ * stays only when the source has its words as they are: a word or two the
+ * source never says ("fraudulentas" for "fraude") loses its marks.
  */
 export function keepQuotes(out: string, source: string): string {
   const mine = quotesIn(out);
@@ -250,7 +263,12 @@ export function keepQuotes(out: string, source: string): string {
   for (const q of mine) {
     const w = qwords(q.inner);
     const small = SPACELESS.test(q.inner) ? w.join("").length < 4 : w.length < 3;
-    if (small || !WHOLE_LINKS.test(q.inner) || verbatim(q.inner, words, tight)) continue;
+    if (!WHOLE_LINKS.test(q.inner) || verbatim(q.inner, words, tight)) continue;
+    if (small) {
+      res += out.slice(last, q.at) + q.inner.trim();
+      last = q.at + q.len;
+      continue;
+    }
     const want = ctokens(q.inner);
     const neg = NEGATION.test(q.inner);
     let best = { text: "", n: -1 };
@@ -276,6 +294,198 @@ export function keepQuotes(out: string, source: string): string {
     last = q.at + q.len;
   }
   return res + out.slice(last);
+}
+
+// ---------- facts the source does not state ----------
+
+/** Number words a source may use for a number a rewrite writes in digits ("dos muertos", "2 muertos"). */
+const NUMBER_WORDS = new Map<string, string>();
+for (const list of [
+  "zero one two three four five six seven eight nine ten eleven twelve",
+  "cero uno dos tres cuatro cinco seis siete ocho nueve diez once doce",
+  "zero um dois três quatro cinco seis sete oito nove dez onze doze",
+  "zéro un deux trois quatre cinq six sept huit neuf dix onze douze",
+  "null eins zwei drei vier fünf sechs sieben acht neun zehn elf zwölf",
+  "zero uno due tre quattro cinque sei sette otto nove dieci undici dodici",
+  "zeroth first second third fourth fifth sixth seventh eighth ninth tenth",
+  "_ primero segundo tercero cuarto quinto sexto séptimo octavo noveno décimo",
+  "_ primera segunda tercera cuarta quinta sexta séptima octava novena décima",
+])
+  list.split(" ").forEach((w, i) => w !== "_" && NUMBER_WORDS.set(w, String(i)));
+for (const [w, n] of Object.entries({ un: "1", una: "1", uma: "1", une: "1", ein: "1", eine: "1", duas: "2", primer: "1", tercer: "3", dozen: "12", docena: "12", veinte: "20", twenty: "20", treinta: "30", thirty: "30", cien: "100", hundred: "100", mil: "1000", thousand: "1000" }))
+  NUMBER_WORDS.set(w, n);
+
+/** Numbers in a text, without separators and leading zeros ("1,204", "1.204" and "1204" are one). Placeholders and link ids are not numbers of the text. */
+function numbersOf(s: string): string[] {
+  const text = unlink(s.replace(/\[\[\s*B\d+\s*\]\]/g, " "));
+  return (text.match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replace(/[.,]/g, "").replace(/^0+(?=\d)/, "")).filter((n) => n !== "0");
+}
+
+/** The numbers a source states, in digits or (small ones) in words. */
+function sourceNumbers(source: string): Set<string> {
+  const out = new Set(numbersOf(source));
+  for (const w of source.toLowerCase().match(/\p{L}+/gu) ?? []) {
+    const n = NUMBER_WORDS.get(w);
+    if (n) out.add(n);
+  }
+  return out;
+}
+
+/** Capitalized words that may name a speaker. */
+const NAMEISH = /(?<![\p{L}\p{N}])\p{Lu}[\p{L}'’-]*\p{L}/gu;
+/** Capitalized words that open a sentence without naming anyone. */
+const STARTERS = new Set("según segun tras para ante desde durante after before during while when despite according said says dijo dice afirma aseguró asegura sostuvo explicó".split(" "));
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Whether the person a rewrite gives a quote to is named near that quote in
+ * the source: the name closest to the quote in the rewrite's sentence. True
+ * when the rewrite names no one there, or the quote cannot be placed.
+ */
+function speakerNear(out: string, q: { at: number; len: number; inner: string }, source: string): boolean {
+  if (SPACELESS.test(q.inner)) return true;
+  const qw = qwords(q.inner).slice(0, 4);
+  if (!qw.length) return true;
+  const src = source.normalize("NFKC");
+  const found = new RegExp(qw.map(escapeRe).join("[^\\p{L}\\p{N}]+"), "iu").exec(src);
+  if (!found) return true;
+  const window = src.slice(Math.max(0, found.index - 300), found.index + found[0].length + 300);
+  // The rewrite's sentence around the quote.
+  const start = Math.max(0, out.slice(0, q.at).search(/[^.!?。！？]*$/));
+  const endRel = out.slice(q.at + q.len).search(/[.!?。！？](?:\s|$)/);
+  const end = endRel < 0 ? out.length : q.at + q.len + endRel;
+  let best = "";
+  let dist = Infinity;
+  for (const m of out.slice(start, end).matchAll(NAMEISH)) {
+    const at = start + m.index!;
+    if (at >= q.at && at < q.at + q.len) continue;
+    const w = m[0];
+    if (COMMON.has(w.toLowerCase()) || STARTERS.has(w.toLowerCase()) || w.length < 3) continue;
+    const d = at < q.at ? q.at - (at + w.length) : at - (q.at + q.len);
+    if (d < dist) [best, dist] = [w, d];
+  }
+  if (!best) return true;
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(best)}(?![\\p{L}\\p{N}])`, "iu").test(window);
+}
+
+/**
+ * What a rewrite states that its source does not: "quote" (words in quotation
+ * marks the source does not have, even after keepQuotes), "speaker" (a quote
+ * given to someone the source does not name near it), "number" (a number the
+ * source does not state), or "" when it states none of these.
+ */
+export function unsupported(raw: string, source: string): string {
+  const fixed = keepQuotes(raw, source);
+  const quotes = quotesIn(fixed);
+  if (quotes.length < quotesIn(raw).length) return "quote";
+  for (const q of quotes) if (!speakerNear(fixed, q, source)) return "speaker";
+  const have = sourceNumbers(source);
+  if (numbersOf(fixed).some((n) => !have.has(n))) return "number";
+  return "";
+}
+
+/** Words a "." follows inside a sentence: titles before a name ("Mr. Lopez", "Dr. Ruiz"), or before a number ("No. 10"). */
+const NO_END = new Set(
+  "Mr Mrs Ms Mx Dr Dra Drs Prof Profa St Sr Sra Srta Sres Jr Gen Gov Sen Rep Lt Col Capt Sgt Cmdr Adm Rev Hon Pres Supt Mt Ft Mme Mlle Mgr Hr Lic Ing Av Avda Ud Uds Vd Vds Dña vs cf approx aprox vgl bzw ca No no Nos Nr nr núm Núm pág págs pp Fig fig Vol vol Art art Ch ch Sec sec Jan Feb Aug Sep Sept Oct Nov Dec ene abr ago dic".split(" "),
+);
+
+/** A line split into sentences, never inside a link's words, nor after an initial or an abbreviation. */
+function sentencesOf(line: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === "[") depth++;
+    else if (c === "]") depth = Math.max(0, depth - 1);
+    else if (!depth && /[.!?。！？]/.test(c)) {
+      let j = i + 1;
+      while (j < line.length && /[”’"»)]/.test(line[j])) j++;
+      if (j < line.length && !/\s/.test(line[j]) && !/[。！？]/.test(c)) continue;
+      if (c === "." && j === i + 1) {
+        const w = /\p{L}+$/u.exec(line.slice(start, i))?.[0] ?? "";
+        if (w.length === 1 || NO_END.has(w)) continue;
+      }
+      out.push(line.slice(start, j).trim());
+      start = j;
+      i = j - 1;
+    }
+  }
+  out.push(line.slice(start).trim());
+  return out.filter(Boolean);
+}
+
+/**
+ * A Short version without the sentences that state a quote, a speaker, or a
+ * number its source does not (see unsupported). Headings and [[B…]] lines stay;
+ * a list item keeps its marker; a line left with no sentence goes.
+ */
+export function dropUnsupported(md: string, source: string): string {
+  const lines: string[] = [];
+  for (const line of md.split("\n")) {
+    if (/^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line) || !line.trim()) {
+      lines.push(line);
+      continue;
+    }
+    const mark = /^\s*(?:[-*•>]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
+    const all = sentencesOf(line.slice(mark.length));
+    const kept = all.filter((s) => !unsupported(s, source));
+    if (kept.length === all.length) lines.push(line);
+    else if (kept.length) lines.push(mark + kept.join(" "));
+  }
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/** A paragraph in which the model talks about its task instead of the page: "El texto fuente contiene…", "Here is the shorter version". */
+const PREAMBLE =
+  /texto (?:fuente|de origen)|(?:the )?source text|versi[oó]n (?:solicitada|pedida)|requested (?:version|rewrite|length)|\[\[B[…*.]|\bmantendré\b|\bI(?:'ll| will) (?:keep|rewrite|shorten)\b|^\s*(?:here is|here's|aquí (?:está|tienes|va)) (?:the|a|an|la|el|una?) /iu;
+
+/** A Short version without a note of the model's own before or after the text. */
+export function stripPreamble(md: string): string {
+  const paras = md.split(/\n\s*\n/);
+  const meta = (p: string | undefined) => !!p && !/^\s*(?:#|\[\[\s*B\d+\s*\]\]\s*$)/.test(p) && PREAMBLE.test(p);
+  while (paras.length > 1 && meta(paras[0])) paras.shift();
+  while (paras.length > 1 && meta(paras[paras.length - 1])) paras.pop();
+  return paras.join("\n\n");
+}
+
+// ---------- cache keys ----------
+
+/**
+ * A short part that ticks: a clock time, "12h ago", "hace 3 horas", a view,
+ * comment, or reading-time count. It changes between visits and says nothing
+ * about what the text is.
+ */
+const TICK =
+  /\d{1,2}(?::|h)\d{2}(?!\d)|(?<!\p{L})(?:ago|just now|geleden|temu|назад)(?!\p{L})|(?<!\p{L})hace\s+(?:\d|un[oa]?s?\s|pocos?\s)|\d+\s*['’]?\s*(?:s|secs?|seconds?|m|mins?|minutes?|h|hrs?|hours?|d|days?|segundos?|minutos?|horas?|d[ií]as?|secondes?|heures?|jours?|sekunden|minuten|stunden|tage|secondi|minuti|ore|giorni)(?!\p{L})|\d[\d.,]*\s*[kmb]?\s+(?:\p{L}+\s+){0,2}(?:views?|viewers?|watching|likes?|comments?|shares?|reads?|vistas?|visitas?|viendo|reproducciones|visualizaciones|comentarios?|vues|commentaires?|aufrufe|kommentare|visualizzazioni|commenti)(?!\p{L})/iu;
+
+const fewWords = (s: string, n: number) => (s.match(/[\p{L}\p{N}]+/gu) ?? []).length <= n;
+
+/** An entry's context for its cache key: without the parts that tick ("12h ago", "1,2 M views"), so a revisit finds the same line. */
+export function stableContext(c: string): string {
+  return c
+    .split(" · ")
+    .filter((p) => !(fewWords(p, 6) && TICK.test(p)))
+    .join(" · ");
+}
+
+/**
+ * An article's text for its cache key: without short lines that carry no
+ * prose or tick (a share button's "Compartir", a comment count, "12' minutos
+ * de lectura"), so a revisit of the same article finds its Short version.
+ * Headings, placeholders, and lines with links stay: the saved text refers to them by number.
+ */
+export function stableText(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => {
+      const l = line.trim();
+      if (!l) return false;
+      if (/^#|\[\[\s*B\d+\s*\]\]|\]\(\s*#?L\d+\s*\)/.test(l)) return true;
+      if (fewWords(l, 2)) return false;
+      return !(fewWords(l, 8) && TICK.test(l));
+    })
+    .join("\n");
 }
 
 // ---------- token estimates ----------
@@ -357,4 +567,70 @@ export function splitText(text: string, maxTokens: number): string[] {
     else parts.push(cur.join("\n"));
   }
   return parts;
+}
+
+// ---------- teasers ----------
+
+/**
+ * A headline cut off right where its answer would be: "We weighed all angles
+ * and the answer is …", "And the winner is…", "El motivo…". A trailing "…"
+ * after a full statement (a tabloid habit) does not count.
+ */
+const HELD_BACK =
+  /(?<![\p{L}\p{N}])(?:is|are|was|were|it['’]s|es|son|fue|era|será|é|são|foi|est|sont|ist|sind|è|sono|answer|reason|verdict|result|winner|secret|truth|respuesta|motivo|razón|veredicto|resultado|ganador|secreto|verdad|resposta|razão|segredo)\s*:?\s*["'‘“«]?\s*(?:…|\.{3})\s*["'’”»]?\s*$/iu;
+
+const wordCount = (s: string) => (s.match(/[\p{L}\p{N}]+/gu) ?? []).length;
+
+/**
+ * A headline that holds back its answer, with no sentence in its context that
+ * could give it (only labels: a section, a time, "comments"). The model can only
+ * guess the answer or say it is missing, and both are false: its own words stay.
+ */
+export function heldBack(title: string, context = ""): boolean {
+  return HELD_BACK.test(title.trim()) && context.split(" · ").every((p) => wordCount(p) <= 5);
+}
+
+/** A line that says the story leaves something out: "does not give the answer", "remains unanswered", "no se indica". */
+const NO_ANSWER = new RegExp(
+  [
+    // English
+    String.raw`\b(?:does|do|did|is|are|was|were|has|have|had|will|would|can|could)(?:n['’]t|\s+not)\s+(?:yet\s+)?(?:say|said|state|stated|give|given|reveal|revealed|specify|specified|explain|explained|disclose|disclosed|answer|answered|provide|provided|mention|mentioned|tell|told|indicate|indicated|clarify|clarified|known|clear|confirm|confirmed)\b`,
+    String.raw`\bwithout\s+(?:saying|giving|revealing|stating|specifying|explaining|disclosing|answering|providing|an answer|the answer)\b`,
+    String.raw`\b(?:remains?|remained|left|stays?|still|is|are|was|were|goes|went)\s+(?:largely\s+|still\s+)?(?:unanswered|unknown|unclear|unexplained|unresolved|unstated|unspecified|undisclosed|unsaid|a mystery|an open question)\b`,
+    String.raw`\b(?:no|not an?)\s+(?:answer|verdict|conclusion)\b|\bnot\s+(?:given|stated|revealed|specified|disclosed)\b`,
+    String.raw`\b(?:withholds?|withheld|withholding|holds?\s+back|held\s+back|keeps?\s+back)\b`,
+    // Spanish
+    String.raw`\bno\s+(?:se\s+)?(?:indica|dice|sabe|aclara|precisa|especifica|revela|detalla|explica|informa|menciona|conoce|responde)\b`,
+    String.raw`\bno\s+(?:da|ofrece)\s+(?:la\s+|una\s+)?respuesta\b|\bno\s+(?:está|queda)\s+claro\b|\bse\s+desconoce\b|\bincógnita\b`,
+    String.raw`\bsin\s+(?:indicar|decir|aclarar|precisar|especificar|revelar|detallar|explicar|responder|respuesta|dar\s+(?:la\s+)?respuesta)\b`,
+    String.raw`\b(?:sigue|siguen|queda|quedan|permanece|permanecen)\s+(?:sin\s+(?:respuesta|resolver|aclarar)|en\s+(?:duda|el\s+aire)|un\s+misterio)\b`,
+    // Portuguese
+    String.raw`\bnão\s+(?:se\s+)?(?:diz|indica|informa|revela|explica|especifica|esclarece|sabe|responde|detalha)\b|\bnão\s+está\s+claro\b|\bdesconhece-se\b`,
+    String.raw`\bsem\s+(?:dizer|indicar|revelar|explicar|especificar|esclarecer|resposta)\b`,
+    // French, German, Italian
+    String.raw`\bne\s+(?:dit|précise|révèle|indique|explique|donne)\s+pas\b|\bsans\s+(?:dire|préciser|révéler|répondre|réponse)\b|\breste\s+(?:sans\s+réponse|inconnu|flou|un\s+mystère)\b`,
+    String.raw`\b(?:sagt|nennt|verrät|erklärt|beantwortet)\s+(?:\S+\s+)?nicht\b|\bbleibt\s+(?:offen|unklar|unbeantwortet|ein\s+Rätsel)\b`,
+    String.raw`\bnon\s+(?:dice|indica|rivela|precisa|spiega|risponde)\b|\bresta\s+(?:senza\s+risposta|un\s+mistero|da\s+chiarire)\b`,
+  ].join("|"),
+  "giu",
+);
+
+/** Words in a title or context that say something is not known or not said, so a line may say it too. */
+const ABSENCE = /\b(?:unknown|unclear|unanswered|unexplained|myster|refus|declin|won['’]t|no comment|desconoc|desconhec|misterio|mistério|incógnita|unklar|unbekannt|inconnu|ignoto)/giu;
+
+const count = (re: RegExp, s: string) => s.match(re)?.length ?? 0;
+
+/**
+ * A line that claims the story does not give something, more often than its
+ * title and context say so (a title's own "I don't give a damn" does not cover
+ * an added "does not give the answer"): the model saw only those, not the story,
+ * so the claim is a guess, and usually false, since the story gives the answer
+ * its teaser holds back.
+ */
+export function claimsNoAnswer(line: string, source: string): boolean {
+  // A word of absence in the source covers a line that uses it too ("unknown"
+  // for "unknown"); one about something else ("refuse" to tip) covers nothing.
+  const low = line.toLowerCase();
+  const covered = (source.match(ABSENCE) ?? []).filter((w) => low.includes(w.toLowerCase())).length;
+  return count(NO_ANSWER, line) > count(NO_ANSWER, source) + covered;
 }

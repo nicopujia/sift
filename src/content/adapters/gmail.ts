@@ -4,7 +4,7 @@
 // not found, the generic extractor takes over.
 
 import type { Action, Block, Field, Item, Page } from "../model";
-import { refOf } from "../registry";
+import { elOf, refOf } from "../registry";
 import { absUrl, accName, clean, textIn, visible } from "../dom";
 import { Out, extractGeneric, newCtx, proseArticle, toAction, toField, walk } from "../extract/generic";
 import { setLang, t } from "../i18n";
@@ -281,14 +281,65 @@ function editor(root: Element): Block | null {
   return { t: "form", key: "compose:" + refOf(box), title: name, fields, actions };
 }
 
+/** The compose window's own close, which saves the draft ("Save & close", "Guardar y cerrar"). */
+const COMPOSE_CLOSE =
+  "img[aria-label^='Save & close'], [data-tooltip^='Save & close'], img[aria-label^='Guardar y cerrar'], [data-tooltip^='Guardar y cerrar'], img[alt='Close']";
+
+function composeBoxes(): Element[] {
+  return vis(qa("div[role=dialog]")).filter((d) => q("div[aria-label='Message Body'], input[name=subjectbox]", d));
+}
+
+/** Gmail's "Exit full screen", shown only while the compose window is maximized. */
+const COMPOSE_MAXIMIZED =
+  "[data-tooltip^='Exit full screen'], [aria-label^='Exit full screen'], [data-tooltip^='Salir de pantalla completa'], [aria-label^='Salir de pantalla completa']";
+
+/** A layer that dims the page behind the compose window: a huge shadow, or a see-through cover over the viewport. */
+function composeBackdrop(box: Element): boolean {
+  const spread = /(?:^|\s)-?[\d.]+px -?[\d.]+px [\d.]+px ([\d.]+)px/.exec(getComputedStyle(box).boxShadow);
+  if (spread && Number(spread[1]) >= 100) return true;
+  const cover = (e: Element) => {
+    const r = e.getBoundingClientRect();
+    if (r.width < innerWidth * 0.9 || r.height < innerHeight * 0.9) return false;
+    const s = getComputedStyle(e);
+    if (s.position !== "fixed" && s.position !== "absolute") return false;
+    const a = /rgba\([^)]*,\s*([\d.]+)\)/.exec(s.backgroundColor);
+    return (!!a && Number(a[1]) > 0 && Number(a[1]) < 1) || (s.backdropFilter !== "none" && !!s.backdropFilter);
+  };
+  // The box's wrapper, or a layer beside the box or one of its wrappers.
+  for (let a: Element | null = box; a && a !== document.body; a = a.parentElement) {
+    if (a !== box && cover(a)) return true;
+    for (const s of Array.from(a.parentElement?.children ?? [])) if (s !== a && cover(s)) return true;
+  }
+  return false;
+}
+
+/**
+ * A compose window floating beside the inbox (no backdrop, not maximized) is not a modal: the
+ * inbox stays usable next to the draft, at any width or zoom. One with no close of its own is
+ * never a modal either: Escape or Sift's Close would hide the draft only in Sift.
+ */
+function floatingCompose(box: Element): boolean {
+  if (!vis(qa(COMPOSE_CLOSE, box)).length) return true;
+  return box.getAttribute("aria-modal") !== "true" && !vis(qa(COMPOSE_MAXIMIZED, box)).length && !composeBackdrop(box);
+}
+
+/** A floating compose window as a form in the page view, under its title, with the window's own close when it has one. */
+function composeForm(box: Element): Block[] {
+  const form = editor(box);
+  if (form?.t !== "form") return [];
+  const close = vis(qa(COMPOSE_CLOSE, box)).shift();
+  if (close) form.actions.push({ ...toAction(close, tipLabel(close) || accName(close) || "Save & close"), kind: "quiet" });
+  return [{ t: "h", key: "dh:" + refOf(box), level: 2, text: form.title || "New message" }, form];
+}
+
 function composeDialog(): Page["dialog"] {
-  const box = vis(qa("div[role=dialog]")).find((d) => q("div[aria-label='Message Body'], input[name=subjectbox]", d));
+  const box = composeBoxes().find((d) => !floatingCompose(d));
   if (!box) return undefined;
   const form = editor(box);
   if (!form) return undefined;
   const title = clean(q("h2, .aYF", box)?.textContent) || "New message";
-  const close = vis(qa("img[aria-label^='Save & close'], img[alt='Close'], [data-tooltip^='Save & close']", box)).shift();
-  return { key: "compose:" + refOf(box), title, blocks: [form], close: close ? toAction(close, "Close") : undefined };
+  const close = vis(qa(COMPOSE_CLOSE, box)).shift();
+  return { key: "compose:" + refOf(box), ref: refOf(box), title, blocks: [form], close: close ? toAction(close, tipLabel(close) || "Close") : undefined };
 }
 
 export const gmail: Adapter = {
@@ -303,8 +354,15 @@ export const gmail: Adapter = {
       if (!page) {
         const g = extractGeneric();
         g.source = "gmail-generic";
+        // The generic pass takes a floating compose for a modal; it shows once, as the form below.
+        const de = elOf(g.dialog?.ref);
+        const box = de?.closest("div[role=dialog]") ?? de?.querySelector("div[role=dialog]");
+        if (box && gmail.dropDialog?.(box)) g.dialog = undefined;
         page = g;
       }
+      // Floating drafts come first in the page view, as they float over every view on the page.
+      const drafts = composeBoxes().filter(floatingCompose).flatMap(composeForm);
+      if (drafts.length) page.blocks = [...drafts, ...page.blocks];
       const d = composeDialog();
       if (d) page.dialog = d;
       return page;
@@ -314,4 +372,6 @@ export const gmail: Adapter = {
     }
   },
   quiet: () => qa("div[role=complementary], .aKh, .aj5"),
+  // A floating compose window is a form in the page view, never a modal sheet.
+  dropDialog: (el) => el.matches("div[role=dialog]") && !!q("div[aria-label='Message Body'], input[name=subjectbox]", el) && floatingCompose(el),
 };

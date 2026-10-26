@@ -24,6 +24,17 @@ function childrenOf(n: Element): Element[] {
   return out;
 }
 
+/**
+ * A host's light-DOM child shown, through its slot, inside an exempted element:
+ * a modal dialog in a shadow root (MDN's compat settings) has its Cancel and
+ * Save there. Follows the flat tree, slot to slot.
+ */
+function slottedIntoExempt(c: Element, ex: Set<Element>): boolean {
+  if (!c.assignedSlot) return false;
+  for (let n: Element | null = c; n; n = n.assignedSlot ?? parentOf(n)) if (ex.has(n)) return true;
+  return false;
+}
+
 function desired(): Set<Element> {
   const want = new Set<Element>();
   const body = document.body;
@@ -44,7 +55,7 @@ function desired(): Set<Element> {
   while (stack.length) {
     const n = stack.pop()!;
     for (const c of childrenOf(n)) {
-      if (ex.has(c)) continue;
+      if (ex.has(c) || slottedIntoExempt(c, ex)) continue;
       if (path.has(c)) stack.push(c);
       else if (c.localName !== "script" && c.localName !== "style") want.add(c);
     }

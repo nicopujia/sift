@@ -12,6 +12,8 @@ export interface Link {
   a: string;
   href?: string;
   ref?: string;
+  /** The page's words around the link in its clause ("To book an appointment, … ."): a Short version may put the link on those. */
+  near?: string;
 }
 
 /** One part of the article, in reading order. */
@@ -121,34 +123,66 @@ function keepWhole(b: Block): boolean {
 function inline(c: Inline[], links: Link[]): { md: string; plain: string } {
   let md = "";
   let plain = "";
+  // The text around each link, other links left out (see Link.near).
+  const around: (string | Link)[] = [];
   for (const x of c) {
     if (typeof x === "string") {
       md += x;
       plain += x;
+      around.push(x);
     } else if ("a" in x) {
       const a = x.a.replace(/[[\]]/g, "").replace(/\s+/g, " ").trim();
       if (!a) continue;
       const lead = /^\s/.test(x.a) ? " " : "";
       const trail = /\s$/.test(x.a) ? " " : "";
-      md += lead + (x.href || x.ref ? `[${a}](L${links.push({ a, href: x.href, ref: x.ref }) - 1})` : a) + trail;
+      const l: Link = { a, href: x.href, ref: x.ref };
+      md += lead + (x.href || x.ref ? `[${a}](L${links.push(l) - 1})` : a) + trail;
       plain += lead + a + trail;
+      around.push(x.href || x.ref ? l : a);
     } else if ("b" in x) {
       md += x.b;
       plain += x.b;
+      around.push(x.b);
     } else if ("i" in x) {
       md += x.i;
       plain += x.i;
+      around.push(x.i);
     } else if ("code" in x) {
       md += "`" + x.code + "`";
       plain += x.code;
+      around.push(x.code);
     } else {
       md += " ";
       plain += " ";
+      around.push(" ");
     }
   }
+  around.forEach((l, k) => {
+    if (typeof l === "string") return;
+    const text = (from: number, to: number) => around.slice(from, to).map((s) => (typeof s === "string" ? s : " ")).join("");
+    // Only the link's own clause: the words of another one ("…, and to update
+    // your preferences, sign in") name what another action does.
+    let before = text(0, k).split(SENTENCE_END).pop()!.split(CLAUSE_BEFORE).pop()!;
+    if (JOINED.test(before)) before = "";
+    before = before.split(/\s+/).slice(-12).join(" ");
+    const after = text(k + 1, around.length).split(SENTENCE_END)[0].split(CLAUSE_AFTER)[0].split(/\s+/).slice(0, 12).join(" ");
+    const near = (before + " " + after).trim();
+    if (near) l.near = near;
+  });
   // "[[" in the page's own text must not read as a placeholder.
   return { md: md.replace(/\[\[/g, "[ [").replace(/\s+/g, " ").trim(), plain: plain.replace(/\s+/g, " ").trim() };
 }
+
+const SENTENCE_END = /[.!?。！？](?=\s|$)/;
+
+/** Words that join two clauses ("and", "or", "but"), in a few languages. */
+const JOIN = "and|or|but|then|y|o|u|e|pero|ou|mas|et|mais|puis|und|oder|aber|dann|ed|ma|oppure|и|или|но|а";
+/** Where the clause a link sits in starts: after ";" or ":", or ", and" / ", or". */
+const CLAUSE_BEFORE = new RegExp(`[;:；：]|[,，]\\s*(?:${JOIN})(?![\\p{L}\\p{N}])`, "iu");
+/** The link starts a clause of its own: the text before it ends with "and" or "or". */
+const JOINED = new RegExp(`(?<![\\p{L}\\p{N}])(?:${JOIN})\\s*$`, "iu");
+/** Where the clause a link sits in ends. */
+const CLAUSE_AFTER = new RegExp(`[,;:，；：]|(?<![\\p{L}\\p{N}])(?:${JOIN})(?![\\p{L}\\p{N}])`, "iu");
 
 const normWords = (s: string) => (s.toLowerCase().match(/\p{L}+/gu) ?? []).join(" ");
 /** Words and numbers: a paragraph whose count or date changed is a changed paragraph. */
@@ -333,7 +367,51 @@ function hrefsIn(v: unknown, out: Set<string>) {
 
 const FOOTNOTE = /^\W*(\d+|[a-z]|note \d+|ref)\W*$/i;
 
-/** Whether the words a Short version puts on a link say what the page's own words for it say: the same, or a longer word or two words in common. */
+/** Two words of four letters or more that share a stem: one inflects the other ("nueva", "nuevas"; "правила", "правил"; "Parkregel", "Parkregeln"). */
+function stemOf(a: string, b: string): boolean {
+  if (a.length < 4 || b.length < 4) return false;
+  let n = 0;
+  while (n < a.length && n < b.length && a[n] === b[n]) n++;
+  return n >= Math.max(4, Math.min(a.length, b.length) - 2);
+}
+
+/** Longer words that say nothing about what a link does ("your", "this"): never enough on their own. */
+const WEAK = new Set(
+  "your yours this that these those with from here there their them they have will what when where which about into more also only just some other page link click para este esta estos estas como desde sobre aquí nuestro nuestra nuestros nuestras pour avec dans votre cette ihre diese dieser hier это этот здесь".split(" "),
+);
+
+/**
+ * Actions a link's words can name, by how their words start, in a few
+ * languages. Words that name one never carry a link that does another
+ * ("update your preferences" on an unsubscribe link, "cancel your
+ * subscription" on a subscribe link).
+ */
+const ACTIONS: [string, RegExp][] = (
+  [
+    ["unsubscribe", "unsubscri|unfollow|opt out|desuscri|darse de baja|dar de baja|date de baja|désabonn|désinscri|abbestell|abmeld|disiscri|отпис"],
+    ["subscribe", "subscri|sign up|signup|regist|join(?!t)|suscri|inscri|abonn|iscriv|подпис|регистр|зарегистр"],
+    ["login", "sign in|signin|log in|login|iniciar sesi|inicia sesi|se connect|connectez|connexion|einlogg|anmeld|войт|вход"],
+    ["logout", "sign out|signout|log out|logout|cerrar sesi|cierra sesi|déconnex|se déconnect|déconnectez|auslogg|выйт|выход"],
+    ["cancel", "cancel|anul|annul|stornier|kündig|отмен"],
+    ["confirm", "confirm|bestätig|подтверд"],
+    ["delete", "delet|remov|erase|borr(?:ar|a|á|e|es|en)(?!\\p{L})|elimin|supprim|lösch|entfern|удал"],
+    ["download", "download|descarg|téléch|herunterl|скача"],
+    ["upload", "upload|hochlad"],
+    ["change", "updat|chang|edit(?:s|ed|ing)?(?!\\p{L})|modif|actualiz|cambi|änder|aktualis|измен|обнов"],
+    ["buy", "buy|purchas|checkout|pay(?:s|ing)?(?!\\p{L})|compr(?:ar|a|á|e|en|ó|o)(?!\\p{L})|pag(?:ar|a|á|ue|uen)(?!\\p{L})|achet|kauf|bezahl|купи|оплат"],
+    ["add", "add(?:s|ed|ing)?(?!\\p{L})|añad|agreg|ajout|hinzufüg"],
+    ["accept", "accept|acept|akzept|agree"],
+    ["decline", "declin|reject|refus|rechaz|ablehn|отклон"],
+  ] as [string, string][]
+).map(([a, s]) => [a, new RegExp(`(?<![\\p{L}\\p{N}])(?:${s})`, "u")]);
+
+/** The actions some words name (see ACTIONS). */
+const actionsOf = (s: string) => {
+  const t = normText(s);
+  return new Set(ACTIONS.filter(([, re]) => re.test(t)).map(([a]) => a));
+};
+
+/** Whether the words a Short version puts on a link say what the page's own words for it say: the same, or a longer word (or its stem) or two words in common. */
 function sameWords(words: string, a: string): boolean {
   const x = normText(mdPlain(words));
   if (x === normText(a)) return true;
@@ -341,11 +419,28 @@ function sameWords(words: string, a: string): boolean {
   const have = tokens(a);
   let both = 0;
   for (const w of want) {
-    if (!have.has(w)) continue;
-    if (w.length >= 4) return true;
+    const strong = w.length >= 4 && !WEAK.has(w);
+    if (!have.has(w)) {
+      if (strong) for (const h of have) if (stemOf(w, h)) return true;
+      continue;
+    }
+    if (strong) return true;
     both++;
   }
   return both >= 2 || (both > 0 && both === want.size);
+}
+
+/**
+ * Whether the words a Short version puts on a link come from the page's
+ * sentence around it: a generic label ("click here") said in its own words
+ * ("[Book an appointment]" for "To book an appointment, click here"). Most of
+ * their longer words are there, as they are or inflected.
+ */
+function nearWords(words: string, have: string[]): boolean {
+  const want = [...tokens(normText(mdPlain(words)))].filter((w) => w.length >= 4 && !WEAK.has(w));
+  if (!want.length) return false;
+  const found = want.filter((w) => have.some((h) => h === w || stemOf(w, h))).length;
+  return found * 2 >= want.length;
 }
 
 const dice = (a: Set<string>, b: Set<string>) => {
@@ -359,25 +454,26 @@ const numbers = (s: string) => (s.match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.
 
 /**
  * Whether a sentence of a Short version made from `meta` is about a paragraph
- * that changed since: one gone from the article that a fresh paragraph, with
- * most of its words, replaces (a new number, a corrected name). A sentence
- * that states a number such a paragraph had and the article no longer has
- * is too ("The storm killed 12" after "The death toll rose to 12" became 31).
- * Null when no paragraph changed so. `about` holds the words of the changed
- * paragraphs, old and new: the rest of a dropped sentence is about others.
+ * that changed since: one gone from the article, edited (a new number, a
+ * corrected name), reworded, or removed, with or without a fresh paragraph
+ * in its place. A sentence that states a number such a paragraph had and the
+ * article no longer has is too ("The storm killed 12" after "The death toll
+ * rose to 12" became "Officials now say 31 people died"). Null when no
+ * paragraph changed so. `about` holds the words of the changed paragraphs,
+ * old and new: the rest of a dropped sentence is about others.
  */
 function staleAbout(meta: ShortMeta, src: ShortSource, fresh: Set<number>): { test: (sentence: string) => boolean; about: Set<string> } | null {
   const old = meta.dplain;
-  if (!fresh.size || !old || old.length !== meta.dfp.length) return null;
-  const now = new Set(src.dfp.slice(0, src.sentUnits));
+  if (!old || old.length !== meta.dfp.length) return null;
+  // Still in the article, also past the part sent (a grown article): not changed.
+  const now = new Set(src.dfp);
+  const gonePara = meta.dfp.flatMap((h, j) => (now.has(h) ? [] : [j]));
+  if (!gonePara.length) return null;
   const freshTokens = [...fresh].map((i) => tokens(src.units[i].plain));
   const oldTokens = old.map(tokens);
-  const changed = new Set<number>();
-  meta.dfp.forEach((h, j) => {
-    if (!now.has(h) && oldTokens[j].size >= 2 && freshTokens.some((t) => dice(oldTokens[j], t) >= 0.5)) changed.add(j);
-  });
+  const changed = new Set(gonePara.filter((j) => oldTokens[j].size >= 2));
   if (!changed.size) return null;
-  const have = new Set(src.units.slice(0, src.sentUnits).flatMap((u) => numbers(u.plain)));
+  const have = new Set(src.units.flatMap((u) => numbers(u.plain)));
   const gone = new Set([...changed].flatMap((j) => numbers(old[j])).filter((n) => !have.has(n)));
   // The old paragraph a sentence shares the most words with, as for placing text (planShort).
   const index = new Map<string, number[]>();
@@ -408,7 +504,18 @@ function staleAbout(meta: ShortMeta, src: ShortSource, fresh: Set<number>): { te
   return { test, about };
 }
 
-/** A line split into sentences, never inside a link's words. */
+/** Words a "." follows inside a sentence: titles before a name ("Mr. Lopez", "Dr. Ruiz"). */
+const TITLES = new Set(
+  "Mr Mrs Ms Mx Dr Dra Drs Prof Profa St Sr Sra Srta Sres Jr Gen Gov Sen Rep Lt Col Capt Sgt Cmdr Adm Rev Hon Pres Supt Mt Ft Mme Mlle Mgr Hr Lic Ing Av Avda Ud Uds Vd Vds Dña vs cf approx aprox vgl bzw ca".split(" "),
+);
+/** And words a "." follows before a number: "No. 10", "Sept. 11", "pág. 4". */
+const BEFORE_NUMBER = new Set("No no Nos Nr nr núm Núm pág págs pp Fig fig Vol vol Art art Ch ch Sec sec Jan Feb Aug Sep Sept Oct Nov Dec ene abr ago dic".split(" "));
+
+/**
+ * A line split into sentences, never inside a link's words, nor after an
+ * abbreviation: initials and "U.S.", a title before a name ("Mr."), or "No."
+ * before a number. Dropping one sentence then never leaves "U.S." behind.
+ */
 function sentences(line: string): string[] {
   const out: string[] = [];
   let depth = 0;
@@ -421,6 +528,10 @@ function sentences(line: string): string[] {
       let j = i + 1;
       while (j < line.length && /[”’"»)]/.test(line[j])) j++;
       if (j < line.length && !/\s/.test(line[j]) && !/[。！？]/.test(c)) continue;
+      if (c === "." && j === i + 1) {
+        const w = /\p{L}+$/u.exec(line.slice(start, i))?.[0] ?? "";
+        if (w.length === 1 || TITLES.has(w) || (BEFORE_NUMBER.has(w) && /^\s+\d/.test(line.slice(j)))) continue;
+      }
       out.push(line.slice(start, j).trim());
       start = j;
       i = j - 1;
@@ -436,7 +547,10 @@ function withoutSentences(md: string, drop: (sentence: string) => boolean): stri
   for (const line of md.split("\n")) {
     const mark = /^\s*(?:[-*•>]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
     const all = sentences(line.slice(mark.length));
-    const kept = all.filter((s) => !drop(s));
+    const gone = all.map(drop);
+    // A one-word piece just before a dropped sentence opened it (an abbreviation): it goes too.
+    for (let k = 1; k < all.length; k++) if (gone[k] && !gone[k - 1] && !/\s/.test(all[k - 1]) && tokens(mdPlain(all[k - 1])).size < 2) gone[k - 1] = true;
+    const kept = all.filter((_, k) => !gone[k]);
     if (kept.length === all.length) lines.push(line);
     else if (kept.length) lines.push(mark + kept.join(" "));
   }
@@ -470,6 +584,7 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
   const used = new Set<number>();
   type S = { md: string; pos?: number } | { unit: number; pos: number };
   const segs: S[] = [];
+  const guesses = new Set<S>();
   let md: string[] = [];
   const flush = () => {
     const s = md.join("\n").trim();
@@ -518,9 +633,11 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
         // whole sentence in bold (a warning, a link) is no heading: its text
         // stays, as a paragraph of its own. So does a bold line of five words
         // or more, or with a comma or colon inside ("Do not pay the fee twice").
+        // A made-up "##" line is held to the same rules ("## Warning: do not pay
+        // twice"), except that five words alone do not make it a sentence.
         const at = headingAt(h[1]);
         const said = h[1].trim();
-        const sentence = !atx && (wordCount(said) >= 5 || /[,;:，；：、]./.test(said));
+        const sentence = (!atx && wordCount(said) >= 5) || /[,;:，；：、]./.test(said);
         if (at < 0 && (/\]\(\s*#?L\d+\s*\)/.test(h[1]) || /[.!。！]$/.test(said) || sentence)) {
           flush();
           md.push(h[1].trim());
@@ -529,6 +646,12 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
         }
         flush();
         if (at >= 0) place(at);
+        else {
+          // A short bold or "##" line ("Do not pay twice") may be a warning, not a heading: decided below.
+          const g = { md: said };
+          segs.push(g);
+          guesses.add(g);
+        }
         continue;
       }
       if (!part.trim()) {
@@ -540,6 +663,55 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
     }
   }
   flush();
+
+  // A bold line that is none of the page's headings was made up as one and
+  // goes, unless it says what nothing else in the Short version does: it
+  // shares most of its words with a paragraph no other sentence is about.
+  if (guesses.size) {
+    const at = new Map<string, number[]>();
+    src.units.forEach((u, i) => {
+      if (u.kind !== "p") return;
+      for (const w of tokens(u.plain)) {
+        const is = at.get(w);
+        if (is) is.push(i);
+        else at.set(w, [i]);
+      }
+    });
+    const often = Math.max(8, src.units.length / 10);
+    const about = (text: string) => {
+      const want = tokens(mdPlain(text));
+      const both = new Map<number, number>();
+      for (const w of want) {
+        const is = at.get(w);
+        if (is && is.length <= often) for (const i of is) both.set(i, (both.get(i) ?? 0) + 1);
+      }
+      let best = -1;
+      let score = 0;
+      for (const [i, n] of both) if (n >= 2 && n / want.size > score) [best, score] = [i, n / want.size];
+      return score >= 0.2 ? best : -1;
+    };
+    const covered = new Set<number>();
+    const told = new Set<string>();
+    for (const s of segs) {
+      if (!("md" in s) || guesses.has(s)) continue;
+      for (const line of s.md.split("\n")) for (const x of sentences(line)) covered.add(about(x));
+      for (const w of tokens(mdPlain(s.md))) told.add(w);
+    }
+    // Or it states a fact of its paragraph that nothing else does: two of the
+    // paragraph's rarer words no other kept text has ("Refunds take sixty days").
+    const rare = Math.max(2, src.units.filter((u) => u.kind === "p").length / 4);
+    for (let k = 0; k < segs.length; k++) {
+      const s = segs[k];
+      if (!guesses.has(s) || !("md" in s)) continue;
+      const i = about(s.md);
+      const own = i >= 0 ? tokens(src.units[i].plain) : null;
+      const news = own ? [...tokens(mdPlain(s.md))].filter((w) => own.has(w) && !told.has(w) && (at.get(w)?.length ?? 0) <= rare) : [];
+      if (i >= 0 && (!covered.has(i) || news.length >= 2)) {
+        covered.add(i);
+        for (const w of tokens(mdPlain(s.md))) told.add(w);
+      } else segs.splice(k--, 1);
+    }
+  }
 
   // A paragraph that changed since the Short version was asked for is shown in
   // full (below) until the new Short version is whole, or for good once the
@@ -614,6 +786,33 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
     if (score >= 0.2) s.pos = best;
   }
 
+  // Blocks the model put out of the page's order go back to their place, by
+  // the same anchors as dropped ones (below). The blocks before the first
+  // paragraph (a post's author and date) lead. A block put after the short
+  // text of two or more later paragraphs (a code example after "Answer: it
+  // depends…") goes back before the first of them.
+  const firstProse = src.units.findIndex((u) => u.kind === "p");
+  const placeAt = (i: number) => {
+    let lo = 0;
+    segs.forEach((s, k) => {
+      if ("unit" in s && s.pos < i) lo = k + 1;
+    });
+    let hi = segs.findIndex((s, k) => k >= lo && "unit" in s && s.pos > i);
+    if (hi < 0) hi = segs.length;
+    // Before the first paragraph, any text comes after it.
+    const at = segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && (i < firstProse || (s.pos !== undefined && s.pos > i)));
+    return at < 0 ? hi : at;
+  };
+  for (let k = 0; k < segs.length; k++) {
+    const s = segs[k];
+    if (!("unit" in s) || src.units[s.unit].kind !== "b") continue;
+    const i = s.unit;
+    const late = segs.slice(0, k).filter((o) => "md" in o && (i < firstProse || (o.pos !== undefined && o.pos > i))).length;
+    if (late < (i < firstProse ? 1 : 2)) continue;
+    segs.splice(k, 1);
+    segs.splice(placeAt(i), 0, s);
+  }
+
   // What the model dropped goes back: each block and heading of the part that
   // was sent goes between the kept blocks and headings around it, before the
   // first piece of text there that comes after it in the source. A summary
@@ -655,12 +854,38 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
   const links = meta.links.map((_, i) => linkNow(meta, src, i)!);
   // A link id the model put on other words than the page's would do what its
   // words do not say: those words stay without the link, which is listed below.
+  // Words from the link's own clause are fine too, unless they are another
+  // link's words or fit another link's sentence as well (two links in one sentence).
   const kept = new Set<number>();
+  const rejected = new Set<number>();
+  const nearOf = new Map<number, string[]>();
+  const near = (i: number) => {
+    let ts = nearOf.get(i);
+    if (!ts) nearOf.set(i, (ts = [...tokens(meta.links[i]?.near ?? "")]));
+    return ts;
+  };
+  const fits = (words: string, i: number, l: Link) => {
+    // Words that name another action than the link's own words (or, for "click
+    // here", its own clause) do: never on this link, however alike their words.
+    const says = actionsOf(mdPlain(words));
+    if (says.size) {
+      const own = actionsOf(l.a);
+      const does = own.size ? own : actionsOf(meta.links[i]?.near ?? "");
+      if (does.size && [...says].some((x) => !does.has(x))) return false;
+    }
+    if (sameWords(words, l.a)) return true;
+    if (!nearWords(words, near(i))) return false;
+    const to = l.href ?? l.a;
+    return !meta.links.some((o, j) => j !== i && !!o && (o.href ?? o.a) !== to && (sameWords(words, o.a) || nearWords(words, near(j))));
+  };
   for (const s of segs) {
     if (!("md" in s)) continue;
     s.md = s.md.replace(/\[([^[\]]+)\]\(\s*#?L(\d+)\s*\)/g, (all, words: string, n: string) => {
       const l = links[Number(n)];
-      if (l && !sameWords(words, l.a)) return words;
+      if (l && !fits(words, Number(n), l)) {
+        rejected.add(Number(n));
+        return words;
+      }
       kept.add(Number(n));
       return all;
     });
@@ -671,10 +896,13 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
   const distinct = new Set(meta.links.map((l) => l.href ?? l.a));
   const extra: Link[] = [];
   // A text full of links (an encyclopedia) keeps them in the full text; a list of them all would be noise.
-  if (distinct.size <= 30) {
+  // A link taken off words that did not say what it does is listed all the same: the Short version meant it.
+  const many = distinct.size > 30;
+  {
     const seen = new Set<string>();
     for (let i = 0; i < meta.sentLinks && extra.length < 12; i++) {
       const l = links[i];
+      if (many && !rejected.has(i)) continue;
       if (!l || kept.has(i) || FOOTNOTE.test(l.a) || l.a.length < 2) continue;
       // A hashtag or a post's photo link ("#LaLiga", "pic.twitter.com/…") says nothing on its own.
       if (/^#\S/.test(l.a.trim()) || /^(https?:\/\/)?pic\.(twitter|x)\.com\//i.test(l.a.trim())) continue;

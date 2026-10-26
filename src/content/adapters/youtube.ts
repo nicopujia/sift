@@ -63,6 +63,15 @@ function nav(): Action[] {
  */
 let guideTries = 0;
 let guideBusy = false;
+/**
+ * A YouTube popup is open (a sign-in prompt, a menu): to it, a click on the guide button is a click outside, and it closes (F721).
+ * Not one the reader already closed in Sift that the page still shows.
+ */
+const popupOpen = () => {
+  const d = store.page?.dialog;
+  if (d && store.dismissed.has(d.key)) return false;
+  return qa<HTMLElement>("ytd-popup-container tp-yt-iron-dropdown, ytd-popup-container tp-yt-paper-dialog").some((e) => e.checkVisibility());
+};
 function renderGuide() {
   if (guideBusy || guideTries >= 2 || store.mode !== "sift") return;
   const btn = q<HTMLElement>("ytd-masthead #guide-button button, ytd-masthead #guide-button");
@@ -73,11 +82,13 @@ function renderGuide() {
   const state = () => `${q("tp-yt-app-drawer#guide")?.hasAttribute("opened")}|${q("ytd-app")?.hasAttribute("guide-persistent-and-visible")}`;
   // Once the page has settled and is idle, so the first view is not slowed down.
   const later = (fn: () => void) => setTimeout(() => requestIdleCallback(fn, { timeout: 2000 }), 4000);
-  later(() => {
+  later(function open() {
     if (store.mode !== "sift" || drawn() || !btn.isConnected) {
       guideBusy = false;
       return;
     }
+    // Not while the reader has a popup open: try again once it is closed.
+    if (popupOpen()) return later(open);
     const before = state();
     btn.click();
     // Once drawn, close it again; a click while the drawer still slides open is ignored, so check a few times.
@@ -85,8 +96,10 @@ function renderGuide() {
     const iv = setInterval(() => {
       if (!drawn() && ++n < 20) return;
       clearInterval(iv);
-      const restore = (left: number) =>
-        setTimeout(() => {
+      const restore = (left: number): void =>
+        void setTimeout(() => {
+          // Not while the reader has a popup open (the drawer stays open behind Sift until then).
+          if (state() !== before && popupOpen() && btn.isConnected) return restore(left);
           if (state() !== before) btn.click();
           if (left > 0) restore(left - 1);
           else guideBusy = false;
@@ -344,6 +357,13 @@ function home(path: string): Page | null {
         const n = shorts.length;
         shortsIn(child, seen, shorts);
         if (shorts.length > n) shelf ||= shelfTitle(child);
+        // A shelf of videos ("New to you", "Top music videos in your region"): its videos join the feed where the shelf stands.
+        for (const ri of qa("ytd-rich-item-renderer", child)) {
+          const lock = q("yt-lockup-view-model", ri);
+          if (!lock || isAd(ri)) continue;
+          const it = fromLockup(lock);
+          if (it && !items.some((x) => x.href === it.href)) items.push(it);
+        }
       }
     }
   }
@@ -575,6 +595,11 @@ function watch(): Page | null {
       (b) => visible(b) && (SAVE_ICON.test(q("path", b)?.getAttribute("d") ?? "") || SAVE_LABEL.test(clean(b.getAttribute("aria-label")) || textIn(b))),
     );
     if (save) actions.push(toAction(save, textIn(save) || clean(save.getAttribute("aria-label"))));
+    else {
+      // At some widths and zooms YouTube folds Save into its "More actions" menu: offer that menu, which opens as Sift's dialog.
+      const more = vis1(qa("ytd-menu-renderer > yt-button-shape button[aria-label], ytd-menu-renderer > yt-icon-button button[aria-label]", q("#actions", meta) ?? meta));
+      if (more) actions.push(toAction(more, clean(more.getAttribute("aria-label")) || textIn(more)));
+    }
     if (actions.length) blocks.push({ t: "actions", key: "watch-actions", actions });
   }
 
@@ -1097,10 +1122,16 @@ export const youtube: Adapter = {
   loadMore() {
     // Rendered ones only: a spent continuation stays in the DOM with no size, and scrolling to it loads nothing.
     const conts = qa("ytd-continuation-item-renderer").filter((c) => c.closest("[hidden]") === null && c.getBoundingClientRect().height > 0);
-    // On a watch page, once comments have loaded (the reader opened them), more means more comments,
-    // not more of Up next, whose list comes last in the page.
-    const comments = location.pathname === "/watch" && q("ytd-comments#comments ytd-comment-thread-renderer") ? conts.filter((c) => c.closest("ytd-comments")) : [];
-    const cont = (comments.length ? comments : conts).pop();
+    // On a watch page, more follows the section the reader has open in Sift: comments when Comments is
+    // open (it comes last in Sift's view), else Up next. YouTube loads the first comments by itself.
+    let pick = conts;
+    if (location.pathname === "/watch") {
+      const wantComments = store.local.get("sec:comments") === true;
+      const mine = conts.filter((c) => !!c.closest("ytd-comments") === wantComments);
+      // Comments not loaded yet: their own continuation is not rendered, and Up next's is the one to use.
+      if (mine.length || !wantComments) pick = mine;
+    }
+    const cont = pick.pop();
     if (!cont) return false;
     cont.scrollIntoView({ block: "end" });
     return true;

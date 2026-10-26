@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map layers beside a map (F874 fixture)</title>
+<style>
+  body { margin: 0; font: 14px sans-serif; }
+  header { height: 56px; display: flex; align-items: center; gap: 16px; padding: 0 16px; border-bottom: 1px solid #ccc; }
+  #content { position: absolute; top: 57px; left: 0; right: 0; bottom: 0; }
+  #sidebar { position: absolute; left: 0; top: 0; bottom: 0; width: 350px; overflow: auto; padding: 12px; box-sizing: border-box; }
+  #map-ui { position: absolute; right: 0; top: 0; bottom: 0; width: 250px; overflow: auto; display: none; padding: 8px; box-sizing: border-box; background: #fff; }
+  #map-ui.open { display: block; }
+  #map { position: absolute; left: 350px; right: 0; top: 0; bottom: 0; overflow: hidden; }
+  #map.narrow { right: 250px; }
+  .tiles { position: absolute; inset: 0; }
+  .leaflet-top { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 4px; z-index: 5; }
+  .control-button { display: block; width: 36px; height: 36px; background: #fff; border: 1px solid #888; text-align: center; line-height: 36px; text-decoration: none; color: #000; }
+  .layers-ui ul { list-style: none; padding: 0; }
+  .layers-ui li { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+</style>
+</head>
+<body>
+<header><a href="#">OpenMapFixture</a><nav><a href="#">Edit</a> <a href="#">History</a> <a href="#">Export</a></nav></header>
+<div id="content">
+  <div id="sidebar">
+    <form role="search"><input type="search" name="query" aria-label="Search"><button>Go</button></form>
+    <h1>Welcome to the map fixture</h1>
+    <p>This page draws its layers panel to the right of its map, as OpenStreetMap does. The panel comes before the map in the page's order.</p>
+  </div>
+  <div id="map-ui">
+    <div class="layers-ui">
+      <h2>Map Layers</h2>
+      <button type="button" class="close" aria-label="Close">×</button>
+      <ul></ul>
+      <h3>Map Data</h3>
+      <label><input type="checkbox" name="notes"> Map Notes</label><br>
+      <label><input type="checkbox" name="data"> Map Data</label>
+    </div>
+  </div>
+  <div id="map" class="leaflet-container" tabindex="0" aria-label="Map">
+    <div class="tiles" id="tiles"></div>
+    <div class="leaflet-top"><a class="control-button" href="#" aria-label="Zoom In" title="Zoom In">+</a><a class="control-button" href="#" aria-label="Zoom Out" title="Zoom Out">−</a><a class="control-button layers" href="#" aria-label="Layers" title="Layers">L</a></div>
+  </div>
+</div>
+<script>
+  const layers = [["standard", "Standard", "#e8e0d0"], ["cyclosm", "CyclOSM", "#d0e8d0"], ["cycle", "Cycle Map", "#c0d8f0"], ["transport", "Transport Map", "#f0d0e0"], ["tracestrack", "Tracestrack Topo", "#e0e0b0"], ["humanitarian", "Humanitarian", "#f0c8a0"], ["shortbread", "Shortbread", "#d8d0f0"], ["opnv", "ÖPNV Karte", "#b8e0e0"]];
+  const ul = document.querySelector(".layers-ui ul");
+  const tiles = document.getElementById("tiles");
+  for (const [v, name] of layers) {
+    const li = document.createElement("li");
+    li.innerHTML = `<label><input type="radio" name="layer" value="${v}"${v === "standard" ? " checked" : ""}> ${name}</label><button type="button" aria-label="Layer Info: ${name}">i</button>`;
+    ul.append(li);
+  }
+  const paint = (v) => {
+    tiles.style.background = `repeating-linear-gradient(45deg, ${layers.find((l) => l[0] === v)[2]} 0 20px, #fff 20px 40px)`;
+    tiles.dataset.layer = v;
+  };
+  paint("standard");
+  ul.addEventListener("change", (e) => {
+    paint(e.target.value);
+    history.replaceState(null, "", "#layers=" + e.target.value);
+  });
+  const ui = document.getElementById("map-ui");
+  const map = document.getElementById("map");
+  const toggle = (open) => { ui.classList.toggle("open", open); map.classList.toggle("narrow", open); };
+  document.querySelector(".control-button.layers").addEventListener("click", (e) => { e.preventDefault(); toggle(!ui.classList.contains("open")); });
+  document.querySelector(".layers-ui .close").addEventListener("click", () => toggle(false));
+</script>
+</body>
+</html>

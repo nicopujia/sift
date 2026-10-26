@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Basket · Breadbox</title>
+<style>body{font-family:system-ui;margin:0} main{max-width:680px;margin:24px auto} .row{display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #ddd}</style></head>
+<body>
+<main>
+<h1>Your basket</h1>
+<p>Change a quantity to update your basket. A quantity of 0 removes the item.</p>
+<form id="cart" action="#" onsubmit="return false">
+<div class="row" id="row1"><span>Rye loaf, $7.50</span><label><span class="l">Quantity</span> <input type="text" name="qty" value="1" inputmode="numeric"></label></div>
+<div class="row" id="row2"><span>Seeded rye, $8.00</span><label><span class="l">Quantity</span> <input type="text" name="qty" value="1" inputmode="numeric"></label></div>
+<p id="total">Total: $15.50</p>
+<button type="submit">Check out</button>
+</form>
+<p id="msg" role="status"></p>
+</main>
+<script>
+window.__log = [];
+{ const v = new URLSearchParams(location.search).get("v");
+  // v=labels: each field named for its item; v=names: each field its own name
+  if (v === "labels") document.querySelectorAll(".row").forEach((r) => r.querySelector(".l").textContent = "Quantity of " + r.querySelector("span").textContent.split(",")[0]);
+  if (v === "number") document.querySelectorAll(".row input").forEach((i) => { i.type = "number"; i.min = "0"; });
+  if (v === "names") document.querySelectorAll(".row").forEach((r, i) => r.querySelector("input").name = "qty" + i);
+}
+document.getElementById("cart").addEventListener("input", (e) => {
+  const row = e.target.closest(".row");
+  if (!row) return;
+  __log.push(row.id + "=" + e.target.value);
+  if (e.target.value.trim() === "0") {
+    const name = row.querySelector("span:not(.l)").textContent.split(",")[0];
+    row.remove();
+    document.getElementById("msg").textContent = "Removed " + name + ".";
+  }
+  let t = 0;
+  for (const r of document.querySelectorAll(".row")) t += (r.id === "row1" ? 7.5 : 8) * (Number(r.querySelector("input").value) || 0);
+  document.getElementById("total").textContent = "Total: $" + t.toFixed(2);
+});
+</script>
+</body></html>

@@ -6,7 +6,7 @@ import type { AiReply, AiRequest, LineInput, ModelCfg, RuntimeMsg, Settings } fr
 import { mergeSettings } from "../shared/messages";
 import { cacheClear, cacheGet, cacheSet } from "./cache";
 import { bump, flushStats } from "./stats";
-import { entryLang, estTokens, keepQuotes, langScript, listLang, scriptFits, scriptOf, splitText } from "./text";
+import { claimsNoAnswer, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, unsupported } from "./text";
 
 // ---------- settings ----------
 
@@ -40,7 +40,9 @@ chrome.storage.onChanged.addListener((ch) => {
 // 7: Short versions keep placeholders, links and the page's own headings, at half the length or less.
 // 8: Short versions aim at a third of the length and never guess a job; one-liners keep variant details
 // (color, size), never wrap the title ("A video titled X"), and keep "then-19" or "forced to" without datelines.
-const PROMPT_VERSION = 8;
+// 9: A teaser headline keeps its own words (it may stay a question), and no line says the story leaves something unanswered.
+// 10: No line names who said, did, or chose something its title and context leave unnamed.
+const PROMPT_VERSION = 10;
 
 const LINES_INTRO = `You rewrite entries from a list on a web page into plain, literal one-line descriptions, for people who need pages to be simple and fast to read: low vision, ADHD, dyslexia, older users.
 
@@ -49,6 +51,7 @@ Input: a JSON array of entries, each with id, title, usually lang, and sometimes
 const LINES_RULES = `- Write the line in the language given by the entry's "lang" field. Never use any other language. If an entry has no "lang", use the language of its title.
 - No clickbait: no ALL CAPS, no emojis, no hype words, no questions.
 - Use only what the title and context state or clearly imply. Do not invent results, names, numbers, or reasons.
+- Never say who said, did, or chose something unless the title or context names that person for it. "A phrase for posterity" stays "a phrase", not "X said a memorable phrase".
 - Keep names, brands, models, and numbers that identify the entry, and the details that tell similar entries apart, such as color, size, capacity, edition, or pack count.`;
 
 const LINES_OUTPUT = `Output JSON Lines only: one object per line, {"id": "<id>", "s": "<line>"}, in input order, one line per entry.
@@ -89,13 +92,15 @@ Rules:
 ${LINES_RULES}
 - Say the news directly, the way a plain news line would. Never mention the headline, title, article, note, report, or story itself: never write "The headline says", "The article explains", "A report on", "El artículo informa", "El título pregunta", "La nota repasa", or the like. Wrong: "The headline claims a leaked list names five replacements". Right: "A leaked list names five possible replacements".
 - Keep who said what: a claim stays a claim of its source ("X says", "según X"), never a fact. Keep a direct quote in quotation marks, with who said it.
-- A name after "By" or "Por" is the writer of the piece. Never present the writer as a speaker or as the source of a quote or claim.
+- A name after "By" or "Por" is the writer of the piece. Never present the writer as a speaker or as the source of a quote or claim. Keep "I" and "we" as the headline has them: never turn them into a role such as "the writer", "the speaker", or "the authors".
 - Keep exactly who did what to whom. Never swap the actor (fans are not teammates), and never drop a negation or a word that sets the relation, such as "not", "against", "contra", "sin", "sobre".
 - Keep the words that set when, how, or how sure: "then-19", "former", "forced to", "allegedly", "reportedly". An age or a role at the time of the events stays with them.
 - A dateline such as "Desde Managua" or "WASHINGTON —" only says where the writer is. Never put it in the line.
 - Keep a short label that carries news, such as "Absuelto", "Live", "Opinion", or "Análisis", at the start, followed by a colon.
 - Drop teaser openings ("You won't believe", "De no creer", "A horas de") and hype, never the facts.
-- If the headline does not say what happened (a question, a column title, or a teaser), keep its own words, made plain, and not as a question.
+- A question or a teaser that holds back its point ("the answer is …", "cuánto puede remontar", "here's why") is answered in the story, which you do not see. If the context gives the answer, say it. If not, write the headline in its own words, as it is; this is the one case where a line may be a question. Never restate it as a claim, and never add who asks, wonders, explains, says, or does it.
+- Never say or hint that the story leaves something out, unanswered, unknown, or unclear: never write "does not give the answer", "remains unanswered", "it is unclear", "no se indica", "no se sabe", or the like, unless the headline or context says so itself.
+- A column title that does not say what happened keeps its own words, made plain.
 - If an entry is not a news story (an ad, a promotion, a call to action such as "Sign up", "Enter your zip code", or "Explore the collection", or a link to a section, newsletter, podcast, or app), write "s": "" for it.
 
 ${LINES_OUTPUT}
@@ -349,7 +354,7 @@ class ChainError extends Error {
  * model that refused for credit is skipped for a while. Text already shown
  * cannot be taken back, so an error after the first text ends the chain.
  */
-async function withChain(s: Settings, chain: ModelCfg[], c: Call, firstTokenMs: number) {
+async function withChain(s: Settings, chain: ModelCfg[], c: Call, firstTokenMs: number, tried?: { m: ModelCfg; e?: unknown }[]) {
   await skipLoaded;
   const seen = new Set<string>();
   const links = chain.filter((m) => m.model && !seen.has(linkId(m)) && seen.add(linkId(m)));
@@ -368,9 +373,12 @@ async function withChain(s: Settings, chain: ModelCfg[], c: Call, firstTokenMs: 
       refused &&= REFUSED.includes(sk.status);
       continue;
     }
+    const t: { m: ModelCfg; e?: unknown } = { m };
+    tried?.push(t);
     try {
       return await tryModel(s, m, wrapped, firstTokenMs * (i ? 3 : 1));
     } catch (e) {
+      t.e = e;
       if (c.signal.aborted) throw e;
       if (any) throw new ChainError(e, false, e instanceof HttpError ? e.status : undefined, link);
       last = e;
@@ -432,6 +440,8 @@ interface PortCtx {
   saved: Map<string, string>;
   /** The language of this page's lines, once settled (see doLines): a promise, so batches sent together share one decision. */
   lang?: Promise<string>;
+  /** Calls this page spent asking again for list entries a filter or an output limit stopped (see doLines). */
+  lineRetries?: number;
 }
 
 /** How long a result is kept: short for a signed-in page, even one found to be so after it asked. */
@@ -469,118 +479,193 @@ function wrapsTitle(line: string, title: string): boolean {
   return ` ${l.join(" ")} `.includes(` ${t.join(" ")} `) && l.length - t.length <= 4;
 }
 
+/** Most calls per page spent asking again, in smaller batches, for list entries a filter or an output limit stopped. */
+const MAX_LINE_CALLS = 12;
+/** How long entries left unsettled at that limit keep their titles, so a revisit does not pay for the same search again. */
+const UNSETTLED_MS = 6 * 60 * 60_000;
+
 /** What a line's quotes must come from: its entry's title and context. */
 const quoteSource = (it: LineInput) => it.t + "\n" + (it.c ?? "");
 
 async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply, signal: AbortSignal, useCache: boolean, site: string, pc: PortCtx) {
   const s = await settings();
   const mode = req.mode ?? "about";
-  // One language for every line on the page: the one its text is written in.
-  // The lang attribute is a hint: titles clearly in another language (a site
-  // that marks Spanish pages "en") win. Settled once per page on enough
-  // titles, so a later list matches the first, and a batch sent with the first
-  // waits for its decision instead of making its own. Only when neither is known does
-  // each title decide, and then the title alone: context is often a name
-  // ("King Von") that looks foreign.
+  // One language for every line on the page: the page's, unless nearly all
+  // titles are clearly in another one (a site that marks Spanish pages "en").
+  // Settled once per page, by the first batch however small when the page's
+  // language is known (a few titles keep it), so a later list matches the
+  // first, and a batch sent with the first waits for its decision instead of
+  // making its own. Only when neither is known does each title decide, and
+  // then the title alone: context is often a name ("King Von") that looks foreign.
   const page = knownLang(req.lang);
   let langP = pc.lang;
   if (!langP) {
     langP = listLang(req.items.map((it) => it.t), page, detect);
-    if (req.items.length >= 4) pc.lang = langP;
+    if (page || req.items.length >= 4) pc.lang = langP;
   }
   const list = await langP;
   const langs = list ? req.items.map(() => list) : await Promise.all(req.items.map((it) => entryLang(it.t, req.lang, detect)));
-  // Keyed by site, so one site can neither read nor plant another site's lines.
-  const keys = await Promise.all(req.items.map((it, i) => hash(`lines|${PROMPT_VERSION}|${site}|${mode}|${s.lines.model}|${langs[i]}|${it.t}|${it.c ?? ""}`)));
+  // Keyed by site, so one site can neither read nor plant another site's lines;
+  // and without the context's ticking parts ("12h ago"), so a revisit does not pay again.
+  const keys = await Promise.all(req.items.map((it, i) => hash(`lines|${PROMPT_VERSION}|${site}|${mode}|${s.lines.model}|${langs[i]}|${it.t}|${stableContext(it.c ?? "")}`)));
   const misses: { it: LineInput; key: string; lang: string }[] = [];
   for (const [i, it] of req.items.entries()) {
+    // A teaser that holds back its answer, with nothing in its context that
+    // could give it: any rewrite would guess the answer or call it missing.
+    // Its own words stay, and nothing is paid for.
+    if (mode === "news" && heldBack(it.t, it.c)) continue;
     const hit = useCache ? await cacheGet(keys[i]) : undefined;
     if (hit && !ttlOf(req, pc)) pc.saved.set(keys[i], hit);
     if (hit === KEEP_TITLE) continue;
-    if (hit) reply({ id: req.id, item: it.id, text: keepQuotes(hit, quoteSource(it)) });
-    else misses.push({ it, key: keys[i], lang: langs[i] });
+    // A saved line passes the same checks as a new one (it may have been saved
+    // before they existed, or for an older context); one that fails keeps the title.
+    const shown = hit && (hit === it.t ? hit : vetLine(hit, it, mode));
+    if (shown) reply({ id: req.id, item: it.id, text: shown });
+    else if (!hit) misses.push({ it, key: keys[i], lang: langs[i] });
   }
   if (!misses.length) return reply({ id: req.id, done: true });
   if (!s.apiKey) return reply({ id: req.id, error: "No API key", code: "nokey", quiet: await toldBefore("nokey") });
-  // Short ids keep the prompt small; map them back afterwards.
-  const byShort = new Map(misses.map((m, i) => [String(i + 1), m]));
-  const input = misses.map((m, i) => ({ id: String(i + 1), lang: m.lang || undefined, title: m.it.t, context: m.it.c || undefined }));
-  let buf = "";
-  const done = new Set<string>();
-  const checks: Promise<void>[] = [];
-  const emit = (line: string) => {
-    const l = line.trim().replace(/^```(json)?|```$/g, "").trim();
-    if (!l.startsWith("{")) return;
-    try {
-      const o = JSON.parse(l);
-      const m = byShort.get(String(o.id));
-      if (!m || typeof o.s !== "string" || done.has(String(o.id))) return;
-      // A quote stays word for word, as the title or context has it.
-      let text = keepQuotes(o.s.trim(), quoteSource(m.it)).replace(/[.。]$/, "");
-      // In news mode, an empty line means "not a story" (a promo), and a line
-      // about the headline instead of the news is no better: keep the title.
-      if (mode === "news" && (!text || META.test(text))) text = m.it.t;
-      if (!text) return;
-      done.add(String(o.id));
-      // A line that only wraps the title ("A video titled X") says nothing more: the title stays.
-      if (mode !== "news" && wrapsTitle(text, m.it.t)) {
-        if (useCache) save(pc, req, m.key, KEEP_TITLE);
-        return;
-      }
-      const want = m.lang;
-      // Models sometimes ignore the language they were given (an English title
-      // came back in German, a Russian one in Persian). A line in another
-      // script or clearly in another language is dropped and the original
-      // title stays, remembered so it is not paid for again.
-      checks.push(lineFits(text, want, m.it.t).then((ok) => {
-        if (!ok) {
+  bump("aiLines", misses.length);
+  const perItem = mode === "about" ? 50 : 70;
+  /** About the longest line, in characters (12 words, or 18 to 20). */
+  const lineChars = mode === "about" ? 100 : 140;
+  type Miss = (typeof misses)[number];
+  /** One call for some of the entries: the error it ended in, if any, and the entries it gave no line for. */
+  const ask = async (part: Miss[], chain: ModelCfg[], tried?: { m: ModelCfg; e?: unknown }[]): Promise<{ err: unknown; left: Miss[] }> => {
+    // Short ids keep the prompt small; map them back afterwards.
+    const byShort = new Map(part.map((m, i) => [String(i + 1), m]));
+    const input = part.map((m, i) => ({ id: String(i + 1), lang: m.lang || undefined, title: m.it.t, context: m.it.c || undefined }));
+    let buf = "";
+    const done = new Set<string>();
+    const checks: Promise<void>[] = [];
+    const emit = (line: string) => {
+      const l = line.trim().replace(/^```(json)?|```$/g, "").trim();
+      if (!l.startsWith("{")) return;
+      try {
+        const o = JSON.parse(l);
+        const m = byShort.get(String(o.id));
+        if (!m || typeof o.s !== "string" || done.has(String(o.id))) return;
+        // In news mode, an empty line means "not a story" (a promo), and a line
+        // that fails the checks (see vetLine) is no better: keep the title, as the line.
+        let text = vetLine(o.s, m.it, mode);
+        if (mode === "news" && !text) text = m.it.t;
+        if (!text && !o.s.trim()) return;
+        done.add(String(o.id));
+        // Elsewhere such a line keeps the title, remembered so it is not paid for again.
+        if (!text) {
           if (useCache) save(pc, req, m.key, KEEP_TITLE);
           return;
         }
-        reply({ id: req.id, item: m.it.id, text });
-        if (useCache) save(pc, req, m.key, text);
-      }));
-    } catch {
-      /* partial or malformed line */
-    }
-  };
-  bump("aiLines", misses.length);
-  const perItem = mode === "about" ? 50 : 70;
-  let err: unknown;
-  try {
-    await withChain(
-    s,
-    [s.lines, s.linesFallback, s.lastResort],
-    {
-      system: mode === "gist" ? GIST_SYSTEM : mode === "news" ? NEWS_SYSTEM : LINES_SYSTEM,
-      user: JSON.stringify(input),
-      maxTokens: 120 + misses.length * perItem,
-      minTokens: 60 + misses.length * Math.round(perItem / 2),
-      signal,
-      onText(d) {
-        buf += d;
-        let nl: number;
-        while ((nl = buf.indexOf("\n")) >= 0) {
-          emit(buf.slice(0, nl));
-          buf = buf.slice(nl + 1);
-        }
+        const want = m.lang;
+        // Models sometimes ignore the language they were given (an English title
+        // came back in German, a Russian one in Persian). A line in another
+        // script or clearly in another language is dropped and the original
+        // title stays, remembered so it is not paid for again.
+        checks.push(lineFits(text, want, m.it.t).then((ok) => {
+          if (!ok) {
+            if (useCache) save(pc, req, m.key, KEEP_TITLE);
+            return;
+          }
+          reply({ id: req.id, item: m.it.id, text });
+          if (useCache) save(pc, req, m.key, text);
+        }));
+      } catch {
+        /* partial or malformed line */
+      }
+    };
+    // A line in a script that takes many tokens (Tamil, Hindi) needs more than
+    // the flat budget: sized by its title's tokens per character, at a line's length.
+    const budget = part.reduce((n, m) => n + Math.max(perItem, Math.ceil((estTokens(m.it.t) / Math.max(1, m.it.t.length)) * Math.min(m.it.t.length, lineChars)) + 20), 0);
+    let err: unknown;
+    try {
+      await withChain(
+      s,
+      chain,
+      {
+        system: mode === "gist" ? GIST_SYSTEM : mode === "news" ? NEWS_SYSTEM : LINES_SYSTEM,
+        user: JSON.stringify(input),
+        maxTokens: 120 + budget,
+        minTokens: 60 + Math.round(budget / 2),
+        signal,
+        onText(d) {
+          buf += d;
+          let nl: number;
+          while ((nl = buf.indexOf("\n")) >= 0) {
+            emit(buf.slice(0, nl));
+            buf = buf.slice(nl + 1);
+          }
+        },
       },
-    },
-      2500,
-    );
-  } catch (e) {
-    err = e;
-  } finally {
-    // Every line goes out before "done" or the error: the page stops listening after either.
-    emit(buf);
-    await Promise.allSettled(checks);
+        2500,
+        tried,
+      );
+    } catch (e) {
+      err = e;
+    } finally {
+      // Every line goes out before "done" or the error: the page stops listening after either.
+      emit(buf);
+      await Promise.allSettled(checks);
+    }
+    return { err, left: [...byShort].flatMap(([id, m]) => (done.has(id) ? [] : [m])) };
+  };
+  // A filter or an output limit stops a batch, not each entry: the entries it
+  // left are asked again in halves, so one flagged title, or lines in a script
+  // that takes many tokens, cost no other entry its line. The halves go to the
+  // first model that stopped so, one call each; the other models are asked
+  // only for an entry that fails alone, last. Such an entry keeps its title,
+  // for a day, so a revisit does not pay again. The calls spent so are capped
+  // per page: entries left then keep their titles for a few hours.
+  const chain = [s.lines, s.linesFallback, s.lastResort];
+  let unsettled: unknown;
+  let one: ModelCfg[] = chain;
+  /** Entries that failed alone, with the models already asked for each. */
+  const alone: { m: Miss; asked: ModelCfg[] }[] = [];
+  // Calls spent after a filter count per page; after an output limit (each
+  // call still brings lines), per batch.
+  let batchCalls = 0;
+  const spent = () => pc.lineRetries ?? 0;
+  const keepTitle = (m: Miss, ms: number) => useCache && cacheSet(m.key, KEEP_TITLE, Math.min(ttlOf(req, pc) ?? ms, ms));
+  // Larger parts first, so the calls the cap allows settle the most entries.
+  const queue: { part: Miss[]; why?: unknown }[] = [{ part: misses }];
+  for (let q = queue.shift(); q; q = queue.shift()) {
+    const { part, why } = q;
+    const filtered = why !== undefined && /filter/.test(finalIncomplete(why)?.message ?? "");
+    if (why !== undefined && (filtered ? spent() : batchCalls) >= MAX_LINE_CALLS) {
+      unsettled = why;
+      for (const m of part) keepTitle(m, UNSETTLED_MS);
+      continue;
+    }
+    const tried: { m: ModelCfg; e?: unknown }[] = [];
+    const r = await ask(part, why === undefined ? chain : one, tried);
+    if (filtered) pc.lineRetries = spent() + tried.length;
+    else if (why !== undefined) batchCalls += tried.length;
+    if (!r.err) continue;
+    if (!finalIncomplete(r.err) || signal.aborted) throw r.err;
+    if (!r.left.length) continue;
+    if (why === undefined) one = [tried.find((t) => finalIncomplete(t.e))?.m ?? chain[0]];
+    if (part.length === 1) {
+      alone.push({ m: part[0], asked: tried.map((t) => t.m) });
+      continue;
+    }
+    const half = Math.ceil(r.left.length / 2);
+    queue.push({ part: r.left.slice(0, half), why: r.err });
+    if (half < r.left.length) queue.push({ part: r.left.slice(half), why: r.err });
   }
-  if (err) {
-    // A filter or an output limit would stop the same batch again: its
-    // entries with no line keep their titles for a day, so a revisit does not pay again.
-    if (finalIncomplete(err) && useCache) for (const [id, m] of byShort) if (!done.has(id)) cacheSet(m.key, KEEP_TITLE, Math.min(ttlOf(req, pc) ?? DAY, DAY));
-    throw err;
+  // An entry that failed alone is asked of the other models, while calls are
+  // left; refused by them too (or with no calls left), it keeps its title.
+  for (const { m, asked } of alone) {
+    if (signal.aborted) break;
+    const rest = chain.filter((c) => c.model && !asked.some((a) => linkId(a) === linkId(c)));
+    if (rest.length && spent() < MAX_LINE_CALLS) {
+      const tried: { m: ModelCfg; e?: unknown }[] = [];
+      const r = await ask([m], rest, tried);
+      pc.lineRetries = spent() + tried.length;
+      // Not refused, only failed (a busy model): asked again on a later visit.
+      if (!r.err || !r.left.length || !finalIncomplete(r.err)) continue;
+    }
+    keepTitle(m, DAY);
   }
+  if (unsettled) throw unsettled;
   reply({ id: req.id, done: true });
 }
 
@@ -596,9 +681,27 @@ async function lineFits(text: string, want: string, title: string): Promise<bool
   return !got || got === want;
 }
 
+/**
+ * A model's line for a list entry as it may be shown, its quotes as the title
+ * and context have them; null when the title should stay instead. The model
+ * saw only the title and context, so a line fails when it states a quote, a
+ * speaker, or a number they do not; when it says the story or video leaves
+ * something unanswered (a guess; a message's gist may rightly say "you did not
+ * provide…"); in news mode, when it talks about the headline instead of the
+ * news; elsewhere, when it only wraps the title ("A video titled X").
+ */
+function vetLine(raw: string, it: LineInput, mode: string): string | null {
+  const src = quoteSource(it);
+  const text = keepQuotes(raw.trim(), src).replace(/[.。]$/, "");
+  if (!text || unsupported(raw.trim(), src)) return null;
+  if (mode !== "gist" && claimsNoAnswer(text, src)) return null;
+  if (mode === "news" ? META.test(text) : wrapsTitle(text, it.t)) return null;
+  return text;
+}
+
 /** A news line that talks about the headline or article instead of the news. */
 const META =
-  /\b(the|this) (headline|title|article|story|piece|report|feature) (says|asks|claims|alleges|describes|reports|invites|explains|suggests|teases|notes|reviews|raises|poses|questions|wonders|highlights|details|discusses|examines|looks at|argues|warns|states|mentions|reveals|tells|lists|covers|focuses)\b|\b(el titular|el título|la nota|el artículo|la noticia|la columna|a manchete|o título|o artigo|a notícia|a matéria) (dice|pregunta|informa|repasa|explica|analiza|afirma|describe|invita|plantea|cuenta|detalla|señala|destaca|aborda|advierte|sugiere|revela|muestra|indica|recoge|diz|pergunta|questiona|mostra|aponta|destaca|revela)\b/i;
+  /\b(the|this) (headline|title|article|story|piece|report|feature) (says|asks|claims|alleges|describes|reports|invites|explains|suggests|teases|notes|reviews|raises|poses|questions|wonders|highlights|details|discusses|examines|looks at|argues|warns|states|mentions|reveals|tells|lists|covers|focuses|weighs|considers|ponders|withholds|leaves)\b|\b(el titular|el título|la nota|el artículo|la noticia|la columna|a manchete|o título|o artigo|a notícia|a matéria) (dice|pregunta|informa|repasa|explica|analiza|afirma|describe|invita|plantea|cuenta|detalla|señala|destaca|aborda|advierte|sugiere|revela|muestra|indica|recoge|diz|pergunta|questiona|mostra|aponta|destaca|revela)\b/i;
 
 /** Longest part of a text condensed in one call; longer text goes in parts. */
 const PART_TOKENS = 6000;
@@ -627,30 +730,41 @@ function proseWords(md: string, lang: string): number {
 
 async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: Reply, signal: AbortSignal, useCache: boolean, site: string, pc: PortCtx) {
   const s = await settings();
-  const key = await hash(`condense|${PROMPT_VERSION}|${site}|${s.condense.model}|${req.title}|${req.text}`);
+  // Keyed by the article's own text: a share button, a comment count, a
+  // reading time, or a count in the tab's title differ between visits of the
+  // same article, and must not make it a new one (paid for again).
+  const key = await hash(`condense|${PROMPT_VERSION}|${site}|${s.condense.model}|${req.title.replace(/^\s*\(\d+\+?\)\s*/, "")}|${stableText(req.text)}`);
   const hit = useCache ? await cacheGet(key) : undefined;
   if (hit && !ttlOf(req, pc)) pc.saved.set(key, hit);
   if (hit === NO_SHORT) return reply({ id: req.id, error: "no short version for this text", code: "http", final: true });
+  /** What a Short version may state: the title and the text. */
+  const source = req.title + "\n" + req.text;
   // A saved Short version passes the same checks as a new one: it may have
-  // been saved before they existed.
-  if (hit) return finish(keepQuotes(hit, req.text));
+  // been saved before they existed, or from a text whose numbers changed since.
+  if (hit) return finish(checked(hit));
   if (!s.apiKey) return reply({ id: req.id, error: "No API key", code: "nokey", quiet: await toldBefore("nokey") });
   bump("aiCondense");
   let all = "";
   const parts = splitText(req.text, PART_TOKENS);
-  try {
-    for (const [i, part] of parts.entries()) {
-      if (i) all += "\n\n";
-      // The output is at most about as long as the input; size it by script.
-      const est = estTokens(part);
-      // Models keep far more than asked unless given a number.
-      const words = proseWords(part, req.lang);
+  // A failed or cut call saves nothing (it throws): a later visit asks again.
+  for (const [i, part] of parts.entries()) {
+    if (i) all += "\n\n";
+    const from = all.length;
+    // The output is at most about as long as the input; size it by script.
+    const est = estTokens(part);
+    // Models keep far more than asked unless given a number.
+    const words = proseWords(part, req.lang);
+    // A rewrite that came back hardly shorter is asked for once more, told how
+    // long it was: a slow fallback model often keeps nearly everything at first.
+    let note = "";
+    for (let again = 0; again < 2; again++) {
+      all = all.slice(0, from);
       await withChain(
         s,
         [s.condense, s.condenseFallback, s.lastResort],
         {
           system: i ? CONDENSE_PART_SYSTEM : CONDENSE_SYSTEM,
-          user: `Title: ${req.title}${parts.length > 1 ? ` (part ${i + 1} of ${parts.length})` : ""}\nThe text has ${words} words. Write about ${Math.max(30, Math.round(words * 0.35))} words, and never more than ${Math.max(30, Math.round(words * 0.5))}, not counting heading and [[B…]] lines.\n\n${part}`,
+          user: `Title: ${req.title}${parts.length > 1 ? ` (part ${i + 1} of ${parts.length})` : ""}\nThe text has ${words} words. Write about ${Math.max(30, Math.round(words * 0.35))} words, and never more than ${Math.max(30, Math.round(words * 0.5))}, not counting heading and [[B…]] lines.${note}\n\n${part}`,
           maxTokens: Math.min(8000, 300 + est),
           minTokens: Math.min(8000, 300 + Math.round(est * 0.7)),
           signal,
@@ -661,22 +775,30 @@ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: 
         },
         2000,
       );
+      // A note of the model's own about its task ("El texto fuente contiene…") is not part of the text.
+      all = all.slice(0, from) + stripPreamble(all.slice(from));
+      const got = all.slice(from);
+      if (!(proseTokens(got) > proseTokens(part) * MAX_RATIO || proseWords(got, req.lang) > words * MAX_WORD_RATIO)) break;
+      note = ` A first rewrite had ${proseWords(got, req.lang)} words: far too many. Leave out more.`;
     }
-  } catch (e) {
-    // "This text has no Short version" is kept for good only when the main
-    // model itself ended that way; a fallback's stop is kept for a day, so the
-    // main model tries again once it is back.
-    if (finalIncomplete(e) && useCache) {
-      const main = !(e instanceof ChainError) || e.link === linkId(s.condense);
-      if (main) save(pc, req, key, NO_SHORT);
-      else cacheSet(key, NO_SHORT, Math.min(ttlOf(req, pc) ?? DAY, DAY));
-    }
-    throw e;
   }
-  // Quotes stay word for word: a changed one is put back as the source has it.
-  all = keepQuotes(all, req.text);
-  if (all.trim() && useCache) save(pc, req, key, tooLong(all) ? NO_SHORT : all);
+  all = checked(all);
+  // "Not much shorter" is kept for a day at most, whichever model wrote it: a
+  // slow fallback's long answer must not block the article for a month.
+  if (all.trim() && useCache) {
+    if (tooLong(all)) cacheSet(key, NO_SHORT, Math.min(ttlOf(req, pc) ?? DAY, DAY));
+    else save(pc, req, key, all);
+  }
   finish(all);
+
+  /**
+   * A Short version as it may be shown: no note of the model's own, quotes word
+   * for word (a changed one is put back as the source has it), and no sentence
+   * that states a quote, a speaker, or a number the source does not.
+   */
+  function checked(out: string) {
+    return keepQuotes(dropUnsupported(stripPreamble(out), source), source);
+  }
 
   function finish(out: string) {
     // A "Short version" that is barely shorter is not worth reading instead of the original.

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Create your account · Loafly</title>
+<!-- r7 (T6-fixtures): a sign-up form that checks as you go, as most sites do now.
+     Email: error on blur (aria-invalid + aria-describedby). Username: async availability check while typing
+     ("Checking…" then "nico is taken" / "available"), names taken: nico, ana, admin. Password: a requirements
+     checklist that updates on each keystroke (each li has a ✓/✗ glyph and a visually hidden "met"/"not met").
+     Show password toggle. Confirm password: "Passwords do not match" on blur. Create account stays disabled until
+     everything is valid and the terms box is ticked. Submit only logs (preventDefault); nothing posts.
+     "Continue with Google" sits in div.social; ?cls=alt renames that class. -->
+<style>
+body{font-family:system-ui;margin:0;background:#f6f4ef}
+header{padding:12px 24px;background:#fff;border-bottom:1px solid #ddd;display:flex;gap:16px}
+main{max-width:460px;margin:32px auto;background:#fff;padding:24px;border-radius:10px}
+label{display:block;font-weight:600;margin-top:14px}
+input[type=text],input[type=email],input[type=password]{width:100%;box-sizing:border-box;padding:8px}
+.err{color:#b00020;font-size:14px;margin:4px 0 0}
+.hint{color:#555;font-size:13px;margin:4px 0 0}
+.req{list-style:none;padding:0;font-size:13px;margin:6px 0 0}
+.req li.ok{color:#137333}.req li{color:#666}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.pw{position:relative}.pw button{position:absolute;right:4px;top:4px}
+.social{margin-top:20px;border-top:1px solid #eee;padding-top:12px}
+.promo{background:#fff4d6;padding:8px;font-size:13px;margin-top:16px}
+</style></head>
+<body>
+<header><a href="/">Loafly</a><a href="/how">How it works</a><a href="/login">Log in</a></header>
+<main>
+<h1>Create your account</h1>
+<p>Order bread from bakeries near you.</p>
+<form id="f" novalidate>
+  <label for="email">Email</label>
+  <input id="email" type="email" autocomplete="email" aria-describedby="email-err">
+  <p class="err" id="email-err" hidden></p>
+  <label for="user">Username</label>
+  <input id="user" type="text" autocomplete="username" aria-describedby="user-hint user-msg">
+  <p class="hint" id="user-hint">3 to 15 letters or numbers.</p>
+  <p class="hint" id="user-msg" aria-live="polite"></p>
+  <label for="pw">Password</label>
+  <div class="pw"><input id="pw" type="password" autocomplete="new-password" aria-describedby="pw-req"><button type="button" id="show" aria-pressed="false">Show</button></div>
+  <ul class="req" id="pw-req">
+    <li id="r-len"><span aria-hidden="true">✗</span> At least 8 characters <span class="sr">not met</span></li>
+    <li id="r-num"><span aria-hidden="true">✗</span> A number <span class="sr">not met</span></li>
+    <li id="r-up"><span aria-hidden="true">✗</span> An uppercase letter <span class="sr">not met</span></li>
+  </ul>
+  <label for="pw2">Confirm password</label>
+  <input id="pw2" type="password" autocomplete="new-password" aria-describedby="pw2-err">
+  <p class="err" id="pw2-err" hidden></p>
+  <label style="font-weight:400"><input type="checkbox" id="terms"> I agree to the <a href="/terms">terms</a></label>
+  <p><button type="submit" id="go" disabled>Create account</button></p>
+</form>
+<p id="status" role="status"></p>
+<div class="social"><button type="button" id="google">Continue with Google</button></div>
+<div class="promo">Sign up this week and get a free baguette with your first order!</div>
+</main>
+<script>
+// ?cls=<name> renames the class of the box around "Continue with Google" (default "social"), to test how Sift treats it.
+{ const c = new URLSearchParams(location.search).get("cls"); if (c) document.querySelector(".social").className = c; }
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+const taken = ["nico", "ana", "admin"];
+let userOk = false, t;
+const emailOk = () => /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test($("email").value);
+const rules = { "r-len": (v) => v.length >= 8, "r-num": (v) => /\d/.test(v), "r-up": (v) => /[A-Z]/.test(v) };
+const pwOk = () => Object.values(rules).every((f) => f($("pw").value));
+function setErr(input, err, text) { if (text) { err.textContent = text; err.hidden = false; input.setAttribute("aria-invalid", "true"); } else { err.hidden = true; err.textContent = ""; input.removeAttribute("aria-invalid"); } }
+function gate() { $("go").disabled = !(emailOk() && userOk && pwOk() && $("pw2").value === $("pw").value && $("terms").checked); }
+$("email").addEventListener("blur", () => { const v = $("email").value; __log.push("blur email"); setErr($("email"), $("email-err"), v && !emailOk() ? "Enter an email address like name@example.com." : ""); gate(); });
+$("email").addEventListener("input", () => { if (emailOk()) setErr($("email"), $("email-err"), ""); gate(); });
+$("user").addEventListener("input", () => {
+  clearTimeout(t); userOk = false; gate();
+  const v = $("user").value.trim();
+  if (!/^[a-z0-9]{3,15}$/i.test(v)) { $("user-msg").textContent = v ? "Use 3 to 15 letters or numbers." : ""; $("user").setAttribute("aria-invalid", v ? "true" : "false"); return; }
+  $("user-msg").textContent = "Checking…";
+  t = setTimeout(() => { const free = !taken.includes(v.toLowerCase()); userOk = free; $("user-msg").textContent = free ? v + " is available." : v + " is taken. Try " + v + "2026."; $("user").setAttribute("aria-invalid", String(!free)); __log.push("check " + v + " " + free); gate(); }, 600);
+});
+$("pw").addEventListener("input", () => {
+  const v = $("pw").value;
+  for (const [id, f] of Object.entries(rules)) { const li = $(id), ok = f(v); li.className = ok ? "ok" : ""; li.firstElementChild.textContent = ok ? "✓" : "✗"; li.lastElementChild.textContent = ok ? "met" : "not met"; }
+  gate();
+});
+$("show").onclick = () => { const s = $("pw").type === "password"; $("pw").type = s ? "text" : "password"; $("show").textContent = s ? "Hide" : "Show"; $("show").setAttribute("aria-pressed", String(s)); __log.push("show " + s); };
+$("pw2").addEventListener("blur", () => { __log.push("blur pw2"); setErr($("pw2"), $("pw2-err"), $("pw2").value && $("pw2").value !== $("pw").value ? "Passwords do not match." : ""); gate(); });
+$("pw2").addEventListener("input", () => { if ($("pw2").value === $("pw").value) setErr($("pw2"), $("pw2-err"), ""); gate(); });
+$("terms").addEventListener("change", () => { __log.push("terms " + $("terms").checked); gate(); });
+$("f").addEventListener("submit", (e) => { e.preventDefault(); if ($("go").disabled) return; __log.push("create " + $("email").value + " " + $("user").value); $("status").textContent = "Account created. We sent a link to " + $("email").value + "."; });
+$("google").onclick = () => __log.push("google");
+</script>
+</body></html>

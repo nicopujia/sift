@@ -496,7 +496,7 @@ function pictureWords(svg: Element): string {
   const name = clean(title?.textContent).toLowerCase();
   if (!name || name.length > 40) return "";
   const words = name.split(/\s+/).filter((w) => w.length >= 4);
-  if (!words.length) return "";
+  if (!words.length) return iconWord(svg, title!, name);
   let row: Element | null = svg.parentElement;
   for (let i = 0; i < 2 && row?.parentElement && row.parentElement !== document.body; i++) row = row.parentElement;
   if (!row) return "";
@@ -515,6 +515,27 @@ function pictureWords(svg: Element): string {
   // The same word in another form: a "Foggy" icon beside the hidden "AM Fog/PM Clouds".
   const stem = (lw: string) => lw.length >= 3 && words.some((w) => (w.startsWith(lw) || lw.startsWith(w)) && Math.min(w.length, lw.length) >= Math.max(w.length, lw.length) * 0.6);
   for (const l of leaves) if ((l.low.match(/\p{L}+/gu) ?? []).some(stem) && !l.el.checkVisibility()) return l.said;
+  return iconWord(svg, title!, name);
+}
+
+/** Icon names that are a control's or a count's picture, not what a cell shows. */
+const ICON_WORD = /\b(icons?|logo|arrow|chevron|caret|close|search|menu|share|star|heart|like|comments?|play|pause|info|external|download|clock|calendar|location|pin|eye|view|user|bookmark|cart|bell|check|plus|minus)\b/;
+
+/**
+ * With no hidden twin, an icon that alone says a short cell's state is read by
+ * its title (weather.com's hourly strip: "15:00", a sun titled "Sunny", "66°").
+ */
+function iconWord(svg: Element, title: Element, name: string): string {
+  if (name.split(/\s+/).length > 3 || !/^[\p{L} ]+$/u.test(name) || ICON_WORD.test(name)) return "";
+  const r = svg.getBoundingClientRect();
+  if (r.width < 20 || r.height < 20) return "";
+  let cell: Element | null = svg.parentElement;
+  for (let i = 0; cell && cell !== document.body && i < 3; i++, cell = cell.parentElement) {
+    const said = clean((cell as HTMLElement).innerText ?? "");
+    if (!said) continue;
+    if (said.length > 40 || !/\d/.test(said) || said.toLowerCase().includes(name.split(/\s+/)[0])) return "";
+    return clean(title.textContent);
+  }
   return "";
 }
 let twinCache = new WeakMap<Element, { el: Element; low: string; said: string }[]>();
@@ -784,7 +805,7 @@ export const SOCIAL_HOSTS =
 
 /** Share controls: "Share", "Share on Facebook", "Tweet", "Copy link". Not "Post Your Answer" or "Email us". */
 export const SHARE_LABEL =
-  /^((share|compartir|partager|teilen|condividi|compartilhar)( (this|it|on|en|via|por|article|story|page|link|post|nota)\b.{0,30})?|tweet|pin it|copy link|copiar (el )?enlace|whatsapp|facebook|twitter|x|linkedin|telegram|reddit|pinterest)$/i;
+  /^((share|compartir|partager|teilen|condividi|compartilhar)( (this|it|on|en|via|por|article|story|page|link|post|nota|whatsapp|facebook|twitter|x|linkedin|telegram|email|e-mail|correo)\b.{0,30})?|tweet|pin it|copy link|copiar (el )?enlace|whatsapp|facebook|twitter|x|linkedin|telegram|reddit|pinterest)$/i;
 /** Labels that share only in a share bar or with a share link; elsewhere they post a comment, write to someone, or print a ticket. */
 export const SHARE_MAYBE = /^(post|email|e-mail|correo|print|imprimir)$/i;
 

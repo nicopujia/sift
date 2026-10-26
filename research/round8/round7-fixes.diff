@@ -1,0 +1,2339 @@
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -6,7 +6,7 @@
+ import { mergeSettings } from "../shared/messages";
+ import { cacheClear, cacheGet, cacheSet } from "./cache";
+ import { bump, flushStats } from "./stats";
+-import { entryLang, estTokens, keepQuotes, langScript, listLang, scriptFits, scriptOf, splitText } from "./text";
++import { claimsNoAnswer, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, scriptFits, scriptOf, splitText } from "./text";
+ 
+ // ---------- settings ----------
+ 
+@@ -40,7 +40,8 @@
+ // 7: Short versions keep placeholders, links and the page's own headings, at half the length or less.
+ // 8: Short versions aim at a third of the length and never guess a job; one-liners keep variant details
+ // (color, size), never wrap the title ("A video titled X"), and keep "then-19" or "forced to" without datelines.
+-const PROMPT_VERSION = 8;
++// 9: A teaser headline keeps its own words (it may stay a question), and no line says the story leaves something unanswered.
++const PROMPT_VERSION = 9;
+ 
+ const LINES_INTRO = `You rewrite entries from a list on a web page into plain, literal one-line descriptions, for people who need pages to be simple and fast to read: low vision, ADHD, dyslexia, older users.
+ 
+@@ -89,13 +90,15 @@
+ ${LINES_RULES}
+ - Say the news directly, the way a plain news line would. Never mention the headline, title, article, note, report, or story itself: never write "The headline says", "The article explains", "A report on", "El artículo informa", "El título pregunta", "La nota repasa", or the like. Wrong: "The headline claims a leaked list names five replacements". Right: "A leaked list names five possible replacements".
+ - Keep who said what: a claim stays a claim of its source ("X says", "según X"), never a fact. Keep a direct quote in quotation marks, with who said it.
+-- A name after "By" or "Por" is the writer of the piece. Never present the writer as a speaker or as the source of a quote or claim.
++- A name after "By" or "Por" is the writer of the piece. Never present the writer as a speaker or as the source of a quote or claim. Keep "I" and "we" as the headline has them: never turn them into a role such as "the writer", "the speaker", or "the authors".
+ - Keep exactly who did what to whom. Never swap the actor (fans are not teammates), and never drop a negation or a word that sets the relation, such as "not", "against", "contra", "sin", "sobre".
+ - Keep the words that set when, how, or how sure: "then-19", "former", "forced to", "allegedly", "reportedly". An age or a role at the time of the events stays with them.
+ - A dateline such as "Desde Managua" or "WASHINGTON —" only says where the writer is. Never put it in the line.
+ - Keep a short label that carries news, such as "Absuelto", "Live", "Opinion", or "Análisis", at the start, followed by a colon.
+ - Drop teaser openings ("You won't believe", "De no creer", "A horas de") and hype, never the facts.
+-- If the headline does not say what happened (a question, a column title, or a teaser), keep its own words, made plain, and not as a question.
++- A question or a teaser that holds back its point ("the answer is …", "cuánto puede remontar", "here's why") is answered in the story, which you do not see. If the context gives the answer, say it. If not, write the headline in its own words, as it is; this is the one case where a line may be a question. Never restate it as a claim, and never add who asks, wonders, or explains it.
++- Never say or hint that the story leaves something out, unanswered, unknown, or unclear: never write "does not give the answer", "remains unanswered", "it is unclear", "no se indica", "no se sabe", or the like, unless the headline or context says so itself.
++- A column title that does not say what happened keeps its own words, made plain.
+ - If an entry is not a news story (an ad, a promotion, a call to action such as "Sign up", "Enter your zip code", or "Explore the collection", or a link to a section, newsletter, podcast, or app), write "s": "" for it.
+ 
+ ${LINES_OUTPUT}
+@@ -469,6 +472,9 @@
+   return ` ${l.join(" ")} `.includes(` ${t.join(" ")} `) && l.length - t.length <= 4;
+ }
+ 
++/** Most calls for one batch of lines, its retries in smaller batches after a filter or an output limit included. */
++const MAX_LINE_CALLS = 12;
++
+ /** What a line's quotes must come from: its entry's title and context. */
+ const quoteSource = (it: LineInput) => it.t + "\n" + (it.c ?? "");
+ 
+@@ -494,6 +500,10 @@
+   const keys = await Promise.all(req.items.map((it, i) => hash(`lines|${PROMPT_VERSION}|${site}|${mode}|${s.lines.model}|${langs[i]}|${it.t}|${it.c ?? ""}`)));
+   const misses: { it: LineInput; key: string; lang: string }[] = [];
+   for (const [i, it] of req.items.entries()) {
++    // A teaser that holds back its answer, with nothing in its context that
++    // could give it: any rewrite would guess the answer or call it missing.
++    // Its own words stay, and nothing is paid for.
++    if (mode === "news" && heldBack(it.t, it.c)) continue;
+     const hit = useCache ? await cacheGet(keys[i]) : undefined;
+     if (hit && !ttlOf(req, pc)) pc.saved.set(keys[i], hit);
+     if (hit === KEEP_TITLE) continue;
+@@ -502,85 +512,119 @@
+   }
+   if (!misses.length) return reply({ id: req.id, done: true });
+   if (!s.apiKey) return reply({ id: req.id, error: "No API key", code: "nokey", quiet: await toldBefore("nokey") });
+-  // Short ids keep the prompt small; map them back afterwards.
+-  const byShort = new Map(misses.map((m, i) => [String(i + 1), m]));
+-  const input = misses.map((m, i) => ({ id: String(i + 1), lang: m.lang || undefined, title: m.it.t, context: m.it.c || undefined }));
+-  let buf = "";
+-  const done = new Set<string>();
+-  const checks: Promise<void>[] = [];
+-  const emit = (line: string) => {
+-    const l = line.trim().replace(/^```(json)?|```$/g, "").trim();
+-    if (!l.startsWith("{")) return;
+-    try {
+-      const o = JSON.parse(l);
+-      const m = byShort.get(String(o.id));
+-      if (!m || typeof o.s !== "string" || done.has(String(o.id))) return;
+-      // A quote stays word for word, as the title or context has it.
+-      let text = keepQuotes(o.s.trim(), quoteSource(m.it)).replace(/[.。]$/, "");
+-      // In news mode, an empty line means "not a story" (a promo), and a line
+-      // about the headline instead of the news is no better: keep the title.
+-      if (mode === "news" && (!text || META.test(text))) text = m.it.t;
+-      if (!text) return;
+-      done.add(String(o.id));
+-      // A line that only wraps the title ("A video titled X") says nothing more: the title stays.
+-      if (mode !== "news" && wrapsTitle(text, m.it.t)) {
+-        if (useCache) save(pc, req, m.key, KEEP_TITLE);
+-        return;
+-      }
+-      const want = m.lang;
+-      // Models sometimes ignore the language they were given (an English title
+-      // came back in German, a Russian one in Persian). A line in another
+-      // script or clearly in another language is dropped and the original
+-      // title stays, remembered so it is not paid for again.
+-      checks.push(lineFits(text, want, m.it.t).then((ok) => {
+-        if (!ok) {
++  bump("aiLines", misses.length);
++  const perItem = mode === "about" ? 50 : 70;
++  /** About the longest line, in characters (12 words, or 18 to 20). */
++  const lineChars = mode === "about" ? 100 : 140;
++  type Miss = (typeof misses)[number];
++  /** One call for some of the entries: the error it ended in, if any, and the entries it gave no line for. */
++  const ask = async (part: Miss[]): Promise<{ err: unknown; left: Miss[] }> => {
++    // Short ids keep the prompt small; map them back afterwards.
++    const byShort = new Map(part.map((m, i) => [String(i + 1), m]));
++    const input = part.map((m, i) => ({ id: String(i + 1), lang: m.lang || undefined, title: m.it.t, context: m.it.c || undefined }));
++    let buf = "";
++    const done = new Set<string>();
++    const checks: Promise<void>[] = [];
++    const emit = (line: string) => {
++      const l = line.trim().replace(/^```(json)?|```$/g, "").trim();
++      if (!l.startsWith("{")) return;
++      try {
++        const o = JSON.parse(l);
++        const m = byShort.get(String(o.id));
++        if (!m || typeof o.s !== "string" || done.has(String(o.id))) return;
++        // A quote stays word for word, as the title or context has it.
++        let text = keepQuotes(o.s.trim(), quoteSource(m.it)).replace(/[.。]$/, "");
++        // In news mode, an empty line means "not a story" (a promo), and a line
++        // about the headline instead of the news is no better: keep the title.
++        // A line that says the story or video leaves something unanswered is a guess: the model saw only the title
++        // and context. (A message's gist may rightly say "you did not provide…".)
++        const noAnswer = mode !== "gist" && !!text && claimsNoAnswer(text, quoteSource(m.it));
++        if (mode === "news" && (!text || META.test(text) || noAnswer)) text = m.it.t;
++        if (!text) return;
++        done.add(String(o.id));
++        // A line that only wraps the title ("A video titled X") says nothing more: the title stays.
++        if (mode !== "news" && (noAnswer || wrapsTitle(text, m.it.t))) {
+           if (useCache) save(pc, req, m.key, KEEP_TITLE);
+           return;
+         }
+-        reply({ id: req.id, item: m.it.id, text });
+-        if (useCache) save(pc, req, m.key, text);
+-      }));
+-    } catch {
+-      /* partial or malformed line */
++        const want = m.lang;
++        // Models sometimes ignore the language they were given (an English title
++        // came back in German, a Russian one in Persian). A line in another
++        // script or clearly in another language is dropped and the original
++        // title stays, remembered so it is not paid for again.
++        checks.push(lineFits(text, want, m.it.t).then((ok) => {
++          if (!ok) {
++            if (useCache) save(pc, req, m.key, KEEP_TITLE);
++            return;
++          }
++          reply({ id: req.id, item: m.it.id, text });
++          if (useCache) save(pc, req, m.key, text);
++        }));
++      } catch {
++        /* partial or malformed line */
++      }
++    };
++    // A line in a script that takes many tokens (Tamil, Hindi) needs more than
++    // the flat budget: sized by its title's tokens per character, at a line's length.
++    const budget = part.reduce((n, m) => n + Math.max(perItem, Math.ceil((estTokens(m.it.t) / Math.max(1, m.it.t.length)) * Math.min(m.it.t.length, lineChars)) + 20), 0);
++    let err: unknown;
++    try {
++      await withChain(
++      s,
++      [s.lines, s.linesFallback, s.lastResort],
++      {
++        system: mode === "gist" ? GIST_SYSTEM : mode === "news" ? NEWS_SYSTEM : LINES_SYSTEM,
++        user: JSON.stringify(input),
++        maxTokens: 120 + budget,
++        minTokens: 60 + Math.round(budget / 2),
++        signal,
++        onText(d) {
++          buf += d;
++          let nl: number;
++          while ((nl = buf.indexOf("\n")) >= 0) {
++            emit(buf.slice(0, nl));
++            buf = buf.slice(nl + 1);
++          }
++        },
++      },
++        2500,
++      );
++    } catch (e) {
++      err = e;
++    } finally {
++      // Every line goes out before "done" or the error: the page stops listening after either.
++      emit(buf);
++      await Promise.allSettled(checks);
+     }
++    return { err, left: [...byShort].flatMap(([id, m]) => (done.has(id) ? [] : [m])) };
+   };
+-  bump("aiLines", misses.length);
+-  const perItem = mode === "about" ? 50 : 70;
+-  let err: unknown;
+-  try {
+-    await withChain(
+-    s,
+-    [s.lines, s.linesFallback, s.lastResort],
+-    {
+-      system: mode === "gist" ? GIST_SYSTEM : mode === "news" ? NEWS_SYSTEM : LINES_SYSTEM,
+-      user: JSON.stringify(input),
+-      maxTokens: 120 + misses.length * perItem,
+-      minTokens: 60 + misses.length * Math.round(perItem / 2),
+-      signal,
+-      onText(d) {
+-        buf += d;
+-        let nl: number;
+-        while ((nl = buf.indexOf("\n")) >= 0) {
+-          emit(buf.slice(0, nl));
+-          buf = buf.slice(nl + 1);
+-        }
+-      },
+-    },
+-      2500,
+-    );
+-  } catch (e) {
+-    err = e;
+-  } finally {
+-    // Every line goes out before "done" or the error: the page stops listening after either.
+-    emit(buf);
+-    await Promise.allSettled(checks);
+-  }
+-  if (err) {
+-    // A filter or an output limit would stop the same batch again: its
+-    // entries with no line keep their titles for a day, so a revisit does not pay again.
+-    if (finalIncomplete(err) && useCache) for (const [id, m] of byShort) if (!done.has(id)) cacheSet(m.key, KEEP_TITLE, Math.min(ttlOf(req, pc) ?? DAY, DAY));
+-    throw err;
+-  }
++  // A filter or an output limit stops a batch, not each entry: the entries it
++  // left are asked again in halves, so one flagged title, or lines in a script
++  // that takes many tokens, cost no other entry its line. Only an entry that
++  // fails alone keeps its title, for a day, so a revisit does not pay again.
++  let calls = 0;
++  let unsettled: unknown;
++  const run = async (part: Miss[], why?: unknown): Promise<void> => {
++    // Each try may be paid for: entries past this many stay asked for on this page only.
++    if (calls >= MAX_LINE_CALLS) {
++      unsettled = why;
++      return;
++    }
++    calls++;
++    const r = await ask(part);
++    if (!r.err) return;
++    if (!finalIncomplete(r.err) || signal.aborted) throw r.err;
++    if (!r.left.length) return;
++    if (part.length === 1) {
++      if (useCache) cacheSet(part[0].key, KEEP_TITLE, Math.min(ttlOf(req, pc) ?? DAY, DAY));
++      return;
++    }
++    const half = Math.ceil(r.left.length / 2);
++    await run(r.left.slice(0, half), r.err);
++    if (half < r.left.length) await run(r.left.slice(half), r.err);
++  };
++  await run(misses);
++  if (unsettled) throw unsettled;
+   reply({ id: req.id, done: true });
+ }
+ 
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -358,3 +358,64 @@
+   }
+   return parts;
+ }
++
++// ---------- teasers ----------
++
++/**
++ * A headline cut off right where its answer would be: "We weighed all angles
++ * and the answer is …", "And the winner is…", "El motivo…". A trailing "…"
++ * after a full statement (a tabloid habit) does not count.
++ */
++const HELD_BACK =
++  /(?<![\p{L}\p{N}])(?:is|are|was|were|it['’]s|es|son|fue|era|será|é|são|foi|est|sont|ist|sind|è|sono|answer|reason|verdict|result|winner|secret|truth|respuesta|motivo|razón|veredicto|resultado|ganador|secreto|verdad|resposta|razão|segredo)\s*:?\s*["'‘“«]?\s*(?:…|\.{3})\s*["'’”»]?\s*$/iu;
++
++const wordCount = (s: string) => (s.match(/[\p{L}\p{N}]+/gu) ?? []).length;
++
++/**
++ * A headline that holds back its answer, with no sentence in its context that
++ * could give it (only labels: a section, a time, "comments"). The model can only
++ * guess the answer or say it is missing, and both are false: its own words stay.
++ */
++export function heldBack(title: string, context = ""): boolean {
++  return HELD_BACK.test(title.trim()) && context.split(" · ").every((p) => wordCount(p) <= 5);
++}
++
++/** A line that says the story leaves something out: "does not give the answer", "remains unanswered", "no se indica". */
++const NO_ANSWER = new RegExp(
++  [
++    // English
++    String.raw`\b(?:does|do|did|is|are|was|were|has|have|had|will|would|can|could)(?:n['’]t|\s+not)\s+(?:yet\s+)?(?:say|said|state|stated|give|given|reveal|revealed|specify|specified|explain|explained|disclose|disclosed|answer|answered|provide|provided|mention|mentioned|tell|told|indicate|indicated|clarify|clarified|known|clear|confirm|confirmed)\b`,
++    String.raw`\bwithout\s+(?:saying|giving|revealing|stating|specifying|explaining|disclosing|answering|providing|an answer|the answer)\b`,
++    String.raw`\b(?:remains?|remained|left|stays?|still|is|are|was|were|goes|went)\s+(?:largely\s+|still\s+)?(?:unanswered|unknown|unclear|unexplained|unresolved|unstated|unspecified|undisclosed|unsaid|a mystery|an open question)\b`,
++    String.raw`\b(?:no|not an?)\s+(?:answer|verdict|conclusion)\b|\bnot\s+(?:given|stated|revealed|specified|disclosed)\b`,
++    // Spanish
++    String.raw`\bno\s+(?:se\s+)?(?:indica|dice|sabe|aclara|precisa|especifica|revela|detalla|explica|informa|menciona|conoce|responde)\b`,
++    String.raw`\bno\s+(?:da|ofrece)\s+(?:la\s+|una\s+)?respuesta\b|\bno\s+(?:está|queda)\s+claro\b|\bse\s+desconoce\b|\bincógnita\b`,
++    String.raw`\bsin\s+(?:indicar|decir|aclarar|precisar|especificar|revelar|detallar|explicar|responder|respuesta|dar\s+(?:la\s+)?respuesta)\b`,
++    String.raw`\b(?:sigue|siguen|queda|quedan|permanece|permanecen)\s+(?:sin\s+(?:respuesta|resolver|aclarar)|en\s+(?:duda|el\s+aire)|un\s+misterio)\b`,
++    // Portuguese
++    String.raw`\bnão\s+(?:se\s+)?(?:diz|indica|informa|revela|explica|especifica|esclarece|sabe|responde|detalha)\b|\bnão\s+está\s+claro\b|\bdesconhece-se\b`,
++    String.raw`\bsem\s+(?:dizer|indicar|revelar|explicar|especificar|esclarecer|resposta)\b`,
++    // French, German, Italian
++    String.raw`\bne\s+(?:dit|précise|révèle|indique|explique|donne)\s+pas\b|\bsans\s+(?:dire|préciser|révéler|répondre|réponse)\b|\breste\s+(?:sans\s+réponse|inconnu|flou|un\s+mystère)\b`,
++    String.raw`\b(?:sagt|nennt|verrät|erklärt|beantwortet)\s+(?:\S+\s+)?nicht\b|\bbleibt\s+(?:offen|unklar|unbeantwortet|ein\s+Rätsel)\b`,
++    String.raw`\bnon\s+(?:dice|indica|rivela|precisa|spiega|risponde)\b|\bresta\s+(?:senza\s+risposta|un\s+mistero|da\s+chiarire)\b`,
++  ].join("|"),
++  "giu",
++);
++
++/** Words in a title or context that say something is not known or not said, so a line may say it too. */
++const ABSENCE = /\b(?:unknown|unclear|unanswered|unexplained|myster|refus|declin|won['’]t|no comment|desconoc|desconhec|misterio|mistério|incógnita|unklar|unbekannt|inconnu|ignoto)/giu;
++
++const count = (re: RegExp, s: string) => s.match(re)?.length ?? 0;
++
++/**
++ * A line that claims the story does not give something, more often than its
++ * title and context say so (a title's own "I don't give a damn" does not cover
++ * an added "does not give the answer"): the model saw only those, not the story,
++ * so the claim is a guess, and usually false, since the story gives the answer
++ * its teaser holds back.
++ */
++export function claimsNoAnswer(line: string, source: string): boolean {
++  return count(NO_ANSWER, line) > count(NO_ANSWER, source) + count(ABSENCE, source);
++}
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -281,14 +281,40 @@
+   return { t: "form", key: "compose:" + refOf(box), title: name, fields, actions };
+ }
+ 
++/** The compose window's own close, which saves the draft ("Save & close", "Guardar y cerrar"). */
++const COMPOSE_CLOSE =
++  "img[aria-label^='Save & close'], [data-tooltip^='Save & close'], img[aria-label^='Guardar y cerrar'], [data-tooltip^='Guardar y cerrar'], img[alt='Close']";
++
++function composeBoxes(): Element[] {
++  return vis(qa("div[role=dialog]")).filter((d) => q("div[aria-label='Message Body'], input[name=subjectbox]", d));
++}
++
++/**
++ * A compose window floating beside the inbox (small, no backdrop) is not a modal: the inbox
++ * stays usable next to the draft. A maximized one covers the page.
++ */
++function floatingCompose(box: Element): boolean {
++  const r = box.getBoundingClientRect();
++  return r.width * r.height < innerWidth * innerHeight * 0.5;
++}
++
++/** A floating compose window as a form in the page view, under its title, with the window's own close when it has one. */
++function composeForm(box: Element): Block[] {
++  const form = editor(box);
++  if (form?.t !== "form") return [];
++  const close = vis(qa(COMPOSE_CLOSE, box)).shift();
++  if (close) form.actions.push({ ...toAction(close, tipLabel(close) || accName(close) || "Save & close"), kind: "quiet" });
++  return [{ t: "h", key: "dh:" + refOf(box), level: 2, text: form.title || "New message" }, form];
++}
++
+ function composeDialog(): Page["dialog"] {
+-  const box = vis(qa("div[role=dialog]")).find((d) => q("div[aria-label='Message Body'], input[name=subjectbox]", d));
++  const box = composeBoxes().find((d) => !floatingCompose(d));
+   if (!box) return undefined;
+   const form = editor(box);
+   if (!form) return undefined;
+   const title = clean(q("h2, .aYF", box)?.textContent) || "New message";
+-  const close = vis(qa("img[aria-label^='Save & close'], img[alt='Close'], [data-tooltip^='Save & close']", box)).shift();
+-  return { key: "compose:" + refOf(box), title, blocks: [form], close: close ? toAction(close, "Close") : undefined };
++  const close = vis(qa(COMPOSE_CLOSE, box)).shift();
++  return { key: "compose:" + refOf(box), ref: refOf(box), title, blocks: [form], close: close ? toAction(close, tipLabel(close) || "Close") : undefined };
+ }
+ 
+ export const gmail: Adapter = {
+@@ -305,6 +331,9 @@
+         g.source = "gmail-generic";
+         page = g;
+       }
++      // Floating drafts come first in the page view, as they float over every view on the page.
++      const drafts = composeBoxes().filter(floatingCompose).flatMap(composeForm);
++      if (drafts.length) page.blocks = [...drafts, ...page.blocks];
+       const d = composeDialog();
+       if (d) page.dialog = d;
+       return page;
+@@ -314,4 +343,6 @@
+     }
+   },
+   quiet: () => qa("div[role=complementary], .aKh, .aj5"),
++  // A floating compose window is a form in the page view, never a modal sheet.
++  dropDialog: (el) => el.matches("div[role=dialog]") && !!q("div[aria-label='Message Body'], input[name=subjectbox]", el) && floatingCompose(el),
+ };
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -575,6 +575,11 @@
+       (b) => visible(b) && (SAVE_ICON.test(q("path", b)?.getAttribute("d") ?? "") || SAVE_LABEL.test(clean(b.getAttribute("aria-label")) || textIn(b))),
+     );
+     if (save) actions.push(toAction(save, textIn(save) || clean(save.getAttribute("aria-label"))));
++    else {
++      // At some widths and zooms YouTube folds Save into its "More actions" menu: offer that menu, which opens as Sift's dialog.
++      const more = vis1(qa("ytd-menu-renderer > yt-button-shape button[aria-label], ytd-menu-renderer > yt-icon-button button[aria-label]", q("#actions", meta) ?? meta));
++      if (more) actions.push(toAction(more, clean(more.getAttribute("aria-label")) || textIn(more)));
++    }
+     if (actions.length) blocks.push({ t: "actions", key: "watch-actions", actions });
+   }
+ 
+@@ -1097,10 +1102,16 @@
+   loadMore() {
+     // Rendered ones only: a spent continuation stays in the DOM with no size, and scrolling to it loads nothing.
+     const conts = qa("ytd-continuation-item-renderer").filter((c) => c.closest("[hidden]") === null && c.getBoundingClientRect().height > 0);
+-    // On a watch page, once comments have loaded (the reader opened them), more means more comments,
+-    // not more of Up next, whose list comes last in the page.
+-    const comments = location.pathname === "/watch" && q("ytd-comments#comments ytd-comment-thread-renderer") ? conts.filter((c) => c.closest("ytd-comments")) : [];
+-    const cont = (comments.length ? comments : conts).pop();
++    // On a watch page, more follows the section the reader has open in Sift: comments when Comments is
++    // open (it comes last in Sift's view), else Up next. YouTube loads the first comments by itself.
++    let pick = conts;
++    if (location.pathname === "/watch") {
++      const wantComments = store.local.get("sec:comments") === true;
++      const mine = conts.filter((c) => !!c.closest("ytd-comments") === wantComments);
++      // Comments not loaded yet: their own continuation is not rendered, and Up next's is the one to use.
++      if (mine.length || !wantComments) pick = mine;
++    }
++    const cont = pick.pop();
+     if (!cont) return false;
+     cont.scrollIntoView({ block: "end" });
+     return true;
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -496,7 +496,7 @@
+   const name = clean(title?.textContent).toLowerCase();
+   if (!name || name.length > 40) return "";
+   const words = name.split(/\s+/).filter((w) => w.length >= 4);
+-  if (!words.length) return "";
++  if (!words.length) return iconWord(svg, title!, name);
+   let row: Element | null = svg.parentElement;
+   for (let i = 0; i < 2 && row?.parentElement && row.parentElement !== document.body; i++) row = row.parentElement;
+   if (!row) return "";
+@@ -515,6 +515,27 @@
+   // The same word in another form: a "Foggy" icon beside the hidden "AM Fog/PM Clouds".
+   const stem = (lw: string) => lw.length >= 3 && words.some((w) => (w.startsWith(lw) || lw.startsWith(w)) && Math.min(w.length, lw.length) >= Math.max(w.length, lw.length) * 0.6);
+   for (const l of leaves) if ((l.low.match(/\p{L}+/gu) ?? []).some(stem) && !l.el.checkVisibility()) return l.said;
++  return iconWord(svg, title!, name);
++}
++
++/** Icon names that are a control's or a count's picture, not what a cell shows. */
++const ICON_WORD = /\b(icons?|logo|arrow|chevron|caret|close|search|menu|share|star|heart|like|comments?|play|pause|info|external|download|clock|calendar|location|pin|eye|view|user|bookmark|cart|bell|check|plus|minus)\b/;
++
++/**
++ * With no hidden twin, an icon that alone says a short cell's state is read by
++ * its title (weather.com's hourly strip: "15:00", a sun titled "Sunny", "66°").
++ */
++function iconWord(svg: Element, title: Element, name: string): string {
++  if (name.split(/\s+/).length > 3 || !/^[\p{L} ]+$/u.test(name) || ICON_WORD.test(name)) return "";
++  const r = svg.getBoundingClientRect();
++  if (r.width < 20 || r.height < 20) return "";
++  let cell: Element | null = svg.parentElement;
++  for (let i = 0; cell && cell !== document.body && i < 3; i++, cell = cell.parentElement) {
++    const said = clean((cell as HTMLElement).innerText ?? "");
++    if (!said) continue;
++    if (said.length > 40 || !/\d/.test(said) || said.toLowerCase().includes(name.split(/\s+/)[0])) return "";
++    return clean(title.textContent);
++  }
+   return "";
+ }
+ let twinCache = new WeakMap<Element, { el: Element; low: string; said: string }[]>();
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -12,7 +12,7 @@
+ } from "../dom";
+ import { glyphName } from "../dom";
+ import { t } from "../i18n";
+-import { enteredField, recentNodes } from "../recent";
++import { armCount, enteredField, recentNodes } from "../recent";
+ import { portalElements } from "../portal";
+ 
+ const SKIP = new Set([
+@@ -156,8 +156,8 @@
+   searchEl?: Element;
+   /** Headings and positioned parts the walk showed, so a popup never repeats them. */
+   visited?: WeakSet<Element>;
+-  /** Titles of the cards shown, by link, so the same story is shown once. */
+-  cards?: Map<string, string[]>;
++  /** The cards shown, by link, so the same story is shown once. */
++  cards?: Map<string, Item[]>;
+   /** Elements shown as portals, so one player never gets two. */
+   portals?: Element[];
+   /** Cards found to be ads or promos, dropped whole. */
+@@ -400,11 +400,21 @@
+ 
+ function inMain(el: Element): boolean {
+   const m = el.closest("main, [role=main], [data-sift-role=main], article");
+-  // A <main> that says it is none (weather.gov's, around the whole page with its header and site nav) is only a box.
+-  if (m?.localName === "main" && /^(none|presentation)$/.test(m.getAttribute("role") ?? "")) return !!m.parentElement && inMain(m.parentElement);
++  // A <main> that says it is none and wraps the site's header or nav (weather.gov's, around the whole page) is only a box.
++  // One that wraps a product (Allbirds' <main role=none>, with a breadcrumb at most) is still the main region.
++  if (m?.localName === "main" && /^(none|presentation)$/.test(m.getAttribute("role") ?? "") && wrapsSiteBar(m)) return !!m.parentElement && inMain(m.parentElement);
+   return !!m;
+ }
+ 
++/** A region whose own children include the site's header or nav bar (not a breadcrumb). */
++function wrapsSiteBar(m: Element): boolean {
++  return Array.from(m.children).some((c) => {
++    const role = c.getAttribute("role") ?? "";
++    if (c.localName === "header" || role === "banner") return true;
++    return (c.localName === "nav" || role === "navigation") && !/breadcrumb|migas/i.test(`${c.getAttribute("aria-label") ?? ""} ${tokens(c)}`);
++  });
++}
++
+ /** Navigation that is part of the content: pagination, in-page tabs, language lists. */
+ function contentNav(el: Element, ctx: Ctx): boolean {
+   const label = `${clean(el.getAttribute("aria-label"))} ${el.getAttribute("aria-labelledby") ? accName(el) : ""} ${tokens(el)}`;
+@@ -447,7 +457,7 @@
+   const role = el.getAttribute("role");
+   if (role === "contentinfo") return !ctx.inDialog;
+   if (tag === "footer") return pageFooter(el, ctx);
+-  if (tag === "header" || role === "banner") return !ctx.inArticle && !inMain(el) && !titleBar(el, ctx);
++  if (tag === "header" || role === "banner") return !ctx.inArticle && (!inMain(el) || barCopy(el, ctx)) && !titleBar(el, ctx);
+   if (tag === "nav" || role === "navigation") return !contentNav(el, ctx);
+   if (tag === "aside" || role === "complementary") {
+     if (NOISE_TOKEN.test(tokens(el))) return true;
+@@ -461,6 +471,45 @@
+   return false;
+ }
+ 
++/** The actions in Sift's top bar, for the extraction under way. */
++let topBar: Action[] = [];
++
++/**
++ * A site header the page put inside its main region (weather.com below 768 px):
++ * at the top, and every control it shows is already in Sift's top bar, a menu
++ * toggle, the site search, or a link home. It is said once, in the bar.
++ */
++function barCopy(el: Element, ctx: Ctx): boolean {
++  if (!topBar.length || el.querySelector("h1") || tlen(el) > 300) return false;
++  const r = el.getBoundingClientRect();
++  if (r.top + scrollY > 100 || r.height > 200) return false;
++  let inBar = 0;
++  for (const c of Array.from(el.querySelectorAll("a[href], button, [role=button], input:not([type=hidden]), select"))) {
++    if (!visible(c) || c.getBoundingClientRect().width < 1) continue;
++    // The bar's own control, or its twin ("Sign in" as a link and as a button).
++    const name = (textIn(c) || accName(c)).toLowerCase();
++    if (topBar.some((a) => a.ref === refOf(c) || (!!name && a.label.toLowerCase() === name))) {
++      inBar++;
++      continue;
++    }
++    if (ctx.searchEl && (c === ctx.searchEl || !!c.closest("form")?.contains(ctx.searchEl))) continue;
++    if (c instanceof HTMLAnchorElement && (homeHref(c.href) || localeHome(c.href))) continue;
++    if (c.hasAttribute("aria-expanded") || c.hasAttribute("aria-haspopup") || /\bmenu\b/i.test(accName(c))) continue;
++    return false;
++  }
++  return inBar > 0;
++}
++
++/** The site's home in one language ("/en-CA", "/es/"). */
++function localeHome(href: string): boolean {
++  try {
++    const u = new URL(href, location.href);
++    return u.host === location.host && !u.search && /^\/[a-z]{2}([-_][a-z]{2})?\/?$/i.test(u.pathname);
++  } catch {
++    return false;
++  }
++}
++
+ /**
+  * A <header> in the section that holds the page's title, with buttons and no
+  * menu, search or link home: the title's own bar (a Craigslist post's reply,
+@@ -532,7 +581,25 @@
+   if (!btns.length || btns.length > 8) return false;
+   const r = el.getBoundingClientRect();
+   if (!(r.bottom >= innerHeight - 4 && r.top > innerHeight * 0.5 && r.width >= innerWidth * 0.5)) return false;
+-  return SELECTED_COUNT.test(textIn(el)) || !!document.querySelector("tr input[type=checkbox]:checked, [role=row][aria-selected=true], li input[type=checkbox]:checked");
++  return SELECTED_COUNT.test(textIn(el)) || !!document.querySelector("[role=row][aria-selected=true]") || rowPicked();
++}
++
++/**
++ * A checked box that picks its row (an order, a message, a file): the row holds more than the
++ * box and its own label. A ticked filter ("Brand: Hydro") in a facet list or a side panel is not (F741).
++ */
++function rowPicked(): boolean {
++  for (const c of Array.from(document.querySelectorAll("tr input[type=checkbox]:checked, li input[type=checkbox]:checked")).slice(0, 40)) {
++    const row = c.closest("tr, li")!;
++    if (row.closest("aside, [role=complementary], [role=search]")) continue;
++    let filters = false;
++    for (let a: Element | null = row.parentElement, i = 0; a && a !== document.body && i < 5; a = a.parentElement, i++) if (FILTER_TOKEN.test(tokens(a))) filters = true;
++    if (filters) continue;
++    const label = (c as HTMLInputElement).labels?.[0];
++    const link = Array.from(row.querySelectorAll("a[href]")).some((a) => !a.contains(c) && !label?.contains(a));
++    if (link || tlen(row) - (label ? tlen(label) : 0) >= 20) return true;
++  }
++  return false;
+ }
+ 
+ /** Pay bars (and bulk-action bars) pinned outside the main region (after it in the page), read after it. */
+@@ -1121,7 +1188,7 @@
+           sep(e, textInRaw(e));
+           padded(e, { b: tx });
+           prev = e;
+-        }
++        } else if (/\s/.test(e.textContent ?? "")) put(" "); // "people<strong>&nbsp;</strong>were" (Fox): the space stays.
+         continue;
+       }
+       if ((tag === "em" || tag === "i") && !e.querySelector("a")) {
+@@ -1130,7 +1197,7 @@
+           sep(e, textInRaw(e));
+           padded(e, { i: tx });
+           prev = e;
+-        }
++        } else if (/\s/.test(e.textContent ?? "")) put(" ");
+         continue;
+       }
+       if ((tag === "code" || tag === "kbd") && !e.querySelector("a")) {
+@@ -1186,6 +1253,25 @@
+   return set;
+ }
+ 
++/**
++ * A link to a picture file around that picture, with no words of its own but
++ * its file name and size (Discourse shows "signal-2026-10-18-101319 · 800×772
++ * 66.8 KB" on hover): a screenshot in a post, shown as the picture rather than
++ * a link named after its file.
++ */
++function linkedShot(a: Element, ctx: Ctx): { img: HTMLImageElement; im: Img } | null {
++  if (!/\.(png|jpe?g|gif|webp|avif|bmp)$/i.test((a as HTMLAnchorElement).pathname ?? "")) return null;
++  const imgs = a.querySelectorAll("img");
++  if (imgs.length !== 1) return null;
++  const img = imgs[0] as HTMLImageElement;
++  let rest = textIn(a);
++  for (const n of [clean(img.alt), clean(a.getAttribute("title"))]) if (n) rest = rest.split(n).join(" ");
++  rest = rest.replace(/\d+\s*[×x]\s*\d+|\d+([.,]\d+)?\s*(bytes|[kmg]i?b)\b/gi, " ");
++  if (/[\p{L}\p{N}]/u.test(rest) || !visible(img)) return null;
++  const im = contentImage(img, { ...ctx, inArticle: true }, 150, 100);
++  return im ? { img, im } : null;
++}
++
+ /** A link that is only a picture (a badge, a flag, an avatar). */
+ function pictureLink(c: Element | null): boolean {
+   return !!c && c.localName === "a" && c.hasAttribute("href") && !!c.querySelector("img") && !textIn(c);
+@@ -1267,7 +1353,7 @@
+ const PLAY_HEAD = /\b(play now|explore games|more games|all games|jug[aá] ahora)\b/i;
+ 
+ /** Promo words a headline may use too ("Thousands sign up for free bread classes", "Four-day week free trial ends"). */
+-const TITLE_PROMO_WEAK = /sign up (here|for|to)|free trial|prueba gratis|newsletter|bolet[ií]n|join our|applications are open|we're hiring|all access/gi;
++const TITLE_PROMO_WEAK = /sign up (here|for|to)|free trial|prueba gratis|newsletter|bolet[ií]n|join our|applications are open|we're hiring|all access|whatsapp channel|canal de whatsapp|download (our|the) ([\w'’-]+ ){0,3}app\b|descarg[aá] (la|nuestra) app/gi;
+ 
+ /**
+  * A card that sells or calls to action rather than tells a story. Words a
+@@ -1281,8 +1367,9 @@
+   if (!promoText(title)) return false;
+   if (promoText(title.replace(TITLE_PROMO_WEAK, " "))) return true;
+   // "Sign up to First Edition" (or "… launches The Spotlight: Sign up for …") asks; "Thousands sign up for bread classes" tells.
+-  if (/(^|[:.!?|–—]\s*|\s-\s)(sign up|join our|subscribe)\b/i.test(title)) return true;
+-  return !href || promoHref(href);
++  if (/(^|[:.!?|–—]\s*|\s-\s)(sign up|join our|subscribe|follow|download|descarg[aá]|s[ií]gue)\b/i.test(title)) return true;
++  // A card that leads to a WhatsApp or Telegram channel sells it; one that leads to a story tells about it.
++  return !href || promoHref(href) || SOCIAL_HOSTS.test(hostOf(href));
+ }
+ 
+ /** A promo word that names a whole part of a link's path, or starts it ("/subscribe", "/sign-up-for-first-edition"). */
+@@ -1720,12 +1807,54 @@
+   return clean(err.map((d) => d.textContent ?? "").join(" ")).slice(0, 200) || undefined;
+ }
+ 
++/** Text as a screen reader reads it: without what the page keeps from it (aria-hidden glyphs), with its screen-reader-only words. */
++function heardText(el: Element): string {
++  let s = "";
++  const walk = (n: Node) => {
++    for (let c = n.firstChild; c; c = c.nextSibling) {
++      if (c.nodeType === 3) s += c.nodeValue;
++      else if (c.nodeType === 1 && (c as Element).getAttribute("aria-hidden") !== "true" && !(c as Element).hasAttribute("hidden") && !/^(script|style|template|noscript)$/.test((c as Element).localName)) {
++        s += " ";
++        walk(c);
++        s += " ";
++      }
++    }
++  };
++  walk(el);
++  return clean(s);
++}
++
++/**
++ * What else the page says about a field (its aria-describedby, less its error): a hint, its
++ * rules, its message as the user types ("ana is taken"). Read with Sift's field, as on the page.
++ */
++function fieldDesc(el: Element, error?: string): string | undefined {
++  const ids = (el.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean);
++  if (!ids.length) return undefined;
++  const root = el.getRootNode() as Document | ShadowRoot;
++  const parts = ids.map((id) => root.getElementById?.(id)).filter((x): x is HTMLElement => !!x && x !== el && x.checkVisibility()).map(heardText);
++  return clean(parts.filter((t) => t && !error?.includes(t)).join(" ")).slice(0, 300) || undefined;
++}
++
++/** A placeholder the page draws itself over an empty field (a "…-placeholder" box beside it, over it) names it (F732). */
++function drawnPlaceholder(el: Element): string {
++  const r = el.getBoundingClientRect();
++  for (const c of Array.from(el.parentElement?.children ?? [])) {
++    if (c === el || !/placeholder/i.test(tokens(c)) || !visible(c)) continue;
++    const b = c.getBoundingClientRect();
++    const s = textIn(c);
++    if (s && s.length <= 80 && b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top) return s;
++  }
++  return "";
++}
++
+ export function toField(el: Element): Field | null {
+   const ref = refOf(el);
+   const invalid = el.getAttribute("aria-invalid") === "true" || undefined;
++  const error = invalid && fieldError(el);
+   const base = {
+     key: "f:" + ref, ref, label: labelOf(el), disabled: (el as HTMLInputElement).disabled || el.getAttribute("aria-disabled") === "true",
+-    invalid, error: invalid && fieldError(el),
++    invalid, error, desc: fieldDesc(el, error || undefined),
+   };
+   if (el instanceof HTMLInputElement) {
+     const kind = INPUT_KINDS[el.type] ?? "text";
+@@ -1736,13 +1865,13 @@
+       min: el.min || undefined, max: el.max || undefined, step: el.step || undefined,
+       autocomplete: el.autocomplete || undefined, accept: el.accept || undefined, multiple: el.multiple || undefined,
+       // An unlabeled box is named by its form, when that says what it does (weather.gov's "getForecast").
+-      label: base.label || clean(el.placeholder) || humanName(el.name) || (kind === "text" && el.form ? humanName(el.form.getAttribute("name") || el.form.id) : ""),
++      label: base.label || clean(el.placeholder) || drawnPlaceholder(el) || humanName(el.name) || (kind === "text" && el.form ? humanName(el.form.getAttribute("name") || el.form.id) : ""),
+     };
+   }
+   if (el instanceof HTMLTextAreaElement) {
+     // An unlabeled box in a form is named by what its button does ("add comment").
+     const go = !base.label && el.form ? Array.from(el.form.querySelectorAll("input[type=submit], button:not([type=button])")).find((b) => visible(b)) : null;
+-    const label = base.label || (go ? clean((go as HTMLInputElement).value) || textIn(go) : "") || humanName(el.name);
++    const label = base.label || drawnPlaceholder(el) || (go ? clean((go as HTMLInputElement).value) || textIn(go) : "") || humanName(el.name);
+     return { ...base, label, kind: "textarea", value: el.value, name: el.name || undefined, placeholder: el.placeholder || undefined, required: el.required || undefined, readOnly: el.readOnly || undefined };
+   }
+   if (el instanceof HTMLSelectElement) {
+@@ -2108,7 +2237,13 @@
+   const all = textIn(el);
+   const len = all.length;
+   if (len < 15 || len > 700) return null;
+-  if (len < 200 && promoText(all)) return null;
++  // A box that sells goes; a story whose headline only names a channel, app or newsletter
++  // ("How 'Lula's Army' WhatsApp channel helped…") stays, and toItem's promoCard judges it by its link.
++  if (len < 200 && promoText(all)) {
++    const head = el.querySelector(HEADING_SEL);
++    const ht = head ? textIn(head) : "";
++    if (ht.length < 25 || promoText(all.replace(ht, " ")) || promoText(ht.replace(TITLE_PROMO_WEAK, " "))) return null;
++  }
+   if (holdsCover(el)) return null;
+   // Several headings of its own are a list of parts (weather.com's days, each an h3 over its row), not one card.
+   if (el.querySelectorAll(HEADING_SEL).length >= 3) return null;
+@@ -2181,6 +2316,11 @@
+  * the member elements; siblings that are not members are walked normally, so
+  * nothing is silently dropped.
+  */
++/** A read-only field that holds an embed code or a link to copy, not a value to set. */
++function copyField(f: Element): boolean {
++  return f.localName === "input" && (f as HTMLInputElement).readOnly && /^\s*(<|https?:\/\/)/i.test((f as HTMLInputElement).value);
++}
++
+ export function detectItems(el: Element, ctx: Ctx): Set<Element> | null {
+   // Empty dividers between the entries (Google Maps' result feed) are not entries of another kind.
+   const ch = kids(el).filter((k) => !SKIP.has(k.localName) && visible(k) && !isAd(k) && k.getAttribute("aria-hidden") !== "true" && (tlen(k) > 0 || MEDIA.has(k.localName) || !!k.querySelector("img, picture, video, iframe, svg, input, button, select, textarea")));
+@@ -2215,7 +2355,8 @@
+     total += n;
+     if (prominentLink(k, ctx.inArticle)) prominent++;
+     else if (links.length) unnamed.push(k);
+-    if (k.querySelector("input:not([type=hidden]), select, textarea")) withFields++;
++    // A hidden field or a read-only embed code to copy (NPR's audio cards) is not a field of the row (F738).
++    if (Array.from(k.querySelectorAll("input:not([type=hidden]), select, textarea")).some((f) => visible(f) && !copyField(f))) withFields++;
+     // A member that shows nothing but one short link (a hidden popover aside): this is a link list, not cards.
+     const shown = links.filter((a) => visible(a));
+     if (shown.length === 1 && n < 400 && textIn(shown[0]).length >= textIn(k).length - 2 && textIn(k).length < 60) simple++;
+@@ -2388,11 +2529,37 @@
+   return out.filter((x) => x !== "");
+ }
+ 
++/**
++ * A short label heading over the headline (NPR's "h3.slug > a" to its section before "h2.title > a"
++ * to the story, or "WATCH" over a video's linked title) is a kicker: the card is named by the later
++ * heading whose link the card's other links (its picture, its teaser) share (F739).
++ */
++function kickerHeading(el: Element, first: Element | null): Element | null {
++  if (!first || el.localName === "a" || first.closest("a[href]") === el) return first;
++  const words = (e: Element) => textIn(e).split(/\s+/).filter(Boolean).length;
++  const n = words(first);
++  // A linked label names its section or its show ("The Indicator from Planet Money"); an unlinked one is a word or two.
++  if (!n || n > (first.closest("a[href]") || first.querySelector("a[href]") ? 8 : 3)) return first;
++  const hrefOfH = (h: Element) => ((h.closest("a[href]") ?? h.querySelector("a[href]")) as HTMLAnchorElement | null)?.href;
++  const fh = hrefOfH(first);
++  const hs = Array.from(el.querySelectorAll("h1,h2,h3,h4,h5,h6,[role=heading]")).slice(1, 5);
++  if (!hs.length) return first;
++  const count = new Map<string, number>();
++  for (const a of Array.from(el.querySelectorAll("a[href]")) as HTMLAnchorElement[]) count.set(a.href, (count.get(a.href) ?? 0) + 1);
++  const fc = fh ? count.get(fh) ?? 0 : 0;
++  const level = (h: Element) => (/^h[1-6]$/.test(h.localName) ? +h.localName[1] : +(h.getAttribute("aria-level") ?? 2) || 2);
++  // A linked label ranks below the headline it sits over; a later, smaller heading ("12 comments" under a story) is not the name.
++  return hs.find((h) => {
++    const x = hrefOfH(h);
++    return !!x && x !== fh && (count.get(x) ?? 0) >= 2 && (count.get(x) ?? 0) > fc && (fh ? level(h) <= level(first) : words(h) > n) && !COMMENTS_LINK.test(textIn(h)) && visible(h);
++  }) ?? first;
++}
++
+ export function toItem(el: Element, ctx: Ctx): Item | null {
+   if (ctx.drop?.(el)) return null;
+   const allText = textIn(el);
+   if (!allText) return null;
+-  const heading = el.querySelector("h1,h2,h3,h4,h5,h6,[role=heading]");
++  const heading = kickerHeading(el, el.querySelector("h1,h2,h3,h4,h5,h6,[role=heading]"));
+   // A comment's own text (GitHub's markdown body) is read in full, with its paragraphs and code, not as a snippet.
+   const bodyEl = ctx.inComments ? postBodyOf(el) : null;
+   const links = (el.localName === "a" ? [el] : Array.from(el.querySelectorAll("a[href]"))).filter(
+@@ -2562,7 +2729,8 @@
+     if (heading?.contains(own) || holder?.contains(own)) continue;
+     // The credit in capitals under the card's photo ("SAMEER AL-DOUMY/AFP") names who took it, not the story (F649).
+     const fc = own.closest("figcaption");
+-    if (fc && fc !== el && el.contains(fc) && fc.parentElement?.querySelector("img, picture")) {
++    // (Le Monde's lifestyle cards put it beside the text, away from the photo: the card's photo counts.)
++    if (fc && fc !== el && el.contains(fc) && (fc.parentElement?.querySelector("img, picture") || el.querySelector("img, picture"))) {
+       const c = textIn(fc);
+       if (c.length <= 80 && c === c.toLocaleUpperCase() && /\p{Lu}{2}/u.test(c)) continue;
+     }
+@@ -2703,7 +2871,8 @@
+   // A game or app tile whose only call is "Play" ("Rompecabezas · Jugar").
+   if (meta.some((m) => PLAY_CTA.test(m))) return promo(el, ctx);
+   // A tile of the site's games, labelled so (La Nación's "Edición especial: … fotos de Charly García" · "Juegos").
+-  if (main && meta.some((m) => /^(juegos|games|jeux|spiele)$/i.test(m)) && /^\/(juegos|games|jeux|spiele)\//i.test(main.pathname)) return promo(el, ctx);
++  // A dated or numbered story in a games section ("/games/2026/oct/25/lara-croft-…", The Guardian) is a story (F736).
++  if (main && meta.some((m) => /^(juegos|games|jeux|spiele)$/i.test(m)) && /^\/(juegos|games|jeux|spiele)\//i.test(main.pathname) && !/\/(19|20)\d\d\/|\/\d{4,}(\/|$)/.test(main.pathname)) return promo(el, ctx);
+   const ref = main ? refOf(main) : refOf(el);
+   let body: Block[] | undefined;
+   if (bodyEl) {
+@@ -2845,13 +3014,21 @@
+   if (fields.length < 6) return false;
+   const choices = fields.filter((f) => f.matches("[type=checkbox], [type=radio], [role=checkbox], [role=radio]")).length;
+   if (choices < 4 && !FILTER_TOKEN.test(tokens(el))) return false;
++  // A product's buy box (sizes, colors, "Add to cart") is the page's own form, not filters (F735).
++  if (Array.from(el.querySelectorAll("button, input[type=submit], [role=button]")).some((b) => BUY_LABEL.test(b.textContent || (b as HTMLInputElement).value || b.getAttribute("aria-label") || ""))) return false;
+   for (let a: Element | null = el, i = 0; a && a !== document.body && i < 4; a = a.parentElement, i++) {
+     for (let s = a.nextElementSibling; s; s = s.nextElementSibling) {
+-      if (visible(s) && s.getBoundingClientRect().width > r.width * 1.5 && s.querySelectorAll("a[href]").length >= 10) return true;
++      if (!visible(s) || s.localName === "footer" || s.getAttribute("role") === "contentinfo") continue;
++      const sr = s.getBoundingClientRect();
++      // The results sit beside the panel (side by side, overlapping in height), not below it as a footer or a reviews list does (F735).
++      const beside = (sr.left >= r.right - 4 || sr.right <= r.left + 4) && sr.top < r.bottom - 40 && sr.bottom > r.top + 40;
++      // Links inside a map (its controls and credits) are not results: a panel beside a map (OpenStreetMap's "Map Layers") is the tool's own.
++      if (beside && sr.width > r.width * 1.5 && Array.from(s.querySelectorAll("a[href]")).filter((l) => !l.closest(SURFACE_SEL)).length >= 10) return true;
+     }
+   }
+   return false;
+ }
++const BUY_LABEL = /\b(add to (cart|bag|basket|trolley)|buy (it )?now|agregar al carrito|a[ñn]adir al (carrito|cesta)|comprar ahora|ajouter au panier|in den warenkorb)\b/i;
+ 
+ /** Inside one entry of a list of results. */
+ function inResultList(el: Element): boolean {
+@@ -3068,6 +3245,18 @@
+   flush();
+ }
+ 
++/**
++ * The post a link belongs to, when it is one of a stream of posts (Discourse's
++ * article per post): a link is told apart from repeats within its own post
++ * only, so a second post by the same author still shows its author.
++ */
++function postScope(el: Element | null | undefined): string {
++  const a = el?.closest("article");
++  const up = a?.parentElement?.parentElement;
++  if (!a || !up || up.querySelectorAll(":scope > article, :scope > * > article").length < 2) return "";
++  return "@" + refOf(a);
++}
++
+ /** A run of loose text and inline elements inside a container, as a paragraph. */
+ function textRun(nodes: Node[], parent: Element, at: number, out: Out, ctx: Ctx) {
+   const content = inlineNodes(nodes, ctx);
+@@ -3079,7 +3268,7 @@
+     // The link may sit in a web component's shadow root, where querySelector does not reach.
+     const link = elOf(c.ref) ?? (a?.localName === "a" ? a : a?.querySelector("a"));
+     if (link && usefulControl(link, c.a, ctx)) {
+-      const key = "link:" + c.href + "|" + c.a;
++      const key = "link:" + c.href + "|" + c.a + postScope(link);
+       if (!ctx.seen.has(key)) {
+         ctx.seen.add(key);
+         out.link(c.a, c.href, c.ref!);
+@@ -3316,9 +3505,11 @@
+   // so one answer never runs into the next.
+   if (el.hasAttribute("itemscope") && /schema\.org\/Answer$/i.test(el.getAttribute("itemtype") ?? "") && !ctx.inDialog) return answer(el, out, ctx);
+   const tk = tokens(el);
+-  if (ctx.hasByline && BYLINE_TOKEN.test(tk) && tlen(el) < 300 && bylineZone(el, ctx)) return;
++  // (After a dek, too: The Guardian's "Tom Phillips in São Paulo and Tiago Rogero in Brasília" follows its standfirst.)
++  if (ctx.hasByline && BYLINE_TOKEN.test(tk) && tlen(el) < 300 && bylineZone(el, ctx, 2)) return;
+   // Sift shows the date in its own byline; the site's date and reading-time line goes.
+-  if (ctx.hasDate && tlen(el) < 120 && !heading(el) && bylineZone(el, ctx, 3) && dateLine(textIn(el))) return;
++  // A player whose only text is its length ("1:18", BBC's uncaptioned lead video) is not a date line.
++  if (ctx.hasDate && tlen(el) < 120 && !heading(el) && bylineZone(el, ctx, 3) && dateLine(textIn(el)) && !el.querySelector("figure, video, audio, iframe")) return;
+   if (CODE_CHROME.test(tk) && tlen(el) < 80) return;
+   if (!ctx.inDialog && /reaction/i.test(`${tag} ${tk}`) && reactionBar(el)) return;
+   // A live page's "2 new updates" button (The Guardian's toast, pinned over the posts) shows the posts
+@@ -3332,10 +3523,12 @@
+   }
+   // Media carry their own size and logo checks; "img-share" on a photo is a share hook, not a share bar.
+   if (!ctx.inDialog && !MEDIA.has(tag) && NOISE_TOKEN.test(tk) && !(ctx.articleEl && el.contains(ctx.articleEl)) && !el.querySelector("main,[role=main],[data-sift-role=main],h1") && !tabPanel(el)) {
+-    if (!COMMENTS_TOKEN.test(tk)) return;
++    if (!COMMENTS_TOKEN.test(tk) && !socialSignIn(el, tk) && !promoStory(el, tk)) return;
+   }
+   // A "Was this page helpful? Yes / No" widget is never part of the story, even inside it.
+   if (ctx.inArticle && !ctx.inDialog && tlen(el) < 400 && feedbackWidget(el)) return;
++  // Nor is the site's AI answer box ("Ask The Independent anything", its canned questions and its own summary) (F732).
++  if (ctx.inArticle && !ctx.inDialog && AI_BOX.test(tk) && !el.querySelector("h1, main, [role=main]")) return;
+   // Prose filters stay out of the story: "can help improve flexibility" or
+   // "the senator's fundraising haul" are sentences, not widgets.
+   if (!ctx.inDialog && !ctx.inArticle && tag !== "body" && tag !== "main") {
+@@ -3343,8 +3536,8 @@
+     // Feedback widgets ("Was this page helpful?").
+     if (small && FEEDBACK.test(textIn(el))) return;
+     // Donation and subscription appeals with their own buttons ("Donate", "Give $5"),
+-    // not news about a donation.
+-    if (tlen(el) < 900 && el.querySelector("a[href], button") && !el.querySelector("h1") && !(ctx.articleEl && el.contains(ctx.articleEl)) && APPEAL.test(textIn(el)) && appealAsks(el)) return;
++    // not news about a donation, nor a short page's wrapper around its main region and footer (F726).
++    if (tlen(el) < 900 && el.querySelector("a[href], button") && !el.querySelector("h1,main,[role=main],[data-sift-role=main]") && !(ctx.articleEl && el.contains(ctx.articleEl)) && APPEAL.test(textIn(el)) && appealAsks(el)) return;
+     // A strip that sends readers to another of the site's products with one call-to-action button and a slogan
+     // (La Nación's radio: "El mundo necesita más música" · "Escuchá + música") is a cross-promotion.
+     if (tlen(el) < 120 && ctaStrip(el)) return;
+@@ -3531,7 +3724,8 @@
+       if (ctx.inArticle && !ctx.inDialog && content.length === 1 && typeof content[0] === "object" && "a" in content[0]) {
+         const c = content[0] as { a: string; href?: string; ref?: string };
+         const a = el.querySelector("a[href]");
+-        if (c.href && c.ref && a && !inPage(a) && c.a.length >= 20 && c.a.split(/\s+/).length >= 4 && c.a === c.a.toLocaleUpperCase() && /\p{Lu}/u.test(c.a)) {
++        // Only a link to a story: a call to act ("APPLY FOR THE STORM RELIEF GRANT ONLINE") is the story's own (F742).
++        if (c.href && c.ref && a && !inPage(a) && c.a.length >= 20 && c.a.split(/\s+/).length >= 4 && c.a === c.a.toLocaleUpperCase() && /\p{Lu}/u.test(c.a) && storyHref(c.href) && !CAPS_CTA.test(c.a)) {
+           relatedLink(out, c.a, c.href, c.ref);
+           return;
+         }
+@@ -3651,6 +3845,12 @@
+         const near = el.parentElement?.parentElement?.parentElement;
+         if (near && wordedHrefs(near).has((el as HTMLAnchorElement).href)) return;
+       }
++      // A screenshot that opens in full (Discourse's lightbox, its file name and size shown on hover) is the picture.
++      const shot = linkedShot(el, ctx);
++      if (shot) {
++        out.push({ t: "img", key: "img:" + refOf(shot.img), img: shot.im, href, ref: refOf(el) });
++        return;
++      }
+       const label = labelOf(el);
+       if (!usefulControl(el, label, ctx) || isFragment(label)) return;
+       // A long link to "#" in a story (a key point a script scrolls to) goes nowhere in Sift: it reads as text.
+@@ -3659,7 +3859,7 @@
+         out.push({ t: "p", key: "p:" + refOf(el), content: [textIn(el)] });
+         return;
+       }
+-      const key = "link:" + href + "|" + label;
++      const key = "link:" + href + "|" + label + postScope(el);
+       if (ctx.seen.has(key)) return;
+       ctx.seen.add(key);
+       // A link wrapping a big media element is about the media.
+@@ -3743,8 +3943,13 @@
+       const c = content[0] as { a: string; href?: string; ref?: string };
+       // The link may sit in a web component's shadow root, where el.querySelector does not reach.
+       const a = elOf(c.ref) ?? el.querySelector("a");
++      const shot = a && linkedShot(a, ctx);
++      if (shot) {
++        out.push({ t: "img", key: "img:" + refOf(shot.img), img: shot.im, href: c.href, ref: refOf(a) });
++        return;
++      }
+       if (!a || usefulControl(a, c.a, ctx)) {
+-        const key = "link:" + c.href + "|" + c.a;
++        const key = "link:" + c.href + "|" + c.a + postScope(a);
+         if (!ctx.seen.has(key)) {
+           ctx.seen.add(key);
+           out.link(c.a, c.href, c.ref!);
+@@ -3853,6 +4058,9 @@
+  * A "Was this page helpful? Yes / No" box (MDN keeps it in a web component's
+  * shadow root): its question, read through shadow roots, and buttons to answer.
+  */
++/** A site's AI question box in a story, by its vendor's or its own class (DeeperDive's #deeper-dive-container, .dd-widget). */
++const AI_BOX = /(^|[\s_-])(deeper-?dive|dd-widget|ai-?(assistant|answers?|chat|widget)|ask-?ai)($|[\s_-])/i;
++
+ function feedbackWidget(el: Element): boolean {
+   // Cheap first: the raw text says it, or a web component right inside may hold it.
+   const raw = el.textContent ?? "";
+@@ -4179,19 +4387,35 @@
+     return false;
+   }
+   ctx.cards ??= new Map();
+-  const titles = ctx.cards.get(it.href) ?? [];
+-  if (titles.some((x) => sameStory(x, t))) return true;
+-  titles.push(t);
+-  ctx.cards.set(it.href, titles);
++  const cards = ctx.cards;
++  const shown = cards.get(it.href) ?? [];
+   // The same long headline under the same page with other tracking parameters is the same story;
+   // two listings with one title (a repost) are two.
+-  if (t.length < 40) return false;
+-  const key = "cardt:" + t + "|" + it.href.split(/[?#]/)[0];
+-  if (ctx.seen.has(key)) return true;
+-  ctx.seen.add(key);
++  const page = t.length >= 40 ? "cardt:" + it.href.split(/[?#]/)[0] : "";
++  const twin = shown.find((x) => sameStory(x.title.toLowerCase(), t)) ?? (page ? cards.get(page)?.find((x) => x.title.toLowerCase() === t) : undefined);
++  if (twin && !otherEntry(it, twin)) return true;
++  const add = (k: string) => cards.set(k, [...(cards.get(k) ?? []), it]);
++  add(it.href);
++  if (page) add(page);
+   return false;
+ }
+ 
++/**
++ * Two entries side by side in one list that share a link and a title but say
++ * different things: separate submissions of one link (HN Search: another
++ * author, points and comments), or search hits at other anchors of one page.
++ * A carousel's clone says the same; a second module sits elsewhere.
++ */
++function otherEntry(a: Item, b: Item): boolean {
++  const ea = a.key.startsWith("i:") ? elOf(a.key.slice(2)) : null;
++  const eb = b.key.startsWith("i:") ? elOf(b.key.slice(2)) : null;
++  const pa = ea?.parentElement;
++  const pb = eb?.parentElement;
++  if (!pa || !pb || ea === eb || (pa !== pb && (!pa.parentElement || pa.parentElement !== pb.parentElement))) return false;
++  const said = (x: Item) => [...x.meta, x.text ?? "", x.href?.split("#")[1] ?? ""].join("|");
++  return said(a) !== said(b);
++}
++
+ /** Words in two different buttons of one entry (links to two places are told apart by the text reader). */
+ function twoControls(a: Element, b: Element, el: Element): boolean {
+   const ca = a.closest("button, [role=button]");
+@@ -4243,11 +4467,36 @@
+   return r.width > 0 && a.width > 0 && r.top < a.bottom && (r.left >= a.right - 1 || r.right <= a.left + 1);
+ }
+ 
++/** A short list about the page itself (a repository's Releases, Contributors, Languages), not a rail of links to other stories. */
++function aboutThisPage(members: Set<Element>): boolean {
++  if (members.size > 12) return false;
++  let stories = 0;
++  for (const m of members) {
++    const a = m.matches("a[href]") ? m : m.querySelector("a[href]");
++    if (a && storyHref((a as HTMLAnchorElement).href)) stories++;
++  }
++  return stories < 2;
++}
++
++/** A link to a story on this site: a dated path, an article id, or a long slug of words ("/travel/americans-warned-about-paris-travel"). */
++function storyHref(href: string): boolean {
++  if (!href || hostOf(href).replace(/^www\./, "") !== location.hostname.replace(/^www\./, "")) return false;
++  let path: string;
++  try {
++    path = new URL(href).pathname;
++  } catch {
++    return false;
++  }
++  const last = path.split("/").filter(Boolean).pop() ?? "";
++  return /\/(19|20)\d\d\/(\d\d?|[a-z]{3})\//i.test(path) || /(^|[-_/])(article|nid|id)[-_]?\d{5,}/i.test(path) || last.replace(/\.\w+$/, "").split(/[-_]+/).filter((w) => /\p{L}{2}/u.test(w)).length >= 4;
++}
++
+ /** Walk a container whose card-like children form a list, keeping everything in order. */
+ function itemsInto(el: Element, members: Set<Element>, out: Out, ctx: Ctx) {
+   // A list after the story (more stories) folds away; one in a column beside it
+   // (a repository's About, Releases and Languages beside its README) is facts about the page, shown.
+-  const folded = ctx.afterArticle && !ctx.inArticle && !besideArticle(el, ctx);
++  // A rail of other stories beside it ("Top stories", "Most read") still folds (F740).
++  const folded = ctx.afterArticle && !ctx.inArticle && !(besideArticle(el, ctx) && aboutThisPage(members));
+   const target = folded ? new Out() : out;
+   // A ranked list ("Most read", top 10) is whole even when its stories were shown above.
+   const own = el.localName === "ol" ? { ...ctx, seen: new Set<string>(), cards: undefined } : ctx;
+@@ -4326,6 +4575,9 @@
+   ctx.afterArticle = true;
+ }
+ 
++/** A call to act that opens a link ("APPLY FOR …", "DOWNLOAD THE FORM", "READ THE FULL REPORT"), not a headline. */
++const CAPS_CTA = /^(apply|register|sign up|enroll|download|donate|buy|book|order|reserve|rsvp|subscribe|join|request|submit|file|pay|renew|schedule|contact|call|email|read the full|view the full|see the full|get (your|the|a)|solicit[aá]|inscrib|registr[aá]te|descarg[aá]|don[aá]|compr[aá]|reserv[aá]|ped[ií])(?!\p{L})/iu;
++
+ /** Cards of other stories set inside a story (BBC's links-block "chester-card"), moved after it by article(). */
+ const relatedCards = new WeakSet<Block>();
+ const RELATED_CARD = "[data-testid*=card i], [data-testid*=links-grid i], [data-component*=links-block i], [data-component*=related i]";
+@@ -4499,7 +4751,7 @@
+       const label = labelOf(a);
+       if (!usefulControl(a, label, ctx)) continue;
+       const href = hrefOf(a) ?? a.href;
+-      const key = "link:" + href + "|" + label;
++      const key = "link:" + href + "|" + label + postScope(a);
+       if (ctx.seen.has(key)) continue;
+       ctx.seen.add(key);
+       out.link(label, href, refOf(a));
+@@ -4543,6 +4795,9 @@
+         if (visible(box)) controlInto(box, out, ctx);
+         continue;
+       }
++      // An entry the site marks as its own promotion ("ds-home-aside__autopromo": "Partner Services ·
++      // Le Monde for hotels") goes, as such a box does outside a list (F649).
++      if (!ctx.inDialog && /(^|[\s_-])auto-?promos?($|[\s_-])/i.test(tokens(li))) continue;
+       // A card under an empty cover link (Clarín's most read) is one entry with that link.
+       if (coverCard(li, out, ctx)) continue;
+       // An entry of a short list (one search result) is a card like any other.
+@@ -5159,11 +5414,42 @@
+ 
+ function details(el: HTMLDetailsElement, out: Out, ctx: Ctx) {
+   const summary = el.querySelector(":scope > summary");
++  // A dateline ("Mon 26 Oct 2026 15.51 GMT" over "Last modified on …", The Guardian) is part of the byline,
++  // never a section: gone when Sift's byline shows the date, else a small line.
++  const st = summary ? textIn(summary) : "";
++  if (st && dateLine(st.replace(/^\p{L}{2,9}\.?,?\s+/u, "").replace(/\b(\d{1,2})\.(\d{2})\b/g, "$1:$2"))) {
++    if (!ctx.hasDate) out.push({ t: "p", key: "p:" + refOf(el), content: [st], small: true });
++    return;
++  }
+   const sub = new Out();
+   // Text right inside <details> ("<summary>Q</summary>Answer") is the answer.
+   walk(el, sub, ctx, summary);
+   const blocks = sub.done();
+-  out.push({ t: "section", key: "d:" + refOf(el), title: summary ? textIn(summary) : t("details"), blocks, collapsed: !el.open });
++  // An open list of topic links before the results (argentina.gob.ar's "Filtrar por temas") folds, so the results come first.
++  out.push({ t: "section", key: "d:" + refOf(el), title: summary ? textIn(summary) : t("details"), blocks, collapsed: !el.open || filtersBeforeResults(el) });
++}
++
++/** A <details> that is mostly a list of filter links (topics, categories), with a list of results after it in the page. */
++function filtersBeforeResults(el: Element): boolean {
++  const links = el.querySelectorAll("a[href]");
++  if (links.length < 8) return false;
++  let lt = 0;
++  for (const a of Array.from(links)) lt += tlen(a);
++  if (lt < tlen(el) * 0.5) return false;
++  for (let a: Element | null = el, i = 0; a && a !== document.body && i < 4; a = a.parentElement, i++) {
++    for (let s = a.nextElementSibling, j = 0; s && j < 3; s = s.nextElementSibling, j++) {
++      if (resultList(s) || Array.from(s.querySelectorAll("ul, ol")).slice(0, 20).some((l) => resultList(l) || cardList(l))) return true;
++    }
++  }
++  return false;
++}
++
++/** A list of three or more entries, each one long link (a card: title and description inside the link). */
++function cardList(l: Element): boolean {
++  const lis = Array.from(l.children).filter((c) => c.localName === "li");
++  if (lis.length < 3) return false;
++  const cards = lis.filter((li) => li.querySelectorAll("a[href]").length === 1 && tlen(li.querySelector("a[href]")!) >= 40).length;
++  return cards >= 3 && cards >= lis.length * 0.8;
+ }
+ 
+ // ---------- page-level pieces ----------
+@@ -5189,7 +5475,7 @@
+   const vis = cands.filter((i) => visible(i)).sort((a, b) => +(a.getAttribute("tabindex") === "-1") - +(b.getAttribute("tabindex") === "-1"));
+   // A hidden box in the header still searches once its toggle opens it; not one hidden while the
+   // panel around it shows other fields in its place (Google Maps' directions).
+-  const pick = vis.find((i) => i.closest(SEARCH_PLACE)) ?? vis[0] ?? cands.find((i) => i.closest("header,[role=banner],[role=search]") && !fieldsInstead(i));
++  const pick = vis.find((i) => i.closest(SEARCH_PLACE)) ?? vis[0] ?? cands.find((i) => i.closest("header,[role=banner],[role=search]") && !fieldsInstead(i)) ?? lookupBox();
+   if (!pick) return undefined;
+   const f = toField(pick);
+   if (!f) return undefined;
+@@ -5227,6 +5513,22 @@
+   return f;
+ }
+ 
++/**
++ * A lone text box at the top of the page whose form's button says it searches
++ * (weather.gov's location box: "Go", named btnSearch): the site's own lookup,
++ * so it goes to the bar and the page's data comes first (F636).
++ */
++function lookupBox(): HTMLInputElement | undefined {
++  for (const f of Array.from(document.forms).slice(0, 20)) {
++    if (f.querySelector("input[type=password], input[type=email], select, textarea")) continue;
++    const boxes = (Array.from(f.querySelectorAll("input[type=text], input:not([type])")) as HTMLInputElement[]).filter((i) => visible(i) && !i.disabled);
++    if (boxes.length !== 1 || boxes[0].getBoundingClientRect().top + scrollY > 300) continue;
++    const btns = Array.from(f.querySelectorAll("button, input[type=submit]")).filter((b) => visible(b));
++    if (btns.length === 1 && /search|buscar/i.test(`${btns[0].id} ${btns[0].getAttribute("name") ?? ""}`)) return boxes[0];
++  }
++  return undefined;
++}
++
+ /** Text fields shown in a hidden search box's place, in the panel around it. */
+ function fieldsInstead(box: Element): boolean {
+   let a = box.parentElement;
+@@ -5341,6 +5643,11 @@
+ const TOP_LABEL =
+   /\b(cart|basket|bag|carrito|cesta|bolsa|sign ?in|log ?in|sign ?up|register|create account|account|my account|orders|iniciar sesi[oó]n|ingres(a|ar)|reg[ií]strate|registrarse|crear cuenta|mi cuenta|cuenta|pedidos|notifications|registrarme)\b/i;
+ 
++/** An icon-only account or profile button, by its coded name or its classes. */
++const ACCOUNT_ICON = /(^|[\s_-])(my ?account|account|avatar|profile|user)(?=$|[\s_-])/i;
++/** A status page's "Subscribe to updates" (Statuspage): a button that opens the ways to follow it, not a paid appeal. */
++const UPDATES_LABEL = /\b(subscribe|sign up|suscr[ií]b\w*)\b.*\b(updates|alerts|notifications|actualizaciones|alertas|notificaciones)\b/i;
++
+ export function findTop(): Action[] {
+   const roots = Array.from(document.querySelectorAll("header, [role=banner], nav")).filter((n) => !n.closest("footer,article"));
+   // A site header built from plain boxes (Infobae's div#siteheader.site-header) at the top of the page.
+@@ -5357,9 +5664,13 @@
+       if (!visible(el)) continue;
+       // What it says decides ("Fork" that leads to a login page is not "Sign in"); an icon goes by its name and address.
+       const vis = textIn(el);
+-      const label = vis || accName(el);
+-      const probe = vis ? `${vis} ${el.id}` : `${label} ${el.getAttribute("href") ?? ""} ${el.id}`;
+-      if (!label || label.length > 50 || !TOP_LABEL.test(probe)) continue;
++      const named = accName(el);
++      // An account icon named only in code ("myAccount", class account-button or avatar) is said in the page's language (F727).
++      const coded = !vis && (!named || /^[a-z]+([A-Z][a-z\d]*)+$|^[a-z]+[_-][a-z][\w-]*$/.test(named)) && ACCOUNT_ICON.test(`${named.replace(/([a-z])([A-Z])/g, "$1 $2")} ${tokens(el)}`);
++      const label = vis || (coded ? t("account") : named);
++      const probe = vis ? `${vis} ${el.id}` : `${label} ${coded ? "account" : ""} ${el.getAttribute("href") ?? ""} ${el.id}`;
++      const updates = UPDATES_LABEL.test(label) && (el.hasAttribute("aria-haspopup") || el.matches("button, [role=button]"));
++      if (!label || label.length > 50 || (!TOP_LABEL.test(probe) && !updates)) continue;
+       // A closed slide-in panel sits beside the window: its copy of "Sign in" is not on screen.
+       const box = el.getBoundingClientRect();
+       if (box.left >= innerWidth || box.right <= 0) continue;
+@@ -5409,6 +5720,8 @@
+ let shownPop: Element | null = null;
+ /** The last popup found that holds a field to fill in. */
+ let lastPop: Element | null = null;
++/** The popup found since the last action, which stays while the page shows it. */
++let heldPop: { el: Element; arm: number } | null = null;
+ 
+ /**
+  * A popup the page opened after the user's last action, found by layout rather
+@@ -5491,6 +5804,11 @@
+   // A popup with a field the user is filling in (Craigslist's price range) stays while the page
+   // shows it: typing there changes nothing else on the page.
+   if (!best && lastPop?.isConnected && visible(lastPop) && location.href === armUrl && !!lastPop.querySelector(FILL_SEL) && !holdsEntered(lastPop)) best = lastPop;
++  // So does any popup until the next action, though the page keeps changing around it: while
++  // YouTube loads comments, the nodes of its "Sign in" prompt drop out of the recent ones.
++  const held = heldPop?.el;
++  if (!best && held && heldPop!.arm === armCount() && held.isConnected && visible(held) && tlen(held) >= 2 && location.href === armUrl && !holdsEntered(held)) best = held;
++  heldPop = best ? { el: best, arm: armCount() } : null;
+   lastPop = best && best.querySelector(FILL_SEL) ? best : null;
+   shownPop = best;
+   if (!best || isAd(best) || ctx.drop?.(best)) return null;
+@@ -5611,6 +5929,49 @@
+   return emoji >= 2;
+ }
+ 
++/** A sign-in or sign-up button with an account elsewhere ("Continue with Google", "Sign in with Apple", "Iniciar sesión con Google"). */
++const SIGN_IN_WITH =
++  /^(continue|sign (in|up)|log ?in|login|register|join|connect|get started) (with|using|via)\b|\bsingle sign-on\b|^(continuar|contin[uú]a|iniciar sesi[oó]n|inici[aá] sesi[oó]n|ingres(ar|[aá])|acceder|entrar|reg[ií]str(arse|ate)) con\b/i;
++
++/**
++ * A box named only "social" (social-login, kc-social-providers) that holds a way to sign in with another account:
++ * those buttons are how some people sign in at all. A social box with share or follow links is still noise.
++ */
++function socialSignIn(el: Element, tk: string): boolean {
++  if (NOISE_TOKEN.test(tk.replace(/social/gi, ""))) return false;
++  return Array.from(el.querySelectorAll("button, [role=button], a[href], input[type=submit], input[type=button]")).some((b) => SIGN_IN_WITH.test(accName(b).trim()));
++}
++
++/** A path that names one story: a date ("/2026/10/25/", "2026-10-22"), a long slug, or a long numeric id. */
++const STORY_PATH = /\/(19|20)\d\d[/-]\d\d?[/-]\d\d?(\/|$|-)|\/[^/?#]*\p{L}+(?:[-_]\p{L}+){3,}[^/?#]*|\/\d{6,}(\/|$|[-_.])/u;
++
++/**
++ * A box classed only "promo" that holds a story of its own (NPR wraps every headline in
++ * "bucketwrap promocard > article.c-promo-card"): its linked headlines lead to stories, so it is
++ * a story card, not a promo (F738). One that sells (a sign-up, the app) is still a promo.
++ */
++function promoStory(el: Element, tk: string): boolean {
++  if (!/promo/i.test(tk) || NOISE_TOKEN.test(tk.replace(/promo(tion)?/gi, ""))) return false;
++  const heads = new Map<string, string>();
++  for (const h of Array.from(el.querySelectorAll(LINKED_HEADING))) {
++    const a = (h.localName === "a" ? h : h.querySelector("a[href]") ?? h.closest("a[href]")) as HTMLAnchorElement | null;
++    if (!a?.href || !visible(h)) continue;
++    if (!heads.has(a.href)) heads.set(a.href, textIn(h));
++    if (heads.size > 3) return false;
++  }
++  if (!heads.size) return false;
++  for (const [href, title] of heads) {
++    let path = "";
++    try {
++      path = new URL(href).pathname;
++    } catch {
++      return false;
++    }
++    if (title.split(/\s+/).length < 3 || !STORY_PATH.test(path) || AD_HOSTS.test(hostOf(href)) || promoCard(title, href)) return false;
++  }
++  return true;
++}
++
+ /** Whether a listbox or popup belongs to a search field (its aria-controls, or inside the same combobox box). */
+ function suggestionsOf(field: Element, pop: Element): boolean {
+   const ids = `${field.getAttribute("aria-controls") ?? ""} ${field.getAttribute("aria-owns") ?? ""}`.split(/\s+/).filter(Boolean);
+@@ -5803,14 +6164,21 @@
+   return undefined;
+ }
+ 
+-/** What a marketing modal offers: a discount or savings for signing in, or the app. */
++/**
++ * What a marketing modal offers: a discount or savings for signing in, or the app.
++ * "Save" counts only as money ("save money", "save 10%", "save up to"): "sign in to save your changes" stores work.
++ */
+ const MARKETING =
+-  /\d+\s?%\s?(off|or more|discount)|\b(sign in|log in|sign up|register)\b.{0,80}\b(save|saving|discounts?|deals?|offers?|rewards?|prices?)\b|\b(save|saving|discounts?|deals?|offers?|rewards?)\b.{0,80}\b(sign in|log in|sign up|register)\b|get the app|download (the|our) app|open (it )?in the app/i;
++  /\d+\s?%\s?(off|or more|discount)|\b(sign in|log in|sign up|register)\b.{0,80}\b(save (money|up to|[$£€\d])|(savings|discounts?|deals?|offers?|rewards?|prices?)\b)|\b(save (money|up to|[$£€\d])|(savings|discounts?|deals?|offers?|rewards?)\b).{0,80}\b(sign in|log in|sign up|register)\b|get the app|download (the|our) app|open (it )?in the app/i;
++/** An account notice, never an offer: the session ended and the user must sign in again to keep working. */
++const SESSION_NOTICE =
++  /\bsession (has |was )?(expired|timed out|ended)|\b(signed|logged) (you )?out\b|\b(sign|log) ?in again\b|\bre-?(authenticate|login|log in|sign in)\b|sesi[oó]n (ha )?(expirado|caducado|vencido|finalizado)|(vuelve|volv[eé]) a iniciar sesi[oó]n|inici[aá] sesi[oó]n de nuevo/i;
+ 
+ /** A promo modal the page lets you close ("Dismiss sign-in info.", "No thanks", ×) with no field to fill in. */
+ function marketingModal(d: Element, text: string): boolean {
+   if (d.querySelector("input:not([type=hidden]), textarea, select")) return false;
+   const said = `${clean(d.getAttribute("aria-label"))} ${text.slice(0, 600)}`;
++  if (SESSION_NOTICE.test(said)) return false;
+   if (!MARKETING.test(said) && !promoText(said)) return false;
+   return Array.from(d.querySelectorAll("button, [role=button]")).some((b) => visible(b) && /^(close|dismiss|cerrar|no,? thanks|no gracias|not now|ahora no|×|✕|x)(?=$|[\s.,:;!])/i.test(accName(b)));
+ }
+@@ -5861,17 +6229,39 @@
+ 
+ const PERSON = /^(\p{Lu}[\p{L}'’.-]+)( (\p{Lu}[\p{L}'’.-]+|de|da|del|di|du|van|von|la|le|y|e)){1,3}$/u;
+ 
+-/** The first person's name inside a byline or contributor block. */
++/**
++ * The people a byline or contributor block names, each once. The first box
++ * with a name is the byline; its own contributor boxes add the others (BBC:
++ * contributor-0 "Ione Wells", contributor-1 "Hafsa Khalil"), never a role or a place.
++ */
+ function bylineName(scope: ParentNode): string {
++  const names: string[] = [];
++  let root: Element | null = null;
+   for (const box of Array.from(scope.querySelectorAll("[data-testid*=byline i], [data-testid*=contributor i], [class*=byline i], [class*=contributor i], [class*=author i]")).slice(0, 12)) {
+     if (box.closest("blockquote, figure, [class*=comment i]")) continue;
++    if (root && !root.contains(box)) break;
++    if (root && /role|location|title|job|position|bio|desc/i.test(`${box.getAttribute("data-testid") ?? ""} ${box.getAttribute("class") ?? ""}`)) continue;
+     const tw = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+     for (let n = tw.nextNode(), i = 0; n && i < 20; n = tw.nextNode(), i++) {
+       const s = clean(n.nodeValue).replace(/^(by|por|de|von|par)\s+/i, "");
+-      if (s.length <= 40 && PERSON.test(s) && n.parentElement && visible(n.parentElement)) return s;
++      if (s.length <= 40 && PERSON.test(s) && n.parentElement && visible(n.parentElement)) {
++        if (!names.includes(s)) names.push(s);
++        root ??= box;
++        break;
++      }
+     }
+   }
+-  return "";
++  return nameList(names);
++}
++
++/** Names joined as the page's language joins them ("Ione Wells and Hafsa Khalil"). */
++function nameList(names: string[]): string {
++  if (names.length < 2) return names[0] ?? "";
++  try {
++    return new Intl.ListFormat(document.documentElement.lang || navigator.language, { type: "conjunction" }).format(names);
++  } catch {
++    return names.join(", ");
++  }
+ }
+ 
+ /** "By Name · 24 Oct 2026" for articles, from page metadata and the visible byline. */
+@@ -5881,12 +6271,35 @@
+   if (/^https?:/.test(author)) author = "";
+   if (!author) {
+     const scope = articleEl?.parentElement?.parentElement ?? document;
+-    const a = scope.querySelector(
+-      '[rel=author], .byline a[href*="autor"], .byline a[href*="author"], a.author, .author-name, [itemprop=author] [itemprop=name], [data-testid*=byline] [data-testid*=name], [data-component=byline-block] span, .byline__name, .author__name',
+-    );
++    const sel =
++      '[rel=author], .byline a[href*="autor"], .byline a[href*="author"], a.author, .author-name, [itemprop=author] [itemprop=name], [data-testid*=byline] [data-testid*=name], [data-component=byline-block] span, .byline__name, .author__name';
++    const a = scope.querySelector(sel);
+     if (a) author = textIn(a);
++    // Every author once: the others the same byline links ("Tom Phillips in São Paulo and Tiago Rogero in Brasília").
++    if (a && author && a.matches("[rel=author], a")) {
++      const box = a.closest("address, [class*=byline i], [data-gu-name=byline], [data-component*=byline i], [data-testid*=byline i]");
++      const more = box ? Array.from(box.querySelectorAll(sel)).filter((x) => x.localName === a.localName && x.getAttribute("rel") === a.getAttribute("rel")).map((x) => textIn(x)) : [];
++      if (more.length > 1 && more.length <= 6) author = nameList(more.filter((n, i) => n && more.indexOf(n) === i));
++    }
+     // A byline block that names its contributor in plain text ("James Waterhouse" over "Paris Correspondent").
+     if (!author) author = bylineName(scope);
++    // A link to the author's page by the title, with no byline class (The Independent: address > a[href^="/author/"]).
++    if (!author) {
++      // Before the story's second paragraph (a standfirst may come first).
++      const first = articleEl ? Array.from(articleEl.querySelectorAll("p")).filter((p) => tlen(p) > 80)[1] : null;
++      // The story's header may sit outside the text's box, in the same <article> or <main>.
++      const wide = articleEl?.closest("article, main, [role=main]") ?? scope;
++      const h1 = wide.querySelector("h1");
++      for (const l of Array.from(wide.querySelectorAll('a[href*="/author/"], a[href*="/authors/"], a[href*="/autor/"], a[href*="/autores/"]')).slice(0, 20)) {
++        const s = textIn(l).replace(/^(by|por|de|von|par)\s+/i, "");
++        if (first && !(l.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING)) break;
++        if (h1 && !(h1.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
++        if (s.length <= 40 && PERSON.test(s) && visible(l) && !l.closest("blockquote, figure, nav, aside, [class*=comment i]")) {
++          author = s;
++          break;
++        }
++      }
++    }
+   }
+   let when = meta('meta[property="article:published_time"]') || meta('meta[name="date"]') || meta('meta[itemprop="datePublished"]');
+   if (!when) {
+@@ -5956,8 +6369,10 @@
+   // A second look without the page's context (no search box): what it finds must not become
+   // the popup being filled in (Google Maps' search panel, which holds the search box).
+   const keep = lastPop;
++  const held = heldPop;
+   const pop = findPopup(newCtx());
+   lastPop = keep;
++  heldPop = held;
+   if (!pop) return null;
+   const said = textIn(pop.el).slice(0, 200);
+   const ref = refOf(pop.el);
+@@ -6462,6 +6877,26 @@
+   return false;
+ }
+ 
++/**
++ * A file view (GitHub's blob): the controls and facts stacked between the file's
++ * title and its code (copy path, last commit, history, raw, download) fold into
++ * one closed section, so the code starts on the first screen.
++ */
++function foldFileTools(blocks: Block[]) {
++  const i = blocks.findIndex((b) => b.t === "pre" && b.text.split("\n").length >= 40);
++  if (i < 0) return;
++  const small = (b: Block) =>
++    b.t === "actions" ||
++    (b.t === "ul" && b.items.length <= 3 && b.items.every((it) => it.length === 1 && typeof it[0] === "object" && "a" in it[0])) ||
++    (b.t === "p" && textOf(b.content).length <= 80);
++  let j = i;
++  while (j > 0 && small(blocks[j - 1])) j--;
++  const h = blocks[j - 1];
++  if (i - j < 5 || !h || h.t !== "h" || h.level !== 1) return;
++  const run = blocks.slice(j, i);
++  blocks.splice(j, i - j, { t: "section", key: "tools:" + run[0].key, title: t("details"), blocks: run, collapsed: true });
++}
++
+ function demoteExtraH1(blocks: Block[], title: string) {
+   for (const b of blocks) {
+     if (b.t === "h" && b.level === 1 && b.text !== title) b.level = 2;
+@@ -6525,6 +6960,7 @@
+     const trig = searchTrigger();
+     if (trig && !top.some((a) => a.ref === trig.ref)) top.unshift(trig);
+   }
++  topBar = top;
+   const root = mainRoot(ctx);
+   // A panel a button opened as a dialog shows in Sift's sheet, not also in the page.
+   const panel = openedPanel(ctx);
+@@ -6556,6 +6992,7 @@
+   dropLinklessTwins(blocks);
+   dropKicker(blocks);
+   dropEmptyHeadings(blocks);
++  foldFileTools(blocks);
+   ctx.bare = blocksText(blocks).length < 200 && !hasRichBlocks(blocks);
+   if (by) {
+     const i = blocks.findIndex((b) => b.t === "h" && b.level === 1);
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -8,6 +8,7 @@
+   toSift: "Show Sift view",
+   search: "Search",
+   menu: "Menu",
++  account: "Account",
+   closeMenu: "Close menu",
+   comments: "Comments",
+   like: "Like",
+@@ -107,6 +108,7 @@
+   toSift: "Ver en Sift",
+   search: "Buscar",
+   menu: "Menú",
++  account: "Cuenta",
+   closeMenu: "Cerrar menú",
+   comments: "Comentarios",
+   like: "Me gusta",
+@@ -201,6 +203,7 @@
+   toSift: "Ver no Sift",
+   search: "Pesquisar",
+   menu: "Menu",
++  account: "Conta",
+   comments: "Comentários",
+   like: "Gostei",
+   nLikes: "{n} curtidas",
+@@ -247,6 +250,7 @@
+   toSift: "Voir dans Sift",
+   search: "Rechercher",
+   menu: "Menu",
++  account: "Compte",
+   comments: "Commentaires",
+   like: "J'aime",
+   nLikes: "{n} j'aime",
+@@ -292,6 +296,7 @@
+   toSift: "In Sift zeigen",
+   search: "Suchen",
+   menu: "Menü",
++  account: "Konto",
+   comments: "Kommentare",
+   like: "Mag ich",
+   nLikes: "{n} „Mag ich“",
+@@ -336,6 +341,7 @@
+   toSift: "Mostra in Sift",
+   search: "Cerca",
+   menu: "Menu",
++  account: "Account",
+   comments: "Commenti",
+   like: "Mi piace",
+   nLikes: "{n} Mi piace",
+@@ -381,6 +387,7 @@
+   toSift: "العرض في Sift",
+   search: "بحث",
+   menu: "القائمة",
++  account: "الحساب",
+   closeMenu: "إغلاق القائمة",
+   comments: "التعليقات",
+   like: "إعجاب",
+@@ -476,6 +483,7 @@
+   toSift: "הצגה ב-Sift",
+   search: "חיפוש",
+   menu: "תפריט",
++  account: "חשבון",
+   closeMenu: "סגירת התפריט",
+   comments: "תגובות",
+   description: "תיאור",
+@@ -514,6 +522,7 @@
+   toSift: "نمایش در Sift",
+   search: "جستجو",
+   menu: "منو",
++  account: "حساب کاربری",
+   closeMenu: "بستن منو",
+   comments: "نظرها",
+   description: "توضیحات",
+@@ -552,6 +561,7 @@
+   toSift: "Показать в Sift",
+   search: "Поиск",
+   menu: "Меню",
++  account: "Аккаунт",
+   closeMenu: "Закрыть меню",
+   comments: "Комментарии",
+   description: "Описание",
+@@ -590,6 +600,7 @@
+   toSift: "在 Sift 中显示",
+   search: "搜索",
+   menu: "菜单",
++  account: "账户",
+   closeMenu: "关闭菜单",
+   comments: "评论",
+   description: "简介",
+@@ -629,6 +640,7 @@
+   toSift: "在 Sift 中顯示",
+   search: "搜尋",
+   menu: "選單",
++  account: "帳戶",
+   closeMenu: "關閉選單",
+   comments: "留言",
+   description: "說明",
+@@ -667,6 +679,7 @@
+   toSift: "Sift で表示",
+   search: "検索",
+   menu: "メニュー",
++  account: "アカウント",
+   closeMenu: "メニューを閉じる",
+   comments: "コメント",
+   description: "説明",
+@@ -705,6 +718,7 @@
+   toSift: "Sift로 보기",
+   search: "검색",
+   menu: "메뉴",
++  account: "계정",
+   closeMenu: "메뉴 닫기",
+   comments: "댓글",
+   description: "설명",
+@@ -743,6 +757,7 @@
+   toSift: "Sift'te göster",
+   search: "Ara",
+   menu: "Menü",
++  account: "Hesap",
+   closeMenu: "Menüyü kapat",
+   comments: "Yorumlar",
+   description: "Açıklama",
+@@ -781,6 +796,7 @@
+   toSift: "In Sift tonen",
+   search: "Zoeken",
+   menu: "Menu",
++  account: "Account",
+   closeMenu: "Menu sluiten",
+   comments: "Reacties",
+   description: "Beschrijving",
+@@ -819,6 +835,7 @@
+   toSift: "Pokaż w Sift",
+   search: "Szukaj",
+   menu: "Menu",
++  account: "Konto",
+   closeMenu: "Zamknij menu",
+   comments: "Komentarze",
+   description: "Opis",
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -6,6 +6,7 @@
+ 
+ import { h, render } from "preact";
+ import type { Block, Page } from "./model";
++import { blocksText } from "./model";
+ import type { RuntimeMsg, StatName } from "../shared/messages";
+ import { extract, activeAdapter } from "./extract";
+ import { adopt, elOf, formerOf, refOf, sweepRefs } from "./registry";
+@@ -14,7 +15,7 @@
+   leavePortalStops, parkPortals, portalElements, portalOf, portalStops, portalsDisplaced, refOfPortal, releaseForFullscreen,
+   mediaOf, reraisePortals, setModalOpen, setPortals, suspendPortals, videoIn,
+ } from "./portal";
+-import { accName, clean, shadowRootOf, textIn, visible } from "./dom";
++import { accName, clean, resetCaches, shadowRootOf, textIn, visible } from "./dom";
+ import { refreshShield, shieldOff, shieldOn } from "./shield";
+ import * as proxy from "./proxy";
+ import { App, lastTouched, lastTyped, suggestAnchor } from "./ui/app";
+@@ -389,6 +390,8 @@
+   let navAt = Date.now();
+   /** A search opener was pressed and its box is not shown yet: when, and where focus waits. */
+   let searchWait: { at: number; el: Element | null } | null = null;
++  /** The top-bar control that opens the site's search, to come back to when its panel closes (F733). */
++  let searchFrom: { label: string; tag: string; url: string } | null = null;
+ 
+   // ---------- page scroll boxes read to their end ("scroll to the end to agree") ----------
+   /**
+@@ -397,6 +400,43 @@
+    * enables its Agree box itself. Sift never ticks or enables it.
+    */
+   let endsFrame = 0;
++  /** Boxes found not to gate anything, and when (checked again a second later: the gate may render after the box). */
++  const notGates = new WeakMap<Element, number>();
++  /**
++   * A real scroll gate: a box of text whose end a control waits on (terms to scroll to the end
++   * of before "I agree" enables). A disabled checkbox or button is among the first controls after
++   * it, before any field to type in, and the box holds all its text (its text reaches the end of what it scrolls). Never a list
++   * the page draws by scroll position (react-window, ag-grid), a chat or a feed: those keep
++   * their own scroll position, with the rows where the page shows them.
++   */
++  function scrollGate(box: Element): boolean {
++    if (Date.now() - (notGates.get(box) ?? 0) < 1000) return false;
++    const gate = (() => {
++      if (box.matches("[role=list], [role=listbox], [role=grid], [role=treegrid], [role=tree], [role=table], [role=feed], [role=log], [aria-live]:not([aria-live=off])")) return false;
++      if (box.querySelector("[role=feed], [role=log], [role=grid], [role=treegrid], [role=listbox], [role=row]")) return false;
++      // The first controls after the box (in the same form or dialog, or the rows that follow it): a disabled
++      // checkbox or button among them, before any field to type in (a chat's message box and its Send).
++      let after: Element[] = [];
++      for (let a = box.parentElement, up = 0; a && !after.length && up < 4; a = a.parentElement, up++) {
++        after = Array.from(a.querySelectorAll("input:not([type=hidden]), button, select, textarea, [contenteditable]:not([contenteditable=false]), [role=checkbox], [role=switch], [role=button]"))
++          .filter((c) => !box.contains(c) && !!(box.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING))
++          .slice(0, 3);
++      }
++      const field = after.findIndex((c) => !c.matches("input[type=checkbox], input[type=submit], input[type=button], button, [role=checkbox], [role=switch], [role=button]"));
++      if (!after.slice(0, field < 0 ? 3 : field).some((c) => c.matches(":disabled, [aria-disabled=true]"))) return false;
++      // Its text reaches its end: not rows drawn by scroll position under a tall spacer.
++      const texts: Text[] = [];
++      const w = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
++      while (w.nextNode()) if ((w.currentNode as Text).data.trim()) texts.push(w.currentNode as Text);
++      const range = document.createRange();
++      const last = texts.reverse().find((t) => (range.selectNodeContents(t), range.getClientRects().length > 0));
++      if (!last) return false;
++      const end = box.getBoundingClientRect().top + box.clientTop - box.scrollTop + box.scrollHeight;
++      return end - range.getBoundingClientRect().bottom < box.clientHeight;
++    })();
++    if (!gate) notGates.set(box, Date.now());
++    return gate;
++  }
+   function readEnds() {
+     if (endsFrame) return;
+     endsFrame = requestAnimationFrame(() => {
+@@ -408,7 +448,7 @@
+         const clip = m.closest(".sheet")?.getBoundingClientRect();
+         if (!r.height || r.bottom > Math.min(innerHeight, clip?.bottom ?? Infinity) + 1 || r.bottom < Math.max(0, clip?.top ?? 0)) continue;
+         const box = elOf(m.dataset.scrollEnd);
+-        if (!box || box.scrollTop + box.clientHeight >= box.scrollHeight - 2) continue;
++        if (!box || box.scrollTop + box.clientHeight >= box.scrollHeight - 2 || !scrollGate(box)) continue;
+         box.scrollTop = box.scrollHeight;
+       }
+     });
+@@ -429,6 +469,7 @@
+     const searchOpener = !!before?.closest(".bar") && !hadBox && /search|busca|suche|recherche|cerca|pesquis/i.test(spot?.label ?? "");
+     const waiting = !!searchWait && Date.now() - searchWait.at < 4000 && before === searchWait.el;
+     const more = before && MORE_LABEL.test(spot?.label ?? "") ? moreSpot(before) : null;
++    if (searchOpener && before) searchFrom = { label: spot?.label ?? "", tag: before.localName, url: location.href };
+     render(h(App, {}), mount);
+     // The page showed what "Show 8 more comments" brought (or a render after, while it loads):
+     // the reader lands on the first new one, where the control was, as on the original.
+@@ -441,6 +482,16 @@
+     }
+     if (!before || before.isConnected) return;
+     if (more && spot && !twinOf(spot) && moreFocus(more)) return;
++    // The site's search panel closed (its "Close", or Escape in its box) and took the focused control with it:
++    // back to the top-bar control that opened it, not to a heading further down.
++    if (hadBox && searchFrom && searchFrom.url === location.href && !shadow.querySelector(".bar form.search input")) {
++      const o = searchFrom;
++      const opener = Array.from(shadow.querySelectorAll<HTMLElement>(".bar " + o.tag)).find((c) => labelOf(c) === o.label);
++      rescuing = true;
++      const done = tryFocus(opener, true);
++      rescuing = false;
++      if (done) return;
++    }
+     refocus(spot, heads);
+     if (searchOpener) searchWait = { at: Date.now(), el: shadow.activeElement };
+     // The user's action removed the entry focus was in (Delete, Archive): say so, since
+@@ -458,7 +509,8 @@
+     let blk: HTMLElement = el;
+     while (blk.parentElement && blk.parentElement.children.length < 3) blk = blk.parentElement;
+     const box = blk.parentElement;
+-    if (!box || box === main() || !main()?.contains(box)) return null;
++    // Main itself on a page with no sections: its blocks are the box.
++    if (!box || !main()?.contains(box)) return null;
+     const kids = Array.from(box.children);
+     return { box, i: kids.indexOf(blk), y: blk.getBoundingClientRect().top, old: new Set(kids.map((c) => c.textContent ?? "")), at: Date.now(), hold: null };
+   }
+@@ -471,18 +523,25 @@
+   function moreFocus(m: MoreSpot): boolean {
+     if (!m.box.isConnected) return false;
+     const kids = Array.from(m.box.children) as HTMLElement[];
++    // Main itself (a page with no sections): its first block is still there (the same page grew,
++    // it did not go to another), and only blocks where the control was are new ones.
++    const inMain = m.box === main();
++    if (inMain && m.i > 0 && !m.old.has(kids[0]?.textContent ?? "")) return false;
+     // New where the control was first; else anywhere in its box (a list the page sorted afresh).
+     const isNew = (c: HTMLElement) => c.localName !== "summary" && !m.old.has(c.textContent ?? "") && c.getClientRects().length > 0;
+-    const fresh = kids.slice(m.i).find(isNew) ?? kids.find(isNew);
+-    const el = fresh ?? (m.hold || m.i < 1 ? null : kids[Math.min(m.i, kids.length) - 1]);
++    const fresh = kids.slice(m.i).find(isNew) ?? (inMain ? undefined : kids.find(isNew));
++    const prev = m.i < 1 ? undefined : kids[Math.min(m.i, kids.length) - 1];
++    // In main, the block before the control grew in place (the entries it holds): focus goes there and the view stays.
++    const grown = inMain && !fresh && prev && isNew(prev) ? prev : undefined;
++    const el = fresh ?? grown ?? (m.hold ? null : prev);
+     if (!el) return false;
+     if (!el.matches(FOCUSABLE)) el.tabIndex = -1;
+     if (!tryFocus(el)) return false;
+     // Where the control was, whatever the render did to the view on the way (it can shrink for a moment),
+     // unless the reader has scrolled since.
+     const r = el.getBoundingClientRect();
+-    if (userScrollAt < m.at) host.scrollTop += (fresh ? r.top : r.bottom) - m.y;
+-    moreWait = fresh ? null : { ...m, hold: el, at: Date.now() };
++    if (userScrollAt < m.at && !grown) host.scrollTop += (fresh ? r.top : r.bottom) - m.y;
++    moreWait = fresh || grown ? null : { ...m, hold: el, at: Date.now() };
+     return true;
+   }
+ 
+@@ -905,6 +964,7 @@
+ 
+   /** Escape for a page suggestion list shown under Sift's `field`: the page field gets it; Sift hides the list once the page did. */
+   function escapeList(key: string, listRef: string | undefined, field: HTMLElement, pf: Element) {
++    flushEdits();
+     proxy.key(pf, "Escape");
+     if (!field.matches(":focus")) field.focus();
+     const hidden = () => {
+@@ -944,6 +1004,8 @@
+     // In the popup Sift shows, what opened the popup stays found.
+     const keep = inShownDialog(pf);
+     store.actAt = Date.now();
++    // What was typed reaches the page field first: an editor that keeps a draft on Escape keeps all of it.
++    flushEdits();
+     const ok = proxy.key(pf, "Escape");
+     // The page took the key: Sift's field does nothing with it either (a search field would clear).
+     if (!ok) e.preventDefault();
+@@ -981,7 +1043,18 @@
+     if (!sug || !field) return;
+     const list = stopsIn(sug);
+     const i = list.indexOf(tg);
+-    if (i < 0) return;
++    if (i < 0) {
++      // A picker drawn under its field (a calendar) comes right after the field in Tab order, as it is
++      // drawn, when the page's popup has tab stops of its own. A suggestion list keeps its arrow keys.
++      const pop = elOf(store.page?.dialog?.ref);
++      if (!list.length || !pop || pop.matches("[role=listbox], [role=menu]") || pop.querySelector("[role=listbox], [role=menu], [role=option]")) return;
++      if (!Array.from(pop.querySelectorAll<HTMLElement>("a[href], button, input, select, textarea, [tabindex]")).some((c) => c.tabIndex >= 0 && !(c as HTMLButtonElement).disabled && c.checkVisibility())) return;
++      const to = !e.shiftKey && tg === field ? list[0] : e.shiftKey && tg === siftAfter(field) ? list[list.length - 1] : null;
++      if (!to) return;
++      e.preventDefault();
++      to.focus();
++      return;
++    }
+     if (e.shiftKey && i === 0) {
+       e.preventDefault();
+       field.focus();
+@@ -1376,7 +1449,9 @@
+   let actedAt = -Infinity;
+   /** Sift shows the page's content for this address (not a loading line), or the page has had its time to load. */
+   const contentShown = () =>
+-    (!!store.page && store.page.blocks.length > 0 && !store.page.partial && store.page.url === location.href) || performance.now() - loadStart > 10000;
++    (!!store.page && store.page.blocks.length > 0 && !thinView(store.page.blocks) && !store.page.partial && store.page.url === location.href) || performance.now() - loadStart > 10000;
++  /** Only a title and a line (a results page before its results come in, F728): the content is still to come. */
++  const thinView = (bs: Block[]) => bs.length <= 3 && bs.every((b) => b.t === "h" || b.t === "p" || b.t === "note") && blocksText(bs).length < 200;
+ 
+   /**
+    * Extract again: now (`delay` 0: navigation, after an action), after
+@@ -1482,8 +1557,16 @@
+   let alertsLater = 0;
+   function newAlert(): string {
+     const answer = performance.now() - actedAt < 5000;
++    // What the page says about the field the user is in, as they type ("ana is taken", a password's
++    // strength): a screen reader says it there when it changes, without any other action.
++    const pf = elOf((shadow.activeElement as HTMLElement | null)?.dataset?.ref);
++    const pr = pf?.getRootNode() as Document | ShadowRoot | undefined;
++    const about = pf ? ["aria-describedby", "aria-errormessage"].flatMap((n) => (pf.getAttribute(n) ?? "").split(/\s+/)).filter(Boolean).map((id) => pr?.getElementById?.(id)).filter((x): x is HTMLElement => !!x) : [];
++    const aboutField = (el: Element) => about.some((x) => el.contains(x) || x.contains(el));
++    const LIVE = "[role=alert], [aria-live=assertive], [role=status], [aria-live=polite]";
++    const typing = about.some((x) => !!x.closest(LIVE) || !!x.querySelector(LIVE));
+     const wait = alertsAt + 2000 - performance.now();
+-    if (!answer && !alertsFresh && wait > 0) {
++    if (!answer && !typing && !alertsFresh && wait > 0) {
+       // Looked a moment ago: look again then, so an alert that came now is still said.
+       alertsLater ||= window.setTimeout(() => {
+         alertsLater = 0;
+@@ -1498,13 +1581,13 @@
+     const quiet = alertsFresh || document.readyState === "loading";
+     alertsFresh = false;
+     let out = "";
+-    for (const el of Array.from(document.querySelectorAll("[role=alert], [aria-live=assertive], [role=status], [aria-live=polite]"))) {
++    for (const el of Array.from(document.querySelectorAll(LIVE))) {
+       if (el.closest("sift-root, [data-sift-portal]") || el.getAttribute("aria-live") === "off") continue;
+       const text = el.checkVisibility() ? ((el as HTMLElement).innerText ?? "").replace(/\s+/g, " ").trim() : "";
+       const was = alertsSeen.get(el);
+       alertsSeen.set(el, text);
+       if (quiet || out || !text || text === was || text === lastToast || /cookie|consent|newsletter|subscribe/i.test(text)) continue;
+-      if (!el.matches("[role=alert], [aria-live=assertive]") && (!answer || text.length > 200)) continue;
++      if (!el.matches("[role=alert], [aria-live=assertive]") && (!(answer || aboutField(el)) || text.length > 200)) continue;
+       out = text.slice(0, 300);
+     }
+     return out;
+@@ -1646,10 +1729,17 @@
+     // Focus is in the list itself (ArrowDown went there): it is still the field's.
+     if (a?.closest(".sheet.suggest")) a = suggestAnchor();
+     const text = !!a && (a.localName === "textarea" || (a.localName === "input" && /^(text|search|email|url|tel)$/.test((a as HTMLInputElement).type)));
+-    const pf = text ? elOf(a!.dataset.ref) : null;
++    // The page may have put a new field in its place (Wikipedia's typeahead): that one's list.
++    const pf = text ? liveField(a!.dataset.ref) : null;
++    if (!pf) return undefined;
+     // Not after a search or an action from it, until the user is back at the field: the
+-    // page may think its field still has focus (its blur() reaches no real focus).
+-    if (!pf || lastTouched(a!) < store.actAt) return undefined;
++    // page may think its field still has focus (its blur() reaches no real focus). A search
++    // box whose results come in under it, the address unchanged (Discourse's Enter), still
++    // shows them while the user is in it.
++    if (lastTouched(a!) < store.actAt) {
++      const panel = a === shadow.activeElement && location.href === typedUrl ? fieldPanel(pf) : null;
++      return panel ? panelList(panel) : undefined;
++    }
+     const ids = ["aria-controls", "aria-owns"].flatMap((n) => (pf.getAttribute(n) ?? "").split(/\s+/)).filter(Boolean);
+     for (const id of ids) {
+       const list = document.getElementById(id);
+@@ -1675,7 +1765,59 @@
+       const named = list.hasAttribute("aria-label") || list.hasAttribute("aria-labelledby");
+       if (actions.length) return { key: "pop:" + refOf(list), ref: refOf(list), title: named ? accName(list).slice(0, 80) : "", blocks: [{ t: "actions", key: "fl:" + refOf(list), actions }] };
+     }
+-    return undefined;
++    if (ids.length) return undefined;
++    const panel = fieldPanel(pf);
++    return panel ? panelList(panel) : undefined;
++  }
++
++  /**
++   * What a plain search box shows right under it as it is typed in, with no list it names
++   * (Wikipedia's portal typeahead, Discourse's search menu): a part beside the field's own
++   * box, in a positioned dropdown or in the positioned panel that holds the field, with
++   * links or buttons right under the field, at least one naming what was typed.
++   */
++  function fieldPanel(pf: Element): Element | null {
++    if (!(pf instanceof HTMLInputElement) || !pf.matches(proxy.SEARCH_FIELD)) return null;
++    const word = pf.value.trim().toLowerCase().split(/\s+/)[0];
++    const fr = pf.getBoundingClientRect();
++    if (!word || !fr.width) return null;
++    const placed = (e: Element) => /^(absolute|fixed)$/.test(getComputedStyle(e).position);
++    const shown = (e: Element) => e.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && e.getClientRects().length > 0;
++    // The field's own dropdown panel (Discourse's search menu), not a fixed site header or bar it sits in.
++    let inPanel = false;
++    for (let a = pf.parentElement, i = 0; a && a !== document.body && i < 8 && !inPanel; a = a.parentElement, i++)
++      inPanel = placed(a) && !a.matches("header, nav, [role=banner], [role=navigation]") && a.getBoundingClientRect().width < innerWidth * 0.9;
++    let branch: Element = pf;
++    for (let a = pf.parentElement, i = 0; a && a !== document.body && i < 6; branch = a, a = a.parentElement, i++) {
++      for (const c of Array.from(a.children)) {
++        if (c === branch || c.contains(pf)) continue;
++        // (A part of the page with many controls, the content under a header, is not a dropdown.)
++        const all = c.querySelectorAll("a[href], button, [role=option]");
++        if (!all.length || all.length > 60) continue;
++        const opts = Array.from(all).filter(shown);
++        if (!opts.length) continue;
++        const r = opts[0].getBoundingClientRect();
++        if (r.top < fr.bottom - 4 || r.top - fr.bottom > 80 || r.left >= fr.right || r.right <= fr.left) continue;
++        if (!opts.some((o) => (o.textContent ?? "").toLowerCase().includes(word))) continue;
++        // A dropdown (positioned itself or inside), or the field's own panel: not page content under a search form.
++        let drop = inPanel;
++        for (let e: Element | null = opts[0]; !drop && e && e !== a; e = e.parentElement) drop = placed(e);
++        if (drop) return c;
++      }
++      if (placed(a)) break;
++    }
++    return null;
++  }
++
++  /** A search box's results part as Sift's list under its field: one choice per link or button. */
++  function panelList(panel: Element): Page["dialog"] {
++    const shown = (e: Element) => e.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && e.getClientRects().length > 0;
++    const opts = Array.from(panel.querySelectorAll("a[href], button, [role=option]")).filter((o, i, all) => shown(o) && !all.some((p, j) => j < i && p.contains(o)));
++    const actions = opts
++      .slice(0, 20)
++      .map((o) => ({ key: "fpa:" + refOf(o), label: (textIn(o) || accName(o)).slice(0, 200), ref: refOf(o) }))
++      .filter((x) => x.label);
++    return actions.length ? { key: "pop:" + refOf(panel), ref: refOf(panel), title: "", blocks: [{ t: "actions", key: "fp:" + refOf(panel), actions }] } : undefined;
+   }
+ 
+   /**
+@@ -2107,8 +2249,43 @@
+     }
+     // The suggestions for what the user just typed came in: shown soon, not at the next idle moment,
+     // so Sift never offers the list the page has replaced (never back to back, though).
+-    if (any) schedule(Date.now() - suggestAt < 4000 ? Math.max(30, lastRunAt + Math.max(100, lastDur * 2) - performance.now()) : undefined, minor);
++    if (!any) return;
++    if (Date.now() - suggestAt < 4000) {
++      if (!listTimer) listTimer = window.setTimeout(() => refreshList(minor), 50);
++      return;
++    }
++    schedule(undefined, minor);
+   });
++  let listTimer = 0;
++  /**
++   * The page changed while the user types in a field with suggestions: its new list shows
++   * promptly, never the one the page has replaced. A list Sift reads from the field itself
++   * (fieldList) is refreshed on its own; the whole page is read again only in routine time.
++   * A list only a full look finds (Booking's) gets one, spaced by what a look costs, on a
++   * page where looks are cheap; a long page (a Wikipedia article) waits for the pause in typing.
++   */
++  function refreshList(minor: boolean) {
++    listTimer = 0;
++    if (store.mode !== "sift" || !store.page) return;
++    const inSheet = shadow.activeElement?.closest(".sheet");
++    const cur = store.page.dialog;
++    const mine = !!cur && /^f[lp]:/.test(cur.blocks[0]?.key ?? "");
++    let fl: Page["dialog"];
++    if (!inSheet || inSheet.matches(".suggest")) {
++      resetCaches();
++      fl = fieldList();
++    }
++    if (fl || mine) {
++      if (JSON.stringify(fl) !== JSON.stringify(cur)) {
++        const shown = fl?.blocks[0];
++        const blocks = shown?.t === "actions" ? dropControls(store.page.blocks, new Set(shown.actions.map((x) => x.ref))) : store.page.blocks;
++        store.page = { ...store.page, dialog: fl, blocks };
++        changed();
++      }
++      return schedule(undefined, minor);
++    }
++    schedule(lastDur < 300 ? Math.max(30, lastRunAt + Math.max(300, lastDur * 3) - performance.now()) : undefined, minor);
++  }
+   const moOpts: MutationObserverInit = {
+     subtree: true,
+     childList: true,
+@@ -2442,6 +2619,8 @@
+   let typedRun = 0;
+   /** When the user last typed in a field with suggestions: the page's new list (its answer from the network) shows promptly. */
+   let suggestAt = -Infinity;
++  /** The address when the user last typed in a field. */
++  let typedUrl = "";
+   /** The page field Sift entered last, and its selection before that. */
+   let entrySel: { el: Element; sel: [number, number] | null; at: number } | null = null;
+   /**
+@@ -2785,13 +2964,15 @@
+       if (!(el instanceof HTMLInputElement) && el.getAttribute("role") === "slider") return slideTo(el, value);
+       if ((el as HTMLElement).isContentEditable) pendingEdits.set(ref, value);
+       else proxy.setValue(el, value);
+-      // A field with a suggestion list: Sift shows the list once the user pauses, not at the
+-      // next routine look, which on a long page (a Wikipedia article) is seconds away.
+-      if (el.matches("[aria-controls], [aria-owns], [list], [role=combobox]")) {
++      typedUrl = location.href;
++      // A field with a suggestion list (or a search box, which may show one): Sift shows the list once
++      // the user pauses, not at the next routine look, which on a long page (a Wikipedia article) is seconds away.
++      const listed = el.matches("[aria-controls], [aria-owns], [list], [role=combobox]") || el.matches(proxy.SEARCH_FIELD);
++      if (listed) {
+         clearTimeout(typedRun);
+         typedRun = window.setTimeout(() => schedule(0), 300);
+       }
+-      if (suggestAnchor() || el.matches("[aria-controls], [aria-owns], [list], [role=combobox]")) suggestAt = Date.now();
++      if (suggestAnchor() || listed) suggestAt = Date.now();
+     },
+     commit(ref) {
+       const el = elOf(ref);
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -76,6 +76,8 @@
+   invalid?: boolean;
+   /** What the page says is wrong with it (its error message). */
+   error?: string;
++  /** What else describes it on the page (aria-describedby, less the error): a hint, a live "is taken" message. */
++  desc?: string;
+   /** The visible words on the page's own submit button (an Arabic page's "بحث"), shown on Sift's button. */
+   submitLabel?: string;
+   /** Buttons in the field's own box (a password's Show button), shown right after it. */
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -95,11 +95,16 @@
+   return true;
+ }
+ 
++/** A plain search field: pages show suggestions or results under it as it is typed in, with no list it names. */
++export const SEARCH_FIELD = "input[type=search], [role=searchbox], :is([role=search], form[action*=search i]) input:is(:not([type]), [type=text])";
++
+ /** Fire focus and focusin, as entering a field does (pages open date pickers and history lists then). */
+ export function focus(el: Element) {
+-  // A field with a suggestion list: the page-world helper names it as
++  // A field with a suggestion list, or a plain search field (Wikipedia's portal draws its
++  // suggestions only while its box is the active element): the page-world helper names it as
+   // document.activeElement from now on (main/index.ts), as some pages check.
+-  if (el.matches("[role=combobox], [aria-autocomplete], [aria-controls], [aria-owns], [list]")) el.dispatchEvent(new CustomEvent("sift-enter", { bubbles: true, composed: true }));
++  if (el.matches("[role=combobox], [aria-autocomplete], [aria-controls], [aria-owns], [list]") || el.matches(SEARCH_FIELD))
++    el.dispatchEvent(new CustomEvent("sift-enter", { bubbles: true, composed: true }));
+   el.dispatchEvent(new FocusEvent("focus"));
+   el.dispatchEvent(new FocusEvent("focusin", { bubbles: true, composed: true }));
+ }
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -8,6 +8,9 @@
+ let nodes: Element[] = [];
+ /** Nodes noted while an action's window was open. */
+ let byAction = new WeakSet<Element>();
++/** How many actions (and new pages) there have been: what one opened is told from what the next one did. */
++let arms = 0;
++export const armCount = () => arms;
+ 
+ /**
+  * Start watching after an action, for `ms` milliseconds. `keep`: the user only
+@@ -20,6 +23,7 @@
+     until = Math.max(until, now + ms);
+     return;
+   }
++  arms++;
+   until = actUntil = now + ms;
+   nodes = [];
+   byAction = new WeakSet();
+@@ -67,13 +71,17 @@
+       // What the action opened stays; what changed later (typing in it) goes first.
+       const later = nodes.filter((n) => !byAction.has(n));
+       const cut = new Set(later.slice(0, Math.max(0, later.length - 200)));
+-      nodes = nodes.filter((n) => !cut.has(n)).slice(-300);
++      nodes = nodes.filter((n) => !cut.has(n));
++      // The page changes a lot while the action's window is open (YouTube loading comments): what
++      // the action opened first (its popup) stays, with the latest changes.
++      if (nodes.length > 300) nodes = [...nodes.slice(0, 100), ...nodes.slice(-200)];
+     }
+   }
+ }
+ 
+ /** A new page (single-page navigation): what changed on the old one no longer counts. */
+ export function clearRecent() {
++  arms++;
+   nodes = [];
+   until = actUntil = 0;
+   byAction = new WeakSet();
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -12,6 +12,8 @@
+   a: string;
+   href?: string;
+   ref?: string;
++  /** The page's words around the link in its sentence ("To book an appointment, … ."): a Short version may put the link on those. */
++  near?: string;
+ }
+ 
+ /** One part of the article, in reading order. */
+@@ -121,35 +123,54 @@
+ function inline(c: Inline[], links: Link[]): { md: string; plain: string } {
+   let md = "";
+   let plain = "";
++  // The text around each link, other links left out (see Link.near).
++  const around: (string | Link)[] = [];
+   for (const x of c) {
+     if (typeof x === "string") {
+       md += x;
+       plain += x;
++      around.push(x);
+     } else if ("a" in x) {
+       const a = x.a.replace(/[[\]]/g, "").replace(/\s+/g, " ").trim();
+       if (!a) continue;
+       const lead = /^\s/.test(x.a) ? " " : "";
+       const trail = /\s$/.test(x.a) ? " " : "";
+-      md += lead + (x.href || x.ref ? `[${a}](L${links.push({ a, href: x.href, ref: x.ref }) - 1})` : a) + trail;
++      const l: Link = { a, href: x.href, ref: x.ref };
++      md += lead + (x.href || x.ref ? `[${a}](L${links.push(l) - 1})` : a) + trail;
+       plain += lead + a + trail;
++      around.push(x.href || x.ref ? l : a);
+     } else if ("b" in x) {
+       md += x.b;
+       plain += x.b;
++      around.push(x.b);
+     } else if ("i" in x) {
+       md += x.i;
+       plain += x.i;
++      around.push(x.i);
+     } else if ("code" in x) {
+       md += "`" + x.code + "`";
+       plain += x.code;
++      around.push(x.code);
+     } else {
+       md += " ";
+       plain += " ";
++      around.push(" ");
+     }
+   }
++  around.forEach((l, k) => {
++    if (typeof l === "string") return;
++    const text = (from: number, to: number) => around.slice(from, to).map((s) => (typeof s === "string" ? s : " ")).join("");
++    const before = text(0, k).split(SENTENCE_END).pop()!.split(/\s+/).slice(-12).join(" ");
++    const after = text(k + 1, around.length).split(SENTENCE_END)[0].split(/\s+/).slice(0, 12).join(" ");
++    const near = (before + " " + after).trim();
++    if (near) l.near = near;
++  });
+   // "[[" in the page's own text must not read as a placeholder.
+   return { md: md.replace(/\[\[/g, "[ [").replace(/\s+/g, " ").trim(), plain: plain.replace(/\s+/g, " ").trim() };
+ }
+ 
++const SENTENCE_END = /[.!?。！？](?=\s|$)/;
++
+ const normWords = (s: string) => (s.toLowerCase().match(/\p{L}+/gu) ?? []).join(" ");
+ /** Words and numbers: a paragraph whose count or date changed is a changed paragraph. */
+ const normText = (s: string) => (s.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).join(" ");
+@@ -333,7 +354,15 @@
+ 
+ const FOOTNOTE = /^\W*(\d+|[a-z]|note \d+|ref)\W*$/i;
+ 
+-/** Whether the words a Short version puts on a link say what the page's own words for it say: the same, or a longer word or two words in common. */
++/** Two words of four letters or more that share a stem: one inflects the other ("nueva", "nuevas"; "правила", "правил"; "Parkregel", "Parkregeln"). */
++function stemOf(a: string, b: string): boolean {
++  if (a.length < 4 || b.length < 4) return false;
++  let n = 0;
++  while (n < a.length && n < b.length && a[n] === b[n]) n++;
++  return n >= Math.max(4, Math.min(a.length, b.length) - 2);
++}
++
++/** Whether the words a Short version puts on a link say what the page's own words for it say: the same, or a longer word (or its stem) or two words in common. */
+ function sameWords(words: string, a: string): boolean {
+   const x = normText(mdPlain(words));
+   if (x === normText(a)) return true;
+@@ -341,13 +370,29 @@
+   const have = tokens(a);
+   let both = 0;
+   for (const w of want) {
+-    if (!have.has(w)) continue;
++    if (!have.has(w)) {
++      if (w.length >= 4) for (const h of have) if (stemOf(w, h)) return true;
++      continue;
++    }
+     if (w.length >= 4) return true;
+     both++;
+   }
+   return both >= 2 || (both > 0 && both === want.size);
+ }
+ 
++/**
++ * Whether the words a Short version puts on a link come from the page's
++ * sentence around it: a generic label ("click here") said in its own words
++ * ("[Book an appointment]" for "To book an appointment, click here"). Most of
++ * their longer words are there, as they are or inflected.
++ */
++function nearWords(words: string, have: string[]): boolean {
++  const want = [...tokens(normText(mdPlain(words)))].filter((w) => w.length >= 4);
++  if (!want.length) return false;
++  const found = want.filter((w) => have.some((h) => h === w || stemOf(w, h))).length;
++  return found * 2 >= want.length;
++}
++
+ const dice = (a: Set<string>, b: Set<string>) => {
+   let both = 0;
+   for (const w of a) if (b.has(w)) both++;
+@@ -359,25 +404,26 @@
+ 
+ /**
+  * Whether a sentence of a Short version made from `meta` is about a paragraph
+- * that changed since: one gone from the article that a fresh paragraph, with
+- * most of its words, replaces (a new number, a corrected name). A sentence
+- * that states a number such a paragraph had and the article no longer has
+- * is too ("The storm killed 12" after "The death toll rose to 12" became 31).
+- * Null when no paragraph changed so. `about` holds the words of the changed
+- * paragraphs, old and new: the rest of a dropped sentence is about others.
++ * that changed since: one gone from the article, edited (a new number, a
++ * corrected name), reworded, or removed, with or without a fresh paragraph
++ * in its place. A sentence that states a number such a paragraph had and the
++ * article no longer has is too ("The storm killed 12" after "The death toll
++ * rose to 12" became "Officials now say 31 people died"). Null when no
++ * paragraph changed so. `about` holds the words of the changed paragraphs,
++ * old and new: the rest of a dropped sentence is about others.
+  */
+ function staleAbout(meta: ShortMeta, src: ShortSource, fresh: Set<number>): { test: (sentence: string) => boolean; about: Set<string> } | null {
+   const old = meta.dplain;
+-  if (!fresh.size || !old || old.length !== meta.dfp.length) return null;
+-  const now = new Set(src.dfp.slice(0, src.sentUnits));
++  if (!old || old.length !== meta.dfp.length) return null;
++  // Still in the article, also past the part sent (a grown article): not changed.
++  const now = new Set(src.dfp);
++  const gonePara = meta.dfp.flatMap((h, j) => (now.has(h) ? [] : [j]));
++  if (!gonePara.length) return null;
+   const freshTokens = [...fresh].map((i) => tokens(src.units[i].plain));
+   const oldTokens = old.map(tokens);
+-  const changed = new Set<number>();
+-  meta.dfp.forEach((h, j) => {
+-    if (!now.has(h) && oldTokens[j].size >= 2 && freshTokens.some((t) => dice(oldTokens[j], t) >= 0.5)) changed.add(j);
+-  });
++  const changed = new Set(gonePara.filter((j) => oldTokens[j].size >= 2));
+   if (!changed.size) return null;
+-  const have = new Set(src.units.slice(0, src.sentUnits).flatMap((u) => numbers(u.plain)));
++  const have = new Set(src.units.flatMap((u) => numbers(u.plain)));
+   const gone = new Set([...changed].flatMap((j) => numbers(old[j])).filter((n) => !have.has(n)));
+   // The old paragraph a sentence shares the most words with, as for placing text (planShort).
+   const index = new Map<string, number[]>();
+@@ -470,6 +516,7 @@
+   const used = new Set<number>();
+   type S = { md: string; pos?: number } | { unit: number; pos: number };
+   const segs: S[] = [];
++  const guesses = new Set<S>();
+   let md: string[] = [];
+   const flush = () => {
+     const s = md.join("\n").trim();
+@@ -529,6 +576,12 @@
+         }
+         flush();
+         if (at >= 0) place(at);
++        else if (!atx) {
++          // A short bold line ("Do not pay twice") may be a warning, not a heading: decided below.
++          const g = { md: said };
++          segs.push(g);
++          guesses.add(g);
++        }
+         continue;
+       }
+       if (!part.trim()) {
+@@ -541,6 +594,43 @@
+   }
+   flush();
+ 
++  // A bold line that is none of the page's headings was made up as one and
++  // goes, unless it says what nothing else in the Short version does: it
++  // shares most of its words with a paragraph no other sentence is about.
++  if (guesses.size) {
++    const at = new Map<string, number[]>();
++    src.units.forEach((u, i) => {
++      if (u.kind !== "p") return;
++      for (const w of tokens(u.plain)) {
++        const is = at.get(w);
++        if (is) is.push(i);
++        else at.set(w, [i]);
++      }
++    });
++    const often = Math.max(8, src.units.length / 10);
++    const about = (text: string) => {
++      const want = tokens(mdPlain(text));
++      const both = new Map<number, number>();
++      for (const w of want) {
++        const is = at.get(w);
++        if (is && is.length <= often) for (const i of is) both.set(i, (both.get(i) ?? 0) + 1);
++      }
++      let best = -1;
++      let score = 0;
++      for (const [i, n] of both) if (n >= 2 && n / want.size > score) [best, score] = [i, n / want.size];
++      return score >= 0.2 ? best : -1;
++    };
++    const covered = new Set<number>();
++    for (const s of segs) if ("md" in s && !guesses.has(s)) for (const line of s.md.split("\n")) for (const x of sentences(line)) covered.add(about(x));
++    for (let k = 0; k < segs.length; k++) {
++      const s = segs[k];
++      if (!guesses.has(s) || !("md" in s)) continue;
++      const i = about(s.md);
++      if (i >= 0 && !covered.has(i)) covered.add(i);
++      else segs.splice(k--, 1);
++    }
++  }
++
+   // A paragraph that changed since the Short version was asked for is shown in
+   // full (below) until the new Short version is whole, or for good once the
+   // page changed too often. The model's sentences about its old text go, so
+@@ -614,6 +704,33 @@
+     if (score >= 0.2) s.pos = best;
+   }
+ 
++  // Blocks the model put out of the page's order go back to their place, by
++  // the same anchors as dropped ones (below). The blocks before the first
++  // paragraph (a post's author and date) lead. A block put after the short
++  // text of two or more later paragraphs (a code example after "Answer: it
++  // depends…") goes back before the first of them.
++  const firstProse = src.units.findIndex((u) => u.kind === "p");
++  const placeAt = (i: number) => {
++    let lo = 0;
++    segs.forEach((s, k) => {
++      if ("unit" in s && s.pos < i) lo = k + 1;
++    });
++    let hi = segs.findIndex((s, k) => k >= lo && "unit" in s && s.pos > i);
++    if (hi < 0) hi = segs.length;
++    // Before the first paragraph, any text comes after it.
++    const at = segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && (i < firstProse || (s.pos !== undefined && s.pos > i)));
++    return at < 0 ? hi : at;
++  };
++  for (let k = 0; k < segs.length; k++) {
++    const s = segs[k];
++    if (!("unit" in s) || src.units[s.unit].kind !== "b") continue;
++    const i = s.unit;
++    const late = segs.slice(0, k).filter((o) => "md" in o && (i < firstProse || (o.pos !== undefined && o.pos > i))).length;
++    if (late < (i < firstProse ? 1 : 2)) continue;
++    segs.splice(k, 1);
++    segs.splice(placeAt(i), 0, s);
++  }
++
+   // What the model dropped goes back: each block and heading of the part that
+   // was sent goes between the kept blocks and headings around it, before the
+   // first piece of text there that comes after it in the source. A summary
+@@ -655,12 +772,30 @@
+   const links = meta.links.map((_, i) => linkNow(meta, src, i)!);
+   // A link id the model put on other words than the page's would do what its
+   // words do not say: those words stay without the link, which is listed below.
++  // Words from the link's own sentence are fine too, unless they are another
++  // link's words or fit another link's sentence as well (two links in one sentence).
+   const kept = new Set<number>();
++  const rejected = new Set<number>();
++  const nearOf = new Map<number, string[]>();
++  const near = (i: number) => {
++    let ts = nearOf.get(i);
++    if (!ts) nearOf.set(i, (ts = [...tokens(meta.links[i]?.near ?? "")]));
++    return ts;
++  };
++  const fits = (words: string, i: number, l: Link) => {
++    if (sameWords(words, l.a)) return true;
++    if (!nearWords(words, near(i))) return false;
++    const to = l.href ?? l.a;
++    return !meta.links.some((o, j) => j !== i && !!o && (o.href ?? o.a) !== to && (sameWords(words, o.a) || nearWords(words, near(j))));
++  };
+   for (const s of segs) {
+     if (!("md" in s)) continue;
+     s.md = s.md.replace(/\[([^[\]]+)\]\(\s*#?L(\d+)\s*\)/g, (all, words: string, n: string) => {
+       const l = links[Number(n)];
+-      if (l && !sameWords(words, l.a)) return words;
++      if (l && !fits(words, Number(n), l)) {
++        rejected.add(Number(n));
++        return words;
++      }
+       kept.add(Number(n));
+       return all;
+     });
+@@ -671,10 +806,13 @@
+   const distinct = new Set(meta.links.map((l) => l.href ?? l.a));
+   const extra: Link[] = [];
+   // A text full of links (an encyclopedia) keeps them in the full text; a list of them all would be noise.
+-  if (distinct.size <= 30) {
++  // A link taken off words that did not say what it does is listed all the same: the Short version meant it.
++  const many = distinct.size > 30;
++  {
+     const seen = new Set<string>();
+     for (let i = 0; i < meta.sentLinks && extra.length < 12; i++) {
+       const l = links[i];
++      if (many && !rejected.has(i)) continue;
+       if (!l || kept.has(i) || FOOTNOTE.test(l.a) || l.a.length < 2) continue;
+       // A hashtag or a post's photo link ("#LaLiga", "pic.twitter.com/…") says nothing on its own.
+       if (/^#\S/.test(l.a.trim()) || /^(https?:\/\/)?pic\.(twitter|x)\.com\//i.test(l.a.trim())) continue;
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -211,7 +211,7 @@
+     ...fieldEvents(f.ref),
+     // The page says the value is wrong, and why (its error text is read with the field).
+     "aria-invalid": f.invalid || undefined,
+-    "aria-describedby": f.error ? "err-" + f.key : undefined,
++    "aria-describedby": [f.error && "err-" + f.key, f.desc && "desc-" + f.key].filter(Boolean).join(" ") || undefined,
+   };
+   return (
+     <>
+@@ -224,6 +224,7 @@
+         )}
+       </label>
+       {f.error && <span class="sr" id={"err-" + f.key}>{f.error}</span>}
++      {f.desc && <span class="sr" id={"desc-" + f.key}>{f.desc}</span>}
+     </>
+   );
+ }

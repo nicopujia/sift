@@ -6,6 +6,7 @@
 
 import { h, render } from "preact";
 import type { Block, Page } from "./model";
+import { blocksText } from "./model";
 import type { RuntimeMsg, StatName } from "../shared/messages";
 import { extract, activeAdapter } from "./extract";
 import { adopt, elOf, formerOf, refOf, sweepRefs } from "./registry";
@@ -14,7 +15,7 @@ import {
   leavePortalStops, parkPortals, portalElements, portalOf, portalStops, portalsDisplaced, refOfPortal, releaseForFullscreen,
   mediaOf, reraisePortals, setModalOpen, setPortals, suspendPortals, videoIn,
 } from "./portal";
-import { accName, clean, shadowRootOf, textIn, visible } from "./dom";
+import { accName, clean, resetCaches, shadowRootOf, textIn, visible } from "./dom";
 import { refreshShield, shieldOff, shieldOn } from "./shield";
 import * as proxy from "./proxy";
 import { App, lastTouched, lastTyped, suggestAnchor } from "./ui/app";
@@ -23,7 +24,7 @@ import { H, changed, local, onEnter, onKeys, setRenderer, store } from "./ui/sto
 import { processAi, resetAi, setAiReady } from "./ai";
 import { setLang, t } from "./i18n";
 import { armRecent, noteMutations, clearRecent, noteEntered } from "./recent";
-import { findToast } from "./extract/generic";
+import { askConsent, consentWallUp, findToast } from "./extract/generic";
 
 const MODE_KEY = "sift:mode";
 const isHtml = document.contentType === "text/html" && document.documentElement?.localName === "html";
@@ -77,6 +78,17 @@ function nested(a: Element, b: Element): boolean {
 /** The page says something went wrong (a player's error screen, a bot check). */
 function hasWarning(blocks: Block[]): boolean {
   return blocks.some((b) => (b.t === "note" && (b.tone === "warn" || b.tone === "error")) || ((b.t === "section" || b.t === "article") && hasWarning(b.blocks)));
+}
+
+/** The original elements of the social posts' fallback quotes in `blocks` (X's blockquote before its widget loads). */
+function embedQuotes(blocks: Block[], out: Element[] = []): Element[] {
+  for (const b of blocks) {
+    if (b.t === "quote" && b.embed) {
+      const el = elOf(b.key.slice(2).split(":")[0]);
+      if (el) out.push(el);
+    } else if (b.t === "section" || b.t === "article") embedQuotes(b.blocks, out);
+  }
+  return out;
 }
 
 function findBlock(blocks: Block[], key: string): boolean {
@@ -295,8 +307,13 @@ function boot() {
   function carry(spot: Spot, el: HTMLElement) {
     if (spot.value === null || (el.localName !== "input" && el.localName !== "textarea")) return;
     const f = el as HTMLInputElement;
+    // Only into the same page field, or the one the page put in its place: a control
+    // that only shares its label (the next item's Quantity) gets focus, never the text (F851).
+    const ref = el.dataset.ref;
+    const now = spot.ref && ref !== spot.ref ? liveField(spot.ref, false) : null;
+    const same = ref === (spot.ref ?? undefined) || (!!now && elOf(ref) === now);
     // Only text typed since the last action: after Send, the page may clear the field on purpose.
-    if (f.value !== spot.value && lastTyped(spot.el) > store.actAt) {
+    if (same && f.value !== spot.value && lastTyped(spot.el) > store.actAt) {
       f.value = spot.value;
       // The field's own handler sends it to the page, as typing would.
       f.dispatchEvent(new Event("input", { bubbles: true }));
@@ -389,6 +406,8 @@ function boot() {
   let navAt = Date.now();
   /** A search opener was pressed and its box is not shown yet: when, and where focus waits. */
   let searchWait: { at: number; el: Element | null } | null = null;
+  /** The top-bar control that opens the site's search, to come back to when its panel closes (F733). */
+  let searchFrom: { label: string; tag: string; url: string } | null = null;
 
   // ---------- page scroll boxes read to their end ("scroll to the end to agree") ----------
   /**
@@ -397,6 +416,43 @@ function boot() {
    * enables its Agree box itself. Sift never ticks or enables it.
    */
   let endsFrame = 0;
+  /** Boxes found not to gate anything, and when (checked again a second later: the gate may render after the box). */
+  const notGates = new WeakMap<Element, number>();
+  /**
+   * A real scroll gate: a box of text whose end a control waits on (terms to scroll to the end
+   * of before "I agree" enables). A disabled checkbox or button is among the first controls after
+   * it, before any field to type in, and the box holds all its text (its text reaches the end of what it scrolls). Never a list
+   * the page draws by scroll position (react-window, ag-grid), a chat or a feed: those keep
+   * their own scroll position, with the rows where the page shows them.
+   */
+  function scrollGate(box: Element): boolean {
+    if (Date.now() - (notGates.get(box) ?? 0) < 1000) return false;
+    const gate = (() => {
+      if (box.matches("[role=list], [role=listbox], [role=grid], [role=treegrid], [role=tree], [role=table], [role=feed], [role=log], [aria-live]:not([aria-live=off])")) return false;
+      if (box.querySelector("[role=feed], [role=log], [role=grid], [role=treegrid], [role=listbox], [role=row]")) return false;
+      // The first controls after the box (in the same form or dialog, or the rows that follow it): a disabled
+      // checkbox or button among them, before any field to type in (a chat's message box and its Send).
+      let after: Element[] = [];
+      for (let a = box.parentElement, up = 0; a && !after.length && up < 4; a = a.parentElement, up++) {
+        after = Array.from(a.querySelectorAll("input:not([type=hidden]), button, select, textarea, [contenteditable]:not([contenteditable=false]), [role=checkbox], [role=switch], [role=button]"))
+          .filter((c) => !box.contains(c) && !!(box.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING))
+          .slice(0, 3);
+      }
+      const field = after.findIndex((c) => !c.matches("input[type=checkbox], input[type=submit], input[type=button], button, [role=checkbox], [role=switch], [role=button]"));
+      if (!after.slice(0, field < 0 ? 3 : field).some((c) => c.matches(":disabled, [aria-disabled=true]"))) return false;
+      // Its text reaches its end: not rows drawn by scroll position under a tall spacer.
+      const texts: Text[] = [];
+      const w = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+      while (w.nextNode()) if ((w.currentNode as Text).data.trim()) texts.push(w.currentNode as Text);
+      const range = document.createRange();
+      const last = texts.reverse().find((t) => (range.selectNodeContents(t), range.getClientRects().length > 0));
+      if (!last) return false;
+      const end = box.getBoundingClientRect().top + box.clientTop - box.scrollTop + box.scrollHeight;
+      return end - range.getBoundingClientRect().bottom < box.clientHeight;
+    })();
+    if (!gate) notGates.set(box, Date.now());
+    return gate;
+  }
   function readEnds() {
     if (endsFrame) return;
     endsFrame = requestAnimationFrame(() => {
@@ -408,7 +464,7 @@ function boot() {
         const clip = m.closest(".sheet")?.getBoundingClientRect();
         if (!r.height || r.bottom > Math.min(innerHeight, clip?.bottom ?? Infinity) + 1 || r.bottom < Math.max(0, clip?.top ?? 0)) continue;
         const box = elOf(m.dataset.scrollEnd);
-        if (!box || box.scrollTop + box.clientHeight >= box.scrollHeight - 2) continue;
+        if (!box || box.scrollTop + box.clientHeight >= box.scrollHeight - 2 || !scrollGate(box)) continue;
         box.scrollTop = box.scrollHeight;
       }
     });
@@ -429,6 +485,7 @@ function boot() {
     const searchOpener = !!before?.closest(".bar") && !hadBox && /search|busca|suche|recherche|cerca|pesquis/i.test(spot?.label ?? "");
     const waiting = !!searchWait && Date.now() - searchWait.at < 4000 && before === searchWait.el;
     const more = before && MORE_LABEL.test(spot?.label ?? "") ? moreSpot(before) : null;
+    if (searchOpener && before) searchFrom = { label: spot?.label ?? "", tag: before.localName, url: location.href };
     render(h(App, {}), mount);
     // The page showed what "Show 8 more comments" brought (or a render after, while it loads):
     // the reader lands on the first new one, where the control was, as on the original.
@@ -441,6 +498,16 @@ function boot() {
     }
     if (!before || before.isConnected) return;
     if (more && spot && !twinOf(spot) && moreFocus(more)) return;
+    // The site's search panel closed (its "Close", or Escape in its box) and took the focused control with it:
+    // back to the top-bar control that opened it, not to a heading further down.
+    if (hadBox && searchFrom && searchFrom.url === location.href && !shadow.querySelector(".bar form.search input")) {
+      const o = searchFrom;
+      const opener = Array.from(shadow.querySelectorAll<HTMLElement>(".bar " + o.tag)).find((c) => labelOf(c) === o.label);
+      rescuing = true;
+      const done = tryFocus(opener, true);
+      rescuing = false;
+      if (done) return;
+    }
     refocus(spot, heads);
     if (searchOpener) searchWait = { at: Date.now(), el: shadow.activeElement };
     // The user's action removed the entry focus was in (Delete, Archive): say so, since
@@ -458,7 +525,8 @@ function boot() {
     let blk: HTMLElement = el;
     while (blk.parentElement && blk.parentElement.children.length < 3) blk = blk.parentElement;
     const box = blk.parentElement;
-    if (!box || box === main() || !main()?.contains(box)) return null;
+    // Main itself on a page with no sections: its blocks are the box.
+    if (!box || !main()?.contains(box)) return null;
     const kids = Array.from(box.children);
     return { box, i: kids.indexOf(blk), y: blk.getBoundingClientRect().top, old: new Set(kids.map((c) => c.textContent ?? "")), at: Date.now(), hold: null };
   }
@@ -471,18 +539,25 @@ function boot() {
   function moreFocus(m: MoreSpot): boolean {
     if (!m.box.isConnected) return false;
     const kids = Array.from(m.box.children) as HTMLElement[];
+    // Main itself (a page with no sections): its first block is still there (the same page grew,
+    // it did not go to another), and only blocks where the control was are new ones.
+    const inMain = m.box === main();
+    if (inMain && m.i > 0 && !m.old.has(kids[0]?.textContent ?? "")) return false;
     // New where the control was first; else anywhere in its box (a list the page sorted afresh).
     const isNew = (c: HTMLElement) => c.localName !== "summary" && !m.old.has(c.textContent ?? "") && c.getClientRects().length > 0;
-    const fresh = kids.slice(m.i).find(isNew) ?? kids.find(isNew);
-    const el = fresh ?? (m.hold || m.i < 1 ? null : kids[Math.min(m.i, kids.length) - 1]);
+    const fresh = kids.slice(m.i).find(isNew) ?? (inMain ? undefined : kids.find(isNew));
+    const prev = m.i < 1 ? undefined : kids[Math.min(m.i, kids.length) - 1];
+    // In main, the block before the control grew in place (the entries it holds): focus goes there and the view stays.
+    const grown = inMain && !fresh && prev && isNew(prev) ? prev : undefined;
+    const el = fresh ?? grown ?? (m.hold ? null : prev);
     if (!el) return false;
     if (!el.matches(FOCUSABLE)) el.tabIndex = -1;
     if (!tryFocus(el)) return false;
     // Where the control was, whatever the render did to the view on the way (it can shrink for a moment),
     // unless the reader has scrolled since.
     const r = el.getBoundingClientRect();
-    if (userScrollAt < m.at) host.scrollTop += (fresh ? r.top : r.bottom) - m.y;
-    moreWait = fresh ? null : { ...m, hold: el, at: Date.now() };
+    if (userScrollAt < m.at && !grown) host.scrollTop += (fresh ? r.top : r.bottom) - m.y;
+    moreWait = fresh || grown ? null : { ...m, hold: el, at: Date.now() };
     return true;
   }
 
@@ -694,6 +769,9 @@ function boot() {
             const sheet = path[0].querySelector<HTMLElement>(":scope > .sheet");
             if (sheet && !sheet.contains(shadow.activeElement)) sheet.focus({ preventScroll: true });
           }
+          // A press on the bar search's button keeps focus in its field, so the search goes as Enter's does
+          // (F856: Discourse closes its results when its field blurs).
+          else if (type === "mousedown" && path[0] instanceof Element && path[0].closest("form.search button[type=submit]") && shadow.activeElement?.closest("form.search") === path[0].closest("form.search")) e.preventDefault();
           else if (type === "focusin") onSiftFocus(e as FocusEvent, path);
           else if (type === "focusout") onSiftBlur(e as FocusEvent);
         }
@@ -813,6 +891,7 @@ function boot() {
     const tg = e.composedPath()[0] as HTMLElement;
     noteReading(e.key);
     if (e.key === "Tab") {
+      tabAt = Date.now();
       // Controls the site adds to a player or map never become tab stops after Sift's own.
       hidePortalStops();
       wrapTab(e, tg);
@@ -903,20 +982,27 @@ function boot() {
     step();
   }
 
-  /** Escape for a page suggestion list shown under Sift's `field`: the page field gets it; Sift hides the list once the page did. */
+  /**
+   * Escape for a page suggestion list shown under Sift's `field`: the page field gets it first, and
+   * Sift's list closes. A page that keeps its list (Wikipedia's portal closes it only through the
+   * browser's own Escape, which Sift's field holds back) gets it back once the user types again.
+   */
+  let escapedList: { key: string; ref: string | undefined } | null = null;
   function escapeList(key: string, listRef: string | undefined, field: HTMLElement, pf: Element) {
+    flushEdits();
     proxy.key(pf, "Escape");
     if (!field.matches(":focus")) field.focus();
-    const hidden = () => {
+    const hidden = (force: boolean) => {
       const list = elOf(listRef);
-      if (list && list.checkVisibility()) return;
-      if (store.dismissed.has(key)) return;
+      const kept = !!list && list.checkVisibility();
+      if ((kept && !force) || store.dismissed.has(key)) return;
       store.dismissed.add(key);
       dismissedRefs.set(key, listRef);
+      if (kept) escapedList = { key, ref: field.dataset.ref };
       changed();
     };
-    hidden();
-    setTimeout(hidden, 0);
+    hidden(false);
+    setTimeout(() => hidden(true), 0);
     setTimeout(() => schedule(0), 60);
   }
 
@@ -944,6 +1030,8 @@ function boot() {
     // In the popup Sift shows, what opened the popup stays found.
     const keep = inShownDialog(pf);
     store.actAt = Date.now();
+    // What was typed reaches the page field first: an editor that keeps a draft on Escape keeps all of it.
+    flushEdits();
     const ok = proxy.key(pf, "Escape");
     // The page took the key: Sift's field does nothing with it either (a search field would clear).
     if (!ok) e.preventDefault();
@@ -981,7 +1069,18 @@ function boot() {
     if (!sug || !field) return;
     const list = stopsIn(sug);
     const i = list.indexOf(tg);
-    if (i < 0) return;
+    if (i < 0) {
+      // A picker drawn under its field (a calendar) comes right after the field in Tab order, as it is
+      // drawn, when the page's popup has tab stops of its own. A suggestion list keeps its arrow keys.
+      const pop = elOf(store.page?.dialog?.ref);
+      if (!list.length || !pop || pop.matches("[role=listbox], [role=menu]") || pop.querySelector("[role=listbox], [role=menu], [role=option]")) return;
+      if (!Array.from(pop.querySelectorAll<HTMLElement>("a[href], button, input, select, textarea, [tabindex]")).some((c) => c.tabIndex >= 0 && !(c as HTMLButtonElement).disabled && c.checkVisibility())) return;
+      const to = !e.shiftKey && tg === field ? list[0] : e.shiftKey && tg === siftAfter(field) ? list[list.length - 1] : null;
+      if (!to) return;
+      e.preventDefault();
+      to.focus();
+      return;
+    }
     if (e.shiftKey && i === 0) {
       e.preventDefault();
       field.focus();
@@ -1374,21 +1473,35 @@ function boot() {
   let loadStart = performance.now();
   /** When the user last acted through Sift (a click, a check, a submit): the page's answer may come late. */
   let actedAt = -Infinity;
+  /** When the user last typed in a Sift field: the page's text answer to it (a "65 characters left" counter) is no clock (F802). */
+  let typedAt = -Infinity;
   /** Sift shows the page's content for this address (not a loading line), or the page has had its time to load. */
-  const contentShown = () =>
-    (!!store.page && store.page.blocks.length > 0 && !store.page.partial && store.page.url === location.href) || performance.now() - loadStart > 10000;
+  const contentShown = (minor = false) =>
+    (!!store.page && store.page.blocks.length > 0 && !thinView(store.page.blocks) && !store.page.partial && store.page.url === location.href) ||
+    // A slow or busy machine can take far more than 10 s to fill a page's frame: while Sift shows only
+    // that frame, the page's changes (not a ticking clock) are read promptly for a minute (F873).
+    performance.now() - loadStart > (!minor && store.page && !store.page.partial && thinView(store.page.blocks) ? 60000 : 10000);
+  /**
+   * Only a title and a line (a results page before its results come in, F728), or only the
+   * frame's headings and a few links (weather.com before its forecast, F873): the content is still to come.
+   */
+  const thinView = (bs: Block[]) =>
+    blocksText(bs).length < 200 &&
+    bs.every((b) => b.t === "h" || b.t === "p" || b.t === "note" || (bs.length > 3 && (b.t === "ul" || b.t === "actions")));
 
   /**
    * Extract again: now (`delay` 0: navigation, after an action), after
    * `delay`, or, for a change in the page, soon enough to keep up but at a
    * cost the page can afford. `minor`: only text or style changed (a clock).
    */
-  const schedule = (delay?: number, minor = false) => {
+  const schedule = (delay?: number, minor = false, grew = false) => {
     if (store.mode !== "sift") return;
     let d: number;
     let idle = false;
     if (delay !== undefined) d = delay;
-    else if (!contentShown() || performance.now() - loadStart < 3000) {
+    // `grew`: the page added a lot of new text in its first half minute (its forecast, its code):
+    // on a slow machine that is its content still coming in, not a routine update (F873).
+    else if (!contentShown(minor) || performance.now() - loadStart < 3000 || (grew && performance.now() - loadStart < 30000)) {
       // While the page loads (until its content shows, and its first seconds,
       // when a map or a player appears), keep up with it: right after
       // the change (a loading page has no idle moment, and its next long task
@@ -1406,9 +1519,16 @@ function boot() {
       if (lastDur > 80) d = Math.max(d, lastDur * 9);
       // Text that keeps changing (a clock, a counter) is no reason to hurry;
       // the page's answer to the user's action (a cart count, "Added") is.
-      if (minor && performance.now() - actedAt > 5000) d = Math.max(d, 2500);
+      if (minor && performance.now() - Math.max(actedAt, typedAt) > 5000) d = Math.max(d, 2500);
+      // The page's answer to a key just typed (a counter, a live hint) follows it closely (F802), on a
+      // page cheap to read again, while looks still find changes (not a clock Sift does not show).
+      if (performance.now() - typedAt < 2000 && same < 3 && lastDur < 60) d = Math.min(d, Math.max(60, lastDur * 4));
       d = Math.min(d, 8000);
     }
+    // The page held its main thread past the time the coming run was due (a slow machine building the
+    // page in long tasks): the change that ends such a task is read now, as the page shows it, not after
+    // one more wait for a timer and an idle moment (F873).
+    if (pending && pendingDue < performance.now() - 50 && performance.now() - loadStart < 30000) return run();
     const due = performance.now() + d;
     if (pending) {
       if (due >= pendingDue) return;
@@ -1482,8 +1602,16 @@ function boot() {
   let alertsLater = 0;
   function newAlert(): string {
     const answer = performance.now() - actedAt < 5000;
+    // What the page says about the field the user is in, as they type ("ana is taken", a password's
+    // strength): a screen reader says it there when it changes, without any other action.
+    const pf = elOf((shadow.activeElement as HTMLElement | null)?.dataset?.ref);
+    const pr = pf?.getRootNode() as Document | ShadowRoot | undefined;
+    const about = pf ? ["aria-describedby", "aria-errormessage"].flatMap((n) => (pf.getAttribute(n) ?? "").split(/\s+/)).filter(Boolean).map((id) => pr?.getElementById?.(id)).filter((x): x is HTMLElement => !!x) : [];
+    const aboutField = (el: Element) => about.some((x) => el.contains(x) || x.contains(el));
+    const LIVE = "[role=alert], [aria-live=assertive], [role=status], [aria-live=polite]";
+    const typing = about.some((x) => !!x.closest(LIVE) || !!x.querySelector(LIVE));
     const wait = alertsAt + 2000 - performance.now();
-    if (!answer && !alertsFresh && wait > 0) {
+    if (!answer && !typing && !alertsFresh && wait > 0) {
       // Looked a moment ago: look again then, so an alert that came now is still said.
       alertsLater ||= window.setTimeout(() => {
         alertsLater = 0;
@@ -1498,16 +1626,62 @@ function boot() {
     const quiet = alertsFresh || document.readyState === "loading";
     alertsFresh = false;
     let out = "";
-    for (const el of Array.from(document.querySelectorAll("[role=alert], [aria-live=assertive], [role=status], [aria-live=polite]"))) {
+    for (const el of Array.from(document.querySelectorAll(LIVE))) {
       if (el.closest("sift-root, [data-sift-portal]") || el.getAttribute("aria-live") === "off") continue;
       const text = el.checkVisibility() ? ((el as HTMLElement).innerText ?? "").replace(/\s+/g, " ").trim() : "";
       const was = alertsSeen.get(el);
       alertsSeen.set(el, text);
       if (quiet || out || !text || text === was || text === lastToast || /cookie|consent|newsletter|subscribe/i.test(text)) continue;
-      if (!el.matches("[role=alert], [aria-live=assertive]") && (!answer || text.length > 200)) continue;
-      out = text.slice(0, 300);
+      if (!el.matches("[role=alert], [aria-live=assertive]") && (!(answer || aboutField(el)) || text.length > 200)) continue;
+      out = liveText(el as HTMLElement).slice(0, 300);
     }
     return out;
+  }
+
+  /**
+   * A live region's text as a screen reader reads it: each control in it by its own name, set
+   * apart from the next ("9:00, 9:30"), where innerText glues buttons with nothing between them ("9:009:30").
+   */
+  function liveText(el: HTMLElement): string {
+    const CTRL = "button, a[href], input[type=button], input[type=submit], input[type=reset], [role=button], [role=link], [role=tab], [role=option], [role=menuitem], [role=checkbox], [role=radio], [role=switch]";
+    const plain = (e: HTMLElement) => (e.innerText ?? "").replace(/\s+/g, " ");
+    if (!el.querySelector(CTRL)) return plain(el).trim();
+    let out = "";
+    // The last thing written was a control: the next control is a new item of the same list.
+    let ctrl = false;
+    const walk = (n: HTMLElement) => {
+      for (let c = n.firstChild; c; c = c.nextSibling) {
+        if (c.nodeType === 3) {
+          const s = c.nodeValue ?? "";
+          out += s;
+          if (s.trim()) ctrl = false;
+          continue;
+        }
+        if (c.nodeType !== 1) continue;
+        const e = c as HTMLElement;
+        const cs = getComputedStyle(e);
+        if (cs.display === "none" || (cs.display !== "contents" && !e.checkVisibility())) continue;
+        // Blocks are apart from what is around them; inline runs are not ("Hel<b>lo</b>").
+        const gap = cs.display.startsWith("inline") || cs.display === "contents" ? "" : " ";
+        if (e.matches(CTRL)) {
+          const name = clean(e.getAttribute("aria-label")) || clean(e.innerText) || accName(e);
+          if (!name) continue;
+          out += (ctrl ? ", " : " ") + name + " ";
+          ctrl = true;
+        } else if (e.querySelector(CTRL)) {
+          out += gap;
+          walk(e);
+          out += gap;
+        } else {
+          const t = plain(e);
+          if (!t.trim()) continue;
+          out += gap + t + gap;
+          ctrl = false;
+        }
+      }
+    };
+    walk(el);
+    return out.replace(/\s+/g, " ").replace(/ ,/g, ",").trim();
   }
 
   /** The page's notice with a button (a toast's Undo) that Sift shows. */
@@ -1563,6 +1737,79 @@ function boot() {
       if (box) box.unshift(kept);
       else page.blocks.splice(Math.min(1, page.blocks.length), 0, kept);
     }
+  }
+
+  /**
+   * Social posts the site renders only once they scroll into its own view (La Nación loads X's
+   * widget when the article body shows, F830): Sift never scrolls the hidden original, so their
+   * fallback quotes would stay quotes, without the post's video. Once the page settles, the
+   * original is scrolled to each such post in turn, until its widget replaces it (or 3 s), and
+   * then back where it was. The X Post then shows through its portal. Once per post.
+   */
+  const wokenEmbeds = new WeakSet<Element>();
+  let wakeTimer = 0;
+  let waking = false;
+  function wakeEmbeds(page: Page) {
+    if (waking || wakeTimer || store.mode !== "sift") return;
+    if (!embedQuotes(page.blocks).some((el) => !wokenEmbeds.has(el))) return;
+    wakeTimer = window.setTimeout(async () => {
+      wakeTimer = 0;
+      const url = location.href;
+      const els = embedQuotes(store.page?.blocks ?? []).filter((el) => !wokenEmbeds.has(el)).slice(0, 8);
+      // Its widget took its place, put a frame in it or beside it, or hid it.
+      const done = (el: Element) => !el.isConnected || !visible(el) || !!el.querySelector("iframe") || el.previousElementSibling?.localName === "iframe" || !!el.previousElementSibling?.querySelector("iframe");
+      const live = () => store.mode === "sift" && location.href === url;
+      if (!els.length || !live()) return;
+      waking = true;
+      const se = document.scrollingElement ?? document.documentElement;
+      const top = se.scrollTop;
+      const left = se.scrollLeft;
+      try {
+        for (const el of els) {
+          wokenEmbeds.add(el);
+          if (done(el) || !live()) continue;
+          el.scrollIntoView({ block: "center", behavior: "instant" });
+          for (let t = 0; t < 3000 && !done(el) && live(); t += 250) await new Promise((r) => setTimeout(r, 250));
+        }
+      } finally {
+        se.scrollTo({ top, left, behavior: "instant" });
+        waking = false;
+      }
+    }, 1500);
+  }
+
+  /** The key of the consent wall Sift showed because the reader pressed Play (see playFacade). */
+  let consentKey = "";
+  /**
+   * Play on a player that has not loaded its video (a poster with a big Play button). A player the
+   * site builds only once it scrolls into view (the Guardian's YouTube islands, deferuntil=visible)
+   * is first brought into the hidden original's view, so its own Play has a handler. A video the
+   * page holds back until its consent wall is answered shows that wall, reject first, and Sift says
+   * why (F826): the reader answers it, never Sift.
+   */
+  function playFacade(portal: Element | null, start: HTMLElement) {
+    // Where the player sits in the page: a lifted portal is fixed in the top layer.
+    const spot = portal?.parentElement ?? start;
+    const r = spot.getBoundingClientRect();
+    const away = r.bottom < 0 || r.top > innerHeight;
+    if (away) spot.scrollIntoView({ block: "center", behavior: "instant" });
+    const loaded = () => !start.isConnected || !start.checkVisibility() || !!portal?.querySelector("iframe, video[src], video source");
+    window.setTimeout(() => {
+      if (store.mode !== "sift") return;
+      proxy.click(start);
+      window.setTimeout(() => {
+        const wall = store.mode === "sift" && !loaded() ? consentWallUp() : null;
+        if (!wall) return;
+        askConsent(true);
+        // Asked again after the reader put it away: it shows again.
+        for (const [k, ref] of dismissedRefs) if (elOf(ref) === wall) {
+          store.dismissed.delete(k);
+          dismissedRefs.delete(k);
+        }
+        consentKey = "dlg:" + refOf(wall);
+        schedule(0);
+      }, 2500);
+    }, away ? 800 : 0);
   }
 
   /**
@@ -1644,12 +1891,21 @@ function boot() {
   function fieldList(): Page["dialog"] {
     let a = shadow.activeElement as HTMLElement | null;
     // Focus is in the list itself (ArrowDown went there): it is still the field's.
-    if (a?.closest(".sheet.suggest")) a = suggestAnchor();
+    const inList = !!a?.closest(".sheet.suggest");
+    if (inList) a = suggestAnchor();
     const text = !!a && (a.localName === "textarea" || (a.localName === "input" && /^(text|search|email|url|tel)$/.test((a as HTMLInputElement).type)));
-    const pf = text ? elOf(a!.dataset.ref) : null;
+    // The page may have put a new field in its place (Wikipedia's typeahead): that one's list.
+    // Only reading it: the text goes to the page from the user's own keys (F850).
+    const pf = text ? liveField(a!.dataset.ref, false) : null;
+    if (!pf) return undefined;
     // Not after a search or an action from it, until the user is back at the field: the
-    // page may think its field still has focus (its blur() reaches no real focus).
-    if (!pf || lastTouched(a!) < store.actAt) return undefined;
+    // page may think its field still has focus (its blur() reaches no real focus). A search
+    // box whose results come in under it, the address unchanged (Discourse's Enter), still
+    // shows them while the user is in it, or in them (arrowing through the results).
+    if (lastTouched(a!) < store.actAt) {
+      const panel = (inList || a === shadow.activeElement) && location.href === typedUrl ? fieldPanel(pf) : null;
+      return panel ? panelList(panel) : undefined;
+    }
     const ids = ["aria-controls", "aria-owns"].flatMap((n) => (pf.getAttribute(n) ?? "").split(/\s+/)).filter(Boolean);
     for (const id of ids) {
       const list = document.getElementById(id);
@@ -1675,7 +1931,59 @@ function boot() {
       const named = list.hasAttribute("aria-label") || list.hasAttribute("aria-labelledby");
       if (actions.length) return { key: "pop:" + refOf(list), ref: refOf(list), title: named ? accName(list).slice(0, 80) : "", blocks: [{ t: "actions", key: "fl:" + refOf(list), actions }] };
     }
-    return undefined;
+    if (ids.length) return undefined;
+    const panel = fieldPanel(pf);
+    return panel ? panelList(panel) : undefined;
+  }
+
+  /**
+   * What a plain search box shows right under it as it is typed in, with no list it names
+   * (Wikipedia's portal typeahead, Discourse's search menu): a part beside the field's own
+   * box, in a positioned dropdown or in the positioned panel that holds the field, with
+   * links or buttons right under the field, at least one naming what was typed.
+   */
+  function fieldPanel(pf: Element): Element | null {
+    if (!(pf instanceof HTMLInputElement) || !pf.matches(proxy.SEARCH_FIELD)) return null;
+    const word = pf.value.trim().toLowerCase().split(/\s+/)[0];
+    const fr = pf.getBoundingClientRect();
+    if (!word || !fr.width) return null;
+    const placed = (e: Element) => /^(absolute|fixed)$/.test(getComputedStyle(e).position);
+    const shown = (e: Element) => e.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && e.getClientRects().length > 0;
+    // The field's own dropdown panel (Discourse's search menu), not a fixed site header or bar it sits in.
+    let inPanel = false;
+    for (let a = pf.parentElement, i = 0; a && a !== document.body && i < 8 && !inPanel; a = a.parentElement, i++)
+      inPanel = placed(a) && !a.matches("header, nav, [role=banner], [role=navigation]") && a.getBoundingClientRect().width < innerWidth * 0.9;
+    let branch: Element = pf;
+    for (let a = pf.parentElement, i = 0; a && a !== document.body && i < 6; branch = a, a = a.parentElement, i++) {
+      for (const c of Array.from(a.children)) {
+        if (c === branch || c.contains(pf)) continue;
+        // (A part of the page with many controls, the content under a header, is not a dropdown.)
+        const all = c.querySelectorAll("a[href], button, [role=option]");
+        if (!all.length || all.length > 60) continue;
+        const opts = Array.from(all).filter(shown);
+        if (!opts.length) continue;
+        const r = opts[0].getBoundingClientRect();
+        if (r.top < fr.bottom - 4 || r.top - fr.bottom > 80 || r.left >= fr.right || r.right <= fr.left) continue;
+        if (!opts.some((o) => (o.textContent ?? "").toLowerCase().includes(word))) continue;
+        // A dropdown (positioned itself or inside), or the field's own panel: not page content under a search form.
+        let drop = inPanel;
+        for (let e: Element | null = opts[0]; !drop && e && e !== a; e = e.parentElement) drop = placed(e);
+        if (drop) return c;
+      }
+      if (placed(a)) break;
+    }
+    return null;
+  }
+
+  /** A search box's results part as Sift's list under its field: one choice per link or button. */
+  function panelList(panel: Element): Page["dialog"] {
+    const shown = (e: Element) => e.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && e.getClientRects().length > 0;
+    const opts = Array.from(panel.querySelectorAll("a[href], button, [role=option]")).filter((o, i, all) => shown(o) && !all.some((p, j) => j < i && p.contains(o)));
+    const actions = opts
+      .slice(0, 20)
+      .map((o) => ({ key: "fpa:" + refOf(o), label: (textIn(o) || accName(o)).slice(0, 200), ref: refOf(o) }))
+      .filter((x) => x.label);
+    return actions.length ? { key: "pop:" + refOf(panel), ref: refOf(panel), title: "", blocks: [{ t: "actions", key: "fp:" + refOf(panel), actions }] } : undefined;
   }
 
   /**
@@ -1856,6 +2164,7 @@ function boot() {
     const navigated = navPending;
     store.page = page;
     refreshModals();
+    wakeEmbeds(page);
     // The same page element found again as another kind of popup (a dropdown that ignored
     // Escape, now seen as an open list box) stays dismissed.
     const pd = page.dialog;
@@ -2016,6 +2325,9 @@ function boot() {
     // A thread that writes the post in view into its address as it is scrolled (Discourse's
     // ".../143208/5"), right after Sift scrolled it along with the reader, is still the same page.
     if (kinds.length && kinds.every((k) => k === "replace") && Date.now() - lastStep < 4000) return false;
+    // A shown map that writes its view into the address's hash as it moves or changes layer
+    // (OpenStreetMap's "#map=16/37.79/-122.39&layers=C") is still the same page: the reader stays at the map (F874).
+    if (kinds.length && kinds.every((k) => k === "replace") && prev.split("#")[0] === u.split("#")[0] && document.querySelector(".leaflet-container[data-sift-portal], .maplibregl-map[data-sift-portal], .mapboxgl-map[data-sift-portal], gmp-map[data-sift-portal]")) return false;
     // A new page inside a single-page app. A section kept across its pages (a playlist) stays open or closed.
     const kept: [string, unknown][] = [];
     const keep = (bs: Block[]) => {
@@ -2107,8 +2419,50 @@ function boot() {
     }
     // The suggestions for what the user just typed came in: shown soon, not at the next idle moment,
     // so Sift never offers the list the page has replaced (never back to back, though).
-    if (any) schedule(Date.now() - suggestAt < 4000 ? Math.max(30, lastRunAt + Math.max(100, lastDur * 2) - performance.now()) : undefined, minor);
+    if (!any) return;
+    if (Date.now() - suggestAt < 4000) {
+      if (!listTimer) listTimer = window.setTimeout(() => refreshList(minor), 50);
+      return;
+    }
+    let grew = 0;
+    if (!minor && performance.now() - loadStart < 30000)
+      for (const n of added) {
+        if (q.some((el) => deepContains(el, n))) continue;
+        grew += (n.textContent ?? "").length;
+        if (grew >= 400) break;
+      }
+    schedule(undefined, minor, grew >= 400);
   });
+  let listTimer = 0;
+  /**
+   * The page changed while the user types in a field with suggestions: its new list shows
+   * promptly, never the one the page has replaced. A list Sift reads from the field itself
+   * (fieldList) is refreshed on its own; the whole page is read again only in routine time.
+   * A list only a full look finds (Booking's) gets one, spaced by what a look costs, on a
+   * page where looks are cheap; a long page (a Wikipedia article) waits for the pause in typing.
+   */
+  function refreshList(minor: boolean) {
+    listTimer = 0;
+    if (store.mode !== "sift" || !store.page) return;
+    const inSheet = shadow.activeElement?.closest(".sheet");
+    const cur = store.page.dialog;
+    const mine = !!cur && /^f[lp]:/.test(cur.blocks[0]?.key ?? "");
+    let fl: Page["dialog"];
+    if (!inSheet || inSheet.matches(".suggest")) {
+      resetCaches();
+      fl = fieldList();
+    }
+    if (fl || mine) {
+      if (JSON.stringify(fl) !== JSON.stringify(cur)) {
+        const shown = fl?.blocks[0];
+        const blocks = shown?.t === "actions" ? dropControls(store.page.blocks, new Set(shown.actions.map((x) => x.ref))) : store.page.blocks;
+        store.page = { ...store.page, dialog: fl, blocks };
+        changed();
+      }
+      return schedule(undefined, minor);
+    }
+    schedule(lastDur < 300 ? Math.max(30, lastRunAt + Math.max(300, lastDur * 3) - performance.now()) : undefined, minor);
+  }
   const moOpts: MutationObserverInit = {
     subtree: true,
     childList: true,
@@ -2142,6 +2496,8 @@ function boot() {
   let lastStep = 0;
   /** When the reader last scrolled Sift (wheel, touch, a press, a scrolling key), and where Sift's view was. */
   let userScrollAt = 0;
+  /** When the reader last moved focus with Tab: a focus move scrolls Sift's view too, but never loads more. */
+  let tabAt = 0;
   let lastTop = 0;
   let stepTimer = 0;
   host.addEventListener(
@@ -2159,6 +2515,9 @@ function boot() {
       const mine = Date.now() - userScrollAt < 1000;
       if (!store.page || Date.now() - lastStep < 1500 || (mine && stepWith(near, Math.sign(moved)))) return;
       if (!near || Date.now() - lastNudge < 1500) return;
+      // Tabbing through a list's last entries must reach what follows it, not keep it growing (F820):
+      // more loads once the reader scrolls (wheel, touch, a scrolling key, the scrollbar) after Tab.
+      if (tabAt > userScrollAt) return;
       // A list in an open section counts too (a watch page's comments).
       if (!shownItems(store.page.blocks)) return;
       // A thread that unloads its posts loads more as it is scrolled (stepWith), never by a jump to its end.
@@ -2442,26 +2801,60 @@ function boot() {
   let typedRun = 0;
   /** When the user last typed in a field with suggestions: the page's new list (its answer from the network) shows promptly. */
   let suggestAt = -Infinity;
+  /** The address when the user last typed in a field. */
+  let typedUrl = "";
   /** The page field Sift entered last, and its selection before that. */
   let entrySel: { el: Element; sel: [number, number] | null; at: number } | null = null;
+  /** The page fields of `f`'s kind: same tag, name and type. */
+  const kindOf = (f: HTMLInputElement) =>
+    (Array.from(document.getElementsByName(f.name)) as HTMLInputElement[]).filter((c) => c.localName === f.localName && c.type === f.type && !c.closest("sift-root"));
+  /**
+   * Where a page field Sift stands for sat, taken while it is there: in each of its
+   * containers, how many fields of its kind and its rank among them; its form's id;
+   * and the fields of its kind there were then.
+   */
+  const places = new WeakMap<Element, { anc: Element[]; n: number[]; at: number[]; form: string; seen: WeakSet<Element> }>();
+  function notePlace(f: HTMLInputElement) {
+    const all = kindOf(f);
+    const anc: Element[] = [];
+    const n: number[] = [];
+    const at: number[] = [];
+    for (let a = f.parentElement; a; a = a.parentElement) {
+      const box = a;
+      const inside = all.filter((c) => box.contains(c));
+      anc.push(box);
+      n.push(inside.length);
+      at.push(inside.indexOf(f));
+    }
+    places.set(f, { anc, n, at, form: f.form?.id ?? "", seen: new WeakSet(all) });
+  }
   /**
    * The page field `ref` names, or the one the page put in its place: Wikipedia swaps
    * its search box for its typeahead's on first focus, and the keys typed meanwhile
-   * must reach the new one. Same kind, name and form, and the only one shown. It gets
-   * focus if the old one had it, and (`sync`) the text Sift's field holds.
+   * must reach the new one. It gets focus if the old one had it, and (`sync`) the
+   * text Sift's field holds. Only a clear swap in place (F850): the nearest of the old
+   * field's containers still there is its parent or held no other field of its kind,
+   * holds as many as before, and at its rank a new one (not there before), shown, in
+   * a form of the same id. Never a field that was there all along because it has the
+   * same name (the next cart row's quantity, when the page removed this row): Sift's
+   * field goes with the repaint.
    */
   function liveField(ref: string | undefined, sync = true): Element | null {
     const el = elOf(ref);
-    if (el || !ref) return el;
+    if (el || !ref) {
+      if (plainField(el) && el.name) notePlace(el);
+      return el;
+    }
     const old = formerOf(ref);
     if (!old || old.isConnected || !plainField(old) || !old.name) return null;
-    // Its form, if it went with it (a field taken out alone has none any more).
-    const form = old.form?.id ?? old.closest("form")?.id;
-    const like = Array.from(document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(old.localName)).filter(
-      (c) => c.name === old.name && c.type === old.type && (form === undefined || (c.form?.id ?? "") === form) && !c.closest("sift-root") && c.checkVisibility(),
-    );
-    if (like.length !== 1) return null;
-    const now = like[0];
+    const place = places.get(old);
+    const i = place ? place.anc.findIndex((a) => a.isConnected) : -1;
+    if (!place || i < 0) return null;
+    // Its row: the container still there held only it, or is its own parent (the same spot in it).
+    if (place.n[i] !== 1 && i > 0) return null;
+    const like = kindOf(old).filter((c) => place.anc[i].contains(c));
+    const now = like[place.at[i]];
+    if (like.length !== place.n[i] || !now || place.seen.has(now) || (now.form?.id ?? "") !== place.form || !now.checkVisibility()) return null;
     adopt(ref, now);
     if (pageFocus === old) {
       pageFocus = now;
@@ -2739,6 +3132,7 @@ function boot() {
 
   Object.assign(H, {
     toggle,
+    say: (text: string) => say(text),
     act(ref, href) {
       const wrote = flushEdits();
       const el = elOf(ref);
@@ -2785,13 +3179,24 @@ function boot() {
       if (!(el instanceof HTMLInputElement) && el.getAttribute("role") === "slider") return slideTo(el, value);
       if ((el as HTMLElement).isContentEditable) pendingEdits.set(ref, value);
       else proxy.setValue(el, value);
-      // A field with a suggestion list: Sift shows the list once the user pauses, not at the
-      // next routine look, which on a long page (a Wikipedia article) is seconds away.
-      if (el.matches("[aria-controls], [aria-owns], [list], [role=combobox]")) {
+      typedAt = performance.now();
+      typedUrl = location.href;
+      // Its list Escape closed while the page kept it: what the page shows now for the new text shows again.
+      if (escapedList?.ref === ref) {
+        store.dismissed.delete(escapedList.key);
+        dismissedRefs.delete(escapedList.key);
+        escapedList = null;
+        changed();
+      }
+      // A field with a suggestion list (or a search box the page shows one under): Sift shows the list once
+      // the user pauses, not at the next routine look, which on a long page (a Wikipedia article) is seconds away.
+      // A plain search box with no list (Python docs' Quick search) costs no extra looks.
+      const listed = el.matches("[aria-controls], [aria-owns], [list], [role=combobox]") || (el.matches(proxy.SEARCH_FIELD) && (!!suggestAnchor() || !!fieldPanel(el)));
+      if (listed) {
         clearTimeout(typedRun);
         typedRun = window.setTimeout(() => schedule(0), 300);
       }
-      if (suggestAnchor() || el.matches("[aria-controls], [aria-owns], [list], [role=combobox]")) suggestAt = Date.now();
+      if (suggestAnchor() || listed) suggestAt = Date.now();
     },
     commit(ref) {
       const el = elOf(ref);
@@ -2898,13 +3303,14 @@ function boot() {
       const btn = (r?: string) => elOf(r);
       switch (op) {
         case "play":
-          if (btn(info.play)) proxy.click(btn(info.play)!);
+          // A player's own Play before it loaded its video (a facade) starts it as playFacade does.
+          if (btn(info.play)) portal && !(v && (v.currentSrc || v.readyState > 0)) ? playFacade(portal, btn(info.play) as HTMLElement) : proxy.click(btn(info.play)!);
           else if (v && (v.currentSrc || v.readyState > 0)) v.paused ? v.play().catch(() => {}) : v.pause();
           else {
             // The player has not loaded its video yet (a poster with a big Play
             // button): start it the way a user would, with its own control.
             const start = playControl(portal);
-            if (start) proxy.click(start);
+            if (start) playFacade(portal, start);
             else v?.play().catch(() => {});
           }
           break;
@@ -2931,6 +3337,7 @@ function boot() {
       changed();
     },
     closeDialog(key, closeRef, dialogRef) {
+      if (key === consentKey) askConsent(false);
       if (store.dismissed.has(key)) return;
       // A page modal with no close of its own (a consent wall, an age gate) stays until the page
       // removes it: Escape goes to the page, which decides, and Sift never hides only its copy.

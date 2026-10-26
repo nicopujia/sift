@@ -1,0 +1,25 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><title>Edit post - Blog admin</title>
+<!-- r7ext8a (F737): an editor with a session-expiry alert dialog: a Close button and no field. It must show in Sift.
+     ?v=1 (default): role=alertdialog, "Sign in again within 2 minutes to save your changes, or they will be lost."
+     ?v=2: role=dialog, no "again" and no "session" word: "Log in to save your changes, or they will be lost."
+     ?v=3: role=alertdialog, "Your session is about to expire" and "Stay signed in" with "Members save 10%" in a footnote (a session notice that also names an offer).
+     ?v=4 (control): a real promo, "Sign in and save 10% on your first order", Close: Sift drops it. -->
+<style>body{font-family:sans-serif} .d{position:fixed;left:30%;top:25%;width:40%;background:#fff;border:1px solid #333;padding:16px}</style></head><body>
+<main><h1>Edit post</h1><p>Your draft of the post about the spring garden fair, with photos of the winning entries and the judges' notes.</p>
+<form onsubmit="event.preventDefault()"><label>Title <input value="Spring fair winners"></label><label>Body <textarea>The fair drew a record crowd this year...</textarea></label><button>Save draft</button></form></main>
+<script>
+const v = new URLSearchParams(location.search).get("v") || "1";
+const t = {
+  1: ["alertdialog", "Your session is about to expire", "You have been inactive for 28 minutes. Sign in again within 2 minutes to save your changes, or they will be lost.", "Sign in again"],
+  2: ["dialog", "You are signed out", "Log in to save your changes, or they will be lost.", "Log in"],
+  3: ["alertdialog", "Your session is about to expire", "You have been inactive for 28 minutes. Your session will end in 2 minutes and unsaved changes will be lost. Members save 10% on renewals.", "Stay signed in"],
+  4: ["dialog", "Welcome back", "Sign in and save 10% on your first order.", "Sign in"],
+}[v];
+const d = document.createElement("div");
+d.className = "d"; d.setAttribute("role", t[0]); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-labelledby", "st");
+d.innerHTML = '<button aria-label="Close" style="float:right">×</button><h2 id="st"></h2><p></p><button class="go"></button>';
+d.querySelector("h2").textContent = t[1]; d.querySelector("p").textContent = t[2]; d.querySelector(".go").textContent = t[3];
+d.querySelector("button").onclick = () => d.remove();
+document.body.appendChild(d);
+</script>
+</body></html>

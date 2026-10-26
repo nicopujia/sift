@@ -119,6 +119,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 1.5em 0; }
 .btn.danger { border-color: var(--danger); color: var(--danger); }
 .btn.quiet { border-color: var(--line); }
 .btn[aria-pressed=true], .btn[aria-current] { background: #111; color: #fff; }
+.btn[role=option][aria-selected=true] { background: #111; color: #fff; }
 a.btn[aria-current] { text-decoration: none; border-color: #111; }
 .btn:disabled, .btn[aria-disabled=true] { opacity: .45; cursor: not-allowed; }
 .btn .badge { background: #111; color: #fff; border-radius: 1em; padding: 0 .45em; font-size: .85em; }
@@ -139,6 +140,7 @@ legend { font-weight: 600; padding: 0; margin-bottom: .2em; }
 .facts { display: grid; grid-template-columns: minmax(6em, max-content) 1fr; gap: .35em 1em; margin: .8em 0; }
 .facts dt { font-weight: 600; color: var(--muted); }
 .facts dd { margin: 0; }
+@media (min-width: 720px) { .facts.short { grid-template-columns: repeat(2, minmax(6em, max-content) max-content); column-gap: 1em; } .facts.short dd:nth-of-type(odd) { margin-right: 2em; } }
 .table-wrap { overflow-x: auto; margin: .8em 0; }
 /* Quirks-mode pages reset table text (color, weight, size) to the page's; Sift's tables follow Sift. */
 table { border-collapse: collapse; color: inherit; font-family: inherit; font-weight: inherit; font-style: inherit; line-height: inherit; white-space: inherit; font-size: .92em; min-width: 50%; }

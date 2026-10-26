@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Order history</title>
+<style>body{font-family:system-ui;margin:0} main{max-width:760px;margin:24px auto} #box{height:300px;overflow:auto;border:1px solid #ccc;position:relative} #spacer{position:relative} .row{position:absolute;left:0;right:0;height:30px;line-height:30px;padding:0 8px;border-bottom:1px solid #eee;font-size:14px}</style></head>
+<body>
+<main>
+<h1>Order history</h1>
+<p>All 1,000 orders from this year, newest first. The list loads the rows you scroll to.</p>
+<div id="box" role="list" aria-label="Orders"><div id="spacer"></div></div>
+<h2>Need help?</h2>
+<p>Write to the bakery if an order is missing.</p>
+</main>
+<script>
+// A windowed list (as react-window or ag-grid draw them): only the rows in view, plus a few, are in the DOM.
+const N = 1000, H = 30, box = document.getElementById("box"), sp = document.getElementById("spacer");
+sp.style.height = N * H + "px";
+window.__first = [];
+function draw() {
+  const from = Math.max(0, Math.floor(box.scrollTop / H) - 3), to = Math.min(N, from + Math.ceil(300 / H) + 6);
+  let html = "";
+  for (let i = from; i < to; i++) html += `<div class="row" role="listitem" style="top:${i * H}px">Order ${1000 - i}: two rye loaves and a jar of starter, paid by card, delivered to the shop</div>`;
+  sp.innerHTML = html;
+  window.__first.push(from);
+}
+box.addEventListener("scroll", draw);
+draw();
+</script>
+</body></html>

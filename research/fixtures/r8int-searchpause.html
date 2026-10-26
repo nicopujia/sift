@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Bread handbook</title>
+<style>body{font-family:system-ui;margin:0} header{padding:8px;border-bottom:1px solid #ccc} main{max-width:760px;margin:16px auto}</style></head>
+<body>
+<header><form action="/search" role="search"><label>Search the handbook <input type="text" name="q" id="q"></label> <button>Go</button></form></header>
+<main>
+<h1>The bread handbook</h1>
+<form id="note"><label>Your note <input type="text" name="note" id="note-field"></label> <button type="button">Save note</button></form>
+<div id="body"></div>
+</main>
+<script>
+const b = document.getElementById("body");
+const words = "rye wheat spelt starter crumb crust oven proof knead flour water salt yeast levain hydration autolyse fold shape score bake cool slice".split(" ");
+let html = "";
+const qs = new URLSearchParams(location.search);
+const N = Number(qs.get("n") || 120);
+for (let s = 0; s < N; s++) {
+  html += "<h2>Chapter " + (s + 1) + ": " + words[s % words.length] + " and " + words[(s * 7) % words.length] + "</h2>";
+  for (let p = 0; p < 12; p++) {
+    let t = "";
+    for (let w = 0; w < 40; w++) t += words[(s * 31 + p * 17 + w * 13) % words.length] + (w % 9 === 8 ? ". " : " ");
+    html += "<p>" + t + "<a href='#c" + s + "-" + p + "'>more on " + words[(s + p) % words.length] + "</a>.</p>";
+  }
+}
+b.innerHTML = html;
+if (qs.get("tick")) { const c = document.createElement("p"); c.id = "clock"; document.querySelector("main").prepend(c); setInterval(() => { c.textContent = "Oven at " + (200 + Math.round(Math.random() * 20)) + " degrees"; }, 100); }
+</script>
+</body></html>

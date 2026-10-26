@@ -1,0 +1,80 @@
+[button] Ir al contenido
+[button] Menú
+[button] Buscar en todo el sitio
+[button] REGISTRARME
+[button] INICIAR SESION
+H1 Infobae América
+    [link] La Justicia brasileña prohibió a Flavio Bolsonaro salir del país por una investigación de blanqueo; él dijo que la Policía Federal le retiró el pasaporte
+    [link] Las acciones brasileñas y el real cayeron tras la inesperada reelección de Lula da Silva
+    [link] En vivo: Harry Kane ganó el Balón de Oro 2026
+    p: EN VIVO
+    [link] Donald Trump dijo que las elecciones en Brasil estuvieron “amañadas”
+    [link] Holland Taylor cuestionó su salario en “Two and a Half Men”: “Nunca me dieron un aumento”
+    p: Por Uriel Monterrubio
+    [link] Rubio dijo que Estados Unidos instó a Delcy Rodríguez a permitir que María Corina Machado regresara a Venezuela
+    [link] Lewis Hamilton contó a los fanáticos de la F1 detalles de su relación con Kim Kardashian y el regalo especial para sus hijos
+H2 BALÓN DE ORO
+    [link] La alfombra roja: los looks de las estrellas del fútbol en Londres
+    p: Por Pilar Alvarez
+    [link] Alexia Putellas hace historia y gana el Balón de Oro por tercera vez
+    p: Por Ana Pérez Navarro
+    [link] Messi finalizó 5° en la votación: el repaso de sus ocho trofeos y 14 presencias en el podio
+    [link] Los mejores memes: de la flor de Yamal a la ausencia de Messi y el blooper con el ganador
+    [link] Las mejores fotos
+H2 Elecciones en Brasil
+    [link] Lula da Silva ganó un histórico balotaje a Flávio Bolsonaro y asumirá un cuarto mandato en Brasil
+    [link] André Janones, a quien Lula llamó su “general del Ejército”, fue señalado por el presidente como clave en la remontada
+    [link] La mayor participación, menos votos nulos y Mina Gerais fueron claves del histórico triunfo de Lula en el balotaje
+    [link] Líderes mundiales felicitaron a Lula y pidieron trabajar “por un comercio libre y abierto”
+    [link] Los banqueros más ricos de Brasil perdieron USD 10.000 millones tras la victoria de Lula
+    p: Por Marcelo Rochabrun
+    [link] La victoria de Lula frustró las esperanzas del lobby agrícola brasileño de consolidar su poder
+    p: Por Dayanne Sousa y Ana Mano
+    [link] Un genoma humano de 30.000 años hallado en Francia reescribe la prehistoria europea
+    p: Por Celeste Sawczuk
+    [link] Jordania bombardeó el sur de Siria tras un ataque a una iglesia que dejó nueve muertos
+    [link] El ranking de los deportistas mejor pagados de la historia ubica a Lionel Messi y suma nuevas estrellas
+    [link] Chile: Kast asumió la responsabilidad por la rebaja de condenas a 56 pederastas y mantiene a su ministro de Justicia
+    p: Por Mauricio Palazzo · Desde Santiago
+    [link] La falta de huevos en la cocina destapó una estafa millonaria en dos restaurantes de lujo de Montevideo
+    p: Por Pedro Tristant · Desde Montevideo
+H2 VENEZUELA
+    [link] El principal asesor de María Corina Machado dijo: “Vamos a organizar la movilización popular espontánea”
+    p: Por Pedro Pablo Peñaloza
+    [link] El chavismo respondió al regreso de María Corina Machado con silencio, llamados al diálogo y amenazas
+    p: Por Pedro Pablo Peñaloza
+    [link] De vuelta en Venezuela, María Corina Machado podría acelerar el retorno de la democracia
+    p: Por The Economist
+    [link] Militares retirados denuncian persecución en los cuarteles y una Fuerza Armada fracturada
+    p: Por Sebastiana Barráez
+    [link] Natalie Portman habló por primera vez del nacimiento de su tercer hijo
+    p: Por Virginia García
+    [link] Un panel de la ONU acusa a Rusia de cometer crímenes de lesa humanidad al atacar la red energética de Ucrania
+    [link] Paul Stanley dijo que escribió una de sus canciones favoritas de Kiss en media hora: “No era inusual”
+    p: Por Faustino Cuomo
+    [link] Los audífonos del futuro podrían leer gestos para detectar cuándo falla la comunicación
+    p: Por Celeste Sawczuk
+    [link] La ciencia compara si escribir a mano o teclear ayuda más a aprender y recordar
+H2 GUERRA RUSIA-UCRANIA
+    [link] Ucrania lanzó un ataque “masivo” con drones contra la región rusa de Belgorod
+    [link] Ucrania y Rusia se preparan para iniciar una tregua humanitaria en Oleshki
+    [link] Ataques rusos dejaron al menos cinco muertos y una treintena de heridos en varias regiones de Ucrania
+    [link] Un gel inspirado en animales marinos promete reparar tendones
+    p: Por Celeste Sawczuk
+    [link] Murió Walter Koenig, intérprete de Pavel Chekov en Star Trek
+    p: Por Uriel Monterrubio
+    [link] El Gobierno francés presentó medidas para contener las protestas, pero los estudiantes mantendrán las movilizaciones
+    [link] La ciberseguridad puede ayudar a las pymes a aprovechar las ventas de fin de año
+    p: Por Lorena Yepes
+H2 MEDIO ORIENTE
+    [link] Representantes de Arabia Saudita, Turquía y Pakistán acordaron prolongar el diálogo con Irán
+    [link] La justicia iraní abrió una causa por la presencia de mujeres sin velo en una feria de arte de Teherán
+    [link] Un derrame de petróleo tras ataques a petroleros en Ormuz se extiende frente a Emiratos Árabes Unidos; alertan de un desastre ambiental
+    [link] Ecuador destinará USD 13,4 millones de fondos públicos a publicidad de candidatos en las elecciones locales
+    p: Por Yalilé Loaiza
+    [link] Kast se reunió con sus ministros para analizar la adhesión de Chile a la coalición contra los carteles de Trump
+    p: Por Mauricio Palazzo
+    [link] La hija de Noel Gallagher contó que sufrió un ataque de pánico en el cine: “Me costaba mucho trabajo respirar”
+    p: Por Uriel Monterrubio
+    [link] Al limpiar su casa, encontró dos microordenadores únicos en el mundo, valorados en 90 mil dólares
+    p: Por Juan Ríos

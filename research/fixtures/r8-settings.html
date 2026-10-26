@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Notification settings · Crumbnote</title>
+<!-- r8 (T6-fixtures): a settings page that saves on its own. Custom role=switch buttons (aria-checked) with
+     descriptions, a custom role=radiogroup with roving tabindex and arrow keys, a text field with a live
+     "N characters left" counter, a status line that says "Saving…" then "Saved", and "Reset to defaults"
+     behind a role=alertdialog confirm (Cancel / Reset). A Premium promo banner and a chat bubble are noise.
+     Nothing posts: every handler only logs to window.__log. -->
+<style>
+body{font-family:system-ui;margin:0;background:#f6f6f6}
+header{background:#123;color:#fff;padding:12px 24px;display:flex;gap:16px}header a{color:#fff}
+main{max-width:640px;margin:24px auto;background:#fff;padding:24px}
+.promo{background:#fde68a;padding:10px 24px;font-size:14px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee}
+.row small{display:block;color:#666}
+[role=switch]{width:46px;height:26px;border-radius:13px;border:0;background:#bbb;position:relative;cursor:pointer}
+[role=switch]::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .1s}
+[role=switch][aria-checked=true]{background:#16a34a}[role=switch][aria-checked=true]::after{left:23px}
+[role=radiogroup]{display:flex;gap:8px;margin:8px 0}
+[role=radio]{border:1px solid #888;border-radius:16px;padding:6px 14px;cursor:pointer}
+[role=radio][aria-checked=true]{background:#123;color:#fff}
+#status{color:#16a34a;min-height:1.4em}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}
+.dlg{background:#fff;padding:20px;border-radius:8px;max-width:380px}
+.chat{position:fixed;right:16px;bottom:16px;background:#06c;color:#fff;border-radius:24px;padding:10px 16px}
+footer{max-width:640px;margin:0 auto;padding:12px;font-size:12px;color:#666}
+</style></head>
+<body>
+<header><a href="/">Crumbnote</a><a href="/notes">Notes</a><a href="/settings">Settings</a><a href="/account">Account</a></header>
+<div class="promo">Try Crumbnote Premium free for 30 days: unlimited notebooks and offline sync. <a href="/premium">Start free trial</a></div>
+<main>
+<h1>Notification settings</h1>
+<p>Choose which emails we send you. Changes save on their own.</p>
+<p id="status" role="status"></p>
+<h2>Emails</h2>
+<div class="row"><span><span id="l-mention">Mentions</span><small id="d-mention">When someone mentions you in a shared note.</small></span>
+  <button type="button" role="switch" id="s-mention" aria-checked="true" aria-labelledby="l-mention" aria-describedby="d-mention"></button></div>
+<div class="row"><span><span id="l-comment">Comments</span><small id="d-comment">When someone comments on a note you own.</small></span>
+  <button type="button" role="switch" id="s-comment" aria-checked="false" aria-labelledby="l-comment" aria-describedby="d-comment"></button></div>
+<div class="row"><span><span id="l-tips">Product tips</span><small id="d-tips">Occasional tips on getting more from Crumbnote.</small></span>
+  <button type="button" role="switch" id="s-tips" aria-checked="false" aria-labelledby="l-tips" aria-describedby="d-tips"></button></div>
+<h2 id="fq">Summary email</h2>
+<div role="radiogroup" aria-labelledby="fq" id="freq">
+  <div role="radio" tabindex="-1" aria-checked="false" data-v="daily">Daily</div>
+  <div role="radio" tabindex="0" aria-checked="true" data-v="weekly">Weekly</div>
+  <div role="radio" tabindex="-1" aria-checked="false" data-v="never">Never</div>
+</div>
+<h2>Signature</h2>
+<label for="sig">Text added to the end of shared notes</label>
+<textarea id="sig" rows="2" maxlength="80" aria-describedby="left" style="width:100%;box-sizing:border-box"></textarea>
+<p id="left" aria-live="polite">80 characters left</p>
+<p><button type="button" id="reset">Reset to defaults</button></p>
+</main>
+<footer>© 2026 Crumbnote · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>
+<div class="chat" role="button" tabindex="0">Need help? Chat with us</div>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+let t;
+function saved(what) {
+  $("status").textContent = "Saving…";
+  clearTimeout(t); t = setTimeout(() => { $("status").textContent = "Saved"; __log.push("saved " + what); }, 500);
+}
+for (const s of document.querySelectorAll("[role=switch]")) s.addEventListener("click", () => {
+  const on = s.getAttribute("aria-checked") !== "true"; s.setAttribute("aria-checked", String(on));
+  __log.push(s.id + " " + on); saved(s.id);
+});
+const radios = [...document.querySelectorAll("[role=radio]")];
+function pick(r, focus) {
+  for (const o of radios) { o.setAttribute("aria-checked", String(o === r)); o.tabIndex = o === r ? 0 : -1; }
+  if (focus) r.focus();
+  __log.push("freq " + r.dataset.v); saved("freq");
+}
+for (const r of radios) {
+  r.addEventListener("click", () => pick(r, true));
+  r.addEventListener("keydown", (e) => {
+    const i = radios.indexOf(r);
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); pick(radios[(i + 1) % radios.length], true); }
+    if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); pick(radios[(i + radios.length - 1) % radios.length], true); }
+    if (e.key === " ") { e.preventDefault(); pick(r, true); }
+  });
+}
+$("sig").addEventListener("input", () => { $("left").textContent = (80 - $("sig").value.length) + " characters left"; });
+$("sig").addEventListener("change", () => { __log.push("sig " + $("sig").value); saved("sig"); });
+$("reset").onclick = () => {
+  const ov = document.createElement("div"); ov.className = "ov";
+  ov.innerHTML = '<div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="rt" aria-describedby="rd"><h2 id="rt">Reset all settings?</h2><p id="rd">Mentions on, comments and tips off, weekly summary, no signature.</p><button type="button" id="cancel">Cancel</button> <button type="button" id="doreset">Reset</button></div>';
+  document.body.appendChild(ov); $("cancel").focus(); __log.push("confirm open");
+  const close = () => { ov.remove(); $("reset").focus(); };
+  $("cancel").onclick = () => { __log.push("cancel"); close(); };
+  ov.addEventListener("keydown", (e) => { if (e.key === "Escape") { __log.push("esc"); close(); } });
+  $("doreset").onclick = () => {
+    $("s-mention").setAttribute("aria-checked", "true"); $("s-comment").setAttribute("aria-checked", "false"); $("s-tips").setAttribute("aria-checked", "false");
+    for (const o of radios) { const on = o.dataset.v === "weekly"; o.setAttribute("aria-checked", String(on)); o.tabIndex = on ? 0 : -1; }
+    $("sig").value = ""; $("left").textContent = "80 characters left";
+    __log.push("reset"); close(); $("status").textContent = "Settings reset to defaults.";
+  };
+};
+</script>
+</body></html>

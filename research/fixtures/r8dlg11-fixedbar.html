@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coffee near you - Fixture Maps</title>
+<style>
+  body { font: 16px sans-serif; margin: 0; }
+  .app { position: relative; height: 1400px; }
+  .search { position: absolute; top: 10px; left: 10px; width: 380px; background: #fff; padding: 8px; box-shadow: 0 1px 4px #0003; }
+  .search input { width: 260px; font-size: 16px; }
+  .chips { position: absolute; top: 70px; left: 10px; width: 420px; height: 40px; display: flex; gap: 8px; }
+  .chips button { border-radius: 16px; }
+  .acct { position: fixed; top: 8px; right: 8px; width: 220px; height: 48px; display: flex; gap: 12px; align-items: center; background: #fff; }
+  .acct .on { outline: 2px solid #48f; }
+  .results { position: absolute; top: 130px; left: 10px; width: 420px; }
+  .results article { border-bottom: 1px solid #ccc; padding: 8px 0; }
+  .pop { position: fixed; top: 200px; left: 500px; width: 300px; background: #fff; border: 1px solid #888; padding: 12px; }
+  .toastbox { position: fixed; bottom: 16px; left: 16px; }
+  .toast { background: #333; color: #fff; padding: 10px; width: 280px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <form class="search" role="search" action="#" onsubmit="event.preventDefault(); document.getElementById('log').textContent = 'searched: ' + q.value;">
+    <input id="q" name="q" type="search" placeholder="Search Fixture Maps" aria-label="Search Fixture Maps" autocomplete="off">
+    <button type="submit">Search</button>
+  </form>
+  <div class="chips" id="chips">
+    <button type="button" id="c1">Price</button><button type="button" id="c2">Rating</button><button type="button" id="c3">Hours</button><button type="button" id="c4">All filters</button>
+  </div>
+  <div class="results" role="feed" aria-label="Results for coffee">
+    <h1>Results</h1>
+    <article><h2><a href="#a">Blue Bottle Coffee</a></h2><p>Hip cafe chain for coffee and pastries. Open until 6 PM.</p><button type="button" id="share">Opening hours</button></article>
+    <article><h2><a href="#b">Coffee Bodega</a></h2><p>Small corner shop with espresso drinks and bagels. Open until 4 PM.</p><button type="button" id="archive">Save to list</button></article>
+    <article><h2><a href="#c">Delah Coffee</a></h2><p>Yemeni coffee house with cardamom lattes and honeycomb. Open late.</p></article>
+    <p id="log"></p>
+  </div>
+</div>
+<div class="acct" id="gb"><a href="#apps" id="apps" aria-label="Fixture apps"><span id="appsicon">Fixture apps</span></a><a href="#signin" id="signin">Sign in</a></div>
+<div class="toastbox" aria-live="polite" id="toastbox"></div>
+<script>
+  // Like Google Maps under load: entering the search field makes the page restyle its account bar and its chips, a moment later.
+  const q = document.getElementById("q");
+  q.addEventListener("focus", () => {
+    for (const ms of [200, 500, 900, 1400]) setTimeout(() => {
+      document.getElementById("appsicon").classList.toggle("on");
+      document.getElementById("signin").setAttribute("data-state", String(ms));
+      document.getElementById("chips").setAttribute("data-focus", String(ms));
+      document.getElementById("c2").classList.toggle("on");
+    }, ms);
+  });
+  // A real popup the user opens: it must still show as a sheet.
+  document.getElementById("share").addEventListener("click", () => {
+    const p = document.createElement("div");
+    p.className = "pop";
+    p.innerHTML = '<h2>Opening hours</h2><p>Blue Bottle Coffee is open 7 AM to 6 PM today.</p><button type="button" id="copy">Call the cafe</button> <button type="button" id="closepop" aria-label="Close">×</button>';
+    document.body.appendChild(p);
+    p.querySelector("#closepop").addEventListener("click", () => p.remove());
+    p.querySelector("#copy").addEventListener("click", () => { document.getElementById("log").textContent = "copied"; p.remove(); });
+  });
+  // A toast: must still be said and shown as a notice.
+  document.getElementById("archive").addEventListener("click", () => {
+    document.getElementById("toastbox").innerHTML = '<div class="toast">Saved to your list.</div>';
+  });
+</script>
+</body>
+</html>

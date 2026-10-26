@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Bakery notes</title>
+<style>body{font-family:system-ui;margin:0} main{max-width:680px;margin:24px auto} .dlg{position:fixed;top:80px;left:50%;transform:translateX(-50%);width:420px;background:#fff;border:1px solid #999;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,.3)} .ed{min-height:80px;border:1px solid #aaa;padding:6px} .note{border-top:1px solid #ddd;padding:6px 0}</style></head>
+<body>
+<main>
+<h1>Bakery notes</h1>
+<p>Notes for the morning shift. A new note is kept as a draft when you press Escape, as in most mail and note apps.</p>
+<div id="notes"><p class="note">Order more psyllium husk before Friday.</p><p class="note">The rye starter needs two feeds on Sunday.</p></div>
+<button type="button" id="new">New note</button>
+<h2>Drafts</h2>
+<ul id="drafts"><li>No drafts yet.</li></ul>
+</main>
+<script>
+window.__drafts = []; window.__notes = [];
+const drafts = document.getElementById("drafts");
+function showDrafts() { drafts.innerHTML = __drafts.length ? __drafts.map((d) => "<li>" + (d || "(empty draft)") + "</li>").join("") : "<li>No drafts yet.</li>"; }
+document.getElementById("new").onclick = () => {
+  if (document.querySelector(".dlg")) return;
+  const d = document.createElement("div");
+  d.className = "dlg"; d.setAttribute("role", "dialog"); d.setAttribute("aria-label", "New note");
+  d.innerHTML = '<h2>New note</h2><div class="ed" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Note text"></div><p><button type="button" id="save">Save note</button> <button type="button" id="close" aria-label="Close">×</button></p>';
+  document.body.appendChild(d);
+  const ed = d.querySelector(".ed");
+  // Escape keeps what was typed as a draft and closes, as Gmail's compose does.
+  d.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); __drafts.push(ed.innerText.trim()); showDrafts(); d.remove(); } });
+  d.querySelector("#save").onclick = () => { __notes.push(ed.innerText.trim()); d.remove(); };
+  d.querySelector("#close").onclick = () => { __drafts.push(ed.innerText.trim()); showDrafts(); d.remove(); };
+  ed.focus();
+};
+</script>
+</body></html>

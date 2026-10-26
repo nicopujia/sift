@@ -1,0 +1,1217 @@
+{
+ "confirmed": [
+  {
+   "source": "T1-youtube",
+   "title": "At 200% zoom (640 CSS px), the watch page loses Save: the original moves it into 'More actions', which Sift does not show",
+   "severity": "high",
+   "where": "YouTube watch page at 640x450 with deviceScaleFactor 2 (200% zoom of a 1280 window), action row under the title",
+   "evidence": "Action rows, Sift against the original's visible #actions buttons. At 1280x900 Sift has 'Subscribe | Like 19M | Dislike this video | Save', and the original has Like, Dislike, Share, 'Save to playlist' and 'More actions'. At 640x450@2x Sift has 'Subscribe | Like 19M | Dislike this video' only, and the original has Like, Dislike, Share and 'More actions'. In original mode at that size, 'More actions' opens a menu reading 'Save Report'. At 400x800 Sift shows Save again, because YouTube shows it there. So at 200% zoom, Save (Watch later or a playlist) cannot be reached in Sift and the only way is to switch to the original. Tab order at 200% goes Like 19M > Dislike this video > Description, with no Save. Shots: /home/nico/projects/sift-test-1/research/shots/r7t1-zoom200-actions.png and /home/nico/projects/sift-test-1/research/shots/r7t1-zoom200-orig-more.png",
+   "repro": "cd /home/nico/projects/sift-test-1; SIFT_PORT=9461 SIFT_TAB=T1-youtube bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r7/actions.ts 640 450 2 (it sets the viewport, loads watch?v=dQw4w9WgXcQ, waits 16 s, and prints Sift's buttons next to the original's visible #actions buttons; it resets to 1280x900 afterwards). Compare with 'actions.ts 1280 900 1'. To see the original's menu: set 640x450@2x, load the same video, press Alt+Shift+S, then run /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r7/moreactions.ts. It prints 'Save Report'.",
+   "regression": false,
+   "suspectedCause": "The YouTube adapter reads Save only from the visible top-level action buttons. When YouTube's layout folds Save into the 'More actions' overflow menu (ytd-menu-renderer's overflow items), the adapter neither reads that menu's items nor offers a 'More actions' button.",
+   "verdict": "Reproduced on the live watch page (dQw4w9WgXcQ). At 1280x900, Sift shows Subscribe, Like 19M, Dislike this video and Save, and the original shows Like, Dislike, Share, 'Save to playlist' and More actions. At 640x450@2x (200% zoom), Sift shows only Subscribe, Like 19M and Dislike this video. The original shows Like, Dislike, Share and More actions. After switching to the original with Alt+Shift+S, More actions opens a menu reading 'Save Report', and a screenshot shows it. The problem is wider than 200%: at 1024x720@1.25 (125% zoom), Save is also folded into More actions in the original and is missing from Sift. At 853x600@1.5, Save is present in both. The code matches what I saw. In src/content/adapters/youtube.ts (around line 572), the watch actions look for Save only among the visible '#top-level-buttons-computed button, #flexible-item-buttons button'. Sift never offers the overflow 'More actions' button. So at these widths, Save (and Report) can only be reached in the original.",
+   "fix": "In src/content/adapters/youtube.ts, in the watch-page actions block after the Save lookup: when no visible Save button is found, add the original's visible overflow button as an action. The selector is 'ytd-watch-metadata #actions ytd-menu-renderer > yt-button-shape button[aria-label]' or '#button-shape button', named by its aria-label. Its ytd-menu-popup-renderer in ytd-popup-container then appears as Sift's dialog, just like the other YouTube popups. Simpler but weaker alternative: always add More actions next to Save."
+  },
+  {
+   "source": "T1-youtube",
+   "title": "The sign-in prompts from Like and Save close by themselves 1-3 s after opening, while the original's prompt stays open",
+   "severity": "medium",
+   "where": "YouTube watch page (signed out), the Like / Save buttons under the title, clicked while the page is still loading its lower parts (about 11-25 s after a fresh load)",
+   "evidence": "Timed with /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r7/dlgpoll2.ts and savevanish.ts. In 6 of about 16 runs, Sift's dialog 'Want to watch this again later?' (Save) appeared, then disappeared with focus back on Save, while the original's tp-yt-iron-dropdown with the same text stayed visible. Examples: Sift shown at 2194 ms and gone at 3017 ms; original shown at 408, Sift shown at 1415, Sift gone at 2079 with the original still open. Like did the same: 'Like this video?' shown at 520 ms and gone at 3421 ms with the original open. In one case a second Save click briefly showed Sift's dialog while the original's popup had closed, and then both were gone. Settings did not vanish in 2 runs. When the page is idle, the prompts stay (4 of 4 runs later in the session). Shot after the vanish: /home/nico/projects/sift-test-1/research/shots/r7t1-save-vanished.png. Also, Sift's dialog appears 0.3-1.9 s after the original's.",
+   "repro": "cd /home/nico/projects/sift-test-1; EXTRA=6000 RUNS=5 SIFT_PORT=9461 SIFT_TAB=T1-youtube bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r7/savevanish.ts. Each run is a fresh load: wait for Save, wait 6 s, click Save, poll. It stops at the first run where Sift's dialog vanishes while the original popup is still open and prints 'sift vanished (orig still open) <ms>'. LABEL=Like does the same with Like. It hit in 1 of 3 and 1 of 1 runs. Plain act.ts version: bun scripts/act.ts goto:https://www.youtube.com/watch?v=dQw4w9WgXcQ wait:25000 click:Save, then poll the visible [role=dialog] in Sift's shadow root against document.querySelector('ytd-popup-container tp-yt-iron-dropdown').checkVisibility() once a second for 5 s.",
+   "regression": false,
+   "suspectedCause": "YouTube's sign-in popups have no dialog role, so they reach Sift only through findPopup in src/content/extract/generic.ts, which wants the popup among the nodes the user's last action touched (recentNodes(true) in src/content/recent.ts). While the page keeps mutating (comments and Up next loading), a later re-extraction no longer counts the popup as recent, either after the armRecent window or after the >400-node pruning, so it is dropped. Not established whether round 6 introduced this.",
+   "verdict": "Reproduced, often. I ran my own poller (fresh load, wait for Save, wait N ms, click, then poll every 100 ms for 8 s). With Save clicked 1-3 s after it appeared, while the page was still loading comments (thread count rising from 0-18 toward 20), Sift's dialog 'Want to watch this again later? Sign in' appeared 0.1-0.5 s after the original's dropdown. It then disappeared 0.3-1.4 s later while the original's tp-yt-iron-dropdown was still visible. Save: 6 of 6 runs at those delays (for example, shown at 383 ms, gone at 814 ms, original still open at 8 s). Like ('Like this video? Sign in to make your opinion count'): 4 of 4 runs (for example, shown at 451 ms, gone at 780 ms, original open to 8 s). With the click 6-18 s after Save appeared, once comments sat at 20, the dialog stayed (4 of 4 runs, plus the reporter's script with EXTRA=6000 gave 0 of 5). In several hit runs the original's popup also closed on its own 0.5-1 s after Sift's vanished. In 4 runs, though, it stayed open for the full 8 s with nothing in Sift. One detail differs from the claim: Sift's dialog lagged the original by only 0.1-0.6 s, not 0.3-1.9 s. The mechanism looks plausible from the code. In src/content/recent.ts, noteMutations' pruning ends with '.slice(-300)', which can drop nodes noted during the action window (byAction) when the page adds hundreds of nodes while loading. In findPopup in src/content/extract/generic.ts, a changed recent[0] re-arms armFirst/armShown. I did not instrument the isolated world to prove which of these is the cause.",
+   "fix": "In src/content/extract/generic.ts findPopup, keep shownPop as the popup while it is still connected and visible and location.href === armUrl, and nothing new has been armed since. This is the same rule that already keeps lastPop for popups with fields. In src/content/recent.ts noteMutations, make the >400 pruning never drop byAction nodes: apply slice(-300) only to the 'later' nodes, so the popup's own nodes survive a burst of page mutations."
+  },
+  {
+   "source": "T1-youtube",
+   "title": "End no longer loads more Up next once YouTube has loaded comments on its own: it loads hidden comments instead, and Up next stays at 20",
+   "severity": "medium",
+   "where": "YouTube watch page, Up next section open and Comments section closed, End key at the bottom of Sift's view",
+   "evidence": "3 of 4 fresh loads. With 14 s waits, the original already held 20 comment threads before any key press, although Comments was never opened in Sift. Then Up next gave sift=20 orig=20. End gave Up next 20/20 with comments 40. End gave 20/20 with comments 40. End gave 20/20 with comments 40, in 2 of 2 runs, plus 1 earlier run. In the run where YouTube had not yet loaded comments (origCommentThreads=0), End gave Up next 20 to 40 to 60 in step with the original. On the original's wide layout, the related column's continuation comes into view first, so scrolling down loads more related videos. works.md line 62 ('Up next loads more on End (20->40), in step with the original') no longer holds in these runs.",
+   "repro": "cd /home/nico/projects/sift-test-1; SIFT_PORT=9461 SIFT_TAB=T1-youtube bun scripts/act.ts goto:https://www.youtube.com/watch?v=dQw4w9WgXcQ wait:14000 'click:Up next' wait:2000 \"eval:(()=>{const r=document.querySelector('sift-root').shadowRoot;const d=[...r.querySelectorAll('details')].find(d=>/Up next/.test(d.querySelector('summary').innerText));return 'siftUpNext='+d.querySelectorAll('li').length+' origRelated='+document.querySelectorAll('#secondary #related yt-lockup-view-model, #secondary #related ytd-compact-video-renderer').length+' origComments='+document.querySelectorAll('ytd-comments ytd-comment-thread-renderer').length})()\" press:End wait:4000 (same eval) press:End wait:4000 (same eval). When origComments is 20 before the first End, Up next stays at 20 while origComments goes to 40.",
+   "regression": true,
+   "suspectedCause": "youtube.loadMore() in src/content/adapters/youtube.ts picks comment continuations whenever q('ytd-comments#comments ytd-comment-thread-renderer') exists. Its comment says that means 'the reader opened them', but YouTube loads the first 20 comments by itself. With Comments closed in Sift and Up next open, the choice should follow the section the reader has open or is scrolled to, not whether comments exist.",
+   "verdict": "Reproduced 3 times. 14 s after a fresh load, with Comments never opened in Sift, the original already holds 20 comment threads. After clicking Up next, Sift shows 20 entries. Each End press then gives Up next 20/20 while the original's comments go 20 to 40 (runs 1 and 2: 20/20/20 after three Ends; run 3: related 20, comments 40). Sift's Up next section has no load-more control. With Sift off, the same End presses take the original's related column from 20 to 40 on the first End, while comments go 40, 60, 80. So the original can load more Up next and Sift cannot, which contradicts works.md line 62. The cause is in the code. youtube.loadMore() in src/content/adapters/youtube.ts (line ~1097) uses comment continuations whenever any 'ytd-comments#comments ytd-comment-thread-renderer' exists. YouTube loads those first 20 threads by itself, so this check does not mean the reader opened Comments.",
+   "fix": "In youtube.loadMore() in src/content/adapters/youtube.ts, choose the comment continuation only when the reader has the Comments section open in Sift, or is at it. Do not decide on whether comment threads exist. If Up next is open and Comments is closed, use the continuation inside '#related' / ytd-watch-next-secondary-results-renderer. That needs a flag from the renderer for which section is open, or a check on Sift's open details. Otherwise take the last continuation outside ytd-comments."
+  },
+  {
+   "source": "T2-news",
+   "title": "BBC home drops a real top story because its headline says 'WhatsApp channel'",
+   "severity": "high",
+   "regression": true,
+   "where": "https://www.bbc.com/news (1280 and 600 px)",
+   "evidence": "In the original top section, the card 'How 'Lula's Army' WhatsApp channel helped turn Brazil election around' is visible: dundee-card, 221x357 at y\u2248946, between 'Chris Brown\u2026' and 'Anthropic's blockbuster\u2026'. Sift shows 35 of 36 original story links, and the only one missing is this card (/news/articles/cwz0vg4v3ndeo), at both widths. Outlines: /home/nico/projects/sift-test-2/research/shots/r7t2-bbc-home.txt and /home/nico/projects/sift-test-2/research/shots/r7t2-bbc-home-600.txt. In-page test: changing the original h2 to '\u2026WhatsApp group\u2026' made the card appear in Sift within 4 s, and changing it back to '\u2026WhatsApp channel\u2026' removed it again. works.md line 6 ('every one of the original's story links is present') no longer holds.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://www.bbc.com/news wait:9000 'eval:!!document.querySelector(\"a[href*=cwz0vg4v3ndeo]\")' 'eval:[...document.querySelector(\"sift-root\").shadowRoot.querySelectorAll(\"a\")].some(a=>/Lula.s Army/.test(a.innerText))' gives true, then false. If that story has rotated off the home, run 'eval:document.querySelector(\"[data-testid=card-headline]\").textContent=\"How a WhatsApp channel helped a campaign\"' wait:4000 on any visible card: it vanishes from Sift. With 'WhatsApp group' it stays.",
+   "suspectedCause": "PROMO_STRONG in src/content/extract/generic.ts line 49 contains 'whatsapp channel' (and other phrases a headline can contain), and it is applied to a story card's headline.",
+   "verdict": "Confirmed, high, 2 of 2 loads at 1280 px. The original has a[href*=cwz0vg4v3ndeo], 'How 'Lula's Army' WhatsApp channel helped turn Brazil election around', 221x357 at top 945. Sift has no link with /Lula.s Army/. Changing the original headline to '\u2026WhatsApp group\u2026' made the card show in Sift within 5 s. Changing it back to '\u2026WhatsApp channel\u2026' removed it again. The whole card text is under 200 characters, so asCard's `len < 200 && promoText(all)` rejects it. promoCard would also reject it, because 'whatsapp channel' is not in TITLE_PROMO_WEAK.",
+   "fix": "In src/content/extract/generic.ts, make 'whatsapp channel|canal de whatsapp' count only in a short call to action. Add it to TITLE_PROMO_WEAK, or move it from PROMO_STRONG to PROMO_WEAK. In asCard, test promoText on the non-headline text, or use promoCard(title, href), so a story headline that names the WhatsApp channel stays."
+  },
+  {
+   "source": "T2-news",
+   "title": "BBC article's lead video is dropped when its caption is empty",
+   "severity": "high",
+   "regression": true,
+   "where": "https://www.bbc.com/news/articles/ckm23y3mg1yyo (1280 and 600 px, Short version and full text)",
+   "evidence": "The original's first media is a 1:18 video: [data-component=video-block] inside the article, smp-toucan-player 721x406 at top 631, with an empty figcaption (shot /home/nico/projects/sift-test-2/research/shots/r7t2-bbc-lula-orig.png). Sift has 0 portals and no Play button. Its buttons are 'Skip to content|Menu|Search|Show full text|Sift', in 2 of 2 loads and at 600 px. Outline: /home/nico/projects/sift-test-2/research/shots/r7t2-bbc-lula.txt. Setting the original figcaption text to 'Watch: Lula celebrates his win' made a portal with that name appear. BBC Limoges, whose video has a caption, still shows both portals. works.md line 225 ('Every BBC article \u2026 opens with \u2026 its photos and lead video') no longer holds for this article.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://www.bbc.com/news/articles/ckm23y3mg1yyo wait:20000 'eval:document.querySelector(\"sift-root\").shadowRoot.querySelectorAll(\".portal\").length' gives 0. Then 'eval:document.querySelector(\"[data-component=video-block] figcaption\").textContent=\"Watch: test\"' wait:5000 with the same count eval gives 1.",
+   "suspectedCause": "The video block is kept only when it has a caption or title to name it. An uncaptioned BBC video-block (play button aria-label 'Play video', duration only) is dropped.",
+   "verdict": "Confirmed, high, 2 of 2 loads. The original's [data-component=video-block] holds smp-toucan-player. Its nested shadow DOM has a <video> of 721x406 at top 631. The block's only button is 'Play video/1:18', and its figcaption is empty. Sift has 0 .portal in both the Short version and the full text. Its buttons are 'Skip to content|Menu|Search|Show full text|Sift'. After I set the figcaption text to 'Watch: test', a portal named 'Watch: test' appeared within 6 s. portalBlock and facadeBlock already fall back to t(\"video\"), so the drop happens before them. A caption-less block seems not to be visited as media at all.",
+   "fix": "In generic.ts, find where the caption-less BBC figure or video-block is skipped. Likely spots are figure() or the visit pruning of a box whose only media sits in nested shadow roots. Make it reach portalBlock or widgetBlock, using deepQuery with enough depth to find smp-toucan-player's video. Let the name fall back to t(\"video\") instead of needing caption text."
+  },
+  {
+   "source": "T2-news",
+   "title": "Headline lines claim a teaser's answer is not given when the article gives it",
+   "severity": "high",
+   "where": "Guardian home (theguardian.com/international); La Naci\u00f3n 'M\u00e1s le\u00eddas de Automovilismo' on any Automovilismo article",
+   "evidence": "Guardian original: 'Should we tip on takeout? We weighed all angles and the answer is \u2026'. Sift load 1: 'Should people tip on takeaway? The writer weighs the angles but does not give the answer'. Load 2: 'Whether people should tip on takeaway remains unanswered'. The article does answer: 'The bottom line: tipping for takeout doesn't make sense as a custom. It should be resisted unless it's entrenched'. It also has two authors, not 'the writer'. La Naci\u00f3n original: 'Franco Colapinto largar\u00e1 21\u00ba en el Gran Premio de Estados Unidos de F\u00f3rmula 1: cu\u00e1nto puede remontar'. Sift: '\u2026; no se indica cu\u00e1nto puede remontar'. That article answers it: '\u2026de la 15\u00aa posici\u00f3n a la 10\u00aa, es posible puntuar'. Pairs: /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t2/guardian-home-pairs.txt.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://www.theguardian.com/international wait:15000 'eval:[...document.querySelector(\"sift-root\").shadowRoot.querySelectorAll(\"a\")].find(a=>/takeaway|takeout/i.test(a.innerText)).innerText'. Also goto:https://www.lanacion.com.ar/deportes/automovilismo/el-video-revelador-sobre-el-toque-que-dejo-afuera-a-franco-colapinto-del-gran-premio-de-los-estados-nid26102026/ wait:15000 'eval:[...document.querySelector(\"sift-root\").shadowRoot.querySelectorAll(\"a\")].find(a=>/remontar/.test(a.innerText)).innerText'.",
+   "suspectedCause": "The one-line rewrite sees only the teaser. When a curiosity-gap headline ends in '\u2026' or 'cu\u00e1nto\u2026', the model turns it into a statement that the answer is missing.",
+   "verdict": "Confirmed. Guardian international: the original teaser is 'Should we tip on takeaway? We weighed all angles and the answer is \u2026'. Sift's line is 'Whether people should tip on takeaway remains unanswered'. The article does answer: 'The bottom line: tipping for takeout doesn't make sense as a custom. It should be resisted unless it's entrenched\u2026'. Its byline is 'Ward Farnsworth and Saul Levmore'. La Naci\u00f3n: the original is '\u2026F\u00f3rmula 1: cu\u00e1nto puede remontar'. Sift's line is '\u2026F\u00f3rmula 1; no se indica cu\u00e1nto puede remontar'. Both lines tell the reader something false about the article. The headline prompt rule in src/background/index.ts line 98 ('keep its own words, made plain, and not as a question') pushes the model to turn a curiosity gap into a claim that the answer is missing.",
+   "fix": "In the headline prompt in src/background/index.ts (around lines 97-98), add a rule. The answer to a question or teaser headline is in the story, so never say it is missing, unknown, unanswered or 'no se indica'. Keep the topic as a plain phrase instead ('Tipping on takeaway: the authors weigh the case'; 'Colapinto largar\u00e1 21\u00ba en Austin: cu\u00e1nto puede remontar')."
+  },
+  {
+   "source": "T2-news",
+   "title": "The Independent sign-in page shows no form in Sift",
+   "severity": "high",
+   "where": "https://www.independent.co.uk/login?regSourceMethod=Nav+register+CTA (reached from Sift's 'Log in')",
+   "evidence": "Sift shows only 'H1 Log in' and 'p: Nothing to show yet.', 2 of 2 loads, after waiting 19 s and 20 s (/home/nico/projects/sift-test-2/research/shots/r7t2-indy-login2.png). The original shows Email address, Password, SUBMIT, 'Forgotten your password?', REGISTER and 'SIGN IN WITH GOOGLE' (/home/nico/projects/sift-test-2/research/shots/r7t2-indy-login-orig.png). The form's ancestry is form#login-form < div < div#standalone-login-form < div#LoginDropdownButtonInside. Nothing was submitted.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts 'goto:https://www.independent.co.uk/login?regSourceMethod=Nav+register+CTA' wait:20000 outline 'eval:[...document.querySelectorAll(\"#login-form input\")].map(i=>i.type+\" \"+i.getBoundingClientRect().width)'",
+   "suspectedCause": "The 'Dropdown' token in the container id (#LoginDropdownButtonInside) makes the open, standalone form look like a closed dropdown or popup, so it is dropped.",
+   "verdict": "Confirmed, high, 2 of 2 loads at 15 to 20 s. Sift shows only 'H1 Log in' and 'Nothing to show yet.'. The original shows Email address, Password, SUBMIT, Forgotten your password?, REGISTER and SIGN IN WITH GOOGLE (shot research/shots/skeptic-indy-login-orig.png). Each input is 308 px wide. The suspected cause is wrong: renaming #LoginDropdownButtonInside to #LoginBox changed nothing. The real cause: main#main-content has 189 of the body's 798 characters, under 25 percent, and holds no h1, article or video. So mainRoot() falls back to body, and the body pass yields no blocks. Prepending an <h1> to <main> made mainRoot pick main, and the full form appeared at once.",
+   "fix": "In mainRoot() in src/content/extract/generic.ts, also keep the main region when it holds a sign-in or other form with a password, email or username field. One way is to add `|| main.querySelector(\"form input[type=password], form input[type=email]\")` to the `mt > all * 0.25 || \u2026` test. Separately, find out why the body pass drops this form."
+  },
+  {
+   "source": "T2-news",
+   "title": "Infobae at 200% zoom: no way to sign in from Sift",
+   "severity": "high",
+   "where": "https://www.infobae.com/america/ and Infobae articles, 640x450 at device scale 2 (a 1280x900 window at 200%)",
+   "evidence": "Sift's header has only 'Men\u00fa' and 'Buscar en todo el sitio' (/home/nico/projects/sift-test-2/research/shots/r7t2-ib-article-z200.png). No Sift button or link matches /sesi|registr|ingres/, and the Men\u00fa dialog has none ('no sign-in in menu'). The original at the same size shows an account avatar, button.account-button--mobile (aria-label 'myAccount'). Clicking it opens a panel with REGISTRARME and INICIAR SESI\u00d3N (/home/nico/projects/sift-test-2/research/shots/r7t2-ib-z200-orig-avatar.png). At 1280 px, Sift shows REGISTRARME and INICIAR SESION, and the sign-in dialog works.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t2/zact.ts 640 450 2 goto:https://www.infobae.com/america/ wait:12000 'eval:[...document.querySelector(\"sift-root\").shadowRoot.querySelectorAll(\"button,a\")].map(b=>b.innerText).filter(t=>/sesi|registr/i.test(t))' click:Men\u00fa wait:1500 'eval:[...document.querySelector(\"sift-root\").shadowRoot.querySelectorAll(\"[role=dialog] a,[role=dialog] button\")].map(x=>x.innerText).filter(t=>/sesi|registr/i.test(t))'. Both give empty lists, while 'eval:document.querySelector(\"button.account-button--mobile\").getBoundingClientRect().width' is non-zero.",
+   "suspectedCause": "At narrow widths the site's sign-in is an icon-only button with an English aria-label ('myAccount'). Sift drops it, and keeps nothing else that leads to sign-in.",
+   "verdict": "Confirmed, 2 of 2 loads at 640x450 CSS px, scale 2. Sift's buttons and links have nothing matching /sesi|registr|ingres|myAccount/. Its header holds only 'Men\u00fa' and 'Buscar en todo el sitio'. The Men\u00fa dialog's 16 entries have no sign-in. The original shows button.account-button--mobile (aria-label 'myAccount', 32x32). With Sift off, clicking it opened a panel with REGISTRARME and INICIAR SESI\u00d3N (shot research/shots/skeptic-ib-z200-orig.png). At this zoom a Sift user cannot reach sign-in.",
+   "fix": "In generic.ts, keep an icon-only account button in the header (aria-label myAccount, account, profile or user, or a class with account or avatar) as an action named in the page's language ('Cuenta', or t('account')). Do this instead of dropping it as an icon. Its click should then open the site's panel, which Sift already handles as a dialog."
+  },
+  {
+   "source": "T2-news",
+   "title": "La Naci\u00f3n search results appear later in Sift than in the original",
+   "severity": "medium",
+   "where": "https://www.lanacion.com.ar/buscador/?query=Milei (1280 px)",
+   "evidence": "In 6 of 6 runs, Sift showed the first result after the original rendered its first result h3. Original vs Sift: 10536/12280, 7092/7762, 3057/3642, 4744/6605, 3860/4778, 1177/1789 ms. Sift was 0.6 to 1.9 s later; medians 3860 vs 4778 ms in the second set. Until then Sift shows 'Todav\u00eda no hay nada para mostrar.' The La Naci\u00f3n home and article had equal timings.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t2/fp2.ts \"https://www.lanacion.com.ar/buscador/?query=Milei\" \"h3\" \"Javier Milei\" 3",
+   "suspectedCause": "After results load on the client, re-extraction waits for mutations to settle (debounce) before it renders.",
+   "verdict": "Confirmed, medium, 4 of 4 runs with the reporter's fp2.ts on /buscador/?query=Milei. Original first h3 versus Sift showing 'Javier Milei': 1889/2584, 1442/2368, 1925/2412 and 1184/2165 ms. Sift is 0.5 to 1.0 s later, and shows 'Nothing to show yet' meanwhile. The first h3 is the results' 'Javier Milei' heading. schedule() in index.ts waits up to 800 ms, or lastDur*9, plus a requestIdleCallback of up to 600 ms, even when the view is still empty.",
+   "fix": "In schedule() in src/content/index.ts, run soon (about 60 ms, no requestIdleCallback) while the current view has no blocks (page.blocks empty or partial). Use the same short delay when a mutation adds the main region's first content."
+  },
+  {
+   "source": "T2-news",
+   "title": "Guardian articles repeat the byline and show the dateline as an H2 collapsible inside the Short version",
+   "severity": "medium",
+   "where": "https://www.theguardian.com/world/2026/oct/26/brazil-lula-vow-democracy-always-election-win (Short version and full text)",
+   "evidence": "Under Sift's own byline ('Tom Phillips \u00b7 Oct 26, 2026, 3:51 PM'), the Short version repeats 'Tom Phillips in S\u00e3o Paulo and Tiago Rogero in Bras\u00edlia' as links. Then comes a collapsible '<summary><h2>Mon 26 Oct 2026 15.51 GMT</h2></summary>', in the original details[data-gu-name=dateline]. Screen reader users get a date as a section heading, and tab order includes 'Tom Phillips', 'Tiago Rogero' and a summary stop before the article text. Shot: /home/nico/projects/sift-test-2/research/shots/r7t2-guardian-dateline.png. A round 4 skeptic noted the date H2 (round4/rejected.md) but it was never filed.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://www.theguardian.com/world/2026/oct/26/brazil-lula-vow-democracy-always-election-win wait:15000 'eval:[...document.querySelector(\"sift-root\").shadowRoot.querySelectorAll(\"summary h2\")].map(h=>h.innerText)'. This gives ['Mon 26 Oct 2026 15.51 GMT'].",
+   "suspectedCause": "details() in generic.ts turns a details element whose summary is a date line into a section, and the in-body contributor line is not merged into the byline.",
+   "verdict": "Confirmed, medium. Under Sift's byline 'Tom Phillips \u00b7 Oct 26, 2026, 3:51 PM', the Short version repeats 'Tom Phillips in S\u00e3o Paulo and Tiago Rogero in Bras\u00edlia', then 'Mon 26 Oct 2026 15.51 GMT'. Sift renders that date as summary > h2 (eval: ['Mon 26 Oct 2026 15.51 GMT']). In the original it is details[data-gu-name=dateline] > summary > span, with 'Last modified on \u2026' inside. details() turns any <details> into a section whose title is its summary, so a date becomes an H2 heading. Sift's own byline also leaves out the second author, who appears only in the repeated line.",
+   "fix": "In details() in src/content/extract/generic.ts, when the summary is a date line (dateLine(textIn(summary))) or the details is a dateline (BYLINE_TOKEN or data-gu-name=dateline), drop it when ctx.hasDate is true. Otherwise emit it as a small paragraph, not a section. Also skip the in-body contributor line (a byline-zone line naming the byline's author) the way the bylineZone check does."
+  },
+  {
+   "source": "T2-news",
+   "title": "BBC byline drops the second author",
+   "severity": "medium",
+   "where": "https://www.bbc.com/news/articles/ckm23y3mg1yyo",
+   "evidence": "The original byline-block reads 'Ione Wells, Bras\u00edlia and Hafsa Khalil'. Sift's meta line is 'Ione Wells \u00b7 26 Oct 2026, 18:26' (2 of 2 loads, also at 600 px). Sift's text has no 'Khalil'.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://www.bbc.com/news/articles/ckm23y3mg1yyo wait:15000 'eval:document.querySelector(\"sift-root\").shadowRoot.querySelector(\"h1\").nextElementSibling.innerText' 'eval:document.querySelector(\"[data-component=byline-block]\").innerText'",
+   "verdict": "Confirmed, medium, 2 of 2 loads. The original byline-block reads 'Ione Wells, Bras\u00edlia and Hafsa Khalil'. Sift's meta line is 'Ione Wells \u00b7 26 Oct 2026, 20:00', and /Khalil/ is false on Sift's text. byline() takes only the first element matching its selector list ('[data-component=byline-block] span'), so every author after the first is lost.",
+   "fix": "In byline() in src/content/extract/generic.ts, collect every author name that matches the selector with querySelectorAll, skipping place names such as 'Bras\u00edlia'. Join them with Intl.ListFormat in the page language. Do the same in bylineName."
+  },
+  {
+   "source": "T2-news",
+   "title": "The Independent article loses its author",
+   "severity": "medium",
+   "where": "https://www.independent.co.uk/news/world/americas/jair-bolsonaro-flavio-lula-brazil-election-b3073236.html",
+   "evidence": "The original shows the author link 'James C. Reynolds' (128x16). Sift's meta line is only 'Oct 26, 2026, 1:48 PM', and /Reynolds/ tested on Sift's text is false. Outline: /home/nico/projects/sift-test-2/research/shots/r7t2-indy-article.png and the act outline.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://www.independent.co.uk/news/world/americas/jair-bolsonaro-flavio-lula-brazil-election-b3073236.html wait:15000 'eval:/Reynolds/.test(document.querySelector(\"sift-root\").shadowRoot.querySelector(\".sift\").innerText)' 'eval:[...document.querySelectorAll(\"a\")].filter(a=>/Reynolds/.test(a.innerText)).map(a=>a.getBoundingClientRect().width)'",
+   "verdict": "Confirmed, medium, 2 of 2 loads. The original has <a href=\"/author/james-c-reynolds\" class=\"sc-1lhcz39-2 klRvHg\">James C. Reynolds</a>, 128 px wide. It has no meta author tags. Sift's meta line is 'Oct 26, 2026, 1:48 PM', and /Reynolds/ is false on Sift's text. byline()'s selectors need a .byline class or rel=author, so the link is not found. The site's own byline is then removed as a byline zone, so the author is gone from the page.",
+   "fix": "In byline() in src/content/extract/generic.ts, add a fallback: a visible a[href*=\"/author/\"] or a[href*=\"/autor/\"] near the article's title or header whose text matches PERSON. Only drop the site's byline (the ctx.hasByline skip) when Sift's own byline actually has an author."
+  },
+  {
+   "source": "T2-news",
+   "title": "The Independent: the site's 'Ask The Independent' AI widget sits in the Short version with an unlabelled field",
+   "severity": "medium",
+   "where": "https://www.independent.co.uk/news/world/americas/jair-bolsonaro-flavio-lula-brazil-election-b3073236.html",
+   "evidence": "Between 'Show full text' and the article text, the Short version shows a bare text field, 'Ask The Independent anything', two suggested questions, 'Ask The Independent' and the widget's own summary paragraph ('Incumbent leftist president \u2026 While Lula secured a majority o\u2026'). The field is <label class=\"field\"><span></span><input type=text></label> with no name. axe on Sift's view once it has loaded: 1 critical violation, 'label'. scripts/a11y.ts reports 0 only because it runs at 7 s, before the widget appears. Tab order includes 'SIFT <input>' with no name.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://www.independent.co.uk/news/world/americas/jair-bolsonaro-flavio-lula-brazil-election-b3073236.html wait:25000 outline; then SIFT_PORT=9462 SIFT_TAB=T2-news bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t2/axenow.ts",
+   "verdict": "Confirmed, medium. After 25 s the Short version shows, between 'Show full text' and the article: a bare [input:text], 'Ask The Independent anything', two suggested questions as plain paragraphs (not buttons), 'Ask The Independent' and the widget's summary paragraph. The field renders as <label class=\"field\"><span></span><input type=text></label>. axe on Sift's view: 1 critical 'label' violation. The source is div#deeper-dive-container > div#dd-widget. Its 'placeholder' is a div (dd-widget-input-placeholder), not an attribute, so the field gets no name. The site's AI widget is noise above the story, and its field has no name.",
+   "fix": "In src/content/extract/generic.ts, treat a site AI Q&A widget as noise: a container whose id or class has deeper-dive or dd-widget, or that holds an 'Ask <site> anything' field and canned questions. Also, in toField, name a field by a visible placeholder-like element drawn over it when it has no label, placeholder or aria-label."
+  },
+  {
+   "source": "T2-news",
+   "title": "Infobae: closing the search panel throws focus to a mid-page section heading",
+   "severity": "medium",
+   "where": "https://www.infobae.com/america/ (1280 px)",
+   "evidence": "After 'Buscar en todo el sitio' then 'Cerrar', Sift's focus lands on H2 'Elecciones en Brasil' (top 377) and the view scrolls down to it. This happened 3 of 3 times: mouse click with no query, mouse click after typing 'milei', and Enter on the focused Cerrar. Escape instead puts focus on 'Men\u00fa', not on the opener. Shots: /home/nico/projects/sift-test-2/research/shots/r7t2-ib-after-cerrar.png, /home/nico/projects/sift-test-2/research/shots/r7t2-ib-cerrar-kbd.png.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://www.infobae.com/america/ wait:9000 'click:Buscar en todo el sitio' wait:3000 'click:Cerrar' wait:3000 'eval:(()=>{const a=document.querySelector(\"sift-root\").shadowRoot.activeElement;return a.localName+\" \"+a.innerText})()'. This gives 'h2 Elecciones en Brasil'.",
+   "verdict": "Confirmed, medium, 2 of 2 loads at 1280 px. After 'Buscar en todo el sitio' (focus goes to the input) and 'Cerrar', Sift's active element is 'h2 Elecciones en Brasil' at top 421, and the view scrolled by 569 px. With Escape, focus went to 'Men\u00fa', not to the opener. In the original, opening the menu or search panel with the icon and closing it with the X left focus on the hamburger span[aria-label=Menu], with scrollY 0. So Sift's focus move and scroll do not come from the page.",
+   "fix": "In src/content/index.ts, use the focus-return logic (`opener`, around lines 226 and 2539): when a page panel opened from a Sift control closes, return focus to that control, found by its label if a re-render replaced it. Do not follow page focus, or fall to the next focusable heading, and do not scroll."
+  },
+  {
+   "source": "T2-news",
+   "title": "Fox article text runs words together where the source has <strong>&nbsp;</strong>",
+   "severity": "medium",
+   "where": "https://www.foxnews.com/world/nearly-1000-arrested-across-france-police-find-potential-weapons-protestors (full text)",
+   "evidence": "Sift shows 'Nearly 1,000 peoplewere arrested\u2026' and '\u2026searched protesters andarrested people\u2026'. The original's HTML is 'people<strong>&nbsp;</strong>were' and 'and<strong>&nbsp;</strong>arrested', and its textContent reads 'people were' and 'and arrested'. Shot: /home/nico/projects/sift-test-2/research/shots/r7t2-fox-peoplewere.png.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://www.foxnews.com/world/nearly-1000-arrested-across-france-police-find-potential-weapons-protestors wait:15000 'click:Show full text' wait:2000 'eval:[...document.querySelector(\"sift-root\").shadowRoot.querySelectorAll(\"p\")].map(p=>p.innerText).filter(t=>/peoplewere|andarrested/.test(t))'",
+   "suspectedCause": "An inline element that holds only whitespace (a non-breaking space) is dropped, along with the space.",
+   "verdict": "Confirmed, medium. In the full text, Sift shows 'Nearly 1,000 peoplewere arrested\u2026' and '\u2026searched protesters andarrested people\u2026'. The original HTML is 'people<strong>&nbsp;</strong>were\u2026'. In inlineOf (generic.ts around line 1118), a <b>/<strong> (and likewise <em>/<i>) is added only `if (tx)`, where tx = textIn(e) is trimmed. A strong that holds only a no-break space is dropped with its space, and the words join.",
+   "fix": "In inlineOf in src/content/extract/generic.ts, when a b, strong, em, i or span holds only whitespace (textIn empty but textContent non-empty), push \" \" instead of skipping it. tidy() already merges repeated spaces."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "filterPanel folds a product's buy box, or any narrow form column above a site footer, into a collapsed 'Filters' section",
+   "severity": "high",
+   "where": "src/content/extract/generic.ts:2839 (filterPanel), used at generic.ts:3275",
+   "evidence": "Fixture product-footer.html: a product page whose 35%-wide div.info holds the h1, price, description, 4 color radios, 4 size radios, quantity and 'Add to cart', followed only by a footer with 14 links. Now: 'h1: Trail Runner 3', then 'section: Filters (collapsed)' holding the price, description, the whole form and 'Add to cart'. Before round 6, all of it showed. Real extension (9468): the outline is 'H1 Trail Runner 3 / H2 Filters', and act 'click:Add to cart' says 'not found'. Same result with a reviews list after the product instead of the footer (product-buybox.html). An email-preferences page (prefs2.html: a 480px div.card with 8 checkboxes and Save, then a 14-link footer) has its only content folded into 'Filters' too.",
+   "repro": "Fixtures are in /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r7/fx/. Run: cd that r7 folder && bun run.ts now.js,pre.js fx/product-footer.html 1 --as http://shop.fixture.test/p/x. now.js is built from sift-test-8 src. pre.js is the tree before the round 6 fixes, rebuilt by reversing round6-fixes.diff.",
+   "regression": true,
+   "suspectedCause": "filterPanel accepts any div, section, aside or fieldset 120px to 40%vw wide and at least half the window tall, with 6 or more visible fields and 4 or more choices, when some later sibling of any of its 4 ancestors is 1.5x wider and holds 10 or more links. The site footer after <main> always passes. Nothing checks that the wide sibling is a results list beside the panel, or that the panel does not hold the page's h1 or a submit or buy button. On Craigslist, the case it was made for, the h1 is lifted out of the panel.",
+   "verdict": "Reproduced. Harness on product-footer.html: now gives 'h1: Trail Runner 3' then 'section: Filters (collapsed)' holding the price, description, the whole form and Add to cart. pre.js shows all of it in the open. product-buybox.html gives the same result, and prefs2.html folds the whole preferences card (8 checkboxes and Save) into 'Filters'. Real extension on 9468 with the fixture served at http://shop.fixture.test/p/x: the outline is 'H1 Trail Runner 3 / H2 Filters', and act 'click:Add to cart' returns 'not found'. The code at generic.ts:2839 matches the suspected cause: any div/section/aside/fieldset 120px to 40%vw wide and at least half the window tall, with 6+ visible fields and 4+ choices, passes when some later sibling of one of 4 ancestors is 1.5x wider and holds 10+ links. A footer is enough. filterPanel does not exist in the pre tree, so this is a regression. Scope: I replicated the geometry test on 3 real product pages (Shopify Dawn demo x2, Patagonia) and none triggered it. The Dawn pages render the buy box open. Real-world frequency is unproven, but the fold hides the page's main action when the test matches.",
+   "fix": "In filterPanel (generic.ts:2839), reject a panel that contains the page's h1 or a submit / buy button ('Add to cart', 'Save'). Require the wider sibling to be a results list (resultList(s), or a child of s that is one) instead of any box with 10+ links. A footer or [role=contentinfo] should never qualify."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "The games-tile rule deletes real stories in a news site's Games section (The Guardian's 'What to play')",
+   "severity": "high",
+   "where": "src/content/extract/generic.ts:2706",
+   "evidence": "Live https://www.theguardian.com/international, 'What to play' section. Before round 6 it had 4 items. Now 3 are gone: 'Lara Croft is 30! ...', 'Call of Duty: Modern Warfare 4 review ...' and 'Nintendo Switch Sports Resort review ...'. Each has meta 'Games' and a link /games/2026/oct/../... Only 'Pushing Buttons' stays. Real extension: all three are in document.body text but not in Sift's text. Minimal fixture games.html (4 cards, kicker 'Games', links /games/2026/oct/2N/story-N): now 1 item, before round 6 4 items.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r7 && bun run.ts now.js,pre.js fx/games.html 1 --as http://news.fixture.test/international",
+   "regression": true,
+   "suspectedCause": "The rule promo()s any card whose meta contains exactly 'Games' and whose main link path starts with /games/. That fits La Naci\u00f3n's puzzle tiles, but also every story in a newspaper's video-game section. It needs a game-like signal: a Play/Jugar call to action (already caught by PLAY_CTA), or a path that is not a dated story.",
+   "verdict": "Reproduced in harness and live. Fixture games.html: now gives 1 item (Pushing Buttons), pre gives all 4. Live https://www.theguardian.com/international in the real extension: the 'What to play' section shows only the Pushing Buttons story. The visible links /games/2026/oct/25/lara-croft-is-30..., /games/2026/oct/23/call-of-duty-modern-warfare-4-review... and /games/2026/oct/22/nintendo-switch-sports-resort-review... appear neither as links nor as text in Sift's shadow root. The rule at generic.ts:2706 promo()s any card with meta exactly 'Games' and a path starting /games/. The pre tree has only the PLAY_CTA rule, so this is a regression and real stories are silently lost.",
+   "fix": "At generic.ts:2706, also require a game signal: a PLAY_CTA action or meta, or a path that is not a dated story (exclude /games/YYYY/... and paths with a long slug). Better still, require that the card has no teaser or byline."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "marketingModal hides a session-expiry alert dialog ('Sign in again ... to save your changes')",
+   "severity": "high",
+   "where": "src/content/extract/generic.ts:5807-5816 (MARKETING, marketingModal), used at generic.ts:5716",
+   "evidence": "Fixture session.html: a role=alertdialog with aria-modal and an \u00d7 Close button. It says 'You have been inactive for 28 minutes. Sign in again within 2 minutes to save your changes, or they will be lost.' and has a 'Sign in again' button. Before round 6: 'DIALOG: Your session is about to expire', with Close and 'Sign in again'. Now: no dialog. Real extension: no element in Sift's shadow root holds that text, and Sift shows the edit form as if nothing happened.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r7 && bun run.ts now.js,pre.js fx/session.html 1 --as http://blog.fixture.test/admin/edit/42",
+   "regression": true,
+   "suspectedCause": "The MARKETING alternative '\\b(sign in|log in|sign up|register)\\b.{0,80}\\b(save|...)\\b' matches any 'sign in ... save' sentence. Any page-opened dialog with a close button and no field is then skipped. Nothing excludes role=alertdialog or words about the user's own work ('save your changes', 'will be lost').",
+   "verdict": "Reproduced. Harness on session.html: pre gives 'DIALOG: Your session is about to expire' with Close and 'Sign in again'. Now gives no dialog. Real extension: Sift shows only the Edit post form, and no text of the dialog is in its view. Same in the real extension with the existing fixture http://127.0.0.1:8799/fx/r7-sessionsave.html: the role=dialog 'Your session has expired / Sign in again to save your changes' is visible on the page (checkVisibility true) but missing from Sift. In the harness, pre shows it and now does not. The cause is MARKETING's 'sign in ... save' alternative plus the close-button test in marketingModal (generic.ts:5807-5816), used at 5716. marketingModal is new in round 6.",
+   "fix": "In marketingModal (generic.ts:5811), return false for role=alertdialog, and when the text speaks of the user's own work or account state ('your changes', 'will be lost', 'session', 'expired', 'unsaved'). Tighten the MARKETING sign-in alternative to money words only (discount, deal, offer, reward, price, 'save N%' or 'save $'), not a bare 'save'."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "NPR home still drops 16-17 of 50 top stories: hidden embed inputs make the grid 'rows with fields', and the walker deletes the promo-card cards",
+   "severity": "high",
+   "where": "src/content/extract/generic.ts:2218 (withFields ignores visibility) and generic.ts:3334 (NOISE_TOKEN drop; dom.ts:780 'promocard'/'promo-card')",
+   "evidence": "Live https://www.npr.org/. Harness: 17 of 50 visible article headlines are missing from the outline, all in div.bucketwrap.promocard > article.c-promo-card. Examples: 'Israelis have changed. Will they change their leadership?' and 'The secret to lasting love might just be knowing how to fight'. Real extension: 16 of 50 promo-card story links are not in Sift. An instrumented detectItems returns null at line 2231 for the card-wraps: 20 of 50 cards hold input.embed-url readonly, and Sift's visible() is false for all 20. Minimal fixture promocard-audio.html: 4 cards, each with a display:none readonly input. Now: only the h1 shows. Without the input, all 4 items show. With the wrapper class renamed, still none show, because article.c-promo-card also matches NOISE_TOKEN.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r7 && bun run.ts now.js fx/promocard-audio.html 1 --as http://radio.fixture.test/ (then try fx/promocard-noinput.html)",
+   "regression": false,
+   "suspectedCause": "withFields uses k.querySelector('input:not([type=hidden]), select, textarea') without visible(), so a hidden share or embed field turns a story grid into form rows that get walked. The walker then removes any element whose class says promo-card or promocard, even an <article> whose heading links a story. That is the F625 backstop that was not done.",
+   "verdict": "Reproduced. Fixture promocard-audio.html (cards with a display:none readonly input): now and pre both show only the h1. promocard-noinput.html shows all 4 items. promocard-noclass.html (wrapper renamed) still shows none. Live https://www.npr.org/ in the real extension, checked by link and title across 2 runs: 16 of 51 and 17 of 52 visible article.c-promo-card stories are missing from Sift. 20 cards hold a non-hidden-type input, and 9 of the missing cards hold one themselves. The code matches the cause: withFields at generic.ts:2218 counts input:not([type=hidden]) without visible(), and NOISE_TOKEN (dom.ts:779) matches 'promo-card'/'promocard', which the walker drops at generic.ts:3334. This is not a regression.",
+   "fix": "In detectItems (generic.ts:2218), count a member as withFields only when its field is visible(), and ignore readonly fields. In the NOISE_TOKEN drop (generic.ts:3334), keep an element (an article, or a card) whose heading links to a same-site story path, as done for comments. Alternatively, remove the bare promo-card token from NOISE_TOKEN in dom.ts:779 and leave promo detection to promoCard()."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "NPR section pages: every item is named and linked by its section label ('Law' -> /sections/law/) instead of its headline",
+   "severity": "high",
+   "where": "src/content/extract/generic.ts:2395 (toItem takes the first heading in DOM order)",
+   "evidence": "Live https://www.npr.org/sections/news/, the same before and after round 6. Items read 'National ->/sections/national/', 'Law ->/sections/law/', 'Business ->/sections/business/' and so on. The headline ('Judge says DOJ illegally fired the daughter of former FBI director Comey') is only meta text. Real extension: the first 4 li.item links point to /sections/national/, /sections/law/, /sections/business/ and /sections/asia/, so opening an entry opens the section, not the story. DOM: article.item > div.slug-wrap > h3.slug > a(section), then h2.title > a(story), and the image and teaser link to the story. Fixture slug-items.html reproduces it: 4 items all titled and linked by their section.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r7 && bun run.ts now.js fx/slug-items.html 1 --as http://radio.fixture.test/sections/news/",
+   "regression": false,
+   "suspectedCause": "toItem sets heading = el.querySelector('h1,...,h6') and so takes the small h3 slug before the h2 title. It should prefer the highest-ranked heading, or the heading whose link matches the card's other links (image, teaser), over a kicker heading that links elsewhere.",
+   "verdict": "Reproduced live and in the fixture. slug-items.html: 4 items titled 'Law ->/sections/law/' and so on, with the headline only in the meta, the same in pre and now. Live https://www.npr.org/sections/news/ in the real extension: the first 10 entries' links are /sections/national/, /sections/law/, /sections/business/, /sections/asia/, ..., named by the section, with the headline as plain meta text. The page's article.item has h3.slug a -> section before h2.title a -> story. toItem (generic.ts:2395) takes el.querySelector('h1,...,h6'), the first heading in DOM order, so the story link is never the entry's target. Not a regression, but every entry on the page opens the wrong page.",
+   "fix": "In toItem (generic.ts:2395), pick the highest-level heading (lowest hN) or the heading whose link matches the card's other links (image, teaser) instead of the first in DOM order. Treat a short heading linking to a /section/ or category path that differs from the card's majority href as a kicker (meta)."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "besideArticle unfolds a news article's side rail: 180 'TOP STORIES' entries now follow the story, open",
+   "severity": "medium",
+   "where": "src/content/extract/generic.ts:4239-4250 (besideArticle in itemsInto)",
+   "evidence": "Snapshot http://127.0.0.1:8799/dailymail-article-video.html. Before round 6: 'section: TOP STORIES (collapsed)'. Now: 'h2: TOP STORIES' and 180 items, open, right after the article and its comments. Real extension: h2 'TOP STORIES' and 180 li.item. With only besideArticle forced to false, the section folds again. This is the only snapshot or fixture that changed this way, but any news page whose rail sits beside the story column behaves the same.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r7 && bun run.ts now.js,pre.js http://127.0.0.1:8799/dailymail-article-video.html 1 | grep -n 'TOP STORIES'",
+   "regression": true,
+   "suspectedCause": "besideArticle treats every list in a column beside the article as facts about the page (meant for GitHub's About and Releases). A news site's 'Top stories' or 'Most read' rail is beside the story too. It needs a test that the rail's entries are about this page (few entries, no story links), or a cap on entries.",
+   "verdict": "Reproduced. Harness on the dailymail-article-video snapshot: pre shows 'section: TOP STORIES (collapsed)', now shows 'h2: TOP STORIES' followed by open items. Real extension: h2 TOP STORIES followed directly by an ol.items with 180 li, open, after the article and the collapsed Comments. The code at generic.ts:4249 sets folded = afterArticle && !inArticle && !besideArticle(el), and besideArticle (4239) is true for any list in a column beside the story. besideArticle is not in the pre tree, so this is a regression. Severity is medium: it adds noise after the story but loses nothing.",
+   "fix": "In besideArticle or at its use in itemsInto (generic.ts:4249), unfold only when the rail is short (for example 12 or fewer entries) and its entries do not link to other stories (dated same-site article paths). Otherwise fold it as before."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "bulkBar keeps a promo bottom bar whenever any checkbox in any li or tr is checked",
+   "severity": "medium",
+   "where": "src/content/extract/generic.ts:535 (bulkBar fallback), used at generic.ts:553, 3401, 5546",
+   "evidence": "Fixture bottombar.html: search results with a checked 'Hydro' brand filter in a li, plus a fixed full-width bottom bar: 'Members get free two-day delivery on every order, plus early access to sales. [Join for $5 a month] [Maybe later]'. Before round 6 the bar was dropped as a small fixed bar. Now it shows as a paragraph and two buttons at the end of the page, in the harness and in the real extension. popupLike also returns false for any such bottom bar, so a bottom sheet the user opens on such a page is no longer a popup.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r7 && bun run.ts now.js,pre.js fx/bottombar.html 1 --as 'http://shop.fixture.test/s?q=bottle'",
+   "regression": true,
+   "suspectedCause": "bulkBar accepts the bar when SELECTED_COUNT matches its text OR document.querySelector('tr input[type=checkbox]:checked, [role=row][aria-selected=true], li input[type=checkbox]:checked') finds anything anywhere. Filter lists and settings often have a checked box in a li. The fallback should require the checked rows to be in a list or table the bar acts on, or require the count text.",
+   "verdict": "Reproduced. Harness on bottombar.html: now ends with 'p: Members get free two-day delivery ...' and 'actions: Join for $5 a month | Maybe later'. pre drops the bar. Real extension: the same paragraph and two buttons are at the end of Sift's text. Control: with the 'Hydro' facet unchecked, the bar is dropped again. So the li checkbox fallback in bulkBar (generic.ts:535) is the trigger. bulkBar is new in round 6. The popupLike sub-claim (generic.ts:5546) is read from code only and was not run. Medium: a promo bar comes back on any filtered results page, and nothing is lost.",
+   "fix": "In bulkBar (generic.ts:535), drop the document-wide fallback, or limit it: require SELECTED_COUNT text, or require at least 2 checked rows in a table or list that holds the item rows the bar acts on (not a facet or filter list, and not inside an aside or filter panel). The same tightening then fixes popupLike at 5546."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "An all-caps call-to-action link in a story is moved into the folded 'More links' section",
+   "severity": "medium",
+   "where": "src/content/extract/generic.ts:3531-3537",
+   "evidence": "Fixture capslink.html: a city notice with a paragraph that holds only the link 'APPLY FOR THE STORM RELIEF GRANT ONLINE' (to /grants/storm-relief/apply), between its paragraphs. Before round 6 it stayed in place as a link. Now it is gone from the story and appears under 'section: More links (collapsed)' after it, so the page's main action is behind a fold.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r7 && bun run.ts now.js,pre.js fx/capslink.html 1 --as http://city.fixture.test/news/storm-relief",
+   "regression": true,
+   "suspectedCause": "The F648 rule treats any one-link paragraph in capitals (20 or more characters, 4 or more words) as a link to another story. It does not check that the target looks like a story (a same-site article path), or that the words are not a call to action (apply, register, download, read the full ...).",
+   "verdict": "Reproduced. Harness on capslink.html: pre keeps 'p: [APPLY FOR THE STORM RELIEF GRANT ONLINE ->/grants/storm-relief/apply]' in place. Now drops it from the article and lists it under 'section: More links (collapsed)'. Real extension: the Short version and the full text (after 'Show full text') both lack the link. It appears only after expanding 'More links'. The rule at generic.ts:3531-3537 (F648) is new in round 6. Medium: the page's main action moves behind a fold.",
+   "fix": "In the F648 branch (generic.ts:3531), skip relatedLink when the link text starts with a call-to-action verb (apply, register, sign up, download, donate, read the full, view, buy, book) or the href is not a story-like same-site article path (dated, or a long slug under a news section)."
+  }
+ ],
+ "rejected": [
+  {
+   "source": "T2-news",
+   "title": "La Naci\u00f3n search typed soon after load never reaches the page; Enter and Buscar do nothing",
+   "severity": "high",
+   "where": "https://www.lanacion.com.ar/ header search in Sift (1280 px)",
+   "evidence": "In 6 of 9 tries that typed 'Milei' between 2.5 and 9 s after goto, the original's two search inputs stayed empty. Sift was already showing the full home (main text 13,163 chars). Sift's field showed 'Milei', but Enter left the URL at https://www.lanacion.com.ar/ (3 of 3 at 2.5 s). Pressing Enter 13 s later and clicking 'Buscar' 50 s later also did nothing. Typing 10 s or more after goto worked 4 of 4 (/buscador/?query=Milei). Deleting one letter and retyping it later makes the value reach the page, and Enter then works. Shot of the stuck state: /home/nico/projects/sift-test-2/research/shots/r7t2-ln-search.png.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://www.lanacion.com.ar/ wait:2500 'type:input[type=search]=>Milei' wait:3000 'eval:[...document.querySelectorAll(\"input\")].filter(x=>!x.closest(\"sift-root\")&&/busc/i.test(x.placeholder||\"\")).map(x=>x.value)' press:Enter wait:6000 url. This gives [\"\",\"\"] and https://www.lanacion.com.ar/.",
+   "suspectedCause": "Sift binds its field to the original input before React hydration replaces it (ids _r_0_/_r_1_). Keystrokes go to the old element, and Sift does not replay the current value to the new one until the user edits again.",
+   "verdict": "Not reproduced in 13 of 13 tries. I typed 'Milei' 1.0, 1.5, 2.5 (three times), 3.0, 4.0 (twice), 5.0, 6.0 and 8.0 s after goto, two of those runs with a cleared browser cache. Every time the original's input _r_0_ held 'Milei' 3 s later, and Enter went to https://www.lanacion.com.ar/buscador/?query=Milei. It may depend on load or network timing I could not recreate, but I could not see it."
+  },
+  {
+   "source": "T2-news",
+   "title": "Fox article's lead video is announced as 'MVPD Picker'",
+   "severity": "medium",
+   "where": "https://www.foxnews.com/world/nearly-1000-arrested-across-france-police-find-potential-weapons-protestors",
+   "evidence": "The first portal, in both the Short version and the full text, is 'Interactive area from the original page: MVPD Picker. Press Enter to use it, Tab to leave.' It shows the lead video, which is playing (00:35/00:42 in /home/nico/projects/sift-test-2/research/shots/r7t2-fox-mvpd.png). In the original, iframe.mvpd-picker (the TV-provider widget, 756x425) covers the player. The video's real title is the H3 after it, 'Police in Paris fire water cannons at protesters', and there is no 'Video' label or play control in Sift's media bar for it.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/visit.ts https://www.foxnews.com/world/nearly-1000-arrested-across-france-police-find-potential-weapons-protestors fox --wait 30000, then read the first [PORTAL] line.",
+   "verdict": "Rejected. The name comes from the site. The iframe is <iframe class=\"mvpd-picker\" aria-label=\"MVPD Picker\" src=\"//static.foxnews.com/static/orion/html/video/iframe/vod.html\u2026\">. It is the video player itself (vod.html), not a TV-provider widget over the player as the claim says. Sift uses the frame's own aria-label, which the original also announces to screen readers. The portal shows the video and works (shot research/shots/skeptic-fox.png). It is cross-origin, so Sift cannot add play controls to its media bar. Preferring the heading right after it ('Police in Paris fire water cannons at protesters') would be nicer, but that is a low-severity naming improvement over the site's own label."
+  }
+ ],
+ "stillOpen": [
+  {
+   "id": "F649",
+   "status": "partly",
+   "evidence": "Le Monde home (/en/), 1 load. These credits are gone: SAMEER AL-DOUMY/AFP, HERV\u00c9 LEQUEUX, MICHELE LAPINI, THIERRY LAPORTE, KEYSTONE/GAMMA-RAPHO, MASSIMO VALICCHIA. Still there: 'p: KENZA LE BAS' under 'Ang\u00e8le's Instinct' in French Delights. In the original that text is span.ds-card__media__figcaption__text in a figcaption inside .ds-card__lifestyle-content, not .ds-card__media. The promo slot showed '[link] Partner Services' + 'Le Monde for hotels \u00b7 \u2026 Get a free quote for : \u00b7 Le Monde online for your hotel'. Its original container is div.ds-autopromo (class 'ds-home-aside__autopromo'). Outline: /home/nico/projects/sift-test-2/research/shots/r7t2-lemonde-home.txt, lines 31-32 and 61.",
+   "src": "T2-news",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Confirmed as partly fixed, on 1 load of lemonde.fr/en/. The listed credits are gone. One credit remains under French Delights, 'p: GUILLAUME BLOT' (the slot rotates; T2 saw 'KENZA LE BAS'). Its path is span.ds-card__media__figcaption__text < figcaption < div.ds-card__lifestyle-content < div.ds-card__clickarea. The F649 rule at generic.ts:2563 needs `fc.parentElement?.querySelector(\"img, picture\")`. Here the figcaption's parent, ds-card__lifestyle-content, holds no image, so the credit is kept. The promo slot still shows '[link] Partner Services' + 'p: Le Monde for hotels \u00b7 In French and English. Only on PressReader. Get a free quote for : \u00b7 Le Monde online for your hotel'. Its source is div.ds-autopromo.",
+    "fix": "In generic.ts around line 2563, test for an image in the card (el) or the figcaption's closest card, not only in the figcaption's parent. Drop a container with an autopromo or self-promo token (ds-autopromo), or add 'get a free quote|partner services' to PROMO_STRONG or CTA_TITLE."
+   }
+  },
+  {
+   "id": "F625",
+   "status": "partly",
+   "evidence": "The fixture is fixed. r6ext7-promocards.html now gives 11 items (3 before the fix). In the real extension (9468), 'click:plan number 3 for' opens /2026/10/24/story-3. Live https://www.npr.org/ still loses stories. In the harness, 17 of 50 visible article headlines are missing (34 of 50 before the fix). In the real extension, 16 of 50 promo-card story links are not in Sift (checked by href). Every missing story sits in div.bucketwrap.promocard > article.c-promo-card. detectItems returns null at generic.ts:2231 because 20 of 50 cards hold a hidden readonly input.embed-url (Sift's visible() is false for all 20), and withFields counts it (generic.ts:2218). The walker then drops each card on the NOISE_TOKEN match 'promocard'/'promo-card' (generic.ts:3334). The finding's suggested backstop for that drop was not done. A reduced copy is filed as a finding below.",
+   "src": "R1-extractor",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, as reported. The fixture r6ext7-promocards.html now gives 11 items, against 3 in pre (harness). Live https://www.npr.org/ in the real extension still loses 16 of 51 and 17 of 52 visible c-promo-card stories (2 runs), all in div.bucketwrap.promocard > article.c-promo-card. The cause is the same as N3: hidden embed inputs counted by withFields (generic.ts:2218), and the NOISE_TOKEN promo-card drop (generic.ts:3334). The backstop was not done.",
+    "fix": "As in N3: count only visible, non-readonly fields in withFields, and keep NOISE_TOKEN promo-card elements whose heading links to a same-site story."
+   }
+  }
+ ],
+ "recheck": {
+  "F620": {
+   "id": "F620",
+   "status": "fixed",
+   "evidence": "Polled every 100 ms with /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r7/spapoll.ts across 3 in-place navigations. (1) Search to Mix (dQw4w9WgXcQ&list=RDEMt6...): the portal was at top 95 from 244 ms and h1=none until 3565 ms, when the H1 appeared at 632. (2) Home to the dQw4w9WgXcQ radio link: portal at 95 from 176 ms, H1 at 632 at 3457 ms. (3) Search to the 'RickAstley - Greatest Hits' playlist: H1 at 633 at 4744 ms, portal at 95. No 'YouTube' H1 appeared and the title never jumped. The interim view is the player plus 'Loading\u2026': /home/nico/projects/sift-test-1/research/shots/r7t1-spa-search-pl-1500.png",
+   "src": "T1-youtube"
+  },
+  "F621": {
+   "id": "F621",
+   "status": "fixed",
+   "evidence": "Same 3 navigations. The polite status region announced only the real title: search to Mix at 4157 ms, home to the video at 3859 ms, search to playlist at 5091 ms, each 'Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)'. 'YouTube' was never announced. Browser Back from an Up next video announced the restored title. A bot-checked target announces 'YouTube', which is that page's real title.",
+   "src": "T1-youtube"
+  },
+  "F622": {
+   "id": "F622",
+   "status": "fixed",
+   "evidence": "Watch dQw4w9WgXcQ: Comments, Sort Newest, End x4, then a comment held timestamp links 1:40 (t=100s), 0:43 and 0:00. Before clicking 1:40: currentTime 43.6, portal top -7133. After the click: currentTime 102.4, portal top 73 (just under the 65 px bar), URL unchanged. Shot: /home/nico/projects/sift-test-1/research/shots/r7t1-f622-after.png. Transcript lines still seek without bringing the player into view (see polish).",
+   "src": "T1-youtube"
+  },
+  "F623": {
+   "id": "F623",
+   "status": "fixed",
+   "evidence": "Settings gave 'Settings', Appearance gave 'Appearance', then Back gave 'Settings | Settings Close Your data in YouTube Appearance: Light...'. After Escape, reopening gave 'Settings'. Display language gave 'Display language'. After Escape, reopening Settings gave 'Settings', with focus on Close. Restricted Mode and Location ('Choose your location') then Back both returned to 'Settings'. Shot: /home/nico/projects/sift-test-1/research/shots/r7t1-f623-back.png",
+   "src": "T1-youtube"
+  },
+  "F624": {
+   "id": "F624",
+   "status": "fixed",
+   "evidence": "Mix RDdQw4w9WgXcQ: opened the section and clicked item 2. The URL became index=2, the Mix section had open=true and the original's ytd-playlist-panel-renderer was visible. Item 2 is bot-checked, and the notice shows above the open list. Playlist PL2MI040U...: item 3 gave 'RickAstley - Greatest Hits \u00b7 3 / 10 open=true', then item 2 gave '2 / 10 open=true'. Shot: /home/nico/projects/sift-test-1/research/shots/r7t1-f624-pl3.png",
+   "src": "T1-youtube"
+  },
+  "F309": {
+   "id": "F309",
+   "status": "fixed",
+   "evidence": "3 fresh loads of watch?v=dQw4w9WgXcQ polled with /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r7/freshpoll.ts. Each began with 'Loading\u2026', then a 16:9 player placeholder (portal at top 75, height 425) with the H1 below it at 518-572 from 0.98-1.29 s. The H1 never stood alone at the top, and the ~500 px jump is gone. Small shifts remain: H1 518 to 572 to 592 to 632 within 1-2 s as the media bar, header and seek slider arrive (polish). The in-place navigation part is fixed under F620.",
+   "src": "T1-youtube"
+  },
+  "F645": {
+   "id": "F645",
+   "status": "fixed",
+   "evidence": "Infobae /america/ at 1280 px, 3 runs. The dialog query after 'Buscar en todo el sitio' then 'Cerrar' returned null each time: with no query, after typing 'milei', and with Enter on the focused Cerrar. No modal holds the site's masthead. Shots: /home/nico/projects/sift-test-2/research/shots/r7t2-ib-after-cerrar.png, /home/nico/projects/sift-test-2/research/shots/r7t2-ib-after-cerrar2.png, /home/nico/projects/sift-test-2/research/shots/r7t2-ib-cerrar-kbd.png. New side issue: focus now jumps to a mid-page H2 (reported as a separate finding).",
+   "src": "T2-news"
+  },
+  "F646": {
+   "id": "F646",
+   "status": "fixed",
+   "evidence": "BBC shark article c9zrdknlmpdlo at 600x900 (Short version): 8 images, the same 8 as at 1280. The list includes 'Map of the coast of Busan, South Korea\u2026' at 564x472. No overflow (scrollWidth 600). Outline: /home/nico/projects/sift-test-2/research/shots/r7t2-bbc-shark-600.txt.",
+   "src": "T2-news"
+  },
+  "F647": {
+   "id": "F647",
+   "status": "fixed",
+   "evidence": "La Naci\u00f3n Juli\u00e1n Alvarez article, Short version. Once X's widget loaded, all 4 X posts are portals between the paragraphs (550x672, 550x849, 550x576, 550x897), and the first one holds the SportsCenter post with its video box. There is no 'Enlaces del texto completo' list (regex false), and no hashtag, pic.twitter.com or date links are listed. Before the widget loads, each fallback stays in place as one block. Outline: /home/nico/projects/sift-test-2/research/shots/r7t2-ln-xpost.txt. Shot: /home/nico/projects/sift-test-2/research/shots/r7t2-ln-xpost-portal.png.",
+   "src": "T2-news"
+  },
+  "F648": {
+   "id": "F648",
+   "status": "fixed",
+   "evidence": "Fox France article: no number-only reaction buttons in Sift (the eval for buttons matching /^[+\\d\\s]+$/ returned an empty string). Neither the Short version nor the full text has 'AMERICANS WARNED\u2026', 'FRANCE'S TEEN RIOTS\u2026', 'CLICK HERE TO DOWNLOAD THE FOX NEWS APP' or a bare 'Video' link. Outline: /home/nico/projects/sift-test-2/research/shots/r7t2-fox-france.txt. The 'MVPD Picker' portal the skeptic also saw is still there (reported as a separate finding).",
+   "src": "T2-news"
+  },
+  "F649": {
+   "id": "F649",
+   "status": "partly",
+   "evidence": "Le Monde home (/en/), 1 load. These credits are gone: SAMEER AL-DOUMY/AFP, HERV\u00c9 LEQUEUX, MICHELE LAPINI, THIERRY LAPORTE, KEYSTONE/GAMMA-RAPHO, MASSIMO VALICCHIA. Still there: 'p: KENZA LE BAS' under 'Ang\u00e8le's Instinct' in French Delights. In the original that text is span.ds-card__media__figcaption__text in a figcaption inside .ds-card__lifestyle-content, not .ds-card__media. The promo slot showed '[link] Partner Services' + 'Le Monde for hotels \u00b7 \u2026 Get a free quote for : \u00b7 Le Monde online for your hotel'. Its original container is div.ds-autopromo (class 'ds-home-aside__autopromo'). Outline: /home/nico/projects/sift-test-2/research/shots/r7t2-lemonde-home.txt, lines 31-32 and 61.",
+   "src": "T2-news",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Confirmed as partly fixed, on 1 load of lemonde.fr/en/. The listed credits are gone. One credit remains under French Delights, 'p: GUILLAUME BLOT' (the slot rotates; T2 saw 'KENZA LE BAS'). Its path is span.ds-card__media__figcaption__text < figcaption < div.ds-card__lifestyle-content < div.ds-card__clickarea. The F649 rule at generic.ts:2563 needs `fc.parentElement?.querySelector(\"img, picture\")`. Here the figcaption's parent, ds-card__lifestyle-content, holds no image, so the credit is kept. The promo slot still shows '[link] Partner Services' + 'p: Le Monde for hotels \u00b7 In French and English. Only on PressReader. Get a free quote for : \u00b7 Le Monde online for your hotel'. Its source is div.ds-autopromo.",
+    "fix": "In generic.ts around line 2563, test for an image in the card (el) or the figcaption's closest card, not only in the figcaption's parent. Drop a container with an autopromo or self-promo token (ds-autopromo), or add 'get a free quote|partner services' to PROMO_STRONG or CTA_TITLE."
+   }
+  },
+  "F650": {
+   "id": "F650",
+   "status": "fixed",
+   "evidence": "La Naci\u00f3n home, then INICIAR SESI\u00d3N, then login.lanacion.com.ar/u/login/identifier. Sift's text has DNI=true, OLVIDASTE=true and T\u00e9rminos=true. Outline: '\u00bfSOS SUSCRIPTOR Y OLVIDASTE TU EMAIL?', '[link] Buscar con DNI', '[link] T\u00e9rminos y Condiciones', '[link] Pol\u00edticas de Privacidad'. Original a.dni-link is 21 px tall. Nothing was submitted. Shot: /home/nico/projects/sift-test-2/research/shots/r7t2-ln-login.png.",
+   "src": "T2-news"
+  },
+  "F76": {
+   "id": "F76",
+   "status": "cannot_test",
+   "evidence": "Today's La Naci\u00f3n home has neither part of the repro. document.body.innerText has no 'Selecci\u00f3n del Editor', 'A Fondo' or 'Edici\u00f3n especial', and the only 'Juegos' is the nav link. Sift's outline (/home/nico/projects/sift-test-2/research/shots/r7t2-ln-home.txt) has 22 H2 sections, and no heading is directly followed by another heading. The general symptom does not show, but the specific modules are gone, so the fix could not be exercised.",
+   "src": "T2-news"
+  },
+  "F625": {
+   "id": "F625",
+   "status": "partly",
+   "evidence": "The fixture is fixed. r6ext7-promocards.html now gives 11 items (3 before the fix). In the real extension (9468), 'click:plan number 3 for' opens /2026/10/24/story-3. Live https://www.npr.org/ still loses stories. In the harness, 17 of 50 visible article headlines are missing (34 of 50 before the fix). In the real extension, 16 of 50 promo-card story links are not in Sift (checked by href). Every missing story sits in div.bucketwrap.promocard > article.c-promo-card. detectItems returns null at generic.ts:2231 because 20 of 50 cards hold a hidden readonly input.embed-url (Sift's visible() is false for all 20), and withFields counts it (generic.ts:2218). The walker then drops each card on the NOISE_TOKEN match 'promocard'/'promo-card' (generic.ts:3334). The finding's suggested backstop for that drop was not done. A reduced copy is filed as a finding below.",
+   "src": "R1-extractor",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, as reported. The fixture r6ext7-promocards.html now gives 11 items, against 3 in pre (harness). Live https://www.npr.org/ in the real extension still loses 16 of 51 and 17 of 52 visible c-promo-card stories (2 runs), all in div.bucketwrap.promocard > article.c-promo-card. The cause is the same as N3: hidden embed inputs counted by withFields (generic.ts:2218), and the NOISE_TOKEN promo-card drop (generic.ts:3334). The backstop was not done.",
+    "fix": "As in N3: count only visible, non-readonly fields in withFields, and keep NOISE_TOKEN promo-card elements whose heading links to a same-site story."
+   }
+  },
+  "F626": {
+   "id": "F626",
+   "status": "fixed",
+   "evidence": "Harness, same browser, runs alternating. r6ext7-wallul3000: now 183-508 ms, before the fix 1259-2185 ms. My walldiv3000 copy: now 519-1172 ms, before 1538-2697 ms. F626's baseline with pictureTwin removed was 510-845 ms, so now matches it. r5ext-wall3000 is unchanged (now 113-184 ms, before 133-337 ms). The manyLinks cache (generic.ts:802) stops the per-picture climb.",
+   "src": "R1-extractor"
+  },
+  "F627": {
+   "id": "F627",
+   "status": "fixed",
+   "evidence": "r6ext7-ctalogin.html served as http://fixture.test/page (request interception). Now: 'p(small): Already have an account? [Log in ->/login]' and 'p(small): Need help? [Visit the help centre ->/]' both stay, and the radio strip 'Listen to our radio' is still dropped. Before the fix, both lines were gone. r6ext7-ctastrip-es.html as www.fixture.test: 'Escuch\u00e1 + m\u00fasica' is dropped and '\u00bfYa ten\u00e9s cuenta? [Ingres\u00e1]' stays.",
+   "src": "R1-extractor"
+  },
+  "F563": {
+   "id": "F563",
+   "status": "fixed",
+   "evidence": "Harness: mostread-linked gives 'h2: Most read ->/most-read' and 10 linked items. mostread-divs gives 'h2: Most read' and 10 items. The original mostread gives 10 too. Before the fix, both variants gave one item with headlines 0-7 squeezed into its meta. Real extension: 'click:Most read story number 8' opens /read/8 on both variants.",
+   "src": "R1-extractor"
+  },
+  "F566": {
+   "id": "F566",
+   "status": "fixed",
+   "evidence": "r6ext7-hashlink2 (outside an article, addEventListener only): both questions are now links (before the fix they were 'p:' text). Real extension: 'click:How do I change' shows the answer and .a.hidden becomes false. r6ext7-hashlink3 (inside an article): both questions are links through data-sift-click from main.js. Real extension: the click opens it and #a1.hidden becomes false.",
+   "src": "R1-extractor"
+  }
+ },
+ "works": [
+  "T1-youtube: F620/F621: navigating in place from search or home into a video or Mix shows the player at the top with 'Loading\u2026' below it, then the H1 lands directly at 632 under the player; only the real title is announced.",
+  "T1-youtube: F622: a comment timestamp (1:40) seeks the video (43.6 to 102.4) and scrolls Sift's view to the player (portal top -7133 to 73).",
+  "T1-youtube: F623: the Settings dialog name follows the shown page after Back, Escape and reopening (Appearance, Display language, Restricted Mode, Location).",
+  "T1-youtube: F624: picking a Mix item or a playlist item keeps the section open (open=true), and the position updates (3 / 10, then 2 / 10).",
+  "T1-youtube: Fresh watch load: Sift's root is in the top layer from the first animation frame on watch (850 ms) and home (1119 ms), so the original never shows first. Focus is on main#sift-main at 3, 9 and 19 s.",
+  "T1-youtube: Media bar: Pause/Play (12.5 to 12.7 paused, label Play), Ahead 10s (12.7 to 22.7), Back 10s (to 12.7), Mute/Unmute, Captions (YouTube CC aria-pressed true to false to true, mirrored). Clicking the picture pauses.",
+  "T1-youtube: Seek slider 'Position in video': aria-valuetext '0:19 / 3:33'. A click seeks to 106. ArrowRight goes to 107, ArrowLeft to 106, PageUp to 127, End to 213, Home to 0. The value follows playback.",
+  "T1-youtube: Full screen by mouse and by focus plus Enter (800x600 player). Exit by f and by YouTube's 'Exit full screen (f)' button. The portal realigns to 262,-8,756,425 and focus returns to Full screen.",
+  "T1-youtube: Theater mode toggled in the portal (theater true, then false). The portal stays exactly over #movie_player (262,95,756,425).",
+  "T1-youtube: PageDown with focus in the player scrolls Sift (portal 95 to -202), and PageUp returns it.",
+  "T1-youtube: Search suggestions: the list appears for 'never gonna'. ArrowDown twice plus Enter searches 'never gonna give you up rick astley'. A click on a suggestion searches it. Escape closes the list with focus kept in the field.",
+  "T1-youtube: Search chips (All, then Videos, then All) show pressed state. Filters opens 'Search filters' with Relevance pressed. 'This week' gives sp=EgIIAw%253D%253D, with 14 results in Sift and 14 in the original.",
+  "T1-youtube: Search results keep the channel row (@RickAstleyYT \u00b7 4.55M subscribers, Subscribe) and playlist rows ('RickAstley - Greatest Hits \u00b7 RickAstleyVEVO \u00b7 Playlist \u00b7 10 videos'). Result hrefs keep list=RD...&start_radio=1 exactly as the original.",
+  "T1-youtube: Up next hrefs: 20 of 20 match the original's #related hrefs, 19 of them with list=. A middle-click on an Up next Mix opens it in a new tab and leaves this tab unchanged.",
+  "T1-youtube: Up next to a bot-checked video shows YouTube's notice with Sign in and Learn more and no stale player. Browser Back restores the player, H1 and sections and announces the title. Autoplay at the end moved Sift to the next video (Hc9seZ0W8Ug, bot-checked notice).",
+  "T1-youtube: Keyboard: Enter on an Up next link navigates, focus lands on main, and the new page is announced.",
+  "T1-youtube: Comments: '58 replies' and 'Show more replies' load 57 replies, matching the original's 57. End loads top-level threads in step: 60 in Sift, 60 at the top level in the original. Sort by keyboard: Enter opens 'Sort comments' with focus on Close, Tab reaches Newest, Enter re-sorts (first comment '32 minutes ago' in both) and focus returns to 'Sort comments'.",
+  "T1-youtube: An @mention link in a reply (@Walnut-1) opens that channel page, as on the original.",
+  "T1-youtube: Signed-out Like, Dislike, Save and Subscribe open 'Like this video?', 'Don't like this video?', 'Want to watch this again later?' and 'Want to subscribe to this channel?' as modal dialogs with focus on Close. Escape returns focus to the opener (when the prompt does not vanish; see finding).",
+  "T1-youtube: Description shows the full text and links (16 links). Show transcript gives 24 lines, the same as the original's 24 segments. A click on 0:43 seeks to 44.7. Focus plus Enter on 1:00 seeks to 61.6.",
+  "T1-youtube: Menu: modal 'Menu' with focus on Close. Show more adds Playables and Memberships. Shift+Tab wraps to 'Report history', and Escape returns focus to Menu. Settings > Keyboard shortcuts opens, and Escape returns to Settings.",
+  "T1-youtube: Settings > Appearance > Dark theme makes the original dark (html[dark]) while Sift stays white (#fff, text rgb(17,17,17)). Reverted to Light afterwards.",
+  "T1-youtube: Playlist: '1 / 10' position. Loop cycles Loop playlist, Loop video, Turn off loop. Shuffle toggles aria-pressed. Both mirror the original's labels and pressed state exactly.",
+  "T1-youtube: Tab order on the Mix watch page: header, media bar, Position in video, channel, Subscribe, Like, Dislike, Save, Mix, Description, Show transcript, Up next, Comments, Sort, reply buttons, switch. No stops in the hidden original. Search, home and Shorts are logical too.",
+  "T1-youtube: axe-core 0 violations: the Mix watch page with Mix, Description, transcript, Up next, Comments and replies open; the same with Settings open; home; search; watch; a Short.",
+  "T1-youtube: Landmarks: header, form[role=search], main, status. Headings: h1 title, h2 Description, Up next and Comments.",
+  "T1-youtube: Spanish (hl=es) watch page: Ir al contenido, Pausar, Atr\u00e1s 10 s, Posici\u00f3n en el v\u00eddeo, Suscribirse, Guardar, Descripci\u00f3n, A continuaci\u00f3n, Comentarios, 'Los mixes son listas de reproducci\u00f3n...', lang=es-ES. Up next and home one-liners are Spanish. The search page UI is fully Spanish (Buscar: rick astley, Todo, Filtros). Reset to hl=en afterwards.",
+  "T1-youtube: Home: Music and All chips re-filter, and Sift's first rows match the original's (E8gmARGvPlI, yZyQKiUAdqE, Zi_XLOBDo_Y, ...). Infinite scroll gave Sift 21, 45, 69, 92 against the original's 21, 45, 69, 93.",
+  "T1-youtube: Shorts: the Short's 'Video unavailable' matches the original. 'View 1,723 comments' opens the comments. Next video navigates (B7M4J8BTL98 to y4hA62ah2MY).",
+  "T1-youtube: 600 px, 400 px and 640x450@2x: one portal exactly over #movie_player (18,148,564,317 / 18,140,364,205 / 18,148,604,339). No horizontal overflow on watch, search, home and the playlist page. Up next is kept, and the header is static. The video keeps playing at 200% (16.6 to 19.6 s).",
+  "T2-news: F645, F646, F647, F648 and F650 hold on the merged build (see rechecks).",
+  "T2-news: works.md line 3 holds: axe gives 0 violations on BBC Limoges, Guardian home, Guardian Hebron (oct/24), Infobae Italy, La Naci\u00f3n Neuqu\u00e9n, the Daily Mail article snapshot, Infobae home and the Clar\u00edn article. Also 0 on BBC home, BBC Lula, BBC WhatsApp, Guardian Lula, Infobae banqueros, La Naci\u00f3n /buscador, the Daily Mail home and video snapshots, and The Independent home.",
+  "T2-news: works.md line 4 holds: no horizontal overflow at 400 px on Infobae Italy (385/400), Guardian home, the Daily Mail video snapshot, BBC Limoges and the Clar\u00edn article. None at 600 px on BBC home, BBC Limoges, BBC shark, La Naci\u00f3n Neuqu\u00e9n, BBC Lula and BBC WhatsApp.",
+  "T2-news: Speed holds on every page load (firstpaint.ts, 3 runs): Sift's first content came at the same poll as the original's on Guardian home and article, BBC home and 2 articles, Infobae home and article, La Naci\u00f3n home and Neuqu\u00e9n, the Clar\u00edn article, the 3 Daily Mail snapshots, and The Independent home and article.",
+  "T2-news: works.md lines 7 and 294 hold: on the Guardian home, 121 long Sift links all match an original anchor, with 0 duplicate hrefs. Clicking 'Democracy always\u2026' opened the right article. The Menu is an aria-modal 'Menu' dialog (Close, News, Opinion, Sport\u2026) with focus on Close, and Escape returns focus to Menu.",
+  "T2-news: Menus: the BBC 'Menu', Infobae 'Men\u00fa', Fox 'Menu' and Independent 'Menu' dialogs are aria-modal, open with focus on Close/Cerrar, and Escape returns focus to the opener.",
+  "T2-news: Search: BBC dialog field with Enter goes to /search?q=Starlink with results. Infobae shows live queryly results, and Enter goes to /buscador/?query=Lula with results. La Naci\u00f3n 'Milei' goes to /buscador/?query=Milei with '45884 resultados'. Under Filtros, 'Econom\u00eda (9092)' gives 9092, the same as the original. Fox 'Starlink' goes to the results page, and Load More goes from 10 to 19 links with focus kept on Load More. The Guardian search submits the same Google site search as the original (Google captcha, stopped there).",
+  "T2-news: Sign-in opens without submitting: Guardian goes to profile.theguardian.com with an email field. BBC goes to account.bbc.com with an email field. Infobae opens an 'Iniciar sesi\u00f3n' modal with focus in Email, and Escape returns to INICIAR SESION. La Naci\u00f3n goes to its login page with 'Buscar con DNI'. Fox goes to auth.fox.com with an Email field.",
+  "T2-news: Video through Sift's media bar: BBC Limoges plays the preroll (8.7/15 s) and then the main video (9.2/54 s). La Naci\u00f3n Neuqu\u00e9n JW plays (t=7.3 s) and Pausar pauses it (paused at 11.7 s). Infobae Italy plays (8.4 s) and pauses (8.6 s, paused). The Daily Mail video snapshot plays (5.5 s) and pauses (9.5 s). On the BBC WhatsApp video, Play shows the same 'Subscribe to BBC to continue' wall (CAN$12.99) as clicking Play on the original.",
+  "T2-news: Infobae article tools: 'Puntos clave' shows the key points, 'Escuchar' then 'Reproducir audio' plays the audio (t=5.0 s), and 'Pausar audio' pauses it (5.2 s).",
+  "T2-news: Keyboard: on BBC Limoges, Enter on 'Show full text' switches to 'Show short version' and back, and focus stays on the toggle. Tab order is Skip, Menu, Search, Sign In, toggle, then the video controls. Guardian, Infobae, La Naci\u00f3n and Daily Mail tab orders run header, toggle or media, links, then the switch, with no stops in the hidden original.",
+  "T2-news: Fresh Short versions are faithful and shorter. BBC Lula is 0.57 of the words; the 15% stock drop, Zanin, 33 million and 81/2030/5 January all match. BBC WhatsApp is 0.46 (10.8 million, three weeks, Holzhacker, Goulart). Guardian Lula: 64.2m/59.8m, Miliband, Kast, Hilton and February immunity all match. Infobae banqueros is 0.69 (4,400 M, 2,000 M, 45,000 M, 18%, 9%). Daily Mail Iran is 0.54 ($111.74, 2.68%, four embassies). The Independent is 0.73 and even keeps the source's own '2019 until 2020'.",
+  "T2-news: Headline lines are faithful apart from the teaser case: 102 Infobae home pairs, 212 Daily Mail home pairs, 18 rewritten Independent home lines, La Naci\u00f3n 'M\u00e1s le\u00eddas' items, and BBC home lines (the original text).",
+  "T2-news: Language: Spanish UI on Infobae and La Naci\u00f3n (Ir al contenido, Men\u00fa, Buscar en todo el sitio, Ver texto completo / Ver versi\u00f3n corta, VERSI\u00d3N CORTA, Reproducir, Pausar, Atr\u00e1s 10 s, Adelante 10 s, Escuchar, Vista Sift, Ingresar at 200%). The Spanish Short versions and line rewrites stay in Spanish.",
+  "T2-news: Clar\u00edn: the home keeps 'Solo suscriptores' in meta lines. The article keeps its video portal, Short version and 5 section headings.",
+  "T2-news: BBC live page cq1j38x0n4zrt is a clean timeline: Summary, Live Reporting, timestamped posts with photos.",
+  "T2-news: Guardian F1 live blog: all 3 in-post photos show (plus the lead).",
+  "T2-news: F381 fixture (fx/news-promo-slug.html): all 7 story cards kept, the 4 sign-up CTAs dropped.",
+  "T2-news: Daily Mail: the home snapshot outline is 395 lines, and 'Halle\u2026' now appears once. The article snapshot shows '+6 View gallery' once. The video snapshot has its Short version and '266 comments'.",
+  "T2-news: The Independent (new site, very cluttered: membership modal, ads) opens as a clean headline list with section headings. Its Menu and headline click work, and the article opens with H1, standfirst, photos and a Short version.",
+  "T2-news: 200% zoom (640x450 at scale 2): no horizontal overflow on Guardian home and article, BBC home and 2 articles, Infobae home and article, La Naci\u00f3n search and Neuqu\u00e9n, the 3 Daily Mail snapshots, or The Independent home and article. The switch is 98x42 and named."
+ ],
+ "polish": [
+  "T1-youtube: Watch page: YouTube's own keys (k, j, l, m, ArrowRight) do nothing while focus is in Sift's main (currentTime advanced normally, never paused or muted), yet Settings > Keyboard shortcuts lists them. Sift's buttons and slider cover the same actions.",
+  "T1-youtube: Watch page transcript: clicking a line (0:43) seeks, but Sift's view stays in the transcript with the player far above (portal top -2306). Comment timestamps now scroll to the player. On the original, the transcript sits beside the player.",
+  "T1-youtube: Fresh watch load: the 500 px title jump is gone, but the H1 still shifts 518 to 572 to 592 to 632 px within 1-2 s as the media bar, header search and seek slider arrive.",
+  "T1-youtube: Spanish UI (hl=es) search for 'rick astley': video one-liners stay in English ('Rick Astley\u2019s \u201cTogether Forever\u201d official video, 4K remaster'), while home and Up next one-liners on the same Spanish UI are Spanish. The line-language decision is inconsistent between pages.",
+  "T1-youtube: Up next to a bot-checked video: Sift shows the bot notice above the previous video's title, channel and action buttons for about 1.2 s longer than the original. Sift showed this from 4239 to 6956 ms; the original hid its metadata at 5757 ms.",
+  "T1-youtube: Playlist and Mix: Sift's media bar has no Next or Previous video, and YouTube's Shift+N does not work from Sift, so moving through a list means using the section's item links.",
+  "T1-youtube: Comments: author names are plain text in Sift. On the original, each author name links to the channel.",
+  "T1-youtube: Watch page after Settings > Appearance > Dark theme: YouTube reloads the page (themeRefresh=1), and focus lands on the media-bar figure instead of main.",
+  "T2-news: Guardian home: about 20 bare '[link] comments' links with no count (the original shows '\u2026 comments' while counts load). Each is an extra tab stop.",
+  "T2-news: Guardian: the search field's accessible name is 'Search input google-search Search'.",
+  "T2-news: Guardian article: 'Links in the full text' lists fragments ('had warned', 'One photograph', 'Another image'), plus 'Reuse this content' and a 'news' tag link. 'More on this story' keeps the 'Move carousel backwards/forwards' buttons although Sift shows the whole list.",
+  "T2-news: Guardian article YouTube video: Sift's Play and a click on the poster load nothing. The original sits behind the 'It's your choice' cookie wall, so I could not check whether the original plays without a consent choice (unverified).",
+  "T2-news: Guardian sign-in page: a long 'Cookies in the browser\u2026' paragraph is kept at the end.",
+  "T2-news: BBC: the Search dialog's accessible name is the page title ('Breaking news, video and the latest top stories\u2026'), not 'Search'.",
+  "T2-news: BBC video paywall: Sift's sheet is titled 'Payment and account management', and the subscribe panel overflows the white sheet on the right (/home/nico/projects/sift-test-2/research/shots/r7t2-bbc-whatsapp-play.png).",
+  "T2-news: BBC WhatsApp article: the scroll timeline portal is named only 'Interactive or visual content', and its second card is clipped at the portal edge.",
+  "T2-news: BBC live page: the 'Are you affected by the protests? Get in touch' call to action is kept.",
+  "T2-news: Infobae: the search field's accessible name is 'Search' (English) on a Spanish page.",
+  "T2-news: Infobae and La Naci\u00f3n articles: the Sift switch takes two Tab presses (tabwalk lists 'SIFT <button> Sift' twice).",
+  "T2-news: Infobae home: stories from blocks without a heading are listed under the previous heading (Virginia, Ukraine and NBA items under 'VENEZUELA'; four book items under 'MEDIO ORIENTE'). I did not compare this visually with the original.",
+  "T2-news: La Naci\u00f3n login page (login.lanacion.com.ar, no lang attribute): Sift's UI is in English ('Skip to content') on a Spanish page. The '\u00f3 ingres\u00e1 con tu email' divider still comes after the email form.",
+  "T2-news: La Naci\u00f3n Neuqu\u00e9n: two video bars both say 'Reproducir', with no description naming their video.",
+  "T2-news: La Naci\u00f3n home: 'M\u00e1s le\u00eddas' shows 1 of its 5 stories. 3 are deduplicated into earlier sections, and 'Benjam\u00edn\u2026' is listed under 'Foodit'. The rank numbers 1-5 are dropped.",
+  "T2-news: La Naci\u00f3n search: Filtros is collapsed by default, while the original shows the filter sidebar open at 1280 px.",
+  "T2-news: La Naci\u00f3n Colapinto article: the standfirst renders as an H2 and the byline as a lone 'p: LA NACION' line before the photo. Its ESPN embed shows '403 ERROR', the same as in the original.",
+  "T2-news: Daily Mail article snapshots at 640 px: no Login in Sift. The snapshot's header Login sits off-screen at x=885, and another is in the footer.",
+  "T2-news: Daily Mail home: 'A Goldberg star\u2026' for 'Goldbergs star'. 'Opinion: The writer says\u2026' replaces Mark Halperin's name.",
+  "T2-news: The Independent: the 'Join our commenting forum' block and a 'Bookmark this page' button are kept in the article.",
+  "T2-news: Le Monde home: the 'Partner Services / Le Monde for hotels' autopromo (div.ds-autopromo) and the 'KENZA LE BAS' credit remain (F649, partly).",
+  "T2-news: CNN (edition.cnn.com) answered 'Unknown Error' to this machine, so I used The Independent as the new site.",
+  "R1-extractor: generic.ts:3377: 'const lifted = el.hasAttribute(\"data-sift-portal\")' is always false. tools7a's guard at line 3374 already skips lifted portals, so gena7's three 'lifted' checks are dead code from the merge.",
+  "R1-extractor: dom.ts:780 NOISE_TOKEN: the 'no-' lookbehind only protects the first token after 'no-', so 'no-auto-promo' still counts as noise (the 'promo' alternative matches after 'auto-').",
+  "R1-extractor: generic.ts:1709 humanName: '(^|\\s)form|form$|field' also drops plain names such as 'format', 'platform', 'formula', 'uniform' and 'field of study', so an unlabeled field with such a name now has no label.",
+  "R1-extractor: generic.ts toItem (~2391): NPR cards carry a 'toggle caption' button as an item action, and the photo credit ('Anna Moneymaker/Getty Images') as meta. This is clutter, and it was already there before round 6.",
+  "R1-extractor: generic.ts:3206 visit(): scrollBox reads clientHeight/scrollHeight for every visited element. It was about 7% self time in a CPU profile of core-buttons3000, but on/off runs were within noise. Timings were taken alternating, under load average 25-40, and showed no clear slowdown: core-buttons3000 before 310-588 ms vs now 288-750; core-nav3000 168-326 vs 178-401; Wikipedia 'World War II' 891-2137 vs 733-2720; Guardian home 204-1132 vs 289-778.",
+  "R1-extractor: generic.ts:452-458 isChrome: an <aside> inside <main> with under 60 characters is dropped even when it holds filter checkboxes (a 3-brand facet list vanished in my bottombar fixture). Already so before round 6."
+ ],
+ "done": [
+  {
+   "src": "T1-youtube",
+   "page": "YouTube home",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts, original ytd-rich-item-renderer against Sift: 3178/3490/2865 ms vs 3178/3490/2865 ms. Median 3178 vs 3178, equal (load average about 6-8)."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube home",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Music and All chips: same effect, and Sift's first rows match the original's video ids. End infinite scroll gave Sift 21, 45, 69, 92 against the original's 21, 45, 69, 93. Search suggestions with keys and with a click search the suggestion. A click on a video opens it in place."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube home",
+   "check": "language",
+   "pass": true,
+   "evidence": "English page: English UI and one-liners. With hl=es: Inicio, Temas, Iniciar sesi\u00f3n, Configuraci\u00f3n, and Spanish one-liners ('V\u00eddeo oficial de Rick Astley, \u00abNever Gonna Give You Up\u00bb, remasterizado en 4K')."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube home",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk: Skip to content, Search, Search, Menu, Sign in, Settings, Topics, then video links. All stops are in Sift."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube home",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe-core 0 violations."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube home",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2x: host scrollWidth 640 = clientWidth 640, no element past the right edge."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube search",
+   "check": "speed",
+   "pass": true,
+   "evidence": "Original first result 3113/2650/3065 ms vs Sift 1882/1659/1480. Median 3065 vs 1659."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube search",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Typing plus Enter and suggestions search the same URL as the original. Chips show pressed state. Filters > This week gives the same sp=EgIIAw%253D%253D URL and 14 results in both. Channel row Subscribe and playlist rows are kept, and hrefs match the original's."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube search",
+   "check": "language",
+   "pass": true,
+   "evidence": "hl=es: the UI is Spanish (Buscar: rick astley, Todo, No visto, Filtros, 'Lista de reproducci\u00f3n \u00b7 43 v\u00eddeos'). One-liners of English titles stay English (see polish). The original's titles are English too."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube search",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk: header, chips All to Live, Filters, then result links. All stops are in Sift."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube search",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe-core 0 violations."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube search",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "400x800: scrollWidth 400 = 400, no overflow."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube watch",
+   "check": "speed",
+   "pass": true,
+   "evidence": "Original title 5269/5039/8443 ms vs Sift 2657/1932/2285. Median 5269 vs 2285."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube watch",
+   "check": "actions",
+   "pass": false,
+   "evidence": "Pass: media bar, seek slider, full screen and back, theater, captions, comments (sort, replies 57/57, load more 60/60), timestamp seek, transcript seek, Up next and Back, autoplay, Menu, Settings sub-pages. Fail: the Like/Save sign-in prompts vanish after 1-3 s in about 6 of 16 tries while the original keeps them open, and Up next stops loading on End once YouTube has loaded comments (3 of 4 runs)."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube watch",
+   "check": "language",
+   "pass": true,
+   "evidence": "hl=es watch: all Sift controls are Spanish (Pausar, Atr\u00e1s 10 s, Posici\u00f3n en el v\u00eddeo, Suscribirse, Me gusta, Guardar, Descripci\u00f3n, A continuaci\u00f3n, Comentarios), lang=es-ES, and the Up next one-liners are Spanish."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube watch",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Full Tab path with every section open: header, media bar, slider, channel, actions, Mix, Description, Show transcript, Up next, Comments, Sort, replies, switch. No page stops. Enter opens sections, Sort, transcript lines and Up next links."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube watch",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe-core 0 violations with all sections open and with Settings open. Landmarks are header, search, main and status; h1 plus three h2. Navigation announces the video title."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube watch",
+   "check": "zoom",
+   "pass": false,
+   "evidence": "640x450@2x: no overflow (640/640), the portal sits over the player (18,148,604,339), and the video plays (16.6 to 19.6 s). But Save is missing: YouTube moves it into 'More actions' (menu 'Save Report'), and Sift shows neither."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube playlist / Mix",
+   "check": "speed",
+   "pass": true,
+   "evidence": "Mix watch: original title 8635/10062/7744 ms vs Sift 5316/5283/2170. Median 8635 vs 5283."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube playlist / Mix",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Position '1 / 10', then '3 / 10' and '2 / 10' after item clicks, with the section kept open. Loop playlist, Loop video, Turn off loop and Shuffle on/off match the original's labels and pressed state. The Mix item click navigates the same as the original (a YouTube bot check on most items)."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube playlist / Mix",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe-core 0 violations on the Mix watch page with the Mix section open."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube playlist / Mix",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "Playlist at 400x800: no overflow (400/400). The portal sits over the player at 18,140,364,205, and the playlist section is present."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube Shorts",
+   "check": "speed",
+   "pass": true,
+   "evidence": "Original Short title (ytd-reel-video-renderer h1 span) 5095/3526/4377 ms vs Sift 4554/3204/3502. Median 4377 vs 3502."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube Shorts",
+   "check": "actions",
+   "pass": true,
+   "evidence": "'View 1,723 comments' shows the comments. Next video navigates (B7M4J8BTL98 to y4hA62ah2MY). 'Video unavailable' is the same on the original."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube Shorts",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk: header, @Oogway_Ranks, Subscribe, Like 338K, View 1,724 comments, Next video, switch."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube Shorts",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe-core 0 violations."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube narrow 600/400 px",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "600x900 and 400x800 watch: portal over the player (18,148,564,317 / 18,140,364,205), no overflow, Description, Up next and Comments present, Save present at 400 px."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts on h3, 3 runs: original 2141/1558/1537 ms, Sift 2141/1558/1537 ms. Median 1558 vs 1558."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home",
+   "check": "actions",
+   "pass": true,
+   "evidence": "The 'Democracy always' headline opens /world/2026/oct/26/brazil-lula-vow-democracy-always-election-win. Menu is a modal with focus on Close, and Escape returns to Menu. Sign in goes to profile.theguardian.com with an email field. Search submits google.co.uk/search?q=Lula&as_sitesearch=www.theguardian.com, as the original does (Google captcha, stopped)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home",
+   "check": "content",
+   "pass": false,
+   "evidence": "121 headline links all match original anchors, with 0 duplicates. One line invents a claim: 'Should people tip on takeaway? The writer weighs the angles but does not give the answer' (reported)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 at scale 2: no overflow (scrollWidth 640). Search, Search button, Menu and Sign in are in the header."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home",
+   "check": "language",
+   "pass": true,
+   "evidence": "English page with English UI and English lines."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian article (Lula)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "h1, 3 runs: original 1750/708/1216 ms, Sift identical. Median 1216 vs 1216."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian article (Lula)",
+   "check": "content",
+   "pass": false,
+   "evidence": "Short version 780 of 1300 words (0.60), facts faithful. H1, byline and photos are there. But the byline is repeated as links and the dateline shows as an H2 collapsible inside the Short version (reported)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian article (Lula)",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, Search field, Search, Menu, Sign in, Show full text, then content links and portals. No stops in the hidden original."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian article (Lula)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian article (Lula)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 at scale 2: no overflow. H1, byline and the SHORT VERSION toggle are readable (/home/nico/projects/sift-test-2/research/shots/r7t2-guardian-lula-z200.png)."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC home (1280 and 600 px)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "h2, 3 runs: original 1187/1241/989 ms, Sift identical. Median 1187 vs 1187."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC home (1280 and 600 px)",
+   "check": "content",
+   "pass": false,
+   "evidence": "35 of 36 original story links at both widths. 'How 'Lula's Army' WhatsApp channel\u2026' is missing (reported). No overflow at 600 px."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC home (1280 and 600 px)",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Menu is a modal with focus on Close, and Escape returns to Menu. Search opens a dialog with focus in the field, and Enter goes to /search?q=Starlink with results. Sign In goes to account.bbc.com with an email field and Continue. The Lula headline opens /news/articles/ckm23y3mg1yyo."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC home (1280 and 600 px)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC home (1280 and 600 px)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 at scale 2: no overflow. Menu, Search and Sign In are in the header."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article Lula (1280 and 600 px)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "h1, 3 runs: original 1509/1922/1454 ms, Sift identical. Median 1509 vs 1509."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article Lula (1280 and 600 px)",
+   "check": "content",
+   "pass": false,
+   "evidence": "Short version 520 of 910 words (0.57), faithful, with 2 photos. But the 1:18 lead video is missing (0 portals) and co-author Hafsa Khalil is missing, at both widths (reported)."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article Lula (1280 and 600 px)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article Lula (1280 and 600 px)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 at scale 2: no overflow. At 600 px: scrollWidth 600, 2 photos at 564 px."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article WhatsApp (1280 and 600 px)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "h1, 3 runs: original 1205/965/1309 ms, Sift identical. Median 1205 vs 1205."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article WhatsApp (1280 and 600 px)",
+   "check": "content",
+   "pass": true,
+   "evidence": "H1, 'Julia Braun \u00b7 26 Oct 2026, 15:37', a Short version of 380 of 821 words (0.46) that is faithful, 2 photos, the timeline portal and the video portal. Same content at 600 px."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article WhatsApp (1280 and 600 px)",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Play through the media bar shows the 'Subscribe to BBC to continue' wall, as Play on the original does (both CAN$12.99/month)."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article WhatsApp (1280 and 600 px)",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, Menu, Search, Sign In, Show full text, the portal, Play, Back 10s, Ahead 10s, Mute, Full screen, related links, the switch. The Limoges toggle works by Enter, and focus stays on it."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article WhatsApp (1280 and 600 px)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article WhatsApp (1280 and 600 px)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 at scale 2: no overflow. At 600 px: scrollWidth 600."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae home",
+   "check": "speed",
+   "pass": true,
+   "evidence": "h2, 3 runs: original 14198/7357/8149 ms, Sift identical. Median 8149 vs 8149 (the site was slow for both)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae home",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Men\u00fa is a modal with focus on Cerrar, and Escape returns. Search shows live results, and Enter goes to /buscador/?query=Lula with 20 results. 'Los banqueros m\u00e1s ricos\u2026' opens the right article. But after Cerrar, focus jumps to a mid-page H2 (reported)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae home",
+   "check": "content",
+   "pass": true,
+   "evidence": "102 headline lines all match original anchors and are faithful; datelines ('Desde Caracas') are in the meta lines."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae home",
+   "check": "language",
+   "pass": true,
+   "evidence": "Spanish UI: Ir al contenido, Men\u00fa, Buscar en todo el sitio, REGISTRARME, INICIAR SESION, Vista Sift. Lines stay in Spanish."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae home",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae home",
+   "check": "zoom",
+   "pass": false,
+   "evidence": "No overflow (scrollWidth 625 of 640). But there is no sign-in control anywhere in Sift, while the original shows an account avatar that opens REGISTRARME / INICIAR SESI\u00d3N (reported)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (banqueros) and sign-in control",
+   "check": "speed",
+   "pass": true,
+   "evidence": "h1, 3 runs: original 7240/4097/1818 ms, Sift identical. Median 4097 vs 4097."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (banqueros) and sign-in control",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Short version 409 of 593 words (0.69), faithful. Puntos clave shows the key points. Escuchar then Reproducir audio plays (t=5.0, playing), and Pausar audio pauses (5.2, paused). INICIAR SESION opens an 'Iniciar sesi\u00f3n' modal (Email, Contrase\u00f1a, Recordar, Olvid\u00e9 mi contrase\u00f1a, Ingresar) with focus in Email, and Escape returns to INICIAR SESION. Not submitted."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (banqueros) and sign-in control",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Ir al contenido, Men\u00fa, Buscar, REGISTRARME, INICIAR SESION, Ver texto completo, Escuchar, Puntos clave, Resumen, tags, \u00daltimas Noticias, then the switch (which takes 2 presses)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (banqueros) and sign-in control",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (banqueros) and sign-in control",
+   "check": "zoom",
+   "pass": false,
+   "evidence": "No overflow, but the header is only Men\u00fa and Buscar en todo el sitio. The sign-in control is missing at 200% (reported). Shot: /home/nico/projects/sift-test-2/research/shots/r7t2-ib-article-z200.png."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (banqueros) and sign-in control",
+   "check": "language",
+   "pass": true,
+   "evidence": "VERSI\u00d3N CORTA, Ver texto completo, Escuchar, Puntos clave, Reproducir audio, Pausar audio. The Short version is Spanish."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n search (/buscador/?query=Milei)",
+   "check": "speed",
+   "pass": false,
+   "evidence": "Time to the first result: original 4744/3860/1177 ms, Sift 6605/4778/1789 ms (median 3860 vs 4778). Earlier set: 10536/7092/3057 vs 12280/7762/3642. Sift was later in 6 of 6 runs. With firstpaint.ts on h2, Sift showed 'Todav\u00eda no hay nada para mostrar.' at 1311 ms (median), before any results."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n search (/buscador/?query=Milei)",
+   "check": "actions",
+   "pass": false,
+   "evidence": "Typed 10 s or more after load, 'Milei' and Enter go to /buscador/?query=Milei with '45884 resultados', and Filtros, then Econom\u00eda (9092), gives 9092, the same as the original. Typed 2.5-9 s after load, the query never reached the page in 6 of 9 tries (reported)."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n search (/buscador/?query=Milei)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n search (/buscador/?query=Milei)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 at scale 2: no overflow. 'Buscar en LA NACION' field, Buscar, Men\u00fa and Ingresar are in the header."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n search (/buscador/?query=Milei)",
+   "check": "language",
+   "pass": true,
+   "evidence": "Spanish UI and Spanish result lines."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Neuqu\u00e9n)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "h1, 3 runs: original 1649/1336/6097 ms, Sift identical. Median 1649 vs 1649."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Neuqu\u00e9n)",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Reproducir plays the JW video (t=7.3 s, playing; bar switches to Pausar/Atr\u00e1s 10 s/Adelante 10 s/Silenciar/Pantalla completa), and Pausar pauses it (11.7 s, paused). Content: H1, byline, standfirst, photo, Short version, 2 named video portals, second photo."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Neuqu\u00e9n)",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Ir al contenido, search field, Buscar, Men\u00fa, INICIAR SESI\u00d3N, Ver texto completo, Reproducir x2, links, then the switch (which takes 2 presses)."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Neuqu\u00e9n)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Neuqu\u00e9n)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 at scale 2: no overflow; header reachable. 600 px: scrollWidth 600."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Neuqu\u00e9n)",
+   "check": "language",
+   "pass": true,
+   "evidence": "Ver texto completo, Reproducir, Pausar, Atr\u00e1s 10 s, Vista Sift. The Short version is Spanish."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail home snapshot",
+   "check": "speed",
+   "pass": true,
+   "evidence": "h2, 3 runs: original 2565/1305/1285 ms, Sift identical. Median 1305 vs 1305."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail home snapshot",
+   "check": "content",
+   "pass": true,
+   "evidence": "395-line outline, and 214 headline pairs matched to original anchors. Rewrites are faithful and drop the clickbait (/tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t2/dm-home-pairs.txt)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail home snapshot",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail home snapshot",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 at scale 2: no overflow. Search field, Search and Login are in the header."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail article snapshot",
+   "check": "speed",
+   "pass": true,
+   "evidence": "#js-article-text h1/h2, 3 runs: original 2400/1857/1950 ms, Sift identical. Median 1950 vs 1950."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail article snapshot",
+   "check": "content",
+   "pass": true,
+   "evidence": "Short version 526 of 975 words (0.54), faithful ($111.74, 2.68%, Jordan/Lebanon/Qatar/UAE, Pickaxe, Epic Fury). '+6 View gallery' appears once, with 6 photos and '33 comments'."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail article snapshot",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail article snapshot",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640x450. Login is not shown, but the snapshot's own header Login is off-screen at x=885 at that width."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail video snapshot",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Play: t=5.5 s, playing. Pause: 9.5 s, paused. Search 'Meghan' submits, and the blocked live site gives a chrome-error, as in round 6."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail video snapshot",
+   "check": "speed",
+   "pass": true,
+   "evidence": "3 runs: original 3627/4309/2651 ms, Sift identical (the selector matched the masthead h1)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail video snapshot",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, search field, Search, Login, Play, Back 10s, Ahead 10s, Mute, Full screen, 266 comments, Show full text, +4 View gallery, links, Comments."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail video snapshot",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail video snapshot",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 at scale 2: no overflow. At 400 px: scrollWidth 400."
+  },
+  {
+   "src": "T2-news",
+   "page": "The Independent home (new site)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "h2, 3 runs: original 1733/1549/1505 ms, Sift identical. Median 1549 vs 1549."
+  },
+  {
+   "src": "T2-news",
+   "page": "The Independent home (new site)",
+   "check": "actions",
+   "pass": false,
+   "evidence": "Menu is a modal (Close, editions, sections) with focus on Close, and Escape returns. The Bolsonaro headline opens the right article. Log in leads to a page where Sift shows no form (reported). The original has no site search."
+  },
+  {
+   "src": "T2-news",
+   "page": "The Independent home (new site)",
+   "check": "content",
+   "pass": true,
+   "evidence": "97 headline links matched (79 identical, 18 rewritten faithfully). The membership modal and ads are gone."
+  },
+  {
+   "src": "T2-news",
+   "page": "The Independent home (new site)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "The Independent home (new site)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 at scale 2: no overflow. Menu and Log in are in the header."
+  },
+  {
+   "src": "T2-news",
+   "page": "The Independent article (new site)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "h1, 3 runs: original 1758/1295/1289 ms, Sift identical. Median 1295 vs 1295."
+  },
+  {
+   "src": "T2-news",
+   "page": "The Independent article (new site)",
+   "check": "content",
+   "pass": false,
+   "evidence": "Short version 519 of 708 words (0.73), faithful, with photos. But the author James C. Reynolds is missing, and the site's 'Ask The Independent' AI widget sits inside the Short version (reported)."
+  },
+  {
+   "src": "T2-news",
+   "page": "The Independent article (new site)",
+   "check": "screen reader",
+   "pass": false,
+   "evidence": "axe after 25 s: 1 critical violation, 'label' (<input type=text> in the Ask widget). scripts/a11y.ts reports 0 because it runs at 7 s."
+  },
+  {
+   "src": "T2-news",
+   "page": "The Independent article (new site)",
+   "check": "keyboard",
+   "pass": false,
+   "evidence": "Tab order: Skip, Menu, Log in, Bookmark this page, 70 Comments, Show full text, an unnamed <input>, then links. The unnamed field is a stop."
+  },
+  {
+   "src": "T2-news",
+   "page": "The Independent article (new site)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 at scale 2: no overflow. Menu and Log in are reachable."
+  }
+ ]
+}

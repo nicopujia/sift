@@ -8,6 +8,9 @@ let actUntil = 0;
 let nodes: Element[] = [];
 /** Nodes noted while an action's window was open. */
 let byAction = new WeakSet<Element>();
+/** How many actions (and new pages) there have been: what one opened is told from what the next one did. */
+let arms = 0;
+export const armCount = () => arms;
 
 /**
  * Start watching after an action, for `ms` milliseconds. `keep`: the user only
@@ -20,6 +23,7 @@ export function armRecent(ms = 2500, keep = false) {
     until = Math.max(until, now + ms);
     return;
   }
+  arms++;
   until = actUntil = now + ms;
   nodes = [];
   byAction = new WeakSet();
@@ -67,13 +71,17 @@ export function noteMutations(records: MutationRecord[]) {
       // What the action opened stays; what changed later (typing in it) goes first.
       const later = nodes.filter((n) => !byAction.has(n));
       const cut = new Set(later.slice(0, Math.max(0, later.length - 200)));
-      nodes = nodes.filter((n) => !cut.has(n)).slice(-300);
+      nodes = nodes.filter((n) => !cut.has(n));
+      // The page changes a lot while the action's window is open (YouTube loading comments): what
+      // the action opened first (its popup) stays, with the latest changes.
+      if (nodes.length > 300) nodes = [...nodes.slice(0, 100), ...nodes.slice(-200)];
     }
   }
 }
 
 /** A new page (single-page navigation): what changed on the old one no longer counts. */
 export function clearRecent() {
+  arms++;
   nodes = [];
   until = actUntil = 0;
   byAction = new WeakSet();

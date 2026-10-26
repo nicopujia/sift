@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Edit post · Crumb Blog</title>
+<!-- r7 (T6-fixtures): an editor whose sign-in session expires while the user writes. A modal says the draft
+     cannot be saved until they sign in again; it has Sign in and Close, and no field (like many CMS and doc apps).
+     ?at=<ms> sets when the session expires (default 4000). ?msg=2 uses "Log in again to keep saving your work."; ?msg=3 (control) names neither signing in nor saving.
+     Save draft while signed out does not save. Nothing posts: every handler only logs to window.__log. -->
+<style>
+body{font-family:system-ui;margin:0}
+header{background:#2b2d42;color:#fff;padding:12px 24px;display:flex;gap:16px}header a{color:#fff}
+main{max-width:720px;margin:24px auto}
+label{display:block;font-weight:600;margin-top:12px}
+input,textarea{width:100%;box-sizing:border-box;padding:8px;font:inherit}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center}
+.dlg{background:#fff;padding:20px 24px;border-radius:8px;max-width:420px;position:relative}
+.dlg .x{position:absolute;right:8px;top:8px;border:0;background:none;font-size:20px}
+.tip{background:#eef;padding:8px;margin-top:24px;font-size:13px}
+</style></head>
+<body>
+<header><a href="/">Crumb Blog</a><a href="/posts">Posts</a><a href="/stats">Stats</a><a href="/account">Account</a></header>
+<main>
+<h1>Edit post</h1>
+<form id="f" novalidate>
+  <label for="title">Title</label><input id="title" value="Keeping a rye starter alive">
+  <label for="body">Text</label><textarea id="body" rows="6">Feed it once a day with equal weights of rye flour and water.</textarea>
+  <p><button type="submit" id="save">Save draft</button> <button type="button" id="preview">Preview</button></p>
+</form>
+<p id="status" role="status"></p>
+<p class="tip">Tip: posts with a photo get twice as many readers. <a href="/help/photos">Add a photo</a></p>
+</main>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+const q = new URLSearchParams(location.search);
+let signedOut = false;
+const msg = q.get("msg") === "2" ? "Log in again to keep saving your work. What you typed stays in this tab." : q.get("msg") === "3" ? "For your security we ended your session. Your draft stays in this tab." : "Sign in again to save your changes. Your draft stays in this tab.";
+setTimeout(() => {
+  signedOut = true; __log.push("session expired");
+  const ov = document.createElement("div"); ov.className = "ov"; ov.id = "ov";
+  ov.innerHTML = '<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dt" aria-describedby="dd"><button type="button" class="x" aria-label="Close">×</button><h2 id="dt">Your session has expired</h2><p id="dd">' + msg + '</p><p><button type="button" id="signin">Sign in</button></p></div>';
+  document.body.appendChild(ov);
+  ov.querySelector(".x").onclick = () => { __log.push("close"); ov.remove(); };
+  $("signin").onclick = () => { __log.push("signin"); signedOut = false; ov.remove(); $("status").textContent = "You are signed in again. You can save now."; };
+}, +(q.get("at") || 4000));
+$("f").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (signedOut) { __log.push("save blocked"); $("status").textContent = "Not saved: you are signed out. Sign in again to save."; return; }
+  __log.push("save " + $("title").value + " | " + $("body").value.length); $("status").textContent = "Draft saved.";
+});
+$("preview").onclick = () => __log.push("preview");
+</script>
+</body></html>

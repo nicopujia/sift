@@ -12,7 +12,7 @@ import {
 } from "../dom";
 import { glyphName } from "../dom";
 import { t } from "../i18n";
-import { enteredField, recentNodes } from "../recent";
+import { armCount, enteredField, recentNodes } from "../recent";
 import { portalElements } from "../portal";
 
 const SKIP = new Set([
@@ -42,6 +42,8 @@ const CODE_CHROME = /(^|[\s_-])((example|code)-?(header|toolbar)|language-?name|
 const DISMISS = /^(ok|okay|got it|entendido|aceptar|accept|dismiss|close|cerrar|no,? thanks|no gracias|×|✕)$/i;
 const COMMENTS_TOKEN = /(^|[\s_-])(comments?|comentarios|disqus|discussion)($|[\s_-])/i;
 const LOGO_TOKEN = /logo|icon|avatar|sprite|badge|emoji|spinner|loader|placeholder|pixel|tracking|1x1|spacer|blank\.gif/i;
+/** A story's furniture said in words, alone in its box: its end, a "Continue Reading" over the text shown in full, a call to follow the site. */
+const STRAY_LABEL = /^(end of (the )?(article|story)|continue reading|follow us( on [\p{L}\s]{1,30})?)$/iu;
 const NOISE_TEXT =
   /\b(cookies?|consent|we use cookies|usamos cookies|utilizamos cookies|newsletter|subscribe to our|suscr[ií]bete|bolet[ií]n|allow notifications|notificaciones|ad ?blocker|bloqueador de anuncios|accept all|aceptar todo)\b/i;
 /** Phrases that only a promo says: a newsletter, the app, following the site, a subscription. */
@@ -84,7 +86,7 @@ function dateLine(text: string): boolean {
     .replace(/\d{1,2}(\s+de)?\s+[\p{L}.]+(\s+de)?\s+\d{4}|[\p{L}.]+\s+\d{1,2},?\s+\d{4}|\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{2}-\d{2}/giu, "")
     .replace(/\d{1,2}:\d{2}(\s?[ap]\.?m\.?)?(\s?hs?\.?)?|\b[A-Z]{2,4}T\b/g, "")
     .replace(/(hace\s+)?\d+\s+(seconds?|segundos?|minutes?|minutos?|mins?|hours?|horas?|hrs?|days?|d[ií]as?|weeks?|semanas?|months?|meses|years?|años?)\b(\s+ago)?/giu, "")
-    .replace(/\d+\s+(min(utos?)?\.?|minutes?)(\s+(de lectura|read|reading))?|(tiempo de )?lectura:?|updated:?|actualizado:?|published:?|publicado:?|\b(on|el|at|a las|de lectura|read)\b/gi, "")
+    .replace(/\d+\s*['’′]?\s*(min(utos?)?\.?|minutes?)(\s+(de lectura|read|reading))?|(tiempo de )?lectura:?|updated:?|actualizado:?|published:?|publicado:?|\b(on|el|at|a las|de lectura|read)\b/gi, "")
     // Reading time in minutes drawn as "6'" (La Nación on a narrow screen).
     .replace(/(^|\s)\d{1,3}\s?['’′](?=\s|$)/g, " ");
   return !/[\p{L}\p{N}]/u.test(rest);
@@ -144,6 +146,8 @@ export interface Ctx {
   inDialog?: boolean;
   /** Sift shows its own author and date line, so the site's byline is skipped. */
   hasByline?: boolean;
+  /** The author's name in Sift's byline, said once there. */
+  byName?: string;
   /** Sift's byline shows the date, so the site's date line is skipped. */
   hasDate?: boolean;
   /** Treat every <nav> as content (pages that are mostly navigation, like portals). */
@@ -156,8 +160,10 @@ export interface Ctx {
   searchEl?: Element;
   /** Headings and positioned parts the walk showed, so a popup never repeats them. */
   visited?: WeakSet<Element>;
-  /** Titles of the cards shown, by link, so the same story is shown once. */
-  cards?: Map<string, string[]>;
+  /** Small fixed bars with text the walk dropped (Google's account bar): on screen, so never a popup an action opened. */
+  bars?: WeakSet<Element>;
+  /** The cards shown, by link, so the same story is shown once. */
+  cards?: Map<string, Item[]>;
   /** Elements shown as portals, so one player never gets two. */
   portals?: Element[];
   /** Cards found to be ads or promos, dropped whole. */
@@ -400,9 +406,19 @@ export function kids(el: Element): Element[] {
 
 function inMain(el: Element): boolean {
   const m = el.closest("main, [role=main], [data-sift-role=main], article");
-  // A <main> that says it is none (weather.gov's, around the whole page with its header and site nav) is only a box.
-  if (m?.localName === "main" && /^(none|presentation)$/.test(m.getAttribute("role") ?? "")) return !!m.parentElement && inMain(m.parentElement);
+  // A <main> that says it is none and wraps the site's header or nav (weather.gov's, around the whole page) is only a box.
+  // One that wraps a product (Allbirds' <main role=none>, with a breadcrumb at most) is still the main region.
+  if (m?.localName === "main" && /^(none|presentation)$/.test(m.getAttribute("role") ?? "") && wrapsSiteBar(m)) return !!m.parentElement && inMain(m.parentElement);
   return !!m;
+}
+
+/** A region whose own children include the site's header or nav bar (not a breadcrumb). */
+function wrapsSiteBar(m: Element): boolean {
+  return Array.from(m.children).some((c) => {
+    const role = c.getAttribute("role") ?? "";
+    if (c.localName === "header" || role === "banner") return true;
+    return (c.localName === "nav" || role === "navigation") && !/breadcrumb|migas/i.test(`${c.getAttribute("aria-label") ?? ""} ${tokens(c)}`);
+  });
 }
 
 /** Navigation that is part of the content: pagination, in-page tabs, language lists. */
@@ -428,6 +444,8 @@ function pageFooter(el: Element, ctx: Ctx): boolean {
   // A form around the whole page (ASP.NET) is not a form the footer belongs to.
   while (p && p.localName === "form" && pageWide(p)) p = p.parentElement?.closest(sel);
   if (!p) return true;
+  // A comment's meta (WordPress's footer.comment-meta: its author and date) is the comment's, not a story's footer.
+  if (COMMENTS_TOKEN.test(tokens(el)) || p.matches(".comment, .comment-body, [role=comment]") || !!p.closest("li.comment")) return false;
   // A story's own footer (tags, share bar) stays out unless it holds a form.
   if (/^(article|section|aside)$/.test(p.localName) || p.getAttribute("role") === "article")
     return !el.querySelector(ctx.inArticle ? "input:not([type=hidden]), select, textarea" : CONTROL_SEL);
@@ -447,7 +465,7 @@ function isChrome(el: Element, ctx: Ctx): boolean {
   const role = el.getAttribute("role");
   if (role === "contentinfo") return !ctx.inDialog;
   if (tag === "footer") return pageFooter(el, ctx);
-  if (tag === "header" || role === "banner") return !ctx.inArticle && !inMain(el) && !titleBar(el, ctx);
+  if (tag === "header" || role === "banner") return !ctx.inArticle && (!inMain(el) || barCopy(el, ctx)) && !titleBar(el, ctx);
   if (tag === "nav" || role === "navigation") return !contentNav(el, ctx);
   if (tag === "aside" || role === "complementary") {
     if (NOISE_TOKEN.test(tokens(el))) return true;
@@ -459,6 +477,45 @@ function isChrome(el: Element, ctx: Ctx): boolean {
   }
   if (CHROME_TOKEN.test(tokens(el)) && siteBar(el, ctx) && !el.querySelector("h1") && !contentFooter(el)) return true;
   return false;
+}
+
+/** The actions in Sift's top bar, for the extraction under way. */
+let topBar: Action[] = [];
+
+/**
+ * A site header the page put inside its main region (weather.com below 768 px):
+ * at the top, and every control it shows is already in Sift's top bar, a menu
+ * toggle, the site search, or a link home. It is said once, in the bar.
+ */
+function barCopy(el: Element, ctx: Ctx): boolean {
+  if (!topBar.length || el.querySelector("h1") || tlen(el) > 300) return false;
+  const r = el.getBoundingClientRect();
+  if (r.top + scrollY > 100 || r.height > 200) return false;
+  let inBar = 0;
+  for (const c of Array.from(el.querySelectorAll("a[href], button, [role=button], input:not([type=hidden]), select"))) {
+    if (!visible(c) || c.getBoundingClientRect().width < 1) continue;
+    // The bar's own control, or its twin ("Sign in" as a link and as a button).
+    const name = (textIn(c) || accName(c)).toLowerCase();
+    if (topBar.some((a) => a.ref === refOf(c) || (!!name && a.label.toLowerCase() === name))) {
+      inBar++;
+      continue;
+    }
+    if (ctx.searchEl && (c === ctx.searchEl || !!c.closest("form")?.contains(ctx.searchEl))) continue;
+    if (c instanceof HTMLAnchorElement && (homeHref(c.href) || localeHome(c.href))) continue;
+    if (c.hasAttribute("aria-expanded") || c.hasAttribute("aria-haspopup") || /\bmenu\b/i.test(accName(c))) continue;
+    return false;
+  }
+  return inBar > 0;
+}
+
+/** The site's home in one language ("/en-CA", "/es/"). */
+function localeHome(href: string): boolean {
+  try {
+    const u = new URL(href, location.href);
+    return u.host === location.host && !u.search && /^\/[a-z]{2}([-_][a-z]{2})?\/?$/i.test(u.pathname);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -532,7 +589,25 @@ function bulkBar(el: Element): boolean {
   if (!btns.length || btns.length > 8) return false;
   const r = el.getBoundingClientRect();
   if (!(r.bottom >= innerHeight - 4 && r.top > innerHeight * 0.5 && r.width >= innerWidth * 0.5)) return false;
-  return SELECTED_COUNT.test(textIn(el)) || !!document.querySelector("tr input[type=checkbox]:checked, [role=row][aria-selected=true], li input[type=checkbox]:checked");
+  return SELECTED_COUNT.test(textIn(el)) || !!document.querySelector("[role=row][aria-selected=true]") || rowPicked();
+}
+
+/**
+ * A checked box that picks its row (an order, a message, a file): the row holds more than the
+ * box and its own label. A ticked filter ("Brand: Hydro") in a facet list or a side panel is not (F741).
+ */
+function rowPicked(): boolean {
+  for (const c of Array.from(document.querySelectorAll("tr input[type=checkbox]:checked, li input[type=checkbox]:checked")).slice(0, 40)) {
+    const row = c.closest("tr, li")!;
+    if (row.closest("aside, [role=complementary], [role=search]")) continue;
+    let filters = false;
+    for (let a: Element | null = row.parentElement, i = 0; a && a !== document.body && i < 5; a = a.parentElement, i++) if (FILTER_TOKEN.test(tokens(a))) filters = true;
+    if (filters) continue;
+    const label = (c as HTMLInputElement).labels?.[0];
+    const link = Array.from(row.querySelectorAll("a[href]")).some((a) => !a.contains(c) && !label?.contains(a));
+    if (link || tlen(row) - (label ? tlen(label) : 0) >= 20) return true;
+  }
+  return false;
 }
 
 /** Pay bars (and bulk-action bars) pinned outside the main region (after it in the page), read after it. */
@@ -793,7 +868,7 @@ export function usefulControl(el: Element, label: string, ctx: Ctx | null = null
   // An avatar that links where the name beside it links ("@trusktr's profile", then "trusktr") is that link again.
   if (href && pictureTwin(el)) return false;
   // A carousel's dots ("Page 1", "Page 2") only move the slides.
-  if (!href && /^(page|slide|item) \d+$/i.test(label) && el.closest("[class*=carousel], [class*=slick], [class*=swiper], [class*=slider], [class*=glide]")) return false;
+  if (!href && /^((page|slide|item) )?\d+$/i.test(label) && el.closest("[class*=carousel], [class*=slick], [class*=swiper], [class*=slider], [class*=glide]")) return false;
   if (href && /^mailto:\?|sharer|share\?|intent\/tweet|pinterest\.com\/pin\/create|news\.google\.com|google\.com\/preferences\/source|profile\.google\.com\/cp\/|trust-?project/i.test(href)) return false;
   return true;
 }
@@ -1121,7 +1196,7 @@ export function inlineNodes(nodes: Node[], ctx: Ctx | null = null, buttons = fal
           sep(e, textInRaw(e));
           padded(e, { b: tx });
           prev = e;
-        }
+        } else if (/\s/.test(e.textContent ?? "")) put(" "); // "people<strong>&nbsp;</strong>were" (Fox): the space stays.
         continue;
       }
       if ((tag === "em" || tag === "i") && !e.querySelector("a")) {
@@ -1130,7 +1205,7 @@ export function inlineNodes(nodes: Node[], ctx: Ctx | null = null, buttons = fal
           sep(e, textInRaw(e));
           padded(e, { i: tx });
           prev = e;
-        }
+        } else if (/\s/.test(e.textContent ?? "")) put(" ");
         continue;
       }
       if ((tag === "code" || tag === "kbd") && !e.querySelector("a")) {
@@ -1184,6 +1259,25 @@ function linkWords(c: Element): Set<string> {
   }
   linkWordCache.set(c, { pass: passNo(), set });
   return set;
+}
+
+/**
+ * A link to a picture file around that picture, with no words of its own but
+ * its file name and size (Discourse shows "signal-2026-10-18-101319 · 800×772
+ * 66.8 KB" on hover): a screenshot in a post, shown as the picture rather than
+ * a link named after its file.
+ */
+function linkedShot(a: Element, ctx: Ctx): { img: HTMLImageElement; im: Img } | null {
+  if (!/\.(png|jpe?g|gif|webp|avif|bmp)$/i.test((a as HTMLAnchorElement).pathname ?? "")) return null;
+  const imgs = a.querySelectorAll("img");
+  if (imgs.length !== 1) return null;
+  const img = imgs[0] as HTMLImageElement;
+  let rest = textIn(a);
+  for (const n of [clean(img.alt), clean(a.getAttribute("title"))]) if (n) rest = rest.split(n).join(" ");
+  rest = rest.replace(/\d+\s*[×x]\s*\d+|\d+([.,]\d+)?\s*(bytes|[kmg]i?b)\b/gi, " ");
+  if (/[\p{L}\p{N}]/u.test(rest) || !visible(img)) return null;
+  const im = contentImage(img, { ...ctx, inArticle: true }, 150, 100);
+  return im ? { img, im } : null;
 }
 
 /** A link that is only a picture (a badge, a flag, an avatar). */
@@ -1267,7 +1361,7 @@ const SECTION_HINT = /sponsor|promot|partner|paid|around the web|patrocinado|sho
 const PLAY_HEAD = /\b(play now|explore games|more games|all games|jug[aá] ahora)\b/i;
 
 /** Promo words a headline may use too ("Thousands sign up for free bread classes", "Four-day week free trial ends"). */
-const TITLE_PROMO_WEAK = /sign up (here|for|to)|free trial|prueba gratis|newsletter|bolet[ií]n|join our|applications are open|we're hiring|all access/gi;
+const TITLE_PROMO_WEAK = /sign up (here|for|to)|free trial|prueba gratis|newsletter|bolet[ií]n|join our|applications are open|we're hiring|all access|whatsapp channel|canal de whatsapp|download (our|the) ([\w'’-]+ ){0,3}app\b|descarg[aá] (la|nuestra) app/gi;
 
 /**
  * A card that sells or calls to action rather than tells a story. Words a
@@ -1281,14 +1375,42 @@ function promoCard(title: string, href?: string): boolean {
   if (!promoText(title)) return false;
   if (promoText(title.replace(TITLE_PROMO_WEAK, " "))) return true;
   // "Sign up to First Edition" (or "… launches The Spotlight: Sign up for …") asks; "Thousands sign up for bread classes" tells.
-  if (/(^|[:.!?|–—]\s*|\s-\s)(sign up|join our|subscribe)\b/i.test(title)) return true;
-  return !href || promoHref(href);
+  if (/(^|[:.!?|–—]\s*|\s-\s)(sign up|join our|subscribe|follow|download|descarg[aá]|s[ií]gue)\b/i.test(title)) return true;
+  // A card that leads to a WhatsApp or Telegram channel sells it; one that leads to a story tells about it.
+  return !href || promoHref(href) || SOCIAL_HOSTS.test(hostOf(href));
 }
 
 /** A promo word that names a whole part of a link's path, or starts it ("/subscribe", "/sign-up-for-first-edition"). */
 const PROMO_PATH_HEAD = /^(sign-?up|subscri[a-z]*|newsletters?|register|apps?|download|join|membership|free-?trial|offers?)([-_.]|$)/i;
 /** One that ends a short part ("/football-daily-email-sign-up", "/email-newsletters"). */
 const PROMO_PATH_TAIL = /[-_](sign-?up|subscribe|newsletters?|register|app|download|join|membership|free-?trial|offers?)$/i;
+
+/**
+ * A sweepstakes banner (Booking's "No purchase necessary… $5,000 Cruise Giveaway… Enter here"): a small box
+ * with a heading and a link and no fields, that says the contest's legal line or links to its entry page.
+ * It sells, and its heading is never the page's (F858).
+ */
+function sweepstakes(el: Element): boolean {
+  const n = tlen(el);
+  if (n < 20 || n > 500 || el.localName === "p" || !el.querySelector(HEADING_SEL) || !el.querySelector("a[href]") || el.querySelector("input, select, textarea")) return false;
+  if (/\bno purchase necessary\b|\bsin obligaci[oó]n de compra\b/i.test(el.textContent ?? "")) return true;
+  return Array.from(el.querySelectorAll<HTMLAnchorElement>("a[href]")).some((a) => {
+    try {
+      return new URL(a.href).pathname.split("/").some((seg) => /^(sweepstakes?|giveaways?|sorteos?)(\.\w+)?$/i.test(seg));
+    } catch {
+      return false;
+    }
+  });
+}
+
+/** A heading inside a sweepstakes banner. */
+function inSweepstakes(h: Element): boolean {
+  for (let a: Element | null = h; a && a !== document.body; a = a.parentElement) {
+    if (tlen(a) > 500) return false;
+    if (sweepstakes(a)) return true;
+  }
+  return false;
+}
 
 /**
  * A link to a sign-up, subscription or app page. A story's slug repeats its
@@ -1530,6 +1652,24 @@ function surfaceBlock(el: Element, label: string, ctx: Ctx | null = null): Block
     label: name || t("interactive"), tool: true, maxWidth: w < 480 && w < innerWidth * 0.6 ? Math.round(w) : undefined,
   };
 }
+/**
+ * An interactive chart or map of data: a big SVG of many shapes with its own
+ * select or buttons, and no prose or title of the story around it.
+ */
+function dataWidget(el: Element): boolean {
+  if (SKIP.has(el.localName) || /^(svg|img|figure|a|button|p|li|table|ul|ol|form|select)$/.test(el.localName) || tlen(el) > 4000) return false;
+  if (!el.querySelector("select, button, [role=button]") || el.querySelector("h1, h2, article, video, iframe")) return false;
+  const r = el.getBoundingClientRect();
+  if (r.width < 300 || r.height < 250 || r.height > innerHeight * 2.5) return false;
+  // Prose in it, in <p>s or as runs of text between <br>s (TOI's story box), makes it the story, not a widget.
+  const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) if ((n.nodeValue?.length ?? 0) > 150 && !SKIP.has(n.parentElement?.localName ?? "") && clean(n.nodeValue).length > 150) return false;
+  return Array.from(el.querySelectorAll("svg")).some((s) => {
+    const q = s.getBoundingClientRect();
+    return q.width >= 250 && q.height >= 200 && s.querySelectorAll("path, polygon").length >= 20;
+  });
+}
+
 /** A working surface's width on the page, before Sift showed it in its own box. */
 const ownWidth = new WeakMap<Element, number>();
 
@@ -1720,12 +1860,54 @@ function fieldError(el: Element): string | undefined {
   return clean(err.map((d) => d.textContent ?? "").join(" ")).slice(0, 200) || undefined;
 }
 
+/** Text as a screen reader reads it: without what the page keeps from it (aria-hidden glyphs), with its screen-reader-only words. */
+function heardText(el: Element): string {
+  let s = "";
+  const walk = (n: Node) => {
+    for (let c = n.firstChild; c; c = c.nextSibling) {
+      if (c.nodeType === 3) s += c.nodeValue;
+      else if (c.nodeType === 1 && (c as Element).getAttribute("aria-hidden") !== "true" && !(c as Element).hasAttribute("hidden") && !/^(script|style|template|noscript)$/.test((c as Element).localName)) {
+        s += " ";
+        walk(c);
+        s += " ";
+      }
+    }
+  };
+  walk(el);
+  return clean(s);
+}
+
+/**
+ * What else the page says about a field (its aria-describedby, less its error): a hint, its
+ * rules, its message as the user types ("ana is taken"). Read with Sift's field, as on the page.
+ */
+function fieldDesc(el: Element, error?: string): string | undefined {
+  const ids = (el.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean);
+  if (!ids.length) return undefined;
+  const root = el.getRootNode() as Document | ShadowRoot;
+  const parts = ids.map((id) => root.getElementById?.(id)).filter((x): x is HTMLElement => !!x && x !== el && x.checkVisibility()).map(heardText);
+  return clean(parts.filter((t) => t && !error?.includes(t)).join(" ")).slice(0, 300) || undefined;
+}
+
+/** A placeholder the page draws itself over an empty field (a "…-placeholder" box beside it, over it) names it (F732). */
+function drawnPlaceholder(el: Element): string {
+  const r = el.getBoundingClientRect();
+  for (const c of Array.from(el.parentElement?.children ?? [])) {
+    if (c === el || !/placeholder/i.test(tokens(c)) || !visible(c)) continue;
+    const b = c.getBoundingClientRect();
+    const s = textIn(c);
+    if (s && s.length <= 80 && b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top) return s;
+  }
+  return "";
+}
+
 export function toField(el: Element): Field | null {
   const ref = refOf(el);
   const invalid = el.getAttribute("aria-invalid") === "true" || undefined;
+  const error = invalid && fieldError(el);
   const base = {
     key: "f:" + ref, ref, label: labelOf(el), disabled: (el as HTMLInputElement).disabled || el.getAttribute("aria-disabled") === "true",
-    invalid, error: invalid && fieldError(el),
+    invalid, error, desc: fieldDesc(el, error || undefined),
   };
   if (el instanceof HTMLInputElement) {
     const kind = INPUT_KINDS[el.type] ?? "text";
@@ -1735,15 +1917,21 @@ export function toField(el: Element): Field | null {
       required: el.required || undefined, readOnly: el.readOnly || undefined,
       min: el.min || undefined, max: el.max || undefined, step: el.step || undefined,
       autocomplete: el.autocomplete || undefined, accept: el.accept || undefined, multiple: el.multiple || undefined,
+      maxLength: el.maxLength >= 0 ? el.maxLength : undefined, minLength: el.minLength > 0 ? el.minLength : undefined, pattern: el.pattern || undefined,
+      combo: /^(text|search|email|url|tel)$/.test(kind) && (el.getAttribute("role") === "combobox" || el.parentElement?.getAttribute("role") === "combobox" || !!el.list || /^(list|both)$/.test(el.getAttribute("aria-autocomplete") ?? ""))
+        ? el.getAttribute("aria-autocomplete") || "none" : undefined,
       // An unlabeled box is named by its form, when that says what it does (weather.gov's "getForecast").
-      label: base.label || clean(el.placeholder) || humanName(el.name) || (kind === "text" && el.form ? humanName(el.form.getAttribute("name") || el.form.id) : ""),
+      label: base.label || clean(el.placeholder) || drawnPlaceholder(el) || humanName(el.name) || (kind === "text" && el.form ? humanName(el.form.getAttribute("name") || el.form.id) : ""),
     };
   }
   if (el instanceof HTMLTextAreaElement) {
     // An unlabeled box in a form is named by what its button does ("add comment").
     const go = !base.label && el.form ? Array.from(el.form.querySelectorAll("input[type=submit], button:not([type=button])")).find((b) => visible(b)) : null;
-    const label = base.label || (go ? clean((go as HTMLInputElement).value) || textIn(go) : "") || humanName(el.name);
-    return { ...base, label, kind: "textarea", value: el.value, name: el.name || undefined, placeholder: el.placeholder || undefined, required: el.required || undefined, readOnly: el.readOnly || undefined };
+    const label = base.label || drawnPlaceholder(el) || (go ? clean((go as HTMLInputElement).value) || textIn(go) : "") || humanName(el.name);
+    return {
+      ...base, label, kind: "textarea", value: el.value, name: el.name || undefined, placeholder: el.placeholder || undefined, required: el.required || undefined, readOnly: el.readOnly || undefined,
+      maxLength: el.maxLength >= 0 ? el.maxLength : undefined, minLength: el.minLength > 0 ? el.minLength : undefined,
+    };
   }
   if (el instanceof HTMLSelectElement) {
     const options = Array.from(el.options).map((o) => ({ value: o.value, label: clean(o.label || o.text), selected: o.selected, disabled: o.disabled || undefined }));
@@ -2108,7 +2296,13 @@ function asCard(el: Element, ctx: Ctx): Item | null {
   const all = textIn(el);
   const len = all.length;
   if (len < 15 || len > 700) return null;
-  if (len < 200 && promoText(all)) return null;
+  // A box that sells goes; a story whose headline only names a channel, app or newsletter
+  // ("How 'Lula's Army' WhatsApp channel helped…") stays, and toItem's promoCard judges it by its link.
+  if (len < 200 && promoText(all)) {
+    const head = el.querySelector(HEADING_SEL);
+    const ht = head ? textIn(head) : "";
+    if (ht.length < 25 || promoText(all.replace(ht, " ")) || promoText(ht.replace(TITLE_PROMO_WEAK, " "))) return null;
+  }
   if (holdsCover(el)) return null;
   // Several headings of its own are a list of parts (weather.com's days, each an h3 over its row), not one card.
   if (el.querySelectorAll(HEADING_SEL).length >= 3) return null;
@@ -2181,6 +2375,11 @@ function coverCard(el: Element, out: Out, ctx: Ctx): boolean {
  * the member elements; siblings that are not members are walked normally, so
  * nothing is silently dropped.
  */
+/** A read-only field that holds an embed code or a link to copy, not a value to set. */
+function copyField(f: Element): boolean {
+  return f.localName === "input" && (f as HTMLInputElement).readOnly && /^\s*(<|https?:\/\/)/i.test((f as HTMLInputElement).value);
+}
+
 export function detectItems(el: Element, ctx: Ctx): Set<Element> | null {
   // Empty dividers between the entries (Google Maps' result feed) are not entries of another kind.
   const ch = kids(el).filter((k) => !SKIP.has(k.localName) && visible(k) && !isAd(k) && k.getAttribute("aria-hidden") !== "true" && (tlen(k) > 0 || MEDIA.has(k.localName) || !!k.querySelector("img, picture, video, iframe, svg, input, button, select, textarea")));
@@ -2215,7 +2414,8 @@ export function detectItems(el: Element, ctx: Ctx): Set<Element> | null {
     total += n;
     if (prominentLink(k, ctx.inArticle)) prominent++;
     else if (links.length) unnamed.push(k);
-    if (k.querySelector("input:not([type=hidden]), select, textarea")) withFields++;
+    // A hidden field or a read-only embed code to copy (NPR's audio cards) is not a field of the row (F738).
+    if (Array.from(k.querySelectorAll("input:not([type=hidden]), select, textarea")).some((f) => visible(f) && !copyField(f))) withFields++;
     // A member that shows nothing but one short link (a hidden popover aside): this is a link list, not cards.
     const shown = links.filter((a) => visible(a));
     if (shown.length === 1 && n < 400 && textIn(shown[0]).length >= textIn(k).length - 2 && textIn(k).length < 60) simple++;
@@ -2229,6 +2429,8 @@ export function detectItems(el: Element, ctx: Ctx): Set<Element> | null {
   if (simple > members.length * 0.7) return null;
   // Rows with their own fields (cart lines with a quantity) are walked so the fields stay usable.
   if (withFields >= members.length * 0.5) return null;
+  // Rows that each hold a post's text (Stack Overflow's answers) are posts read in full, not story cards (F855).
+  if (!ctx.inComments && members.filter((k) => postBodyOf(k)).length >= members.length * 0.5) return null;
   // Members that hold several headlines are groups of cards: look deeper. A few
   // entries with sub-pages of their own (a search result's sections) are still entries.
   let heads = 0;
@@ -2388,11 +2590,46 @@ function metaLine(parts: Inline[]): Inline[] {
   return out.filter((x) => x !== "");
 }
 
+/**
+ * A short label heading over the headline (NPR's "h3.slug > a" to its section before "h2.title > a"
+ * to the story, or "WATCH" over a video's linked title) is a kicker: the card is named by the later
+ * heading whose link the card's other links (its picture, its teaser) share (F739).
+ */
+function kickerHeading(el: Element, first: Element | null): Element | null {
+  if (!first || el.localName === "a" || first.closest("a[href]") === el) return first;
+  const words = (e: Element) => textIn(e).split(/\s+/).filter(Boolean).length;
+  const n = words(first);
+  // A linked label names its section or its show ("The Indicator from Planet Money"); an unlinked one is a word or two.
+  if (!n || n > (first.closest("a[href]") || first.querySelector("a[href]") ? 8 : 3)) return first;
+  const hrefOfH = (h: Element) => ((h.closest("a[href]") ?? h.querySelector("a[href]")) as HTMLAnchorElement | null)?.href;
+  const fh = hrefOfH(first);
+  // A nested entry (a reply under a comment, with its own author heading) is not part of this card: its
+  // author never names the card, and its links never count.
+  const own = (x: Element) => {
+    for (let a = x.parentElement; a && a !== el; a = a.parentElement)
+      if (a.matches("li, article, [role=listitem], [role=article], [role=comment]") && !a.contains(first)) return false;
+    return true;
+  };
+  const hs = Array.from(el.querySelectorAll("h1,h2,h3,h4,h5,h6,[role=heading]")).slice(1, 5).filter(own);
+  if (!hs.length) return first;
+  const count = new Map<string, number>();
+  for (const a of Array.from(el.querySelectorAll("a[href]")) as HTMLAnchorElement[]) if (own(a)) count.set(a.href, (count.get(a.href) ?? 0) + 1);
+  const fc = fh ? count.get(fh) ?? 0 : 0;
+  const level = (h: Element) => (/^h[1-6]$/.test(h.localName) ? +h.localName[1] : +(h.getAttribute("aria-level") ?? 2) || 2);
+  // A linked label ranks below the headline it sits over; a later, smaller heading ("12 comments" under a story) is not the name.
+  return hs.find((h) => {
+    const x = hrefOfH(h);
+    return !!x && x !== fh && (count.get(x) ?? 0) >= 2 && (count.get(x) ?? 0) > fc && (fh ? level(h) <= level(first) : words(h) > n) && !COMMENTS_LINK.test(textIn(h)) && visible(h);
+  }) ?? first;
+}
+
 export function toItem(el: Element, ctx: Ctx): Item | null {
   if (ctx.drop?.(el)) return null;
   const allText = textIn(el);
   if (!allText) return null;
-  const heading = el.querySelector("h1,h2,h3,h4,h5,h6,[role=heading]");
+  // A comment is named by its own author; only a story card has a kicker over its headline.
+  const h0 = el.querySelector("h1,h2,h3,h4,h5,h6,[role=heading]");
+  const heading = ctx.inComments ? h0 : kickerHeading(el, h0);
   // A comment's own text (GitHub's markdown body) is read in full, with its paragraphs and code, not as a snippet.
   const bodyEl = ctx.inComments ? postBodyOf(el) : null;
   const links = (el.localName === "a" ? [el] : Array.from(el.querySelectorAll("a[href]"))).filter(
@@ -2415,7 +2652,10 @@ export function toItem(el: Element, ctx: Ctx): Item | null {
       return !!li && li !== el && el.contains(li);
     };
     const own = named.filter((a) => !sub(a));
-    main = (own.length ? own : named).sort((a, b) => textIn(b).length - textIn(a).length)[0];
+    // The source after a headline ("(https://example.com/post)", a bare address) never outranks the headline (F857).
+    const pool = own.length ? own : named;
+    const worded = pool.filter((a) => !/^\(.*\)$|^(https?:\/\/|www\.)\S+$/i.test(textIn(a)));
+    main = (worded.length ? worded : pool).sort((a, b) => textIn(b).length - textIn(a).length)[0];
     // A short row whose one link is its name, before its size and its menu ("Notes.txt 2 KB ⋮"), opens with that link.
     if (!main && !heading && !ctx.inComments && allText.length <= 120) {
       const plain = links.filter((a) => !actionLabel(textIn(a) || accName(a)) && !voteLink(a));
@@ -2562,7 +2802,8 @@ export function toItem(el: Element, ctx: Ctx): Item | null {
     if (heading?.contains(own) || holder?.contains(own)) continue;
     // The credit in capitals under the card's photo ("SAMEER AL-DOUMY/AFP") names who took it, not the story (F649).
     const fc = own.closest("figcaption");
-    if (fc && fc !== el && el.contains(fc) && fc.parentElement?.querySelector("img, picture")) {
+    // (Le Monde's lifestyle cards put it beside the text, away from the photo: the card's photo counts.)
+    if (fc && fc !== el && el.contains(fc) && (fc.parentElement?.querySelector("img, picture") || el.querySelector("img, picture"))) {
       const c = textIn(fc);
       if (c.length <= 80 && c === c.toLocaleUpperCase() && /\p{Lu}{2}/u.test(c)) continue;
     }
@@ -2703,7 +2944,8 @@ export function toItem(el: Element, ctx: Ctx): Item | null {
   // A game or app tile whose only call is "Play" ("Rompecabezas · Jugar").
   if (meta.some((m) => PLAY_CTA.test(m))) return promo(el, ctx);
   // A tile of the site's games, labelled so (La Nación's "Edición especial: … fotos de Charly García" · "Juegos").
-  if (main && meta.some((m) => /^(juegos|games|jeux|spiele)$/i.test(m)) && /^\/(juegos|games|jeux|spiele)\//i.test(main.pathname)) return promo(el, ctx);
+  // A dated or numbered story in a games section ("/games/2026/oct/25/lara-croft-…", The Guardian) is a story (F736).
+  if (main && meta.some((m) => /^(juegos|games|jeux|spiele)$/i.test(m)) && /^\/(juegos|games|jeux|spiele)\//i.test(main.pathname) && !/\/(19|20)\d\d\/|\/\d{4,}(\/|$)/.test(main.pathname)) return promo(el, ctx);
   const ref = main ? refOf(main) : refOf(el);
   let body: Block[] | undefined;
   if (bodyEl) {
@@ -2845,13 +3087,21 @@ function filterPanel(el: Element, ctx: Ctx): boolean {
   if (fields.length < 6) return false;
   const choices = fields.filter((f) => f.matches("[type=checkbox], [type=radio], [role=checkbox], [role=radio]")).length;
   if (choices < 4 && !FILTER_TOKEN.test(tokens(el))) return false;
+  // A product's buy box (sizes, colors, "Add to cart") is the page's own form, not filters (F735).
+  if (Array.from(el.querySelectorAll("button, input[type=submit], [role=button]")).some((b) => BUY_LABEL.test(b.textContent || (b as HTMLInputElement).value || b.getAttribute("aria-label") || ""))) return false;
   for (let a: Element | null = el, i = 0; a && a !== document.body && i < 4; a = a.parentElement, i++) {
     for (let s = a.nextElementSibling; s; s = s.nextElementSibling) {
-      if (visible(s) && s.getBoundingClientRect().width > r.width * 1.5 && s.querySelectorAll("a[href]").length >= 10) return true;
+      if (!visible(s) || s.localName === "footer" || s.getAttribute("role") === "contentinfo") continue;
+      const sr = s.getBoundingClientRect();
+      // The results sit beside the panel (side by side, overlapping in height), not below it as a footer or a reviews list does (F735).
+      const beside = (sr.left >= r.right - 4 || sr.right <= r.left + 4) && sr.top < r.bottom - 40 && sr.bottom > r.top + 40;
+      // Links inside a map (its controls and credits) are not results: a panel beside a map (OpenStreetMap's "Map Layers") is the tool's own.
+      if (beside && sr.width > r.width * 1.5 && Array.from(s.querySelectorAll("a[href]")).filter((l) => !l.closest(SURFACE_SEL)).length >= 10) return true;
     }
   }
   return false;
 }
+const BUY_LABEL = /\b(add to (cart|bag|basket|trolley)|buy (it )?now|agregar al carrito|a[ñn]adir al (carrito|cesta)|comprar ahora|ajouter au panier|in den warenkorb)\b/i;
 
 /** Inside one entry of a list of results. */
 function inResultList(el: Element): boolean {
@@ -2928,15 +3178,35 @@ export function findArticle(root: Element): Element | null {
       if (up && (up === root || root.contains(up))) scores.set(up, (scores.get(up) ?? 0) + s);
     }
   }
-  const ranked: [Element, number][] = [];
-  for (const [el, s] of scores) {
-    if (s < 8) continue;
-    const links = Array.from(el.querySelectorAll("a")).reduce((n, a) => n + clean(a.textContent).length, 0);
-    const len = clean(el.textContent).length || 1;
-    const adj = s * (1 - Math.min(links / len, 0.9));
-    if (adj >= 8) ranked.push([el, adj]);
+  const rank = () => {
+    const ranked: [Element, number][] = [];
+    for (const [el, s] of scores) {
+      if (s < 8) continue;
+      const links = Array.from(el.querySelectorAll("a")).reduce((n, a) => n + clean(a.textContent).length, 0);
+      const len = clean(el.textContent).length || 1;
+      const adj = s * (1 - Math.min(links / len, 0.9));
+      if (adj >= 8) ranked.push([el, adj]);
+    }
+    return ranked.sort((a, b) => b[1] - a[1]);
+  };
+  let ranked = rank();
+  // No story in <p>s: one set as runs of text between <br>s in a box (TOI's div.ihgno, F832).
+  // Each long run is a paragraph of that box.
+  if (!ranked.length) {
+    const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+      const parent = n.parentElement;
+      if (!parent || !/^(div|section|article|td)$/.test(parent.localName) || (n.nodeValue?.length ?? 0) < 80) continue;
+      const tx = clean(n.nodeValue);
+      if (tx.length < 80 || !/[.!?。]["'”’)]?$/.test(tx)) continue;
+      if (outsideProse(parent, "nav,footer,aside,[role=navigation],[role=complementary],form") || inNoise(parent)) continue;
+      const s = 1 + Math.min(tx.length / 100, 3) + (tx.match(/[,，、]/g)?.length ?? 0) * 0.3;
+      scores.set(parent, (scores.get(parent) ?? 0) + s);
+      const gp = parent.parentElement;
+      if (gp) scores.set(gp, (scores.get(gp) ?? 0) + s / 2);
+    }
+    ranked = rank();
   }
-  ranked.sort((a, b) => b[1] - a[1]);
   // A list of results or a thread is not one story; one answer or result in it is not either.
   let best: Element | null = ranked.find(([el]) => !postGroup(el) && !inPostGroup(el) && !resultList(el) && !inResultList(el))?.[0] ?? null;
   if (!best) return null;
@@ -3006,11 +3276,21 @@ export function walk(parent: Element, out: Out, ctx: Ctx, skip?: Element | null)
     const ks = kids(parent);
     // Rows of one kind, each with its own buttons (a place and its Favorite), keep their buttons apart.
     const rows = controlRows(ks);
+    // A panel drawn to the right of a map follows it (F874; see walkNodes).
+    let after: Map<Element, Element[]> | null = null;
     for (const el of ks) {
       if (el === skip) continue;
+      const map = mapBefore(el);
+      if (map) {
+        (after ??= new Map()).set(map, [...(after.get(map) ?? []), el]);
+        continue;
+      }
       if (rows) out.flush();
       visit(el, out, ctx);
+      for (const p of after?.get(el) ?? []) visit(p, out, ctx);
+      after?.delete(el);
     }
+    for (const ps of after?.values() ?? []) for (const p of ps) visit(p, out, ctx);
     if (rows) out.flush();
     return;
   }
@@ -3038,6 +3318,8 @@ function walkNodes(nodes: Node[], parent: Element, out: Out, ctx: Ctx, skip?: El
     if (run.length) textRun(run, parent, first, out, ctx);
     run = [];
   };
+  // Panels the page draws to the right of the map after them (F874), by the map's box.
+  let after: Map<Element, Element[]> | null = null;
   for (let i = 0; i < nodes.length; i++) {
     const n = nodes[i];
     if (named?.has(n)) continue;
@@ -3049,6 +3331,14 @@ function walkNodes(nodes: Node[], parent: Element, out: Out, ctx: Ctx, skip?: El
     if (n.nodeType !== 1) continue;
     const e = n as Element;
     if (e === skip || SKIP.has(e.localName)) continue;
+    // A panel the page draws to the right of its map (OpenStreetMap's "Map Layers") comes after
+    // the map, as one reads them: a choice in it then shows on the map just above it (F874).
+    const map = mapBefore(e);
+    if (map) {
+      flush();
+      (after ??= new Map()).set(map, [...(after.get(map) ?? []), e]);
+      continue;
+    }
     const smallImg = (e.localName !== "img" && e.localName !== "picture") || !hasBigImage(e);
     if (e.localName === "br" || (smallImg && isInlineish(e) && !isControl(e) && !hasControl(e))) {
       if (!run.length) first = i;
@@ -3064,8 +3354,53 @@ function walkNodes(nodes: Node[], parent: Element, out: Out, ctx: Ctx, skip?: El
     flush();
     if (unlabeled) named = new Set(labelNodes(e));
     visit(e, out, ctx);
+    for (const p of after?.get(e) ?? []) visit(p, out, ctx);
+    after?.delete(e);
   }
   flush();
+  // A map passed over: its panels still show.
+  for (const ps of after?.values() ?? []) for (const p of ps) visit(p, out, ctx);
+}
+
+/** The maps on the page, found once per pass. */
+let mapsAt = -1;
+let maps: Element[] = [];
+/** The later sibling holding a map that `el`, a narrow panel of controls, is drawn to the right of (F874). */
+function mapBefore(el: Element): Element | null {
+  if (mapsAt !== passNo()) {
+    mapsAt = passNo();
+    maps = Array.from(document.querySelectorAll(".leaflet-container, .maplibregl-map, .mapboxgl-map, .ol-viewport, gmp-map"));
+  }
+  const p = el.parentElement;
+  if (!maps.length || !p || document.dir === "rtl") return null;
+  for (const m of maps) {
+    if (!p.contains(m) || el.contains(m) || !(el.compareDocumentPosition(m) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 120 || r.width > innerWidth * 0.4 || r.height < 100) return null;
+    let s: Element = m;
+    while (s.parentElement && s.parentElement !== p) s = s.parentElement;
+    // A map Sift already shows sits in Sift's box (and the page closes the gap it left): its own width
+    // was measured before, and the page's flex order (OpenStreetMap's map-ui: order 1) says which comes first.
+    const mr = m.getBoundingClientRect();
+    const lifted = m.hasAttribute("data-sift-portal");
+    const drawnAfter = /flex|grid/.test(getComputedStyle(p).display) && +getComputedStyle(el).order > +getComputedStyle(s).order;
+    const beside = drawnAfter || (lifted ? r.left >= innerWidth * 0.5 : r.left >= mr.right - 4 && r.top < mr.bottom - 40 && r.bottom > mr.top + 40);
+    if (!beside || (lifted ? ownWidth.get(m) ?? 0 : mr.width) < r.width * 1.5 || !el.querySelector("input, button, [role=button]")) continue;
+    return s;
+  }
+  return null;
+}
+
+/**
+ * The post a link belongs to, when it is one of a stream of posts (Discourse's
+ * article per post): a link is told apart from repeats within its own post
+ * only, so a second post by the same author still shows its author.
+ */
+function postScope(el: Element | null | undefined): string {
+  const a = el?.closest("article");
+  const up = a?.parentElement?.parentElement;
+  if (!a || !up || up.querySelectorAll(":scope > article, :scope > * > article").length < 2) return "";
+  return "@" + refOf(a);
 }
 
 /** A run of loose text and inline elements inside a container, as a paragraph. */
@@ -3079,7 +3414,7 @@ function textRun(nodes: Node[], parent: Element, at: number, out: Out, ctx: Ctx)
     // The link may sit in a web component's shadow root, where querySelector does not reach.
     const link = elOf(c.ref) ?? (a?.localName === "a" ? a : a?.querySelector("a"));
     if (link && usefulControl(link, c.a, ctx)) {
-      const key = "link:" + c.href + "|" + c.a;
+      const key = "link:" + c.href + "|" + c.a + postScope(link);
       if (!ctx.seen.has(key)) {
         ctx.seen.add(key);
         out.link(c.a, c.href, c.ref!);
@@ -3216,13 +3551,28 @@ export function visit(el: Element, out: Out, ctx: Ctx) {
   }
 }
 
+/** The code lines a file view draws for the eye (aria-hidden), while it has no accessible copy of them yet. */
+function drawnCode(el: Element): string {
+  const lines = el.querySelector(".react-code-lines");
+  if (!lines || !visible(lines)) return "";
+  for (let a = el.parentElement, i = 0; a && i < 6; a = a.parentElement, i++) if (a.querySelector("textarea[inputmode=none]")) return "";
+  const rows = Array.from(lines.querySelectorAll(".react-file-line, [id^=LC]"));
+  return rows.map((r) => (r.textContent ?? "").replace(/\n$/, "")).join("\n").replace(/\s+$/, "");
+}
+
 function visitEl(el: Element, out: Out, ctx: Ctx) {
   if (ctx.count > BUDGET) return budgetCut(out, ctx);
   const tag = el.localName;
   if (SKIP.has(tag) || ctx.used.has(el)) return;
   // Inside a player shown as a portal, through its shadow roots (its controls are the portal's).
   if (ctx.portals?.length && el.getRootNode() !== document && ctx.portals.some((p) => holds(p, el))) return;
-  if (el.getAttribute("aria-hidden") === "true" && !el.querySelector("video") && !ctx.shownHidden) return;
+  if (el.getAttribute("aria-hidden") === "true" && !el.querySelector("video") && !ctx.shownHidden) {
+    // GitHub's file view draws its code for the eye (aria-hidden) about a second before it mounts
+    // the screen reader's copy (a read-only text box, read in controlInto): until then the drawn lines are the code (F872).
+    const code = drawnCode(el);
+    if (code) out.push({ t: "pre", key: "pre:" + refOf(el), text: code });
+    return;
+  }
   // A tooltip only describes the control under focus or the pointer (a map's "Layers" button).
   if (el.getAttribute("role") === "tooltip") return;
   if (!visible(el)) return;
@@ -3230,7 +3580,23 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
   if (++ctx.count > BUDGET) return budgetCut(out, ctx);
   if (tag === "slot") return walk(el, out, ctx);
   if (isAd(el) || ctx.drop?.(el)) return;
+  if (!ctx.inArticle && sweepstakes(el)) return;
   if (el.matches(WIKI_CHROME)) return;
+  // A breadcrumb told only by its schema (TOI's ul itemtype BreadcrumbList), and the site's furniture
+  // around a story said in words: "End of Article", "Continue Reading" over a text shown in full,
+  // a label left from a dropped box ("Trending" over its slider) (F832).
+  if (/schema\.org\/BreadcrumbList$/i.test(el.getAttribute("itemtype") ?? "")) return;
+  if (!ctx.inDialog && tlen(el) < 40 && !el.matches("a[href], button, [role=button], h1") && !el.querySelector("a[href], button, [role=button], input, select, textarea, img, svg, video, h1")) {
+    const said = textIn(el);
+    if (STRAY_LABEL.test(said)) return;
+    const next = el.nextElementSibling;
+    if (said && el.parentElement?.childElementCount === 2 && !el.previousElementSibling && next && NOISE_TOKEN.test(tokens(next)) && !COMMENTS_TOKEN.test(tokens(next)) && !next.querySelector("main, [role=main], h1") && !(ctx.articleEl && next.contains(ctx.articleEl))) return;
+  }
+  // A promo set as a lone tracked link inside the story (TOI's "Take the AIQ test", utm_campaign=aiq_test).
+  if (ctx.inArticle && tlen(el) < 200 && !el.matches("a, p")) {
+    const ls = el.querySelectorAll("a[href]");
+    if (ls.length === 1 && tlen(ls[0]) >= tlen(el) - 2 && /[?&]utm_campaign=/i.test(ls[0].getAttribute("href") ?? "")) return;
+  }
   // Inside a story only: on a portal (www.wikipedia.org) the languages are the content.
   if (ctx.inArticle && /lang/i.test(tokens(el)) && languageBar(el)) return languagesInto(el, out, ctx);
   if (isDialog(el) && !ctx.inDialog) return;
@@ -3256,6 +3622,26 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
       out.push(b);
       const c = overlayControls(el, ctx);
       if (c) out.push(c);
+      return;
+    }
+  }
+  // A results map or chart in a story (La Nación's svelte div.ln-root: an SVG map of 54 states, a select
+  // and two buttons) is one thing, shown as it is: its labels and values apart say nothing (F828).
+  if (ctx.inArticle && !ctx.inDialog && dataWidget(el)) {
+    // The widget itself, not the layout boxes around it.
+    let w = el;
+    for (let i = 0; i < 6; i++) {
+      const ks = Array.from(w.children).filter((c) => !SKIP.has(c.localName) && visible(c));
+      if (ks.length !== 1 || !dataWidget(ks[0])) break;
+      w = ks[0];
+    }
+    const b = surfaceBlock(w, "", ctx);
+    if (b?.t === "portal") {
+      b.tool = undefined;
+      // It reflows at Sift's width: as tall as what it holds there, not scaled down to the page's shape.
+      const wr = w.getBoundingClientRect();
+      b.ratio = Math.min(Math.max(wr.height, w.scrollHeight) / Math.max(1, wr.width), 1.6);
+      out.push(b);
       return;
     }
   }
@@ -3316,9 +3702,15 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
   // so one answer never runs into the next.
   if (el.hasAttribute("itemscope") && /schema\.org\/Answer$/i.test(el.getAttribute("itemtype") ?? "") && !ctx.inDialog) return answer(el, out, ctx);
   const tk = tokens(el);
-  if (ctx.hasByline && BYLINE_TOKEN.test(tk) && tlen(el) < 300 && bylineZone(el, ctx)) return;
+  // (After a dek, too: The Guardian's "Tom Phillips in São Paulo and Tiago Rogero in Brasília" follows its standfirst.)
+  if (ctx.hasByline && BYLINE_TOKEN.test(tk) && tlen(el) < 300 && bylineZone(el, ctx, 2)) return;
+  // The author's name alone over the story, already said in Sift's byline (La Nación's long-form "Guido Bovone" link, F827).
+  if (ctx.byName && tlen(el) < 80 && !heading(el) && norm(textIn(el)) === norm(ctx.byName) && bylineZone(el, ctx, 2)) return;
+  // A count over the story ("108" on La Nación's comments button): a number is not an action to offer (F827).
+  if (ctx.hasByline && el.matches("button, [role=button]") && /^\d[\d.,]*\s*[kKmM]?$/.test(textIn(el)) && bylineZone(el, ctx, 2)) return;
   // Sift shows the date in its own byline; the site's date and reading-time line goes.
-  if (ctx.hasDate && tlen(el) < 120 && !heading(el) && bylineZone(el, ctx, 3) && dateLine(textIn(el))) return;
+  // A player whose only text is its length ("1:18", BBC's uncaptioned lead video) is not a date line.
+  if (ctx.hasDate && tlen(el) < 120 && !heading(el) && bylineZone(el, ctx, 3) && dateLine(textIn(el)) && !el.querySelector("figure, video, audio, iframe")) return;
   if (CODE_CHROME.test(tk) && tlen(el) < 80) return;
   if (!ctx.inDialog && /reaction/i.test(`${tag} ${tk}`) && reactionBar(el)) return;
   // A live page's "2 new updates" button (The Guardian's toast, pinned over the posts) shows the posts
@@ -3332,10 +3724,12 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
   }
   // Media carry their own size and logo checks; "img-share" on a photo is a share hook, not a share bar.
   if (!ctx.inDialog && !MEDIA.has(tag) && NOISE_TOKEN.test(tk) && !(ctx.articleEl && el.contains(ctx.articleEl)) && !el.querySelector("main,[role=main],[data-sift-role=main],h1") && !tabPanel(el)) {
-    if (!COMMENTS_TOKEN.test(tk)) return;
+    if (!COMMENTS_TOKEN.test(tk) && !socialSignIn(el, tk) && !promoStory(el, tk)) return;
   }
   // A "Was this page helpful? Yes / No" widget is never part of the story, even inside it.
   if (ctx.inArticle && !ctx.inDialog && tlen(el) < 400 && feedbackWidget(el)) return;
+  // Nor is the site's AI answer box ("Ask The Independent anything", its canned questions and its own summary) (F732).
+  if (ctx.inArticle && !ctx.inDialog && AI_BOX.test(tk) && !el.querySelector("h1, main, [role=main]")) return;
   // Prose filters stay out of the story: "can help improve flexibility" or
   // "the senator's fundraising haul" are sentences, not widgets.
   if (!ctx.inDialog && !ctx.inArticle && tag !== "body" && tag !== "main") {
@@ -3343,8 +3737,8 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
     // Feedback widgets ("Was this page helpful?").
     if (small && FEEDBACK.test(textIn(el))) return;
     // Donation and subscription appeals with their own buttons ("Donate", "Give $5"),
-    // not news about a donation.
-    if (tlen(el) < 900 && el.querySelector("a[href], button") && !el.querySelector("h1") && !(ctx.articleEl && el.contains(ctx.articleEl)) && APPEAL.test(textIn(el)) && appealAsks(el)) return;
+    // not news about a donation, nor a short page's wrapper around its main region and footer (F726).
+    if (tlen(el) < 900 && el.querySelector("a[href], button") && !el.querySelector("h1,main,[role=main],[data-sift-role=main]") && !(ctx.articleEl && el.contains(ctx.articleEl)) && APPEAL.test(textIn(el)) && appealAsks(el)) return;
     // A strip that sends readers to another of the site's products with one call-to-action button and a slogan
     // (La Nación's radio: "El mundo necesita más música" · "Escuchá + música") is a cross-promotion.
     if (tlen(el) < 120 && ctaStrip(el)) return;
@@ -3401,8 +3795,12 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
         bulkBar(el) ||
         // So is the bar of a search panel whose results replaced the page (Infobae's queryly: its box, "Búsqueda Avanzada", its close).
         (!!ctx.searchEl && el.contains(ctx.searchEl) && Array.from(el.querySelectorAll("label")).some((l) => checkboxToggle(l) && CLOSE_NAME.test(accName(l))));
-      if (!keep && r.width * r.height < ctx.vw * ctx.vh * 0.4) return;
-      if (NOISE_TEXT.test(textPrefix(el, 400))) return;
+      // Dropped, but on screen (a live region is not: the toasts it shows come and go).
+      const bar = () => {
+        if (cs.position === "fixed" && r.width >= 80 && r.height >= 24 && tlen(el) >= 2 && !el.matches(LIVE_SEL) && !el.querySelector(LIVE_SEL)) ctx.bars?.add(el);
+      };
+      if (!keep && r.width * r.height < ctx.vw * ctx.vh * 0.4) return bar();
+      if (NOISE_TEXT.test(textPrefix(el, 400))) return bar();
     }
     // Positioned parts the page shows are never offered again as popups; ones it
     // dropped (a fixed popup the user just opened) still can be.
@@ -3531,7 +3929,8 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
       if (ctx.inArticle && !ctx.inDialog && content.length === 1 && typeof content[0] === "object" && "a" in content[0]) {
         const c = content[0] as { a: string; href?: string; ref?: string };
         const a = el.querySelector("a[href]");
-        if (c.href && c.ref && a && !inPage(a) && c.a.length >= 20 && c.a.split(/\s+/).length >= 4 && c.a === c.a.toLocaleUpperCase() && /\p{Lu}/u.test(c.a)) {
+        // Only a link to a story: a call to act ("APPLY FOR THE STORM RELIEF GRANT ONLINE") is the story's own (F742).
+        if (c.href && c.ref && a && !inPage(a) && c.a.length >= 20 && c.a.split(/\s+/).length >= 4 && c.a === c.a.toLocaleUpperCase() && /\p{Lu}/u.test(c.a) && storyHref(c.href) && !CAPS_CTA.test(c.a)) {
           relatedLink(out, c.a, c.href, c.ref);
           return;
         }
@@ -3651,6 +4050,12 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
         const near = el.parentElement?.parentElement?.parentElement;
         if (near && wordedHrefs(near).has((el as HTMLAnchorElement).href)) return;
       }
+      // A screenshot that opens in full (Discourse's lightbox, its file name and size shown on hover) is the picture.
+      const shot = linkedShot(el, ctx);
+      if (shot) {
+        out.push({ t: "img", key: "img:" + refOf(shot.img), img: shot.im, href, ref: refOf(el) });
+        return;
+      }
       const label = labelOf(el);
       if (!usefulControl(el, label, ctx) || isFragment(label)) return;
       // A long link to "#" in a story (a key point a script scrolls to) goes nowhere in Sift: it reads as text.
@@ -3659,7 +4064,7 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
         out.push({ t: "p", key: "p:" + refOf(el), content: [textIn(el)] });
         return;
       }
-      const key = "link:" + href + "|" + label;
+      const key = "link:" + href + "|" + label + postScope(el);
       if (ctx.seen.has(key)) return;
       ctx.seen.add(key);
       // A link wrapping a big media element is about the media.
@@ -3743,8 +4148,13 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
       const c = content[0] as { a: string; href?: string; ref?: string };
       // The link may sit in a web component's shadow root, where el.querySelector does not reach.
       const a = elOf(c.ref) ?? el.querySelector("a");
+      const shot = a && linkedShot(a, ctx);
+      if (shot) {
+        out.push({ t: "img", key: "img:" + refOf(shot.img), img: shot.im, href: c.href, ref: refOf(a) });
+        return;
+      }
       if (!a || usefulControl(a, c.a, ctx)) {
-        const key = "link:" + c.href + "|" + c.a;
+        const key = "link:" + c.href + "|" + c.a + postScope(a);
         if (!ctx.seen.has(key)) {
           ctx.seen.add(key);
           out.link(c.a, c.href, c.ref!);
@@ -3853,6 +4263,9 @@ function storyHeader(el: Element, title: Element): boolean {
  * A "Was this page helpful? Yes / No" box (MDN keeps it in a web component's
  * shadow root): its question, read through shadow roots, and buttons to answer.
  */
+/** A site's AI question box in a story, by its vendor's or its own class (DeeperDive's #deeper-dive-container, .dd-widget). */
+const AI_BOX = /(^|[\s_-])(deeper-?dive|dd-widget|ai-?(assistant|answers?|chat|widget)|ask-?ai)($|[\s_-])/i;
+
 function feedbackWidget(el: Element): boolean {
   // Cheap first: the raw text says it, or a web component right inside may hold it.
   const raw = el.textContent ?? "";
@@ -4179,17 +4592,33 @@ function repeatCard(it: Item, ctx: Ctx): boolean {
     return false;
   }
   ctx.cards ??= new Map();
-  const titles = ctx.cards.get(it.href) ?? [];
-  if (titles.some((x) => sameStory(x, t))) return true;
-  titles.push(t);
-  ctx.cards.set(it.href, titles);
+  const cards = ctx.cards;
+  const shown = cards.get(it.href) ?? [];
   // The same long headline under the same page with other tracking parameters is the same story;
   // two listings with one title (a repost) are two.
-  if (t.length < 40) return false;
-  const key = "cardt:" + t + "|" + it.href.split(/[?#]/)[0];
-  if (ctx.seen.has(key)) return true;
-  ctx.seen.add(key);
+  const page = t.length >= 40 ? "cardt:" + it.href.split(/[?#]/)[0] : "";
+  const twin = shown.find((x) => sameStory(x.title.toLowerCase(), t)) ?? (page ? cards.get(page)?.find((x) => x.title.toLowerCase() === t) : undefined);
+  if (twin && !otherEntry(it, twin)) return true;
+  const add = (k: string) => cards.set(k, [...(cards.get(k) ?? []), it]);
+  add(it.href);
+  if (page) add(page);
   return false;
+}
+
+/**
+ * Two entries side by side in one list that share a link and a title but say
+ * different things: separate submissions of one link (HN Search: another
+ * author, points and comments), or search hits at other anchors of one page.
+ * A carousel's clone says the same; a second module sits elsewhere.
+ */
+function otherEntry(a: Item, b: Item): boolean {
+  const ea = a.key.startsWith("i:") ? elOf(a.key.slice(2)) : null;
+  const eb = b.key.startsWith("i:") ? elOf(b.key.slice(2)) : null;
+  const pa = ea?.parentElement;
+  const pb = eb?.parentElement;
+  if (!pa || !pb || ea === eb || (pa !== pb && (!pa.parentElement || pa.parentElement !== pb.parentElement))) return false;
+  const said = (x: Item) => [...x.meta, x.text ?? "", x.href?.split("#")[1] ?? ""].join("|");
+  return said(a) !== said(b);
 }
 
 /** Words in two different buttons of one entry (links to two places are told apart by the text reader). */
@@ -4243,11 +4672,36 @@ function besideArticle(el: Element, ctx: Ctx): boolean {
   return r.width > 0 && a.width > 0 && r.top < a.bottom && (r.left >= a.right - 1 || r.right <= a.left + 1);
 }
 
+/** A short list about the page itself (a repository's Releases, Contributors, Languages), not a rail of links to other stories. */
+function aboutThisPage(members: Set<Element>): boolean {
+  if (members.size > 12) return false;
+  let stories = 0;
+  for (const m of members) {
+    const a = m.matches("a[href]") ? m : m.querySelector("a[href]");
+    if (a && storyHref((a as HTMLAnchorElement).href)) stories++;
+  }
+  return stories < 2;
+}
+
+/** A link to a story on this site: a dated path, an article id, or a long slug of words ("/travel/americans-warned-about-paris-travel"). */
+function storyHref(href: string): boolean {
+  if (!href || hostOf(href).replace(/^www\./, "") !== location.hostname.replace(/^www\./, "")) return false;
+  let path: string;
+  try {
+    path = new URL(href).pathname;
+  } catch {
+    return false;
+  }
+  const last = path.split("/").filter(Boolean).pop() ?? "";
+  return /\/(19|20)\d\d\/(\d\d?|[a-z]{3})\//i.test(path) || /(^|[-_/])(article|nid|id)[-_]?\d{5,}/i.test(path) || last.replace(/\.\w+$/, "").split(/[-_]+/).filter((w) => /\p{L}{2}/u.test(w)).length >= 4;
+}
+
 /** Walk a container whose card-like children form a list, keeping everything in order. */
 function itemsInto(el: Element, members: Set<Element>, out: Out, ctx: Ctx) {
   // A list after the story (more stories) folds away; one in a column beside it
   // (a repository's About, Releases and Languages beside its README) is facts about the page, shown.
-  const folded = ctx.afterArticle && !ctx.inArticle && !besideArticle(el, ctx);
+  // A rail of other stories beside it ("Top stories", "Most read") still folds (F740).
+  const folded = ctx.afterArticle && !ctx.inArticle && !(besideArticle(el, ctx) && aboutThisPage(members));
   const target = folded ? new Out() : out;
   // A ranked list ("Most read", top 10) is whole even when its stories were shown above.
   const own = el.localName === "ol" ? { ...ctx, seen: new Set<string>(), cards: undefined } : ctx;
@@ -4325,6 +4779,9 @@ function article(el: Element, out: Out, ctx: Ctx) {
   for (const b of all) if (commentFolds.has(b)) out.push(b);
   ctx.afterArticle = true;
 }
+
+/** A call to act that opens a link ("APPLY FOR …", "DOWNLOAD THE FORM", "READ THE FULL REPORT"), not a headline. */
+const CAPS_CTA = /^(apply|register|sign up|enroll|download|donate|buy|book|order|reserve|rsvp|subscribe|join|request|submit|file|pay|renew|schedule|contact|call|email|read the full|view the full|see the full|get (your|the|a)|solicit[aá]|inscrib|registr[aá]te|descarg[aá]|don[aá]|compr[aá]|reserv[aá]|ped[ií])(?!\p{L})/iu;
 
 /** Cards of other stories set inside a story (BBC's links-block "chester-card"), moved after it by article(). */
 const relatedCards = new WeakSet<Block>();
@@ -4499,7 +4956,7 @@ function list(el: Element, out: Out, ctx: Ctx) {
       const label = labelOf(a);
       if (!usefulControl(a, label, ctx)) continue;
       const href = hrefOf(a) ?? a.href;
-      const key = "link:" + href + "|" + label;
+      const key = "link:" + href + "|" + label + postScope(a);
       if (ctx.seen.has(key)) continue;
       ctx.seen.add(key);
       out.link(label, href, refOf(a));
@@ -4543,6 +5000,9 @@ function list(el: Element, out: Out, ctx: Ctx) {
         if (visible(box)) controlInto(box, out, ctx);
         continue;
       }
+      // An entry the site marks as its own promotion ("ds-home-aside__autopromo": "Partner Services ·
+      // Le Monde for hotels") goes, as such a box does outside a list (F649).
+      if (!ctx.inDialog && /(^|[\s_-])auto-?promos?($|[\s_-])/i.test(tokens(li))) continue;
       // A card under an empty cover link (Clarín's most read) is one entry with that link.
       if (coverCard(li, out, ctx)) continue;
       // An entry of a short list (one search result) is a card like any other.
@@ -5150,7 +5610,7 @@ function siblingCaption(img: Element, stop: Element): Element | null {
   let a: Element | null = img;
   for (let i = 0; a && i < 4; i++, a = a.parentElement) {
     const next = a.nextElementSibling;
-    if (next && /caption|credit|leyenda|epigrafe/i.test(tokens(next)) && tlen(next) < 600 && visible(next)) return next;
+    if (next && /caption|cptn|credit|leyenda|epigrafe/i.test(tokens(next)) && tlen(next) < 600 && visible(next)) return next;
     if (a !== img && a !== stop && tlen(a) > 120) break;
     if (!a.parentElement || a.parentElement === document.body) break;
   }
@@ -5159,11 +5619,52 @@ function siblingCaption(img: Element, stop: Element): Element | null {
 
 function details(el: HTMLDetailsElement, out: Out, ctx: Ctx) {
   const summary = el.querySelector(":scope > summary");
+  // A dateline ("Mon 26 Oct 2026 15.51 GMT" over "Last modified on …", The Guardian) is part of the byline,
+  // never a section: gone when Sift's byline shows the date, else a small line.
+  // Only when nothing else is inside: a body of its own ("Release 2.10", "Tuesday, October 27, 2026" over the
+  // meeting's decisions) is a section. A weekday may lead, and "15.51" is a time only next to a date or a zone.
+  const st = summary ? textIn(summary) : "";
+  const dl = (s: string) => {
+    const t = s.replace(/^(last\s+)?(modified|updated|edited|actualizado|modificado)(\s+(on|el))?:?\s*/i, "")
+      .replace(/^(mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\.?,?\s+/iu, "");
+    return dateLine(/\b(19|20)\d{2}\b/.test(t) ? t.replace(/\b(\d{1,2})\.(\d{2})\b/g, "$1:$2") : t.replace(/\b(\d{1,2})\.(\d{2})(?=\s*([ap]\.?m\b|[A-Z]{2,4}T\b))/g, "$1:$2"));
+  };
+  let rest = "";
+  for (const c of Array.from(el.childNodes)) if (c !== summary) rest += " " + (c.textContent ?? "");
+  rest = rest.replace(/\s+/g, " ").trim();
+  if (st && dl(st) && (!rest || dl(rest)) && !el.querySelector(":scope > :not(summary) :is(a[href], img, video, iframe, input, button), :scope > :is(a[href], img, video, iframe, input, button)")) {
+    if (!ctx.hasDate) out.push({ t: "p", key: "p:" + refOf(el), content: [st], small: true });
+    return;
+  }
   const sub = new Out();
   // Text right inside <details> ("<summary>Q</summary>Answer") is the answer.
   walk(el, sub, ctx, summary);
   const blocks = sub.done();
-  out.push({ t: "section", key: "d:" + refOf(el), title: summary ? textIn(summary) : t("details"), blocks, collapsed: !el.open });
+  // An open list of topic links before the results (argentina.gob.ar's "Filtrar por temas") folds, so the results come first.
+  out.push({ t: "section", key: "d:" + refOf(el), title: summary ? textIn(summary) : t("details"), blocks, collapsed: !el.open || filtersBeforeResults(el) });
+}
+
+/** A <details> that is mostly a list of filter links (topics, categories), with a list of results after it in the page. */
+function filtersBeforeResults(el: Element): boolean {
+  const links = el.querySelectorAll("a[href]");
+  if (links.length < 8) return false;
+  let lt = 0;
+  for (const a of Array.from(links)) lt += tlen(a);
+  if (lt < tlen(el) * 0.5) return false;
+  for (let a: Element | null = el, i = 0; a && a !== document.body && i < 4; a = a.parentElement, i++) {
+    for (let s = a.nextElementSibling, j = 0; s && j < 3; s = s.nextElementSibling, j++) {
+      if (resultList(s) || Array.from(s.querySelectorAll("ul, ol")).slice(0, 20).some((l) => resultList(l) || cardList(l))) return true;
+    }
+  }
+  return false;
+}
+
+/** A list of three or more entries, each one long link (a card: title and description inside the link). */
+function cardList(l: Element): boolean {
+  const lis = Array.from(l.children).filter((c) => c.localName === "li");
+  if (lis.length < 3) return false;
+  const cards = lis.filter((li) => li.querySelectorAll("a[href]").length === 1 && tlen(li.querySelector("a[href]")!) >= 40).length;
+  return cards >= 3 && cards >= lis.length * 0.8;
 }
 
 // ---------- page-level pieces ----------
@@ -5189,7 +5690,7 @@ export function findSearch(ctx: Ctx): Field | undefined {
   const vis = cands.filter((i) => visible(i)).sort((a, b) => +(a.getAttribute("tabindex") === "-1") - +(b.getAttribute("tabindex") === "-1"));
   // A hidden box in the header still searches once its toggle opens it; not one hidden while the
   // panel around it shows other fields in its place (Google Maps' directions).
-  const pick = vis.find((i) => i.closest(SEARCH_PLACE)) ?? vis[0] ?? cands.find((i) => i.closest("header,[role=banner],[role=search]") && !fieldsInstead(i));
+  const pick = vis.find((i) => i.closest(SEARCH_PLACE)) ?? vis[0] ?? cands.find((i) => (i.closest("header,[role=banner],[role=search]") || !!searchToggle(i)) && !fieldsInstead(i)) ?? lookupBox();
   if (!pick) return undefined;
   const f = toField(pick);
   if (!f) return undefined;
@@ -5225,6 +5726,40 @@ export function findSearch(ctx: Ctx): Field | undefined {
     if (said && said.length <= 30 && /\p{L}/u.test(said)) f.submitLabel = said;
   }
   return f;
+}
+
+/**
+ * A lone text box at the top of the page whose form's button says it searches
+ * (weather.gov's location box: "Go", named btnSearch): the site's own lookup,
+ * so it goes to the bar and the page's data comes first (F636).
+ */
+function lookupBox(): HTMLInputElement | undefined {
+  for (const f of Array.from(document.forms).slice(0, 20)) {
+    if (f.querySelector("input[type=password], input[type=email], select, textarea")) continue;
+    const boxes = (Array.from(f.querySelectorAll("input[type=text], input:not([type])")) as HTMLInputElement[]).filter((i) => visible(i) && !i.disabled);
+    if (boxes.length !== 1 || boxes[0].getBoundingClientRect().top + scrollY > 300) continue;
+    const btns = Array.from(f.querySelectorAll("button, input[type=submit]")).filter((b) => visible(b));
+    if (btns.length === 1 && /search|buscar/i.test(`${btns[0].id} ${btns[0].getAttribute("name") ?? ""}`)) return boxes[0];
+  }
+  return undefined;
+}
+
+/**
+ * The icon beside a hidden search box that opens it, outside the page's text
+ * (TOI's span data-newga "NavBar-Search-Click" in a header built from plain
+ * divs): the box is the site's search though no header tag holds it (F823).
+ */
+function searchToggle(box: Element): Element | undefined {
+  if (box.closest("main, [role=main], article, footer, aside, [role=dialog], dialog")) return undefined;
+  const form = (box as HTMLInputElement).form ?? box;
+  for (let a = form.parentElement, i = 0; a && a !== document.body && i < 3; a = a.parentElement, i++) {
+    for (const el of Array.from(a.querySelectorAll("span, div, i, a, button, [role=button]"))) {
+      if (el.contains(box) || el.closest("form") || textIn(el) || !visible(el)) continue;
+      const hint = Array.from(el.attributes).filter((at) => /^(id|class|title|aria-label|data-[\w-]+)$/.test(at.name)).map((at) => at.value).join(" ");
+      if (/search|buscar|busca/i.test(hint) && (el.matches("a, button, [role=button]") || /click/i.test(hint) || getComputedStyle(el).cursor === "pointer")) return el;
+    }
+  }
+  return undefined;
 }
 
 /** Text fields shown in a hidden search box's place, in the panel around it. */
@@ -5341,11 +5876,17 @@ export function findNav(ctx: Ctx): Action[] {
 const TOP_LABEL =
   /\b(cart|basket|bag|carrito|cesta|bolsa|sign ?in|log ?in|sign ?up|register|create account|account|my account|orders|iniciar sesi[oó]n|ingres(a|ar)|reg[ií]strate|registrarse|crear cuenta|mi cuenta|cuenta|pedidos|notifications|registrarme)\b/i;
 
+/** An icon-only account or profile button, by its coded name or its classes. */
+const ACCOUNT_ICON = /(^|[\s_-])(my ?account|account|avatar|profile|user)(?=$|[\s_-])/i;
+/** A status page's "Subscribe to updates" (Statuspage): a button that opens the ways to follow it, not a paid appeal. */
+const UPDATES_LABEL = /\b(subscribe|sign up|suscr[ií]b\w*)\b.*\b(updates|alerts|notifications|actualizaciones|alertas|notificaciones)\b/i;
+
 export function findTop(): Action[] {
   const roots = Array.from(document.querySelectorAll("header, [role=banner], nav")).filter((n) => !n.closest("footer,article"));
   // A site header built from plain boxes (Infobae's div#siteheader.site-header) at the top of the page.
   for (const n of Array.from(document.querySelectorAll("div[id*=header i], div[class*=header i], div[class*=masthead i]")).slice(0, 200)) {
-    if (roots.some((r) => r.contains(n)) || !CHROME_TOKEN.test(tokens(n)) || n.closest("main, [role=main], article, footer")) continue;
+    // TOI's div.header-container counts too (F823).
+    if (roots.some((r) => r.contains(n)) || !(CHROME_TOKEN.test(tokens(n)) || /(^|\s)(site-?)?header-?(container|wrapper|wrap)(\s|$)/i.test(tokens(n))) || n.closest("main, [role=main], article, footer")) continue;
     // At the top of the page, or pinned at the top of the window when the page is scrolled.
     const r = n.getBoundingClientRect();
     if (r.height > 0 && Math.min(r.top + scrollY, r.top) < 300) roots.push(n);
@@ -5353,13 +5894,19 @@ export function findTop(): Action[] {
   const out: Action[] = [];
   const seen = new Set<string>();
   for (const r of roots) {
-    for (const el of Array.from(r.querySelectorAll("a[href],button"))) {
+    for (const el of Array.from(r.querySelectorAll("a[href],button,span,div"))) {
+      // A plain span a script makes clickable ("Sign In" on TOI, no role or link): one with no boxes inside, that says it signs in (F823).
+      if ((el.localName === "span" || el.localName === "div") && (el.firstElementChild || !TOP_LABEL.test(el.textContent ?? "") || (el.textContent ?? "").length > 30 || el.closest("a[href],button,[role=button]") || (getComputedStyle(el).cursor !== "pointer" && !/(^|[\s_-])(log-?in|sign-?in)($|[\s_-])/i.test(tokens(el))))) continue;
       if (!visible(el)) continue;
       // What it says decides ("Fork" that leads to a login page is not "Sign in"); an icon goes by its name and address.
       const vis = textIn(el);
-      const label = vis || accName(el);
-      const probe = vis ? `${vis} ${el.id}` : `${label} ${el.getAttribute("href") ?? ""} ${el.id}`;
-      if (!label || label.length > 50 || !TOP_LABEL.test(probe)) continue;
+      const named = accName(el);
+      // An account icon named only in code ("myAccount", class account-button or avatar) is said in the page's language (F727).
+      const coded = !vis && (!named || /^[a-z]+([A-Z][a-z\d]*)+$|^[a-z]+[_-][a-z][\w-]*$/.test(named)) && ACCOUNT_ICON.test(`${named.replace(/([a-z])([A-Z])/g, "$1 $2")} ${tokens(el)}`);
+      const label = vis || (coded ? t("account") : named);
+      const probe = vis ? `${vis} ${el.id}` : `${label} ${coded ? "account" : ""} ${el.getAttribute("href") ?? ""} ${el.id}`;
+      const updates = UPDATES_LABEL.test(label) && (el.hasAttribute("aria-haspopup") || el.matches("button, [role=button]"));
+      if (!label || label.length > 50 || (!TOP_LABEL.test(probe) && !updates)) continue;
       // A closed slide-in panel sits beside the window: its copy of "Sign in" is not on screen.
       const box = el.getBoundingClientRect();
       if (box.left >= innerWidth || box.right <= 0) continue;
@@ -5405,10 +5952,18 @@ let armUrl = "";
 /** The positioned parts the page view showed in the last generic extraction, and in the one before the last action. */
 let lastShown = new WeakSet<Element>();
 let armShown = new WeakSet<Element>();
+/** The small fixed bars the walk dropped, in the last extraction and in the one before the last action. */
+let lastBars = new WeakSet<Element>();
+let armBars = new WeakSet<Element>();
+/** The page view before the last action, and the elements that hold what it showed (worked out when first asked). */
+let armView: { visited?: WeakSet<Element>; blocks?: Block[]; dialog: Element | null } = { dialog: null };
+let armHolds: WeakSet<Element> | null = null;
 /** The popup found last time, which stays one while the user acts inside it. */
 let shownPop: Element | null = null;
 /** The last popup found that holds a field to fill in. */
 let lastPop: Element | null = null;
+/** The popup found since the last action, which stays while the page shows it. */
+let heldPop: { el: Element; arm: number } | null = null;
 
 /**
  * A popup the page opened after the user's last action, found by layout rather
@@ -5426,6 +5981,9 @@ function findPopup(ctx: Ctx): { el: Element; actionable: boolean } | null {
     armFirst = recent[0];
     armUrl = location.href;
     armShown = lastShown;
+    armBars = lastBars;
+    armView = shownPrev;
+    armHolds = null;
   } else if (recent.length && location.href !== armUrl) return null;
   const touched = new Set(recent);
   // A part that appeared itself (added, or shown by its own class or style) beats a
@@ -5481,6 +6039,9 @@ function findPopup(ctx: Ctx): { el: Element; actionable: boolean } | null {
     // A part the page view showed before the action is page layout that changed around it (Google Maps'
     // directions box, when a route is chosen below it), not something the action opened.
     if (armShown.has(root) && root !== shownPop) continue;
+    // So is a box that was on screen before it (Google's account bar, a filter chip bar whose chips
+    // the page view showed), though the page changes inside it as it settles (F870).
+    if ((armBars.has(root) || shownAtArm(root)) && root !== shownPop) continue;
     if (best && best.contains(root)) continue;
     const f = fresh(root);
     if (!best || root.contains(best) || (f && !bestFresh) || (f === bestFresh && tlen(root) > tlen(best))) {
@@ -5491,6 +6052,11 @@ function findPopup(ctx: Ctx): { el: Element; actionable: boolean } | null {
   // A popup with a field the user is filling in (Craigslist's price range) stays while the page
   // shows it: typing there changes nothing else on the page.
   if (!best && lastPop?.isConnected && visible(lastPop) && location.href === armUrl && !!lastPop.querySelector(FILL_SEL) && !holdsEntered(lastPop)) best = lastPop;
+  // So does any popup until the next action, though the page keeps changing around it: while
+  // YouTube loads comments, the nodes of its "Sign in" prompt drop out of the recent ones.
+  const held = heldPop?.el;
+  if (!best && held && heldPop!.arm === armCount() && held.isConnected && visible(held) && tlen(held) >= 2 && location.href === armUrl && !holdsEntered(held)) best = held;
+  heldPop = best ? { el: best, arm: armCount() } : null;
   lastPop = best && best.querySelector(FILL_SEL) ? best : null;
   shownPop = best;
   if (!best || isAd(best) || ctx.drop?.(best)) return null;
@@ -5559,6 +6125,12 @@ function popupLike(root: Element, touched: Set<Element>, ctx: Ctx): boolean {
   // The whole page shown again (Infobae's app, once its search panel closes) opened no bar in it (F645).
   const page = (m: Element) => bar && !!m.querySelector("main, [role=main], [data-sift-role=main], h1, article");
   if (!fresh) for (const m of touched) if (m !== document.body && m !== document.documentElement && m !== root && m.contains(root) && !page(m)) { fresh = true; break; }
+  // A part of the site's header that only changed inside (Fox's clock, swapped every few seconds
+  // in its logo box), with nothing to use in what changed, is the header ticking, not a popup (F831).
+  if (!fresh && root.closest("header, [role=banner]")) {
+    const ctl = "a[href], button, [role=button], input, select, textarea, [role=menuitem], [role=option]";
+    if (!Array.from(touched).some((m) => root.contains(m) && (m.matches(ctl) || !!m.querySelector(ctl)))) return false;
+  }
   return fresh || (!bar && !panel && area < vw * vh * 0.35);
 }
 
@@ -5611,6 +6183,49 @@ function reactionBar(el: Element): boolean {
   return emoji >= 2;
 }
 
+/** A sign-in or sign-up button with an account elsewhere ("Continue with Google", "Sign in with Apple", "Iniciar sesión con Google"). */
+const SIGN_IN_WITH =
+  /^(continue|sign (in|up)|log ?in|login|register|join|connect|get started) (with|using|via)\b|\bsingle sign-on\b|^(continuar|contin[uú]a|iniciar sesi[oó]n|inici[aá] sesi[oó]n|ingres(ar|[aá])|acceder|entrar|reg[ií]str(arse|ate)) con\b/i;
+
+/**
+ * A box named only "social" (social-login, kc-social-providers) that holds a way to sign in with another account:
+ * those buttons are how some people sign in at all. A social box with share or follow links is still noise.
+ */
+function socialSignIn(el: Element, tk: string): boolean {
+  if (NOISE_TOKEN.test(tk.replace(/social/gi, ""))) return false;
+  return Array.from(el.querySelectorAll("button, [role=button], a[href], input[type=submit], input[type=button]")).some((b) => SIGN_IN_WITH.test(accName(b).trim()));
+}
+
+/** A path that names one story: a date ("/2026/10/25/", "2026-10-22"), a long slug, or a long numeric id. */
+const STORY_PATH = /\/(19|20)\d\d[/-]\d\d?[/-]\d\d?(\/|$|-)|\/[^/?#]*\p{L}+(?:[-_]\p{L}+){3,}[^/?#]*|\/\d{6,}(\/|$|[-_.])/u;
+
+/**
+ * A box classed only "promo" that holds a story of its own (NPR wraps every headline in
+ * "bucketwrap promocard > article.c-promo-card"): its linked headlines lead to stories, so it is
+ * a story card, not a promo (F738). One that sells (a sign-up, the app) is still a promo.
+ */
+function promoStory(el: Element, tk: string): boolean {
+  if (!/promo/i.test(tk) || NOISE_TOKEN.test(tk.replace(/promo(tion)?/gi, ""))) return false;
+  const heads = new Map<string, string>();
+  for (const h of Array.from(el.querySelectorAll(LINKED_HEADING))) {
+    const a = (h.localName === "a" ? h : h.querySelector("a[href]") ?? h.closest("a[href]")) as HTMLAnchorElement | null;
+    if (!a?.href || !visible(h)) continue;
+    if (!heads.has(a.href)) heads.set(a.href, textIn(h));
+    if (heads.size > 3) return false;
+  }
+  if (!heads.size) return false;
+  for (const [href, title] of heads) {
+    let path = "";
+    try {
+      path = new URL(href).pathname;
+    } catch {
+      return false;
+    }
+    if (title.split(/\s+/).length < 3 || !STORY_PATH.test(path) || AD_HOSTS.test(hostOf(href)) || promoCard(title, href)) return false;
+  }
+  return true;
+}
+
 /** Whether a listbox or popup belongs to a search field (its aria-controls, or inside the same combobox box). */
 function suggestionsOf(field: Element, pop: Element): boolean {
   const ids = `${field.getAttribute("aria-controls") ?? ""} ${field.getAttribute("aria-owns") ?? ""}`.split(/\s+/).filter(Boolean);
@@ -5653,6 +6268,23 @@ function shownBefore(el: Element): boolean {
   return holdsShown.has(el);
 }
 
+/** The page view from before the user's last action showed something in this part (not as its dialog). */
+function shownAtArm(el: Element): boolean {
+  const d = armView.dialog;
+  if (d && (d === el || d.contains(el) || el.contains(d))) return false;
+  if (!armHolds) {
+    armHolds = new WeakSet();
+    const refs = new Set<string>();
+    const collect = (x: unknown) => {
+      if (Array.isArray(x)) for (const v of x) collect(v);
+      else if (x && typeof x === "object") for (const [k, v] of Object.entries(x)) k === "ref" && typeof v === "string" ? refs.add(v) : typeof v === "object" && collect(v);
+    };
+    collect(armView.blocks ?? []);
+    for (const r of refs) for (let a = elOf(r); a && a !== document.body && !armHolds.has(a); a = a.parentElement) armHolds.add(a);
+  }
+  return armHolds.has(el);
+}
+
 /** `blocks`: the page view's blocks, when the page is the generic extractor's. */
 export function findDialog(ctx: Ctx, blocks?: Block[]): Dialog | undefined {
   shownPrev = shownLast;
@@ -5689,7 +6321,16 @@ function dialogIn(ctx: Ctx): Dialog | undefined {
   }
   // A consent platform's box without a dialog role counts too, on a page that shows nothing until it is answered.
   const cmp = new Set<Element>();
-  if (ctx.bare) {
+  // Or on a readable page, once the reader pressed Play on a video the page holds back until it is answered (F826).
+  const asked = consentAsked && !ctx.bare;
+  if (asked) {
+    // The wall found (Sourcepoint's box may carry the dialog role itself): its frame's title says what it is.
+    const up = consentWallUp();
+    if (up && !all.some((d) => d !== up && (d.contains(up) || up.contains(d)))) {
+      cmp.add(up);
+      if (!all.includes(up)) all.push(up);
+    }
+  } else if (ctx.bare) {
     for (const w of Array.from(document.body.querySelectorAll(CMP_SEL))) {
       let p = w.parentElement;
       while (p && p !== document.body && !p.matches(CMP_SEL)) p = p.parentElement;
@@ -5698,18 +6339,18 @@ function dialogIn(ctx: Ctx): Dialog | undefined {
       all.push(w);
     }
   }
-  const cands = all.filter((d) => visible(d) && !d.closest("sift-root") && !ctx.drop?.(d) && (textIn(d).length > 0 || !!d.querySelector("input, textarea") || (layers.includes(d) && !!d.querySelector("img, video"))));
+  const cands = all.filter((d) => visible(d) && !d.closest("sift-root") && !ctx.drop?.(d) && (textIn(d).length > 0 || !!d.querySelector("input, textarea") || (layers.includes(d) && !!d.querySelector("img, video")) || (cmp.has(d) && !!d.querySelector("iframe"))));
   let recent: Element[] | undefined;
   for (let i = cands.length - 1; i >= 0; i--) {
     const d = cands[i];
     const r = d.getBoundingClientRect();
     if (r.width < 120 || r.height < 60) continue;
-    const text = textIn(d);
+    const text = cmp.has(d) ? cmpText(d) : textIn(d);
     // Cookie and newsletter prompts the page put up on its own are noise; a sign-in form,
     // or a dialog the user's last action opened (the newsletter form behind "Subscribe"), is not.
     // A consent wall over a page that shows nothing until it is answered is the way in: it stays, with its own choices.
-    const wall = !!ctx.bare && consentWall(d, text);
-    if (cmp.has(d) && (!wall || !d.querySelector("button, [role=button], a[href]"))) continue;
+    const wall = (!!ctx.bare || asked) && consentWall(d, text);
+    if (cmp.has(d) && (!wall || !d.querySelector("button, [role=button], a[href], iframe"))) continue;
     if (NOISE_TEXT.test(text.slice(0, 600)) && !wall && !d.querySelector("input[type=password]") && !(recent ??= recentNodes(true)).some((n) => openedWith(n, d))) continue;
     // So is a sign-in, discount or app promo with its own way out and nothing to fill in (Booking's "Sign in, save money"):
     // the page works without answering it.
@@ -5726,11 +6367,13 @@ function dialogIn(ctx: Ctx): Dialog | undefined {
     const blocks = cutNote(sub.done(), dctx);
     if (!blocks.length) continue;
     if (wall) rejectFirst(blocks);
+    // Asked for by Play: it says why it shows (F826).
+    if (wall && asked) blocks.unshift({ t: "p", key: "consent-why:" + refOf(d), content: [t("consentFirst")] });
     const titleEl = d.querySelector("h1,h2,h3,[role=heading]");
     const title =
       clean(d.getAttribute("aria-label")) || (d.getAttribute("aria-labelledby") ? accName(d) : "") || (titleEl ? textIn(titleEl) : "") ||
-      // A consent box without a heading is named by its first short line ("Your privacy choices").
-      (wall && firstLine(d).length <= 80 ? firstLine(d) : "");
+      // A consent box without a heading is named by its first short line ("Your privacy choices"), or by its frame's title.
+      (wall && firstLine(d).length <= 80 ? firstLine(d) : "") || (wall ? clean(d.querySelector("iframe")?.title) : "");
     // The page's description of an alert (aria-describedby): the warning or the consequence, said with its name.
     const root = d.getRootNode() as Document | ShadowRoot;
     const desc = (d.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean).map((id) => root.getElementById?.(id)).filter((e): e is HTMLElement => !!e).map((e) => textIn(e)).join(" ");
@@ -5740,7 +6383,8 @@ function dialogIn(ctx: Ctx): Dialog | undefined {
       title: title.slice(0, 120),
       blocks,
       close: closeEl ? toAction(closeEl, accName(closeEl)) : undefined,
-      blocking: !closeEl && (wall || blocksPage(d)) ? true : undefined,
+      // (One the reader asked for on a readable page can be put away unanswered.)
+      blocking: !closeEl && !(wall && asked) && (wall || blocksPage(d)) ? true : undefined,
       role: d.getAttribute("role") === "alertdialog" ? "alertdialog" : undefined,
       desc: desc.slice(0, 400) || undefined,
     };
@@ -5803,14 +6447,21 @@ function dialogIn(ctx: Ctx): Dialog | undefined {
   return undefined;
 }
 
-/** What a marketing modal offers: a discount or savings for signing in, or the app. */
+/**
+ * What a marketing modal offers: a discount or savings for signing in, or the app.
+ * "Save" counts only as money ("save money", "save 10%", "save up to"): "sign in to save your changes" stores work.
+ */
 const MARKETING =
-  /\d+\s?%\s?(off|or more|discount)|\b(sign in|log in|sign up|register)\b.{0,80}\b(save|saving|discounts?|deals?|offers?|rewards?|prices?)\b|\b(save|saving|discounts?|deals?|offers?|rewards?)\b.{0,80}\b(sign in|log in|sign up|register)\b|get the app|download (the|our) app|open (it )?in the app/i;
+  /\d+\s?%\s?(off|or more|discount)|\b(sign in|log in|sign up|register)\b.{0,80}\b(save (money|up to|[$£€\d])|(savings|discounts?|deals?|offers?|rewards?|prices?)\b)|\b(save (money|up to|[$£€\d])|(savings|discounts?|deals?|offers?|rewards?)\b).{0,80}\b(sign in|log in|sign up|register)\b|get the app|download (the|our) app|open (it )?in the app/i;
+/** An account notice, never an offer: the session ended and the user must sign in again to keep working. */
+const SESSION_NOTICE =
+  /\bsession (has |was )?(expired|timed out|ended)|\b(signed|logged) (you )?out\b|\b(sign|log) ?in again\b|\bre-?(authenticate|login|log in|sign in)\b|sesi[oó]n (ha )?(expirado|caducado|vencido|finalizado)|(vuelve|volv[eé]) a iniciar sesi[oó]n|inici[aá] sesi[oó]n de nuevo/i;
 
 /** A promo modal the page lets you close ("Dismiss sign-in info.", "No thanks", ×) with no field to fill in. */
 function marketingModal(d: Element, text: string): boolean {
   if (d.querySelector("input:not([type=hidden]), textarea, select")) return false;
   const said = `${clean(d.getAttribute("aria-label"))} ${text.slice(0, 600)}`;
+  if (SESSION_NOTICE.test(said)) return false;
   if (!MARKETING.test(said) && !promoText(said)) return false;
   return Array.from(d.querySelectorAll("button, [role=button]")).some((b) => visible(b) && /^(close|dismiss|cerrar|no,? thanks|no gracias|not now|ahora no|×|✕|x)(?=$|[\s.,:;!])/i.test(accName(b)));
 }
@@ -5827,6 +6478,30 @@ function openedWith(n: Element, d: Element): boolean {
 
 /** Boxes that consent platforms put up, with or without a dialog role (OneTrust, Didomi, Quantcast, TrustArc). */
 const CMP_SEL = "[id*=consent i], [class*=consent i], [id*=cookie i], [class*=cookie i], [id^=onetrust], [id^=didomi], [class*=qc-cmp], [id*=truste], [class*=truste]";
+/** Sourcepoint's message box: only a frame (the Guardian's "It's your choice"). */
+const CMP_FRAME_SEL = "[id^=sp_message_container]";
+/** A consent box's words, or its frame's title when the words are inside the frame. */
+const cmpText = (w: Element) => textIn(w) || Array.from(w.querySelectorAll("iframe")).map((f) => f.title).join(" ");
+
+/**
+ * The reader pressed Play on a video the page holds back until its consent wall is answered
+ * (the Guardian's YouTube players behind Sourcepoint's wall, F826): Sift shows that wall then,
+ * reject first, and says why. Never by itself: a page that reads without an answer needs none.
+ */
+let consentAsked = false;
+export function askConsent(on: boolean) {
+  consentAsked = on;
+}
+
+/** A consent prompt over most of the window, which the page shows over its content (a cookie wall). */
+export function consentWallUp(): Element | null {
+  for (const w of Array.from(document.body.querySelectorAll(`${CMP_SEL}, ${CMP_FRAME_SEL}`))) {
+    if (w.closest("sift-root") || getComputedStyle(w).position !== "fixed" || !visible(w)) continue;
+    const r = w.getBoundingClientRect();
+    if (r.width * r.height >= innerWidth * innerHeight * 0.5 && consentWall(w, cmpText(w))) return w;
+  }
+  return null;
+}
 
 const CONSENT_TEXT = /\bcookies?\b|consent|privacy|privacidad|personal data|datos personales|partners|socios|accept all|aceptar todo/i;
 /** The choice that shares the least: reject, or necessary cookies only. */
@@ -5861,38 +6536,113 @@ function rejectFirst(blocks: Block[]) {
 
 const PERSON = /^(\p{Lu}[\p{L}'’.-]+)( (\p{Lu}[\p{L}'’.-]+|de|da|del|di|du|van|von|la|le|y|e)){1,3}$/u;
 
-/** The first person's name inside a byline or contributor block. */
+/**
+ * The people a byline or contributor block names, each once. The first box
+ * with a name is the byline; its own contributor boxes add the others (BBC:
+ * contributor-0 "Ione Wells", contributor-1 "Hafsa Khalil"), never a role or a place.
+ */
 function bylineName(scope: ParentNode): string {
+  const names: string[] = [];
+  let root: Element | null = null;
   for (const box of Array.from(scope.querySelectorAll("[data-testid*=byline i], [data-testid*=contributor i], [class*=byline i], [class*=contributor i], [class*=author i]")).slice(0, 12)) {
     if (box.closest("blockquote, figure, [class*=comment i]")) continue;
+    if (root && !root.contains(box)) break;
+    if (root && /role|location|title|job|position|bio|desc/i.test(`${box.getAttribute("data-testid") ?? ""} ${box.getAttribute("class") ?? ""}`)) continue;
     const tw = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
     for (let n = tw.nextNode(), i = 0; n && i < 20; n = tw.nextNode(), i++) {
       const s = clean(n.nodeValue).replace(/^(by|por|de|von|par)\s+/i, "");
-      if (s.length <= 40 && PERSON.test(s) && n.parentElement && visible(n.parentElement)) return s;
+      if (s.length <= 40 && PERSON.test(s) && n.parentElement && visible(n.parentElement)) {
+        if (!names.includes(s)) names.push(s);
+        root ??= box;
+        break;
+      }
     }
+  }
+  return nameList(names);
+}
+
+/** Names joined as the page's language joins them ("Ione Wells and Hafsa Khalil"). */
+function nameList(names: string[]): string {
+  if (names.length < 2) return names[0] ?? "";
+  try {
+    return new Intl.ListFormat(document.documentElement.lang || navigator.language, { type: "conjunction" }).format(names);
+  } catch {
+    return names.join(", ");
+  }
+}
+
+/** The datePublished of the page's article in its JSON-LD (an Article, NewsArticle or BlogPosting). */
+function ldDate(): string {
+  const find = (o: unknown, d = 0): string => {
+    if (!o || typeof o !== "object" || d > 4) return "";
+    if (Array.isArray(o)) {
+      for (const x of o) {
+        const v = find(x, d + 1);
+        if (v) return v;
+      }
+      return "";
+    }
+    const r = o as Record<string, unknown>;
+    const type = String(r["@type"] ?? "");
+    if (/(Article|BlogPosting)$/.test(type) && typeof r.datePublished === "string") return r.datePublished;
+    return find(r["@graph"], d + 1);
+  };
+  for (const s of Array.from(document.querySelectorAll('script[type="application/ld+json"]')).slice(0, 12)) {
+    if (!/datePublished/.test(s.textContent ?? "")) continue;
+    try {
+      const v = find(JSON.parse(s.textContent ?? ""));
+      if (v) return v;
+    } catch {}
   }
   return "";
 }
 
 /** "By Name · 24 Oct 2026" for articles, from page metadata and the visible byline. */
-export function byline(articleEl: Element | null): string {
+export function byline(articleEl: Element | null, h1: Element | null = null): string {
   const meta = (sel: string) => clean(document.querySelector(sel)?.getAttribute("content"));
   let author = meta('meta[name="author"]') || meta('meta[property="article:author"]');
   if (/^https?:/.test(author)) author = "";
   if (!author) {
-    const scope = articleEl?.parentElement?.parentElement ?? document;
-    const a = scope.querySelector(
-      '[rel=author], .byline a[href*="autor"], .byline a[href*="author"], a.author, .author-name, [itemprop=author] [itemprop=name], [data-testid*=byline] [data-testid*=name], [data-component=byline-block] span, .byline__name, .author__name',
-    );
+    let scope: Element | Document = articleEl?.parentElement?.parentElement ?? document;
+    // The title and its byline in a box beside the text's (TOI: div.inl71 beside div.bBzri, F832).
+    for (let i = 0; h1 && scope instanceof Element && !scope.contains(h1) && scope.parentElement && scope.parentElement !== document.body && i < 6; i++) scope = scope.parentElement;
+    const sel =
+      '[rel=author], .byline a[href*="autor"], .byline a[href*="author"], a.author, .author-name, [itemprop=author] [itemprop=name], [data-testid*=byline] [data-testid*=name], [data-component=byline-block] span, .byline__name, .author__name';
+    const a = scope.querySelector(sel);
     if (a) author = textIn(a);
+    // Every author once: the others the same byline links ("Tom Phillips in São Paulo and Tiago Rogero in Brasília").
+    if (a && author && a.matches("[rel=author], a")) {
+      const box = a.closest("address, [class*=byline i], [data-gu-name=byline], [data-component*=byline i], [data-testid*=byline i]");
+      const more = box ? Array.from(box.querySelectorAll(sel)).filter((x) => x.localName === a.localName && x.getAttribute("rel") === a.getAttribute("rel")).map((x) => textIn(x)) : [];
+      if (more.length > 1 && more.length <= 6) author = nameList(more.filter((n, i) => n && more.indexOf(n) === i));
+    }
     // A byline block that names its contributor in plain text ("James Waterhouse" over "Paris Correspondent").
     if (!author) author = bylineName(scope);
+    // A link to the author's page by the title, with no byline class (The Independent: address > a[href^="/author/"]).
+    if (!author) {
+      // Before the story's second paragraph (a standfirst may come first).
+      const first = articleEl ? Array.from(articleEl.querySelectorAll("p")).filter((p) => tlen(p) > 80)[1] : null;
+      // The story's header may sit outside the text's box, in the same <article> or <main>.
+      const wide = articleEl?.closest("article, main, [role=main]") ?? scope;
+      const h1 = wide.querySelector("h1");
+      for (const l of Array.from(wide.querySelectorAll('a[href*="/author/"], a[href*="/authors/"], a[href*="/autor/"], a[href*="/autores/"]')).slice(0, 20)) {
+        const s = textIn(l).replace(/^(by|por|de|von|par)\s+/i, "");
+        if (first && !(l.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING)) break;
+        if (h1 && !(h1.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+        if (s.length <= 40 && PERSON.test(s) && visible(l) && !l.closest("blockquote, figure, nav, aside, [class*=comment i]")) {
+          author = s;
+          break;
+        }
+      }
+    }
   }
   let when = meta('meta[property="article:published_time"]') || meta('meta[name="date"]') || meta('meta[itemprop="datePublished"]');
   if (!when) {
     const tEl = (articleEl ?? document).querySelector("time[datetime]") ?? document.querySelector("header time[datetime], article time[datetime]");
     when = tEl?.getAttribute("datetime") ?? "";
   }
+  // The story's own structured data (TOI has no meta date and no <time>, F832).
+  if (!when) when = ldDate();
   let date = "";
   if (when) {
     const d = new Date(when);
@@ -5956,9 +6706,13 @@ export function findToast(): { text: string; said: string; actions: Action[]; re
   // A second look without the page's context (no search box): what it finds must not become
   // the popup being filled in (Google Maps' search panel, which holds the search box).
   const keep = lastPop;
+  const held = heldPop;
   const pop = findPopup(newCtx());
   lastPop = keep;
+  heldPop = held;
   if (!pop) return null;
+  // A part of a page modal dialog (MDN's compat settings, in shadow roots): the user answers it directly, on top of Sift.
+  for (let n: Element | null = pop.el; n; n = n.parentElement ?? ((n.getRootNode() as ShadowRoot).host ?? null)) if (n.matches(":modal")) return null;
   const said = textIn(pop.el).slice(0, 200);
   const ref = refOf(pop.el);
   if (!pop.actionable) return said ? { text: said, said, actions: [], ref } : null;
@@ -6011,7 +6765,7 @@ function docTitle(site: string): string {
  * headline inside a story card or a heading inside an answer or comment.
  */
 export function titleH1(articleEl: Element | null = null): Element | null {
-  const h1s = Array.from(document.querySelectorAll("h1")).filter((h) => visible(h) && textIn(h).length > 3 && !h.closest("sift-root"));
+  const h1s = Array.from(document.querySelectorAll("h1")).filter((h) => visible(h) && textIn(h).length > 3 && !h.closest("sift-root") && !inSweepstakes(h));
   if (!h1s.length) return null;
   const ref = new Set(norm(docTitle(siteName())).split(" ").filter((w) => w.length > 2));
   let best: Element | null = null;
@@ -6195,6 +6949,29 @@ function besideMain(root: Element, ctx: Ctx): { before: Element[]; after: Elemen
   // So is a bar pinned to the window with the total and the pay button (a basket's "Go to payment").
   for (const b of payBarsOutside(root)) if (!after.some((m) => m.contains(b))) after.push(b);
   return { before, after };
+}
+
+/**
+ * The bar took a lookup box from the page's content (weather.gov's location form): what is left of its
+ * box (a help link, "Your local forecast office is …") and the small boxes of links on its row (a news
+ * ticker) are the site's tools, not the page's data, so they are read after it (F636).
+ */
+function lookupLeftovers(root: Element, ctx: Ctx): Element[] {
+  const form = ctx.searchEl?.closest("form");
+  if (!form || !root.contains(form) || form === root || form.closest("header, nav, [role=banner], [role=navigation], [role=search]")) return [];
+  const fields = (e: Element) => Array.from(e.querySelectorAll("input:not([type=hidden]), select, textarea")).filter((f) => visible(f) && f.getAttribute("type") !== "submit" && f.getAttribute("type") !== "button");
+  let box: Element = form;
+  while (box.parentElement && box.parentElement !== root && tlen(box.parentElement) <= 300 && fields(box.parentElement).length === 1) box = box.parentElement;
+  const top = box.getBoundingClientRect().top;
+  if (!box.parentElement || fields(box).length !== 1 || top + scrollY > 400 || (ctx.titleEl && box.contains(ctx.titleEl))) return [];
+  const out = tlen(box) > 0 ? [box] : [];
+  for (const s of Array.from(box.parentElement.children)) {
+    if (s === box || !visible(s) || SKIP.has(s.localName) || Math.abs(s.getBoundingClientRect().top - top) > 40) continue;
+    const n = tlen(s);
+    const linked = Array.from(s.querySelectorAll("a[href]")).reduce((m, a) => m + textIn(a).length, 0);
+    if (n && n <= 300 && linked && textIn(s).length - linked <= 30 && !fields(s).length && !s.querySelector("h1") && !(ctx.titleEl && s.contains(ctx.titleEl))) out.push(s);
+  }
+  return out;
 }
 
 function ancestorsOf(el: Element): Element[] {
@@ -6462,6 +7239,31 @@ function droppedUnder(b: Extract<Block, { t: "h" }>): boolean {
   return false;
 }
 
+/**
+ * A file view (GitHub's blob): the controls and facts stacked between the file's
+ * title and its code (copy path, last commit, history, raw, download) fold into
+ * one closed section, so the code starts on the first screen.
+ */
+function foldFileTools(blocks: Block[]) {
+  const i = blocks.findIndex((b) => b.t === "pre" && b.text.split("\n").length >= 40);
+  if (i < 0) return;
+  const small = (b: Block) =>
+    b.t === "actions" ||
+    (b.t === "ul" && b.items.length <= 3 && b.items.every((it) => it.length === 1 && typeof it[0] === "object" && "a" in it[0])) ||
+    (b.t === "p" && textOf(b.content).length <= 80);
+  let j = i;
+  while (j > 0 && small(blocks[j - 1])) j--;
+  const h = blocks[j - 1];
+  if (i - j < 5 || !h || h.t !== "h" || h.level !== 1) return;
+  const run = blocks.slice(j, i);
+  // Only a file view's toolbar: a row of controls or links, or a commit, size or line count. A how-to's short
+  // steps before its script ("First, log in as root.") stay in the open.
+  const ps = run.filter((b) => b.t === "p").map((b) => textOf((b as { content: Inline[] }).content).trim());
+  if (ps.filter((s) => /[.!?:]$/.test(s) && s.split(/\s+/).length >= 3).length >= 3) return;
+  if (!run.some((b) => b.t === "actions" || b.t === "ul") && !ps.some((s) => /\b[0-9a-f]{7,40}\b|\b\d[\d,]*\s+lines\b|\b\d+(\.\d+)?\s?(B|KB|MB|bytes)\b/i.test(s))) return;
+  blocks.splice(j, i - j, { t: "section", key: "tools:" + run[0].key, title: t("details"), blocks: run, collapsed: true });
+}
+
 function demoteExtraH1(blocks: Block[], title: string) {
   for (const b of blocks) {
     if (b.t === "h" && b.level === 1 && b.text !== title) b.level = 2;
@@ -6516,7 +7318,7 @@ function commentsBeside(root: Element, scope: Element): Element[] {
 }
 
 export function extractGeneric(): Page {
-  const ctx = newCtx({ visited: new WeakSet() });
+  const ctx = newCtx({ visited: new WeakSet(), bars: new WeakSet() });
   const search = findSearch(ctx);
   const top = findTop();
   // A menu entry that repeats a top-bar action ("Sign in") is said once, in the bar.
@@ -6525,6 +7327,7 @@ export function extractGeneric(): Page {
     const trig = searchTrigger();
     if (trig && !top.some((a) => a.ref === trig.ref)) top.unshift(trig);
   }
+  topBar = top;
   const root = mainRoot(ctx);
   // A panel a button opened as a dialog shows in Sift's sheet, not also in the page.
   const panel = openedPanel(ctx);
@@ -6532,11 +7335,15 @@ export function extractGeneric(): Page {
   ctx.articleEl = findArticle(root);
   const h1 = titleH1(ctx.articleEl);
   ctx.titleEl = h1;
-  const by = ctx.articleEl ? byline(ctx.articleEl) : "";
+  const by = ctx.articleEl ? byline(ctx.articleEl, h1) : "";
   ctx.hasByline = !!by && /\p{L}{2,}.*·/u.test(by);
+  if (ctx.hasByline) ctx.byName = by.split(" · ")[0];
   ctx.hasDate = /\d/.test(by);
   const scope = ctx.articleEl ? articleScope(root, ctx.articleEl, h1) : root;
   const beside = besideMain(root, ctx);
+  const late = scope === root ? lookupLeftovers(root, ctx) : [];
+  for (const e of late) ctx.used.add(e);
+  beside.after.push(...late);
   let blocks = walkPage(ctx, root, scope, beside);
   // Pages that are mostly navigation (portals, language pickers): keep their navs
   // as content. Lists, tables, forms and players are content already.
@@ -6544,9 +7351,10 @@ export function extractGeneric(): Page {
     // A fresh pass: only the search box and its button stay taken, so players found in pass one come back.
     const used = new WeakSet<Element>();
     if (ctx.searchEl) used.add(ctx.searchEl);
+    for (const e of late) used.add(e);
     const sb = elOf(search?.submit);
     if (sb) used.add(sb);
-    const again = walkPage({ ...newCtx(), articleEl: ctx.articleEl, used, keepAllNav: true, visited: ctx.visited, searchEl: ctx.searchEl, hasByline: ctx.hasByline, hasDate: ctx.hasDate, titleEl: h1 }, root, scope, beside);
+    const again = walkPage({ ...newCtx(), articleEl: ctx.articleEl, used, keepAllNav: true, visited: ctx.visited, searchEl: ctx.searchEl, hasByline: ctx.hasByline, byName: ctx.byName, hasDate: ctx.hasDate, titleEl: h1 }, root, scope, beside);
     if (blocksText(again).length > blocksText(blocks).length) blocks = again;
   }
   const title = h1 ? headingText(h1).slice(0, 200) : pageTitle();
@@ -6556,6 +7364,7 @@ export function extractGeneric(): Page {
   dropLinklessTwins(blocks);
   dropKicker(blocks);
   dropEmptyHeadings(blocks);
+  foldFileTools(blocks);
   ctx.bare = blocksText(blocks).length < 200 && !hasRichBlocks(blocks);
   if (by) {
     const i = blocks.findIndex((b) => b.t === "h" && b.level === 1);
@@ -6564,6 +7373,7 @@ export function extractGeneric(): Page {
   const dialog = findDialog(ctx, blocks);
   // Popups are told from page layout by what the page view showed before the user's action (see findPopup).
   if (ctx.visited) lastShown = ctx.visited;
+  lastBars = ctx.bars ?? new WeakSet();
   return {
     url: location.href,
     title,

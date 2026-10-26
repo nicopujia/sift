@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Channel and app headlines</title>
+<style>
+  body { font: 16px/1.4 sans-serif; margin: 0 auto; max-width: 900px; padding: 0 16px; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { border: 1px solid #ccc; padding: 12px; }
+  .card a { color: inherit; text-decoration: none; display: block; }
+</style>
+</head>
+<body>
+<main>
+<h1>Top stories</h1>
+<!-- F723: real stories whose headline names a channel, app or newsletter. All five must stay, with their links. -->
+<div class="cards" id="stories">
+  <div class="card" data-testid="dundee-card"><a href="/news/articles/cwz0vg4v3ndeo"><div><h2 data-testid="card-headline">How 'Lula's Army' WhatsApp channel helped turn Brazil election around</h2><span>3 hrs ago</span> <span>Latin America</span></div></a></div>
+  <div class="card" data-testid="dundee-card"><a href="/news/articles/c1a2b3c4d5"><div><h2 data-testid="card-headline">Millions rush to download the DeepSeek app after price cut</h2><p>The chatbot topped the charts in 40 countries.</p><span>5 hrs ago</span></div></a></div>
+  <div class="card" data-testid="dundee-card"><a href="/news/articles/c9z8y7x6w5"><div><h2 data-testid="card-headline">Police warn of scam WhatsApp channel posing as the tax office</h2><span>1 hr ago</span> <span>UK</span></div></a></div>
+  <div class="card"><a href="/mundo/articulos/c7k6j5h4g3"><div><h2>El canal de WhatsApp que movilizó a los votantes en Brasil</h2><span>hace 2 horas</span></div></a></div>
+  <div class="card"><a href="/news/articles/cnews1234"><div><h2>Substack newsletter boom pays writers more than papers</h2><p>Writers say they earn more on their own.</p></div></a></div>
+</div>
+<!-- Real promos that lead to the channel or the app store: all three must go. -->
+<div class="cards" id="promos">
+  <div class="card"><a href="https://whatsapp.com/channel/0029VaExampleChannel"><div><h2>Get BBC News on our WhatsApp channel</h2><p>Top stories, every day.</p></div></a></div>
+  <div class="card"><a href="https://www.whatsapp.com/channel/0029VaExample2"><div><h2>Follow the News WhatsApp channel for breaking stories</h2></div></a></div>
+  <div class="card"><a href="https://apps.apple.com/gb/app/news/id377382255"><div><h2>Download the News app for the latest headlines</h2><p>Free on iPhone and Android.</p></div></a></div>
+</div>
+</main>
+</body>
+</html>

@@ -36,6 +36,8 @@ export interface Handlers {
   reveal(ref: string): void;
   /** Move keyboard focus into a shown original element (a map, an editor). */
   enterPortal(ref: string): void;
+  /** Say `text` politely through Sift's one live region (the number of suggestions shown). */
+  say(text: string): void;
 }
 
 export const H = {} as Handlers;

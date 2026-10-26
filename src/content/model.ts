@@ -68,6 +68,12 @@ export interface Field {
   step?: string;
   autocomplete?: string;
   accept?: string;
+  /** The page field's own limits (maxlength, minlength, pattern): Sift's field keeps them, as typing there would. */
+  maxLength?: number;
+  minLength?: number;
+  pattern?: string;
+  /** The page field is a combobox (role=combobox, a datalist): its aria-autocomplete, or "none" (F804). */
+  combo?: string;
   /** Ref of a button that submits this field when there is no <form>. */
   submit?: string;
   /** A slider's value as words ("12 pt"). */
@@ -76,6 +82,8 @@ export interface Field {
   invalid?: boolean;
   /** What the page says is wrong with it (its error message). */
   error?: string;
+  /** What else describes it on the page (aria-describedby, less the error): a hint, a live "is taken" message. */
+  desc?: string;
   /** The visible words on the page's own submit button (an Arabic page's "بحث"), shown on Sift's button. */
   submitLabel?: string;
   /** Buttons in the field's own box (a password's Show button), shown right after it. */

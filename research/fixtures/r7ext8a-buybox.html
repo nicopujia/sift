@@ -1,0 +1,30 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><title>Trail Runner 3 - Peak Outfitters</title>
+<style>body{font-family:sans-serif;margin:0} .wrap{display:flex;gap:30px;max-width:1240px;margin:0 auto} .info{flex:0 0 30%;min-height:700px} .details{flex:1} label{display:inline-block;margin:4px}</style></head><body>
+<header><a href="/">Peak Outfitters</a> <nav><a href="/men">Men</a> <a href="/women">Women</a></nav></header>
+<main class="wrap">
+ <div class="info">
+  <h1>Trail Runner 3</h1>
+  <p>$129.00</p>
+  <form action="/cart/add" method="post" onsubmit="event.preventDefault();document.getElementById('st').textContent='Added to cart'">
+   <fieldset><legend>Color</legend>
+    <label><input type="radio" name="color" value="blue" checked> Blue</label><label><input type="radio" name="color" value="black"> Black</label>
+    <label><input type="radio" name="color" value="green"> Green</label><label><input type="radio" name="color" value="red"> Red</label>
+   </fieldset>
+   <fieldset><legend>Size</legend>
+    <label><input type="radio" name="size" value="8"> 8</label><label><input type="radio" name="size" value="9"> 9</label>
+    <label><input type="radio" name="size" value="10"> 10</label><label><input type="radio" name="size" value="11"> 11</label>
+   </fieldset>
+   <label>Quantity <input type="number" name="qty" value="1" min="1"></label>
+   <p><button type="submit">Add to cart</button></p>
+   <p id="st" role="status"></p>
+  </form>
+ </div>
+ <div class="details">
+  <h2>Details</h2>
+  <p>A light trail shoe with a grippy sole and a cushioned midsole for long runs on rough ground. The upper is a breathable mesh.</p>
+  <h2>You may also like</h2>
+  <ul><li><a href="/p/related-1">Related shoe 1</a> from $61</li><li><a href="/p/related-2">Related shoe 2</a> from $62</li><li><a href="/p/related-3">Related shoe 3</a> from $63</li><li><a href="/p/related-4">Related shoe 4</a> from $64</li><li><a href="/p/related-5">Related shoe 5</a> from $65</li><li><a href="/p/related-6">Related shoe 6</a> from $66</li><li><a href="/p/related-7">Related shoe 7</a> from $67</li><li><a href="/p/related-8">Related shoe 8</a> from $68</li><li><a href="/p/related-9">Related shoe 9</a> from $69</li><li><a href="/p/related-10">Related shoe 10</a> from $70</li><li><a href="/p/related-11">Related shoe 11</a> from $71</li><li><a href="/p/related-12">Related shoe 12</a> from $72</li></ul>
+ </div>
+</main>
+<footer><a href="/help">Help</a> <a href="/returns">Returns</a></footer>
+</body></html>

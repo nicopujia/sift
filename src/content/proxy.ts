@@ -80,6 +80,10 @@ export function setValue(el: Element, value: string, back?: HTMLElement | null) 
   if (!set) return;
   if (!asOfChange.has(el)) asOfChange.set(el, (el as HTMLInputElement).value);
   const was = (el as HTMLInputElement).value;
+  // Typing stops at the field's maxlength (a value set from code does not): no longer value reaches the page than typing gives (F801).
+  const max = (el as HTMLInputElement).maxLength;
+  if (max >= 0 && value.length > max && value.length > was.length && (el instanceof HTMLTextAreaElement || /^(text|search|url|tel|email|password)$/.test((el as HTMLInputElement).type)))
+    value = value.slice(0, Math.max(max, was.length));
   set(value);
   el.dispatchEvent(new InputEvent("input", { bubbles: true, composed: true, inputType: "insertText", data: value }));
   // Live search that runs on keyup (queryly on Infobae) hears the key that typed it.
@@ -95,11 +99,16 @@ export function change(el: Element): boolean {
   return true;
 }
 
+/** A plain search field: pages show suggestions or results under it as it is typed in, with no list it names. */
+export const SEARCH_FIELD = "input[type=search], [role=searchbox], :is([role=search], form[action*=search i]) input:is(:not([type]), [type=text])";
+
 /** Fire focus and focusin, as entering a field does (pages open date pickers and history lists then). */
 export function focus(el: Element) {
-  // A field with a suggestion list: the page-world helper names it as
+  // A field with a suggestion list, or a plain search field (Wikipedia's portal draws its
+  // suggestions only while its box is the active element): the page-world helper names it as
   // document.activeElement from now on (main/index.ts), as some pages check.
-  if (el.matches("[role=combobox], [aria-autocomplete], [aria-controls], [aria-owns], [list]")) el.dispatchEvent(new CustomEvent("sift-enter", { bubbles: true, composed: true }));
+  if (el.matches("[role=combobox], [aria-autocomplete], [aria-controls], [aria-owns], [list]") || el.matches(SEARCH_FIELD))
+    el.dispatchEvent(new CustomEvent("sift-enter", { bubbles: true, composed: true }));
   el.dispatchEvent(new FocusEvent("focus"));
   el.dispatchEvent(new FocusEvent("focusin", { bubbles: true, composed: true }));
 }

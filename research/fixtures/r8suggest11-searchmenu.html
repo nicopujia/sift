@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Forum search menu</title>
+<style>
+body{font-family:system-ui;margin:0}
+header{position:relative;padding:8px;border-bottom:1px solid #ccc}
+.panel{position:absolute;right:8px;top:8px;width:360px;background:#fff;border:1px solid #999;padding:6px}
+.drop{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid #999}
+.drop a{display:block;padding:4px}
+main{max-width:760px;margin:16px auto}
+</style></head>
+<body>
+<header><span>Bread forum</span>
+<div class="panel"><input type="search" id="q" autocomplete="off" aria-label="Search the forum" placeholder="Search"><div class="drop" id="drop" hidden></div></div>
+</header>
+<main>
+<h1>Latest topics</h1>
+<ul id="topics"></ul>
+<p id="ticker">Updated just now</p>
+</main>
+<script>
+// A plain search box (no aria-controls), like Wikipedia's portal and Discourse's menu:
+// suggestions under it while typing, results in the same place after Enter (the address
+// stays), and no Escape handler (the browser's own Escape clears the type=search box).
+const q = document.getElementById("q"), drop = document.getElementById("drop");
+const titles = ["Lifetime issue - expected lifetime", "Why does a longer lifetime help", "Return longer lifetime instead", "Lifetime of a borrowed starter", "Sourdough lifetime in the fridge", "Rye starter lifetime question", "Crumb structure basics", "Oven spring tips"];
+const topics = document.getElementById("topics");
+for (let i = 0; i < 40; i++) topics.insertAdjacentHTML("beforeend", "<li><a href='#t" + i + "'>Topic " + (i + 1) + ": " + titles[i % titles.length] + "</a></li>");
+let timer = 0;
+function show(items) {
+  drop.innerHTML = items.map((t, i) => "<a href='#r" + i + "'>" + t + "</a>").join("");
+  drop.hidden = !items.length;
+}
+q.addEventListener("input", () => {
+  clearTimeout(timer);
+  const w = q.value.trim().toLowerCase();
+  if (!w) return show([]);
+  timer = setTimeout(() => show([w + " in all topics", ...titles.filter((t) => t.toLowerCase().includes(w)).slice(0, 2)]), 150);
+});
+q.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const w = q.value.trim().toLowerCase();
+  clearTimeout(timer);
+  setTimeout(() => show(titles.filter((t) => t.toLowerCase().includes(w)).slice(0, 6)), 200);
+});
+// A page change elsewhere (a live forum's new-topic banner, a relative time).
+window.bump = () => { document.getElementById("ticker").textContent = "Updated " + new Date().toISOString(); for (let i = 0; i < 3; i++) document.body.appendChild(document.createElement("div")); return 1; };
+</script>
+</body></html>

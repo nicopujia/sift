@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Book a haircut · Fade Street Barbers</title>
+<!-- r8 (T6-fixtures): an appointment booking page. A service radio group, a week strip of day buttons
+     (aria-pressed) with Previous/Next week, time slots that load 700 ms after a day is picked (Wednesday
+     has none left), time buttons (aria-pressed) that enable Continue, a modal "Confirm your booking"
+     (summary, a notes field, Back / Confirm booking), then a toast "Booked: … Undo". A cookie bar, a
+     trust badge strip and a chat bubble are noise. Nothing posts: every handler only logs to window.__log. -->
+<style>
+body{font-family:system-ui;margin:0;background:#fafafa}
+header{background:#111;color:#fff;padding:12px 24px;display:flex;gap:16px}header a{color:#fff}
+main{max-width:680px;margin:24px auto;background:#fff;padding:24px}
+.trust{display:flex;gap:16px;font-size:12px;color:#555;margin:8px 0 16px}
+.week{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.week button.day{width:76px;padding:8px 0;border:1px solid #888;background:#fff;border-radius:6px}
+.week button.day[aria-pressed=true]{background:#111;color:#fff}
+#slots{min-height:60px;margin:12px 0}
+#slots button{margin:4px;padding:6px 12px;border:1px solid #888;background:#fff;border-radius:16px}
+#slots button[aria-pressed=true]{background:#111;color:#fff}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}
+.dlg{background:#fff;padding:20px;border-radius:8px;width:380px}
+#toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:6px}
+#toast button{color:#9cf;background:none;border:0;text-decoration:underline}
+.cookie{position:fixed;left:0;right:0;bottom:0;background:#333;color:#fff;padding:10px 24px;font-size:13px}
+.chat{position:fixed;right:16px;bottom:56px;background:#e11;color:#fff;border-radius:24px;padding:10px 16px}
+</style></head>
+<body>
+<header><a href="/">Fade Street Barbers</a><a href="/services">Services</a><a href="/team">Team</a><a href="/gift-cards">Gift cards</a></header>
+<main>
+<h1>Book a haircut</h1>
+<p>Pick a service, a day and a time. You pay at the shop.</p>
+<div class="trust"><span>★ 4.9 from 2,000 reviews</span><span>Free cancellation</span><span>As seen on Local Eats TV</span></div>
+<form id="f" novalidate>
+<fieldset><legend>Service</legend>
+  <label><input type="radio" name="svc" value="Haircut" data-p="35" checked> Haircut, 30 min, $35</label><br>
+  <label><input type="radio" name="svc" value="Beard trim" data-p="15"> Beard trim, 15 min, $15</label>
+</fieldset>
+<h2 id="dayh">Day</h2>
+<div class="week" role="group" aria-labelledby="dayh">
+  <button type="button" id="prevw" aria-label="Previous week" disabled>‹</button>
+  <span id="days"></span>
+  <button type="button" id="nextw" aria-label="Next week">›</button>
+</div>
+<h2>Time</h2>
+<div id="slots" aria-live="polite"><p>Pick a day to see free times.</p></div>
+<p><button type="button" id="cont" disabled>Continue</button></p>
+</form>
+</main>
+<div id="toast" role="status" hidden></div>
+<div class="cookie">We use cookies to improve your visit. <button type="button" id="ck-ok">Accept all</button> <button type="button" id="ck-no">Reject</button></div>
+<div class="chat" role="button" tabindex="0">Questions? Chat</div>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+const names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const longNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+let week = 0, day = null, time = null;
+function dateOf(w, i) { return 2 + w * 7 + i; } // Nov 2, 2026 is a Monday
+function drawDays() {
+  $("days").innerHTML = names.map((n, i) => '<button type="button" class="day" data-i="' + i + '" aria-label="' + longNames[i] + ', November ' + dateOf(week, i) + '" aria-pressed="' + (day && day.w === week && day.i === i) + '">' + n + "<br>Nov " + dateOf(week, i) + "</button>").join(" ");
+  $("prevw").disabled = week === 0;
+}
+drawDays();
+$("prevw").onclick = () => { week--; drawDays(); __log.push("week " + week); };
+$("nextw").onclick = () => { week++; drawDays(); __log.push("week " + week); };
+$("days").addEventListener("click", (e) => {
+  const b = e.target.closest("button.day"); if (!b) return;
+  day = { w: week, i: +b.dataset.i }; time = null; $("cont").disabled = true; drawDays();
+  __log.push("day Nov " + dateOf(week, day.i));
+  $("slots").setAttribute("aria-busy", "true"); $("slots").innerHTML = "<p>Loading times…</p>";
+  setTimeout(() => {
+    $("slots").removeAttribute("aria-busy");
+    if (day.i === 2) { $("slots").innerHTML = "<p>No times left on " + longNames[2] + ". Try another day.</p>"; __log.push("no slots"); return; }
+    const times = ["9:00", "9:30", "10:30", "11:00", "14:00", "16:30"].filter((t, k) => (k + day.i) % 4 !== 0);
+    $("slots").innerHTML = '<p id="slh">' + times.length + " free times on " + longNames[day.i] + ", November " + dateOf(day.w, day.i) + '</p><div role="group" aria-labelledby="slh">' + times.map((t) => '<button type="button" aria-pressed="false" data-t="' + t + '">' + t + "</button>").join("") + "</div>";
+    __log.push("slots " + times.length);
+  }, 700);
+});
+$("slots").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-t]"); if (!b) return;
+  for (const o of $("slots").querySelectorAll("button[data-t]")) o.setAttribute("aria-pressed", String(o === b));
+  time = b.dataset.t; $("cont").disabled = false; __log.push("time " + time);
+});
+$("cont").onclick = () => {
+  const svc = document.querySelector("input[name=svc]:checked");
+  const when = names[day.i] + " Nov " + dateOf(day.w, day.i) + " at " + time;
+  const ov = document.createElement("div"); ov.className = "ov";
+  ov.innerHTML = '<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="ct"><h2 id="ct">Confirm your booking</h2><p>' + svc.value + " with any barber, " + when + ", $" + svc.dataset.p + '.</p><label for="notes">Notes for the barber (optional)</label><textarea id="notes" rows="2" style="width:100%"></textarea><p><button type="button" id="back">Back</button> <button type="button" id="ok">Confirm booking</button></p></div>';
+  document.body.appendChild(ov); $("ok").focus(); __log.push("confirm open");
+  const close = () => { ov.remove(); $("cont").focus(); };
+  $("back").onclick = () => { __log.push("back"); close(); };
+  ov.addEventListener("keydown", (k) => { if (k.key === "Escape") { __log.push("esc"); close(); } });
+  $("ok").onclick = () => {
+    __log.push("booked " + svc.value + " | " + when + " | notes=" + $("notes").value);
+    ov.remove();
+    $("toast").innerHTML = "Booked: " + when + '. <button type="button" id="undo">Undo</button>'; $("toast").hidden = false;
+    $("undo").onclick = () => { __log.push("undo"); $("toast").textContent = "Booking canceled."; setTimeout(() => { $("toast").hidden = true; }, 4000); };
+    setTimeout(() => { $("toast").hidden = true; }, 8000);
+  };
+};
+$("ck-ok").onclick = () => { __log.push("cookies ok"); document.querySelector(".cookie").remove(); };
+$("ck-no").onclick = () => { __log.push("cookies no"); document.querySelector(".cookie").remove(); };
+</script>
+</body></html>

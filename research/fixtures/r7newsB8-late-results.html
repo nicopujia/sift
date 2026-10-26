@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><title>Milei: Resultados de búsqueda</title></head>
+<body>
+<header><nav><a href="/">Inicio</a> <a href="/politica">Política</a> <a href="/economia">Economía</a></nav></header>
+<main>
+  <h1>Milei: Resultados de búsqueda para las últimas noticias</h1>
+  <div id="results"></div>
+</main>
+<footer><a href="/terminos">Términos</a></footer>
+<script>
+// Results come in late (after the page's first 3 s), as a client-rendered search page does (F728).
+const delay = Number(new URLSearchParams(location.search).get("delay") || 4500);
+setTimeout(() => {
+  window.__resultsAt = performance.now();
+  const r = document.getElementById("results");
+  for (let i = 0; i < 12; i++) {
+    const a = document.createElement("article");
+    a.innerHTML = `<h3><a href="/politica/nota-${i}">Javier Milei resultado ${i}</a></h3><p>Resumen de la nota número ${i} sobre la economía y la política argentina.</p>`;
+    r.appendChild(a);
+  }
+}, delay);
+</script>
+</body>
+</html>

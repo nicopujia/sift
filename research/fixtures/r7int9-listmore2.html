@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Bread search, cards · Breadbox</title>
+<style>body{font-family:system-ui;margin:0} main{max-width:680px;margin:24px auto} li{padding:10px 0;border-bottom:1px solid #ddd} li a{font-weight:600}</style></head>
+<body>
+<main>
+<h1>Results for "rye"</h1>
+<p id="count">Showing 4 of 9 breads.</p>
+<ol id="list">
+<li><h3><a href="#b0">Rye sourdough</a></h3><p>Dense, sour, 700 g. Keeps a week in paper.</p><p class="price">$7.50</p><button type="button">Add to basket</button></li>
+<li><h3><a href="#b1">Seeded rye</a></h3><p>Sunflower and pumpkin seeds, 650 g.</p><p class="price">$8.00</p><button type="button">Add to basket</button></li>
+<li><h3><a href="#b2">Light rye</a></h3><p>Half rye, half wheat, a soft crumb, 600 g.</p><p class="price">$6.50</p><button type="button">Add to basket</button></li>
+<li><h3><a href="#b3">Rye crispbread</a></h3><p>Thin and dry, a box of 20, keeps three months.</p><p class="price">$5.00</p><button type="button">Add to basket</button></li>
+</ol>
+<button type="button" id="more">Show more results</button>
+<h2>Need help?</h2>
+<p><a href="#help">Ask the bakery</a></p>
+<p><a href="#stores">Find a store</a></p>
+</main>
+<script>
+window.__log = [];
+document.getElementById("more").onclick = () => {
+  const names = ["Pumpernickel", "Rye and caraway", "Dark rye rolls", "Rye and fig loaf", "Rye pretzel"];
+  for (const [i, n] of names.entries()) {
+    const li = document.createElement("li"); li.id = "n" + i;
+    li.innerHTML = '<h3><a href="#x' + i + '">' + n + '</a></h3><p>Made with whole rye flour from the mill in Petaluma, ' + (500 + i * 50) + ' g.</p><p class="price">$' + (6 + i) + '.00</p><button type="button">Add to basket</button>';
+    document.getElementById("list").appendChild(li);
+  }
+  document.getElementById("count").textContent = "Showing 9 of 9 breads.";
+  document.getElementById("more").remove();
+  __log.push("more");
+};
+</script>
+</body></html>

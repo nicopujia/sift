@@ -1,0 +1,33 @@
+url: http://127.0.0.1:8799/fx/gmail.html
+first sift content: 274 ms
+logs:
+
+--- outline (28 lines) ---
+[button] Skip to content
+  [input:search]  Search mail
+  [button] Search
+[button] Menu
+[button] Compose
+H1 Inbox
+[button] Primary
+[button] Promotions
+    [link] Your class schedule for next week
+    p: Minerva University updated next week’s schedule: CS110 moves to Tuesday at 10 AM Pacific; review pre-class work before Monday
+    p: 6:42 AM
+    [button] Archive
+    [button] Delete
+    [button] Mark as read
+    [link] New gluten-free bakery list for San Francisco
+    p: Celiac Support checked 14 San Francisco bakeries; 5 have dedicated gluten-free kitchens, while others risk cross-contamination
+    p: Oct 23
+    [button] Archive
+    [button] Delete
+    [button] Mark as read
+    [link] Your package was delivered
+    p: Amazon delivered your package to the front desk at 3:10 PM
+    p: Oct 22
+    [button] Archive
+    [button] Delete
+    [button] Mark as unread
+p: 1–3 of 3
+[button] Sift

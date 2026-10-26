@@ -1,0 +1,80 @@
+[button] Skip to content
+[button] Menu
+[button] Search
+[link] Sign In
+H1 Breaking news, video and the latest top stories from the U.S. and around the world
+    [link] Israel and the US are both going to the polls - the consequences will be global
+    p: The next fortnight sees two elections on different continents. The outcomes will shape geopolitics and the global economy, writes James Landale
+    p: 5 hrs ago BBC InDepth
+    [link] Lula wins fourth term in dramatic Brazil election comeback
+    p: The left-wing incumbent president had lost the first round to right-wing challenger Flávio Bolsonaro.
+    p: 1 hr ago Latin America
+    [link] Sydney's new $5bn airport has one big problem: Getting there is tough
+    p: The airport won’t have direct public transportation for a year. How do locals feel about getting there?
+    p: 3 hrs ago Australia
+    [link] 'Maxxing' selected as Dictionary.com word of the year
+    p: "Whatever we're doing, we want to push it further," said an expert on why Americans are embracing the term, which is short for maximising.
+    p: 2 hrs ago US & Canada
+    [link] How 'Lula's Army' WhatsApp channel helped turn Brazil election around
+    p: Millions joined a 'Lula's Army' channel that helped to transform online enthusiasm into real-world mobilisation.
+    p: 5 hrs ago Latin America
+    [link] Anthropic's blockbuster share listing - 5 surprising things we now know
+    p: Anthropic’s IPO prospectus is 355 pages and full of never before disclosed company information.
+    p: 1 hr ago Technology
+    [link] Trump faces backlash after invoking 9/11 in verbal assault on El-Sayed
+    p: The Democrat himself has hit back, as has Senator Bernie Sanders and a key Trump supporter from 2024.
+    p: 25 mins ago US & Canada
+    [link] Ballon d'Or 2026: Will Kane end England's 25-year drought - as Yamal wins young talent
+    p: Follow live text commentary of the Ballon d'Or ceremony in London as the best men's and women's footballers of the year for 2026 will be crowned.
+    p: LIVE
+    [link] Catholic bishops apologise for 'exploited' Trump meeting
+    [link] Heavenly Creatures killer Pauline Parker dies in Scotland, aged 88
+    [link] Trump administration illegally fired James Comey's daughter, judge rules
+    [link] Alaska's Democratic Senate candidate pauses midterms campaigning after car crash
+    [link] Eric Bauza, voice of Bugs Bunny and Daffy Duck, dies aged 46
+H2 More to explore
+    [link] Five ways Trump has changed immigration in the US
+    p: This is how his signature policy has played out after returning to power promising a closed border and mass deportations.
+    p: 10 hrs ago US & Canada
+    [link] China's big political meeting could see Xi 'tighten discipline' in party
+    p: The highly secretive four-day Plenum starts Monday in Beijing. · 13 hrs ago Asia
+    [link] Big, noisy and coming to a town near you - why the data centre backlash is growing
+    p: Data centres are the lifeblood of our digital world, but there are growing concerns about their environmental impact. The BBC explores their rise in charts.
+    p: 21 hrs ago Business
+    [link] India's cartoonists built an audience online - now their posts are being restricted
+    p: Indian cartoonists say online restrictions are making satire harder, but they aren't giving up.
+    p: 20 hrs ago Asia
+    [link] Deeply divided Israel braces for pivotal election
+    p: After three years of regional war, this is a battle Israel always knew was coming, writes Lucy Williamson.
+    p: 23 hrs ago Middle East
+    [link] Who is Lula? From ex-worker and prisoner to Brazil's president again
+    p: The firebrand left-winger, who has at times been at odds with Trump, has won his fourth term as Brazil's president.
+    p: 9 hrs ago Latin America
+    [link] Is 'ferritin face' a real thing - and can you really spot low iron from looks?
+    p: Videos in which people claim to spot the signs of low iron have attracted millions of views online.
+    p: 19 hrs ago Health
+H2 Most watched
+    [link] Which emergency foods should you stock up on?
+    [link] Sydney's new $5bn airport has one big problem: Getting there is tough
+    [link] What is walking down the newly pedestrianised Oxford Street like?
+    [link] Watch: BBC asks Democrat El-Sayed about tight Michigan Senate race
+    [link] Plane veers off runway at Birmingham Airport during storm
+H2 Also in news
+    [link] Trump's media bans 'deprive the public', press freedom groups argue
+    p: The plaintiffs allege they are no longer able to do their work without reliable access to information delivered by the White House press.
+    p: 2 hrs ago
+    [link] Police arrest teenager after shooting that injured 12, including children, in Florida
+    p: The incident happened on Saturday night, close to an American football stadium where a game had just been played.
+    p: 5 hrs ago US & Canada
+    [link] Star Trek actor Walter Koenig, who played Pavel Chekov, dies aged 90
+    p: He played the eager Russian crewman in the original Star Trek series and later appeared in Babylon 5.
+    p: 3 hrs ago Culture
+    [link] Stunning photos capture October's Hunter's Moon around the world
+    p: October's full Moon, nicknamed the Hunter's Moon, lit up the night sky this weekend.
+    p: 10 hrs ago
+    [link] Ballon d'Or website mistakenly announces Kane, Yamal and Mbappe as winners
+    p: The Ballon d'Or accidentally publishes articles naming Harry Kane, Lamine Yamal and Kylian Mbappe as the winner of the men's award.
+    p: 3 hrs ago Football
+    [link] US Marine indicted for murder and robbery of woman in Japan
+    p: Prosecutors have indicted Devin Jacob Ballard for a killing that has caused outrage in Japan, local media reports.
+    p: 7 hrs ago World

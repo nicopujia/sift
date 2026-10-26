@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Basket · Breadbox</title>
+<style>body{font-family:system-ui;margin:0} main{max-width:680px;margin:24px auto} .row{display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #ddd}</style></head>
+<body>
+<!-- fixture (round 8, field11): F850/F851. Two cart rows whose quantity fields share a name
+     and a label. The page re-renders on every input, as many carts do, and a quantity of 0
+     removes its row.
+     ?v=rerender: the whole list is drawn again (innerHTML): every field is new.
+     ?v=inplace: only the typed field is replaced by a new one at the same spot (value copied, not focused).
+     ?v=append: removing a row also appends a "You may also like" row with its own qty field.
+     Typing "0" in row 1 must remove only row 1 (row 2 keeps 1). Typing "3" in row 1 must give
+     row1=3 and never touch row 2. window.__log lists every value the page saw, per row. -->
+<main>
+<h1>Your basket</h1>
+<p>Change a quantity to update your basket. A quantity of 0 removes the item.</p>
+<form id="cart" action="#" onsubmit="return false">
+<div id="rows"></div>
+<p id="total"></p>
+<button type="submit">Check out</button>
+</form>
+<p id="msg" role="status"></p>
+</main>
+<script>
+window.__log = [];
+const v = new URLSearchParams(location.search).get("v") || "rerender";
+const items = [{ id: "row1", name: "Rye loaf", price: 7.5, qty: "1" }, { id: "row2", name: "Seeded rye", price: 8, qty: "1" }];
+const rows = document.getElementById("rows");
+const rowHtml = (it) => `<div class="row" id="${it.id}"><span>${it.name}, $${it.price.toFixed(2)}</span><label><span class="l">Quantity</span> <input type="text" name="qty" value="${it.qty}" inputmode="numeric"></label></div>`;
+function draw() { rows.innerHTML = items.map(rowHtml).join(""); total(); }
+function total() { document.getElementById("total").textContent = "Total: $" + items.reduce((t, it) => t + it.price * (Number(it.qty) || 0), 0).toFixed(2); }
+rows.addEventListener("input", (e) => {
+  const row = e.target.closest(".row");
+  if (!row) return;
+  const it = items.find((x) => x.id === row.id);
+  it.qty = e.target.value;
+  __log.push(row.id + "=" + e.target.value);
+  if (it.qty.trim() === "0") {
+    items.splice(items.indexOf(it), 1);
+    document.getElementById("msg").textContent = "Removed " + it.name + ".";
+    if (v === "append") items.push({ id: "row3", name: "Sourdough starter", price: 4, qty: "1" });
+    return draw();
+  }
+  if (v === "inplace") {
+    const n = document.createElement("input");
+    n.type = "text"; n.name = "qty"; n.inputMode = "numeric"; n.value = e.target.value;
+    e.target.replaceWith(n);
+    return total();
+  }
+  draw();
+});
+draw();
+</script>
+</body></html>
