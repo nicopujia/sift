@@ -51,6 +51,15 @@ These ran on the build before round 9's fixes. The notes say what changed afterw
 | Amazon cart (test page) | equal | Plus, minus, Delete, Save for later match | Pass | Pass |
 | Gmail (test page) | equal | Open, back, archive, delete, mark, reply, compose, send, search, Undo match | Pass | Pass |
 
+**A caveat on these speed numbers.** They come from scripts/firstpaint.ts, which timed the original and Sift in the same load with Sift on. Round 12 found that this method can hide a delay. The script waits for the page's HTML to finish loading, and while Sift's first long task runs, its checks stall, so both show up at the same moment. A frame-accurate re-measure (round 12, Sift on against Sift off, run in turns) gave these results:
+
+- Daily Mail home (saved page): Sift 0.42 to 0.67 s against the original's 0.64 to 1.09 s.
+- Infobae home: Sift 0.36 to 0.43 s against 0.24 to 0.37 s.
+- A long Wikipedia list: Sift 0.46 to 0.65 s against 0.10 to 0.21 s.
+- Test pages with 3,000 controls: Sift 0.2 to 1.1 s later.
+
+The YouTube 'faster' results compare the original's title, which YouTube draws late, with Sift's. The speed script is being rebuilt, and Sift's first view is being made progressive. This section will be updated with the new measurements.
+
 "Equal" means Sift showed its first content at the same moment as the original. In rounds 9 to 11, Sift was equal or faster on every target page. In round 11 on YouTube:
 
 - Search: 2.2 s against 1.3 s.
