@@ -1,0 +1,85 @@
+url: https://www.corriere.it/
+first sift content: 3022 ms
+logs:
+
+--- outline (600 lines) ---
+[button] Vai al contenuto
+  [input:search]  Cerca in Corriere
+  [button] Cerca
+[button] Menu
+[button] Accedi
+H1 Corriere della Sera
+[link] Giochi del Corriere
+[link] Il Quiz domande per veri esperti
+[link] Prima o Dopo Metti in ordine gli eventi storici
+[link] In altre parole Una parola, sei tentativi
+[link] L'Apegramma Un alveare di parole da scoprire
+[link] Cruciverba Il grande classico dell'enigmistica
+p: Temi Caldi:
+    [link] israele
+    [link] candidati nesset
+    [link] netanyahu
+    [link] quanto nevicherà?
+    [link] sinner
+    [link] kane
+p: In aggiornamento:
+    [link] israele
+    [link] iran
+    [link] ucraina
+    [link] Il voto in Israele
+    [link] Le urne sono aperte in Israele fino alle 22 per un voto decisivo; l’esercito ha respinto la richiesta del premier di nuovi raid prima del voto
+      [link] Il premier voleva nuovi raid prima del voto, il capo dell'esercito ha detto no
+    [button] SALVA
+    [link] Guida ai candidati alle elezioni, ai sondaggi e a quando si saprà il risultato
+    p: di Greta Privitera Redazione Esteri
+    [button] SALVA
+    [link] Se Netanyahu e Trump perdono le elezioni, la guerra all’Iran si ferma? La risposta è no, e forse accade il contrario
+    p: di Gianluca Mercuri
+    [button] SALVA
+    [link] Be’eri, kibbutz segnato dal 7 ottobre, ha un cimitero ampliato e case vuote; i residenti dicono: «Ora cacciamo Bibi»
+    p: di Davide Frattini
+    [button] SALVA
+    [link] Eshkol Nevo: «Israele rivuole il futuro. Mi vergogno di essere rappresentato da Ben-Gvir»
+    p: di Davide Frattini
+    [button] SALVA
+    [link] Lettere al direttore: un voto decisivo per Israele e le domande nelle urne
+    p: LETTERE AL DIRETTORE · di Luciano Fontana
+    [button] SALVA
+    [link] Un esperto avverte che le montagne italiane rischiano una stagione meno nevosa; gli operatori sciistici sfrutteranno le finestre fredde
+    p: di Carlotta Lombardo
+    [button] SALVA
+    [link] Un sondaggio ECA rileva colpi di sonno in volo per tre piloti europei su quattro; gli italiani peggiorano, tra riposo insufficiente e timore di sanzioni
+    p: di Leonard Berberi · Il sondaggio dell’associazione Eca
+    [button] SALVA
+    [link] Il voto in Italia potrebbe essere a maggio o settembre, secondo il verdetto della Consulta sulla nuova legge elettorale
+    p: di Simone Canettieri
+    [button] SALVA
+    [link] Tajani e Crosetto fermano la Lega e dichiarano sostegno a Kiev; è pronto un nuovo pacchetto di aiuti
+      [link] Salvini sceglie i nomi per la segreteria, ma Zaia prende tempo. Garavaglia: «Per noi risultato straordinario, Matteo colga i segnali»
+      [link] Matone: «Con la Lega dissento su Kiev e sovranismo, passare a Forza Italia è una scelta politica. Io rivale di Bongiorno? Cattiverie gratuite»
+    [button] SALVA
+    [link] Il voto in Brasile e in Serbia
+    [link] Brasile, Bolsonaro jr. denuncia: «Mi hanno ritirato il passaporto». Trump: voto truccato ma Lula mi piace
+    p: In aggiornamento · di Redazione Online e Sara Gandolfi, inviata a San Paolo (Brasile)
+    [button] SALVA
+    [link] André Janones ha usato i social per aiutare Lula a ribaltare il risultato del primo turno e potrebbe ereditarne il ruolo
+      [link] Così Lula ha usato i social per ribaltare il risultato del primo turno
+    [button] SALVA
+    [link] Ilija Srdanovic, cardiologo, guida da due anni le proteste studentesche in Serbia contro mafia e corruzione e potrebbe diventare premier
+    p: di Irene Soave
+    [button] SALVA
+    [link] Lo sport
+    [link] La presenza di Sinner al terzo Six Kings Slam è data per certa dall’organizzatore; restano dubbi sul ginocchio e circola un’indiscrezione sul nuovo allenatore
+    p: di Gaia Piccardi
+    [button] SALVA
+    [link] Harry Kane vince il Pallone d’Oro 2026; Mbappé e Yamal sono beffati. Un votante dice: «Kylian merita di più: ho votato lui»
+      [link] La classifica completa del Pallone d’Oro 2026 e tutti i premiati
+    [button] SALVA
+    [link] A Oleshky è iniziata una tregua umanitaria; i civili saranno evacuati via Crimea e missili balistici hanno colpito ancora Kiev
+    p: In aggiornamento · di Redazione Online
+    [button] SALVA
+    [link] Così Putin militarizza la Libia: perché minaccia l’Italia e l’Europa (e che cosa ciò rivela di noi)
+    p: di Federico Fubini
+    [button] SALVA
+    [link] I vescovi in preghiera con Trump nello Studio Ovale. Loro: «Evento manipolato, nessun endorsement»
+    p: di V. Mazza, corrispondente da New York

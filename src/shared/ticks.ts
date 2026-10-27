@@ -41,14 +41,33 @@ const VOLATILE = new RegExp(
 );
 
 /**
- * Whether a short line only ticks: it has a time relative to now or a count
- * (see VOLATILE), or it is only a label once the parts `tick` matches (a
- * clock time, a duration) and its numbers are gone: "Updated 10:32",
- * "Comentarios (12)". "Doors open at 19:30." and "Pool: closed" say something.
+ * Words of LABEL that go with a time or a date without labeling it: "Today at
+ * 18:00" and "Hoy a las 18:00" say when something happens. With a real label
+ * ("Updated today at 10:32", "Actualizado hoy a las 18:00") they only tick.
+ */
+const FILLER = new Set(
+  "today yesterday at on by of the a de del el la las los en hoy ayer ahora do da em às hoje ontem agora il y aujourd hui hier le du des heute gestern um am oggi ieri alle vandaag gisteren dzisiaj wczoraj сегодня вчера".split(" "),
+);
+/** Where a byline's parts meet: "BBC·3hrs ago", "Daily Mail · 266 comments", "Reuters | 2 hours ago". */
+const PART = /\s*[·•|]\s*|\s+[-–—]\s+/;
+const VOLATILE_ALL = new RegExp(VOLATILE.source, "giu");
+
+/**
+ * Whether a short line only ticks: once the parts `tick` matches (a clock
+ * time, a duration, a count) and its numbers are gone, it is only a label
+ * ("Updated 10:32", "5 min ago", "Comentarios (12)"); or it is a byline with a
+ * part of its own that ticks (a time relative to now, a count of views or
+ * comments: see VOLATILE). A sentence that states a count or a time says
+ * something, as do "Today at 18:00", "Doors open at 19:30." and "Pool: closed"
+ * (F1218): "The final drew 9 million viewers."
  */
 export function onlyTicks(line: string, tick: RegExp): boolean {
-  if (VOLATILE.test(line)) return true;
   const all = new RegExp(tick.source, tick.flags.includes("g") ? tick.flags : tick.flags + "g");
-  const rest = line.replace(all, " ").replace(TICKS_CJK, " ").toLowerCase().match(/\p{L}+/gu) ?? [];
-  return rest.every((w) => LABEL.has(w));
+  const labelOnly = (s: string) => {
+    const rest = s.replace(VOLATILE_ALL, " ").replace(all, " ").replace(TICKS_CJK, " ").toLowerCase().match(/\p{L}+/gu) ?? [];
+    return rest.every((w) => LABEL.has(w)) && (!rest.length || rest.some((w) => !FILLER.has(w)));
+  };
+  if (labelOnly(line)) return true;
+  const parts = line.split(PART);
+  return parts.length > 1 && parts.some((p) => VOLATILE.test(p) && labelOnly(p));
 }

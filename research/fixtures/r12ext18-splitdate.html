@@ -1,0 +1,15 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>A long review of things - Journal</title>
+<meta property="article:published_time" content="2021-03-15T10:00:00Z"><meta name="author" content="Jane Doe"></head><body><main><article><h1>A long review of things</h1>
+<!-- F1213: the page shows its meta date only split over a <b> inside a long paragraph ("<b>15.03.</b>2021").
+     Expected in Sift: the byline keeps the date (the page shows it), and a list of 3000 dated lines in one <p> stays fast. -->
+<p>Paragraph one of the review explains one more thing about the field and why it matters to the people who work in it every day.</p>
+<p>Paragraph two of the review explains one more thing about the field and why it matters to the people who work in it every day.</p>
+<p id="refs"></p>
+<p>This review was first printed on <b>15.03.</b>2021 in the journal's spring issue, and it explains one more thing about the field and why it matters to the people who work in it every day, from the lab to the classroom and back.</p>
+</article></main>
+<script>
+const out = [];
+for (let i = 0; i < 3000; i++) out.push(`Author ${i}, A. (${1950 + (i % 70)}). A study of thing number ${i}. Journal of Things ${i % 40}.`);
+document.getElementById("refs").innerHTML = "References<br>" + out.join("<br>");
+</script>
+</body></html>

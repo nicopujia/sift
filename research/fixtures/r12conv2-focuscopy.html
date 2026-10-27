@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spring cleanup day - focus and copy with a shown map</title>
+<style>body { font-family: sans-serif; margin: 24px; max-width: 40em; }</style>
+</head>
+<body>
+<!-- A page with a shown frame (Sift shows it as itself, so <body> is not inert as a whole).
+     'Copy link' copies as some hand-written helpers do: a textarea added to <body>, focus(), setSelectionRange()
+     (no select(), which focuses natively), execCommand('copy'), then removed.
+     'Leave event' opens a modal dialog and then focuses its second button with focus() (the dialog must get it). -->
+<main>
+  <h1>Spring cleanup day</h1>
+  <p>Join neighbors on Saturday morning to clear litter from the creek path and the playground. Gloves and bags are provided at the community center from 9 am.</p>
+  <iframe title="Map of the creek path" width="600" height="300" srcdoc="<p style='font:20px sans-serif'>Map of the creek path</p>"></iframe>
+  <div class="event-link">
+    <input id="link" readonly value="https://example.org/events/spring-cleanup?ref=focuscopy" aria-label="Event link">
+    <button id="copy" type="button">Copy link</button>
+    <button id="leave" type="button">Leave event</button>
+  </div>
+  <p id="msg" role="status"></p>
+</main>
+<script>
+  window.__log = [];
+  document.getElementById("copy").addEventListener("click", () => {
+    const fake = document.createElement("textarea");
+    fake.style.position = "absolute"; fake.style.left = "-9999px";
+    fake.value = document.getElementById("link").value;
+    document.body.appendChild(fake);
+    fake.focus();
+    fake.setSelectionRange(0, fake.value.length);
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { window.__log.push("execCommand threw " + e.name); }
+    window.__log.push("execCommand " + ok);
+    fake.remove();
+    document.getElementById("msg").textContent = ok ? "Link copied" : "Press Ctrl+C to copy";
+  });
+  document.getElementById("leave").addEventListener("click", () => {
+    const d = document.createElement("dialog");
+    d.setAttribute("aria-labelledby", "lt");
+    d.innerHTML = '<h3 id="lt">Leave this event?</h3><button type="button" id="stay">Stay</button> <button type="button" id="go">Leave</button>';
+    document.body.append(d);
+    d.querySelector("#stay").addEventListener("click", () => { d.close(); d.remove(); window.__log.push("stayed"); });
+    d.querySelector("#go").addEventListener("click", () => { d.close(); d.remove(); window.__log.push("left"); });
+    d.showModal();
+    d.querySelector("#go").focus();
+    window.__log.push("leave dialog open, focus " + document.activeElement.id);
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spring cleanup day - real clipboard.js</title>
+<style>body { font-family: sans-serif; margin: 24px; max-width: 40em; }</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
+</head>
+<body>
+<main>
+  <h1>Spring cleanup day</h1>
+  <iframe title="Map of the creek path" width="600" height="300" srcdoc="<p style='font:20px sans-serif'>Map of the creek path</p>"></iframe>
+  <p>Join neighbors on Saturday morning to clear litter from the creek path and the playground. Gloves and bags are provided at the community center from 9 am, and the work ends with lunch at noon.</p>
+  <p>Share the event with friends who want to help. The link below opens this page with the sign-up form.</p>
+  <button id="copy" type="button" data-clipboard-text="https://example.org/events/spring-cleanup?ref=clipjs">Copy link</button>
+  <p id="msg" role="status"></p>
+</main>
+<script>
+  window.__log = [];
+  document.addEventListener("copy", () => window.__log.push("copy event, selection=" + JSON.stringify(String(window.getSelection())) + ", active=" + (document.activeElement && document.activeElement.localName)), true);
+  const c = new ClipboardJS("#copy");
+  c.on("success", () => { window.__log.push("success"); document.getElementById("msg").textContent = "Link copied"; });
+  c.on("error", () => { window.__log.push("error"); document.getElementById("msg").textContent = "Press Ctrl+C"; });
+  window.__lib = typeof ClipboardJS;
+</script>
+</body>
+</html>

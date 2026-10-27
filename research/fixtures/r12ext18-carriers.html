@@ -1,0 +1,19 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Delivery - Checkout</title></head><body><main>
+<!-- F1212: options told apart by a brand logo keep its name; a product photo beside words that name the option does not.
+     Expected field labels: "UPS Ground, 3-5 days, $8.00", "FedEx Ground, 3-5 days, $9.50", "PayPal Pay later in 30 days", "Pay now by card",
+     "Gift wrap ($3)" without "Photo of a gift box". -->
+<h1>Delivery and payment</h1>
+<form action="/fx/r12ext18-carriers.html" method="get" onsubmit="event.preventDefault()">
+<fieldset><legend>Carrier</legend>
+<label><input type="radio" name="ship" value="ups" checked> <img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2230%22/%3E" width="60" height="30" alt="UPS"> Ground, 3-5 days, $8.00</label><br>
+<label><input type="radio" name="ship" value="fedex"> <img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2272%22 height=%2224%22/%3E" width="72" height="24" alt="FedEx"> Ground, 3-5 days, $9.50</label>
+</fieldset>
+<fieldset><legend>Payment</legend>
+<label><input type="radio" name="pay" value="card" checked> Pay now by card</label><br>
+<label><input type="radio" name="pay" value="paypal"> <img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%2226%22/%3E" width="100" height="26" alt="PayPal"> Pay later in 30 days</label>
+</fieldset>
+<fieldset><legend>Extras</legend>
+<label><input type="checkbox" name="gift"><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22/%3E" width="80" height="80" alt="Photo of a gift box"> Gift wrap ($3)</label>
+</fieldset>
+<button type="submit">Continue</button>
+</form></main></body></html>

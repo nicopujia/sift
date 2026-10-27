@@ -1,0 +1,20 @@
+{
+ "F1200": "On a page with a shown original (video, map, iframe), a popup the page appends to <body> and focuses during a Sift click still closes at once (F1102 on portal pages)",
+ "F1210": "A page wrapped in one <form> (ASP.NET WebForms) moves its Add to cart, Subscribe and other submit buttons into Sift's search bar, out of their own forms",
+ "F1211": "Pricing cells that two plans share are dropped at narrow widths and zoom when the comparison row scrolls sideways (new offscreen rule in stripCopies)",
+ "F1212": "Payment options told apart only by a brand logo now read the same: 'Pay in 4 interest-free payments' twice (logos over 32 px dropped from labels)",
+ "F1213": "The date check is still quadratic when many dated lines sit directly in one element ('<br>'-separated references): extraction goes from 0.2 s to 6-9 s",
+ "F1214": "YouTube comments: an opened thread has no 'Hide replies' in Sift (the threaded layout's #less-replies-sub-thread is not read)",
+ "F1215": "The Short version drops a sentence that differs from an earlier one by one word: the south district's boil-water notice, the evening dose, a recipe step, a second senator's vote",
+ "F1216": "The speaker check now drops a correctly attributed quote when the paragraph names an organization before a 'she said' quote: 'Maria Lopez said \u201cwe will strike\u2026\u201d' disappears",
+ "F1217": "Numbers in a Short version are no longer checked in any language but six: a Russian, Japanese or Dutch Short version can state a number the article does not",
+ "F1218": "A short line with a count or a time next to label words is still left out of the cache key and of the change hashes: '9 million viewers' becomes 12 million and the revisit silently drops the line (F1113 residue)",
+ "F1219": "A signed-in page whose sign-out is a button keeps its Short version and full text for 30 days, not 7. Sift also drops that Log out button from its view",
+ "F1220": "On long-list stress fixtures, Sift shows its first content 3 to 6 times later than the original page shown with Sift switched off",
+ "F1230": "Home and search: the Shorts section sits after the endless list, moves away when reached, and a mouse click on a Short can open a different video",
+ "F1232": "Corriere della Sera: no way to sign in from Sift",
+ "F1234": "Corriere (Italian page): Sift's own UI strings fall back to English",
+ "F1235": "Corriere home: Enter in Sift's search sometimes posts the menu form and reloads the home with no results",
+ "F1231": "English home: some foreign-language video titles stay untranslated, with no English one-line description",
+ "F1233": "BBC Anthropic article: Short version loses section '2.' and files the loss figures under '3. But luckily it has plenty of cash on hand'"
+}

@@ -400,8 +400,13 @@ type Submitter = HTMLButtonElement | HTMLInputElement;
 
 // When a navigation last started, to tell whether Enter in a field did anything.
 let navAt = 0;
-(window as any).navigation?.addEventListener?.("navigate", () => (navAt = performance.now()));
-addEventListener("beforeunload", () => (navAt = performance.now()));
+// And when the page last started to leave for another document (a held submit then stays dropped).
+let leftAt = -1;
+(window as any).navigation?.addEventListener?.("navigate", (e: any) => {
+  navAt = performance.now();
+  if (e.destination?.sameDocument === false) leftAt = navAt;
+});
+addEventListener("beforeunload", () => (navAt = leftAt = performance.now()));
 
 /**
  * A button that opens or shows a search box rather than searching ("Ir al
@@ -586,6 +591,51 @@ export function submitProblem(el: Element): string {
  * a validation message when the browser would refuse to submit.
  */
 export function submit(field: Element | null, button: Element | null, form: HTMLFormElement | null, via: "enter" | "button" = "button"): string {
+  clearTimeout(heldSubmit);
+  const f = form ?? (field as HTMLInputElement | null)?.form ?? null;
+  if (f && holdsSubmit(f)) {
+    // A form that only posts back to this page ("#"), submitted while the page still loads: its script
+    // that searches binds late (Corriere's burger search, F1235), and the browser's own submission would
+    // just reload the page and lose the query. Hold it and try again once the page has loaded.
+    const t0 = performance.now();
+    const at = location.href.split("#")[0];
+    const hold = (e: Event) => {
+      if (e.target !== f || e.defaultPrevented) return;
+      e.preventDefault();
+      clearTimeout(heldSubmit);
+      heldSubmit = setTimeout(function retry() {
+        // Not once the page has gone on to another address (the site took it over, or the user went elsewhere).
+        if (leftAt >= t0 || location.href.split("#")[0] !== at || !f.isConnected) return;
+        if (document.readyState !== "complete") heldSubmit = setTimeout(retry, 500);
+        else submit(field?.isConnected ? field : null, button, form, via);
+      }, 1000);
+    };
+    addEventListener("submit", hold);
+    try {
+      return submitNow(field, button, f, via);
+    } finally {
+      removeEventListener("submit", hold);
+    }
+  }
+  return submitNow(field, button, form, via);
+}
+
+/** The retry of a submission held while the page loads. */
+let heldSubmit: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * Whether a submission of `f` that the page does not take over is held for
+ * now: its action is only a fragment or a script ("#"), and the page is
+ * loading or loaded less than 8 seconds ago.
+ */
+function holdsSubmit(f: HTMLFormElement): boolean {
+  if (!/^\s*(#|javascript:)/i.test(f.getAttribute("action") ?? "")) return false;
+  if (document.readyState !== "complete") return true;
+  const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+  return !!nav && performance.now() < nav.loadEventEnd + 8000;
+}
+
+function submitNow(field: Element | null, button: Element | null, form: HTMLFormElement | null, via: "enter" | "button"): string {
   const f = form ?? (field as HTMLInputElement | null)?.form ?? null;
   if (!f) {
     const real = !!button && !opensSearch(button);

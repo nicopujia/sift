@@ -39,6 +39,7 @@ Test scripts (all use the test Chrome):
 - `bun scripts/a11y.ts <url>`: axe-core audit of Sift's view.
 - `bun scripts/tabwalk.ts <url>`: where keyboard focus goes.
 - `bun scripts/profile.ts <url>`: CPU profile of extraction.
+- `bun scripts/firstpaint.ts <url> <selector> [runs] [--sift css] [--block amazon]`: time to first content, the original (Sift off) against Sift, `runs` per side, in alternating loads of one tab. A probe injected before the page's scripts checks every animation frame, so a busy main thread cannot hide time; it prints each run (with FCP and long tasks) and the medians, and puts the tab's Sift setting back as it was. `--sift li.item` waits for Sift's list where the selector is a list entry. `--block amazon` keeps the Amazon snapshots and fixtures from reaching Amazon.
 - `bun scripts/serve.ts`: serves saved snapshots and fixtures on http://127.0.0.1:8799.
 
 For local development, put `{"apiKey": "..."}` in `local-key.json` (gitignored). It is copied into `dist/` and never into the published zip.

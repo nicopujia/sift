@@ -1,0 +1,33 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Trail Runner 3 - Outdoor Shop</title></head><body>
+<!-- F1210: one <form> wraps the whole page (ASP.NET WebForms). The search box sits in a sidebar after the product,
+     and its button is a picture with no words. Expected in Sift: the bar's search uses that picture button
+     (Sift says "Search"; Enter clicks it, as ASP.NET's DefaultButton does), and Add to cart and Subscribe stay with the product and the newsletter. -->
+<form id="aspnetForm" method="post" action="/fx/r12ext18-wholeform.html" onsubmit="event.preventDefault(); document.getElementById('got').textContent = 'Submitted by: ' + (event.submitter ? (event.submitter.value || event.submitter.id) : 'Enter');">
+<input type="hidden" name="__VIEWSTATE" value="dDwtMTA4NzU2NzQ1Njs7Pg==">
+<header><a href="/">Outdoor Shop</a> <a href="/account">My account</a></header>
+<main>
+<h1>Trail Runner 3</h1>
+<p id="got"></p>
+<p>A light trail shoe with a grippy sole and a wide toe box, made for long days on rocky ground and muddy paths.</p>
+<p><b>$139.00</b></p>
+<label for="qty">Quantity</label> <input type="number" id="qty" name="ctl00$qty" value="1">
+<input type="submit" name="ctl00$add" value="Add to cart">
+<h2>Get our newsletter</h2>
+<label for="em">Email</label> <input type="email" id="em" name="ctl00$email">
+<input type="submit" name="ctl00$sub" value="Subscribe">
+</main>
+<aside><div class="find" onkeypress="return WebForm_FireDefaultButton(event, 'ctl00_btnGo')">
+<input type="text" name="ctl00$q" id="ctl00_q" placeholder="Search products">
+<input type="image" id="ctl00_btnGo" name="ctl00$btnGo" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2220%22 height=%2220%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%226%22 fill=%22none%22 stroke=%22black%22/%3E%3C/svg%3E" alt="">
+</div></aside>
+</form>
+<script>
+// ASP.NET's DefaultButton panel: Enter in the search box clicks the search button, not the page's first submit.
+function WebForm_FireDefaultButton(event, target) {
+  if (event.keyCode == 13 && event.target.tagName.toLowerCase() != "textarea") {
+    const b = document.getElementById(target);
+    if (b) { b.click(); event.cancelBubble = true; event.stopPropagation(); return false; }
+  }
+  return true;
+}
+</script></body></html>

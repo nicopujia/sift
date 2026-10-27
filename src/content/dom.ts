@@ -695,14 +695,27 @@ function labelWords(l: Element): string {
   const t = textIn(l);
   if (!t || !l.querySelector("[role=img][aria-label], img[alt]:not([alt=''])")) return t;
   // Only pictures that add meaning: not a product photo (an img bigger than an icon) or a swatch named by the words beside it (F1132).
+  // A brand's logo stays: a short wordmark (wider than tall, a short name), or one of any size that tells
+  // options apart ("Afterpay" and "Klarna" over the same "Pay in 4", F1212).
+  let twin: boolean | undefined;
   const adds = (pic: Element, name: string) => {
     if (pic instanceof HTMLImageElement) {
       const w = pic.width || pic.getBoundingClientRect().width, h = pic.height || pic.getBoundingClientRect().height;
-      if (!w || !h || w > 32 || h > 32) return false;
+      const logo = h <= 48 && w >= h * 1.5 && name.split(/\s+/).length <= 3;
+      if (!w || !h || ((w > 32 || h > 32) && !logo && !(twin ??= sameWordsAsPeer(l, t)))) return false;
     }
     return pictureAdds(name, t);
   };
   return contentName(l, true, adds) || t;
+}
+
+/** Another option of the same group (a radio or checkbox beside it) whose label says the same words. */
+function sameWordsAsPeer(l: Element, t: string): boolean {
+  const c = (l as HTMLLabelElement).control;
+  if (!(c instanceof HTMLInputElement) || !/^(radio|checkbox)$/.test(c.type)) return false;
+  const group = c.closest("fieldset, [role=radiogroup], [role=group]") ?? c.form ?? document.body;
+  const peers = Array.from(group.querySelectorAll(`input[type=${c.type}]`)).slice(0, 60) as HTMLInputElement[];
+  return peers.some((p) => p !== c && (c.type !== "radio" || p.name === c.name) && Array.from(p.labels ?? []).some((pl) => textIn(pl) === t));
 }
 
 /** What an element without words says through its tooltip or picture (a label holding only an icon). */

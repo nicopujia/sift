@@ -515,6 +515,37 @@ function nestItems(items: Item[]): Nest[] {
   return root;
 }
 
+/** Entries of a long list drawn at once, and added per idle moment after (see useSlice). */
+const SLICE = 300;
+
+/**
+ * How many of a list's `n` entries to draw now. A long list (thousands of buttons or links) draws its first
+ * screens at once and the rest a slice per idle moment, so Sift's first view never waits on drawing all of
+ * it (F1220). Entries drawn stay drawn; a few new ones (a feed's next page) are drawn at once. Until all are
+ * drawn the list says it is busy (aria-busy), and Sift does not take its drawn end for the list's end.
+ */
+function useSlice(n: number, slice = SLICE): number {
+  const had = useRef(0);
+  // One slice waits at a time, kept across redraws (an AI line coming in redraws the view often).
+  const idle = useRef(0);
+  const [, bump] = useState(0);
+  const cur = Math.min(n, n - had.current <= 2 * slice ? n : Math.max(had.current, slice));
+  had.current = cur;
+  useEffect(() => {
+    if (cur >= n || idle.current) return;
+    idle.current = requestIdleCallback(
+      () => {
+        idle.current = 0;
+        had.current += slice;
+        bump((x) => x + 1);
+      },
+      { timeout: 300 },
+    );
+  });
+  useEffect(() => () => cancelIdleCallback(idle.current), []);
+  return cur;
+}
+
 function ItemsView({ b }: { b: Extract<Block, { t: "items" }> }) {
   // A thread: replies are lists nested in the entry they answer, so screen readers say the level.
   const row = (n: Nest) => (
@@ -522,11 +553,14 @@ function ItemsView({ b }: { b: Extract<Block, { t: "items" }> }) {
       {n.kids.length > 0 && <ol class="items replies">{n.kids.map(row)}</ol>}
     </ItemView>
   );
+  // An entry holds a title, a line and its controls: fewer to a slice.
+  const shown = useSlice(b.items.length, 100);
+  const items = shown < b.items.length ? b.items.slice(0, shown) : b.items;
   return (
     <>
       {b.title && <h2>{b.title}</h2>}
-      <ol class="items" aria-label={b.title}>
-        {b.items.some((it) => it.depth) ? nestItems(b.items).map(row) : b.items.map((it) => <ItemView key={it.key} it={it} thumbs={b.thumbs} rewrite={b.rewrite} />)}
+      <ol class="items" aria-label={b.title} aria-busy={shown < b.items.length || undefined}>
+        {items.some((it) => it.depth) ? nestItems(items).map(row) : items.map((it) => <ItemView key={it.key} it={it} thumbs={b.thumbs} rewrite={b.rewrite} />)}
       </ol>
       {b.more && (
         <p class="more">
@@ -781,6 +815,8 @@ function Section({ b }: { b: Extract<Block, { t: "section" }> }) {
 function TableView({ b }: { b: Extract<Block, { t: "table" }> }) {
   const wrap = useRef<HTMLDivElement>(null);
   const [off, setOff] = useState(0);
+  // A row holds several cells: fewer rows to a slice.
+  const shown = useSlice(b.rows.length, 60);
   const cells = b.rows.slice(0, 20).flat();
   const compact = b.head.length >= 7 && cells.length > 0 && cells.reduce((n, c) => n + textOf(c).length, 0) / cells.length <= 14;
   useEffect(() => {
@@ -848,11 +884,29 @@ function TableView({ b }: { b: Extract<Block, { t: "table" }> }) {
                 </tr>
               </thead>
             )}
-            <tbody>{b.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}><Inl c={c} /></td>)}</tr>)}</tbody>
+            <tbody aria-busy={shown < b.rows.length || undefined}>{(shown < b.rows.length ? b.rows.slice(0, shown) : b.rows).map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}><Inl c={c} /></td>)}</tr>)}</tbody>
           </table>
         </div>
     </>
   );
+}
+
+function ListView({ b }: { b: Extract<Block, { t: "ul" | "ol" }> }) {
+  const L = b.t;
+  const isLinks = b.items.every((it) => it.length === 1 && typeof it[0] === "object" && "a" in it[0]);
+  const shown = useSlice(b.items.length);
+  return (
+    <L class={isLinks ? "links" : undefined} aria-label={b.label} data-scroll-end={b.scrollEnd} aria-busy={shown < b.items.length || undefined}>
+      {(shown < b.items.length ? b.items.slice(0, shown) : b.items).map((it, i) => <li key={i} aria-current={b.current?.at === i ? (b.current.as as "step") : undefined}><Inl c={it} /></li>)}
+    </L>
+  );
+}
+
+function ActionsView({ b }: { b: Extract<Block, { t: "actions" }> }) {
+  const shown = useSlice(b.actions.length);
+  const row = (shown < b.actions.length ? b.actions.slice(0, shown) : b.actions).map((a) => <Btn key={a.key} a={a} />);
+  const busy = shown < b.actions.length || undefined;
+  return b.nav ? <nav class="row actions" aria-label={b.nav} aria-busy={busy}>{row}</nav> : <div class="row actions" aria-busy={busy}>{row}</div>;
 }
 
 export function BlockView({ b }: { b: Block }) {
@@ -862,15 +916,8 @@ export function BlockView({ b }: { b: Block }) {
     case "p":
       return <p class={b.small ? "small" : undefined} data-scroll-end={b.scrollEnd}><Inl c={b.content} /></p>;
     case "ul":
-    case "ol": {
-      const L = b.t;
-      const isLinks = b.items.every((it) => it.length === 1 && typeof it[0] === "object" && "a" in it[0]);
-      return (
-        <L class={isLinks ? "links" : undefined} aria-label={b.label} data-scroll-end={b.scrollEnd}>
-          {b.items.map((it, i) => <li key={i} aria-current={b.current?.at === i ? (b.current.as as "step") : undefined}><Inl c={it} /></li>)}
-        </L>
-      );
-    }
+    case "ol":
+      return <ListView b={b} />;
     case "quote":
       return <blockquote><Inl c={b.content} /></blockquote>;
     case "pre":
@@ -901,10 +948,8 @@ export function BlockView({ b }: { b: Block }) {
       return <ItemsView b={b} />;
     case "form":
       return <FormView b={b} />;
-    case "actions": {
-      const row = b.actions.map((a) => <Btn key={a.key} a={a} />);
-      return b.nav ? <nav class="row actions" aria-label={b.nav}>{row}</nav> : <div class="row actions">{row}</div>;
-    }
+    case "actions":
+      return <ActionsView b={b} />;
     case "facts":
       return (
         // Several short readings ("Humidity 67%", "Wind Speed 5 MPH") sit two to a row on a wide screen (F636).

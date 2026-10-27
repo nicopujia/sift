@@ -228,6 +228,17 @@ function shortsBlock(shorts: Item[], alone: boolean, title = ""): Block {
   return alone ? list : { t: "section", key: "shorts", title: title || "Shorts", collapsed: true, blocks: [list] };
 }
 
+/**
+ * A feed and its Shorts: the section stands where the original's first Shorts shelf does (`at` entries in),
+ * never after the endless list, where reaching it loads more above it and moves it away (F1230).
+ */
+function feedBlocks(key: string, items: Item[], shorts: Item[], at: number, title: string): Block[] {
+  const list = (k: string, its: Item[]): Block[] => (its.length ? [{ t: "items", key: k, items: its, rewrite: "oneliner" }] : []);
+  if (!shorts.length) return list(key, items);
+  const cut = Math.max(0, Math.min(at, items.length));
+  return [...list(key + "-top", items.slice(0, cut)), shortsBlock(shorts, !items.length, title), ...list(key, items.slice(cut))];
+}
+
 /** A Shorts shelf's own title ("Shorts"), in the page's language. */
 function shelfTitle(root: ParentNode): string {
   const h = q("grid-shelf-view-model h2, ytd-rich-shelf-renderer #title, ytd-reel-shelf-renderer #title, yt-section-header-view-model h2, h2", root);
@@ -350,6 +361,7 @@ function home(path: string): Page | null {
   const shorts: Item[] = [];
   const seen = new Set<string>();
   let shelf = "";
+  let at = -1;
   if (grid) {
     for (const child of Array.from(grid.children)) {
       if (child.localName === "ytd-rich-item-renderer") {
@@ -360,7 +372,10 @@ function home(path: string): Page | null {
       } else if (child.localName === "ytd-rich-section-renderer") {
         const n = shorts.length;
         shortsIn(child, seen, shorts);
-        if (shorts.length > n) shelf ||= shelfTitle(child);
+        if (shorts.length > n) {
+          shelf ||= shelfTitle(child);
+          if (at < 0) at = items.length;
+        }
         // A shelf of videos ("New to you", "Top music videos in your region"): its videos join the feed where the shelf stands.
         for (const ri of qa("ytd-rich-item-renderer", child)) {
           const lock = q("yt-lockup-view-model", ri);
@@ -371,8 +386,7 @@ function home(path: string): Page | null {
       }
     }
   }
-  if (items.length) blocks.push({ t: "items", key: "feed", items, rewrite: "oneliner" });
-  if (shorts.length) blocks.push(shortsBlock(shorts, !items.length, shelf));
+  blocks.push(...feedBlocks("feed", items, shorts, at, shelf));
   const title = clean(document.title.replace(/\s*-\s*YouTube$/, "")) || "YouTube";
   // The home feed, named as YouTube's own guide names it ("Home", "Inicio").
   const homeName = () =>
@@ -424,6 +438,7 @@ function results(): Page | null {
   // Rows of a kind this adapter does not know: if nothing else could be read, the generic extractor reads them.
   let unknown = 0;
   let shelf = "";
+  let at = -1;
   for (const sec of qa("ytd-section-list-renderer > #contents > ytd-item-section-renderer #contents", page)) {
     for (const child of Array.from(sec.children)) {
       if (!visible(child) || child.localName === "ytd-continuation-item-renderer") continue;
@@ -458,7 +473,10 @@ function results(): Page | null {
       } else if (tag === "grid-shelf-view-model" || tag === "ytd-reel-shelf-renderer") {
         const n = shorts.length;
         shortsIn(child, seen, shorts);
-        if (shorts.length > n) shelf ||= shelfTitle(child);
+        if (shorts.length > n) {
+          shelf ||= shelfTitle(child);
+          if (at < 0) at = items.length;
+        }
       } else if (tag === "ytd-background-promo-renderer" || tag === "ytd-message-renderer") {
         // "No results found. Try different keywords or remove search filters."
         const msg = qa("#title, #body, #text, #subtext", child).map((e) => textIn(e)).filter(Boolean);
@@ -469,8 +487,7 @@ function results(): Page | null {
   }
   // Rows were drawn but none could be read: a layout this adapter does not know.
   if (!items.length && !shorts.length && !notes.length && unknown) return null;
-  if (items.length) blocks.push({ t: "items", key: "results", items, rewrite: "oneliner" });
-  if (shorts.length) blocks.push(shortsBlock(shorts, !items.length, shelf));
+  blocks.push(...feedBlocks("results", items, shorts, at, shelf));
   blocks.push(...notes);
   const query = new URL(location.href).searchParams.get("search_query") ?? "";
   const out = base(blocks, query ? `${t("search")}: ${query}` : "YouTube");
@@ -912,7 +929,8 @@ function repliesOf(th: Element, depth: number): { items: Item[]; actions: Action
     }
   }
   const seen = new Set<string>();
-  for (const b of qa("#more-replies button, #more-replies-sub-thread button, #less-replies button, ytd-continuation-item-renderer button", rr)) {
+  // The threaded layout's "Hide replies" is #less-replies-sub-thread; #less-replies stays hidden there (F1214).
+  for (const b of qa("#more-replies button, #more-replies-sub-thread button, #less-replies button, #less-replies-sub-thread button, ytd-continuation-item-renderer button", rr)) {
     const label = textIn(b) || clean(b.getAttribute("aria-label"));
     if (!mine(b) || !label || seen.has(label) || !visible(b)) continue;
     seen.add(label);

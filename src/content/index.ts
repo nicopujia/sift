@@ -24,7 +24,7 @@ import { H, changed, local, onEnter, onKeys, setRenderer, store } from "./ui/sto
 import { processAi, resetAi, setAiReady } from "./ai";
 import { setLang, t } from "./i18n";
 import { armRecent, noteMutations, clearRecent, noteEntered } from "./recent";
-import { askConsent, consentWallUp, findToast } from "./extract/generic";
+import { askConsent, consentWallUp, cutShort, findToast } from "./extract/generic";
 
 const MODE_KEY = "sift:mode";
 const isHtml = document.contentType === "text/html" && document.documentElement?.localName === "html";
@@ -1564,6 +1564,8 @@ function boot() {
   let failures = 0;
   let lastUrl: string | null = null;
   let firstPaint = 0;
+  /** The last look stopped at its time budget (see run): the next reads the whole page (F1220). */
+  let cutLast = false;
   const t0 = performance.now();
   /** Dismissed dialog keys and their elements, to know when they are really gone. */
   const dismissedRefs = new Map<string, string | undefined>();
@@ -1623,7 +1625,8 @@ function boot() {
       // when a map or a player appears), keep up with it: right after
       // the change (a loading page has no idle moment, and its next long task
       // would delay a timer), but never back to back.
-      const wait = lastRunAt + Math.max(100, lastDur * 3) - performance.now();
+      // After a long look (over 300 ms), the pause is three times its length (F1220).
+      const wait = lastRunAt + (lastDur > 300 ? lastDur * 4 : Math.max(100, lastDur * 3)) - performance.now();
       if (wait <= 0) return run();
       d = Math.max(16, wait);
     } else {
@@ -2309,8 +2312,11 @@ function boot() {
     if (checkUrl()) fillTries = lastCount = 0;
     const s = performance.now();
     let page: Page;
+    // Until Sift shows this page, a look stops after a moment and shows what it read (a long list's first
+    // part), and the next look reads it all: the first view never waits on the whole page (F1220).
+    const budget = !firstPaint && !cutLast ? 120 : 0;
     try {
-      page = extract();
+      page = extract(budget);
       failures = 0;
     } catch (err) {
       console.warn("[sift] extraction failed", err);
@@ -2323,6 +2329,9 @@ function boot() {
     }
     lastDur = performance.now() - s;
     host.dataset.ms = String(Math.round(lastDur));
+    cutLast = budget > 0 && page.source === "generic" && cutShort();
+    // The rest of the page is read once this first part has shown, spaced like any look while the page loads.
+    if (cutLast) schedule(Math.max(16, lastRunAt + Math.max(100, lastDur * 3) - performance.now()));
     watchShadows();
     const runs = +(host.dataset.runs ?? 0) + 1;
     host.dataset.runs = String(runs);
@@ -2475,7 +2484,8 @@ function boot() {
     layout();
     if (held && focusLost()) portalFocus = { el: held, at: Date.now() };
     restorePortalFocus();
-    processAi(page);
+    // A page read in part is read whole in a moment: its text is shortened then, once (F1220).
+    if (!cutLast) processAi(page);
     fillScreen(page);
     openAtPost();
     toEnd();
@@ -2693,11 +2703,18 @@ function boot() {
   addEventListener("pageshow", (e) => {
     if ((e as PageTransitionEvent).persisted) schedule(0);
   });
+  /**
+   * The page finished loading (its HTML, then its images): read it again now, unless the last look took long
+   * (over 300 ms) or stopped at its budget: then two looks would freeze the page back to back, and the next
+   * waits as any look while the page loads does (F1220).
+   */
+  const loadedAgain = () =>
+    schedule(Math.max(0, lastDur > 300 ? lastRunAt + lastDur * 4 - performance.now() : cutLast ? lastRunAt + Math.max(100, lastDur * 3) - performance.now() : 0));
   document.addEventListener("DOMContentLoaded", () => {
     attach();
-    schedule(0);
+    loadedAgain();
   });
-  addEventListener("load", () => schedule(0));
+  addEventListener("load", loadedAgain);
   // Inputs change without DOM mutations; catch up after the user acts.
   host.addEventListener("click", () => setTimeout(() => schedule(0), 120));
 
@@ -2736,6 +2753,8 @@ function boot() {
   );
 
   let nudgeTimer = 0;
+  /** A long list Sift draws a part at a time is not all drawn yet (aria-busy, see useSlice in app.tsx). */
+  const listsDrawing = () => !!shadow.querySelector("[aria-busy=true]");
   /**
    * Sift's view is near its end: the page loads more. One the 1500 ms gate drops (a fast flick reaches the new
    * end within it, and from there no scroll event comes) is checked again once the gate expires (F1060).
@@ -2756,6 +2775,8 @@ function boot() {
     if (tabAt > userScrollAt && !tabInLastList()) return;
     // A list in an open section counts too (a watch page's comments).
     if (!shownItems(store.page.blocks)) return;
+    // The end of a long list's part drawn so far is not the list's end: the rest follows (F1220).
+    if (listsDrawing()) return;
     // A thread that unloads its posts loads more as it is scrolled (stepWith), never by a jump to its end.
     if (cloakedPosts()) return;
     lastNudge = Date.now();
@@ -2931,6 +2952,8 @@ function boot() {
   let fillTries = 0;
   let lastCount = 0;
   function fillScreen(page: Page) {
+    // A page read in part, or a long list still being drawn, is not short (F1220).
+    if (cutLast || listsDrawing()) return;
     // Lists only: a table that fits the screen is all there is.
     const count = shownItems(page.blocks, false);
     if (!count) return;
@@ -3429,7 +3452,15 @@ function boot() {
           // turned editable, a popup's button) fails and Sift follows it, without blurring what the page
           // focused, which closes menus and ends edits (F1102). A Copy button that copies with execCommand
           // still copies: the page-world helper gives the copy the text the page selected (F1040).
-          const swallowed = clickSwallowed(el, () => proxy.click(el));
+          // With a shown original <body> is not inert as a whole, and a popup the page appends to it is
+          // not inert yet: the page-world helper fails such a focus() while it knows Sift's click runs (F1200).
+          document.dispatchEvent(new CustomEvent("sift-click", { detail: "start" }));
+          let swallowed = false;
+          try {
+            swallowed = clickSwallowed(el, () => proxy.click(el));
+          } finally {
+            document.dispatchEvent(new CustomEvent("sift-click", { detail: "end" }));
+          }
           const wall = swallowed && store.mode === "sift" ? consentWallUp() : null;
           if (wall) showConsent(wall, "click");
           flushBlur();
@@ -3710,7 +3741,7 @@ function boot() {
     }
     fontSize();
     setAiReady();
-    if (store.page) processAi(store.page);
+    if (store.page && !cutLast) processAi(store.page);
   })();
   loadFont();
 

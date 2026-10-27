@@ -1,0 +1,109 @@
+[button] Skip to content
+[button] Menu
+[button] Search
+[link] Sign In
+H1 Breaking news, video and the latest top stories from the U.S. and around the world
+    [link] Israel heads to polls for pivotal election defined by security and democracy
+    p: Many fear neither of the leading political blocs will win enough seats for a majority - meaning weeks or months of political wrangling may lie ahead.
+    p: 4 hrs ago Middle East
+    [link] Two men charged in UK under National Security Act over airbase incident
+    p: Two men have been charged with national security offences after an incident near RAF Fairford last month, the Crown Prosecution Service has said.
+    p: Just now
+    [link] Lula's comeback in Brazil dents Trump's ambitions for Latin America
+    p: The Trump-Lula relationship may have thawed, but several issues could reignite tensions between the two leaders.
+    p: 8 hrs ago World
+    [link] Major Chinese brands drop Mbappé as backlash grows over Mao joke
+    p: He allegedly said his "favourite meme" is "the one where they put my face on a Chinese dictator".
+    p: 2 hrs ago Asia
+    [link] Truce begins in Ukraine city where residents ate weeds to survive
+    p: The ceasefire in Oleshky, announced by US First Lady Melania Trump, is meant to allow aid deliveries and the evacuation of civilians.
+    p: 1 hr ago US & Canada
+    [link] Donald Trump's biggest economic problem looks strangely familiar
+    p: Donald Trump heads into the US midterm elections with an issue similar to his political foe Joe Biden.
+    p: 3 hrs ago Business
+    [link] 'I would do it again' - Kaepernick reflects on price of protest, 10 years on
+    p: In his first interview with BBC Sport since taking the knee for the first time, Colin Kaepernick reflects on his journey.
+    p: 3 hrs ago American Football
+    [link] 'A dream come true' - Harry Kane on his Ballon d'Or win
+    p: It's the first time an English player has lifted the trophy since Michael Owen in 2001.
+    p: 2 hrs ago England
+    [link] Jordan carries out deadly strike in Syria in retaliation for church attack
+    [link] Ex-FBI chief James Comey faces federal charges for third time
+    [link] Will the public change its mind about Meghan?
+    [link] Sydney's new $5bn airport has one big problem: Getting there is tough
+    [link] Jay-Z to perform at Super Bowl half-time show
+H2 More to explore
+    [link] Opposition leader María Machado returns from exile to a Venezuela reshaped by Trump
+    p: Machado returns with Trump's blessing, even if Washington is happy with Venezuela's existing leader - at least for the time being.
+    p: 9 hrs ago Latin America
+    [link] Anthropic's blockbuster share listing - 5 surprising things we now know
+    p: Anthropic’s IPO prospectus is 355 pages and full of never before disclosed company information.
+    p: 13 hrs ago Technology
+    [link] Israel and the US are both going to the polls - the consequences will be global
+    p: The next fortnight sees two elections on different continents. The outcomes will shape geopolitics and the global economy, writes James Landale
+    p: 17 hrs ago BBC InDepth
+    [link] Five ways Trump has changed immigration in the US
+    p: This is how his signature policy has played out after returning to power promising a closed border and mass deportations.
+    p: 22 hrs ago US & Canada
+    [link] India's largest share sale could end cheap mobile internet for millions
+    p: Jio's IPO promises a windfall for investors, but could signal the end of cheap mobile data for millions.
+    p: 9 hrs ago Asia
+    [link] New Zealand election 2026: What you need to know
+    p: Voters will elect a new parliament on 7 November with the cost of living among the key issues.
+    p: 6 hrs ago Asia
+H2 Most watched
+    [link] 'A dream come true' - Harry Kane on his Ballon d'Or win
+    [link] Sydney's new $5bn airport has one big problem: Getting there is tough
+    [link] Joy and disbelief on Serbian streets as Vučić concedes election defeat
+    [link] Why Israel's election is one of the most important in its history
+    [link] What is walking down the newly pedestrianised Oxford Street like?
+H2 Also in news
+    [link] Heavenly Creatures killer Pauline Parker dies aged 88
+    p: The death of the convicted murderer in Orkney at the age of 88 brings to an end a 70-year story that inspired an acclaimed film.
+    p: 14 hrs ago Scotland
+    [link] Rise in sales of radios and tinned foods, say UK retailers, after call to stock up
+    p: Figures obtained by BBC Newsnight show large spikes in sales of torches, radios and power banks.
+    p: 3 hrs ago UK
+    [link] Australian sunscreen brands face stricter rules after safety scandal
+    p: The reforms come after a report found some popular sunscreens were far less effective than advertised.
+    p: 3 hrs ago Australia
+    [link] Star Trek actor Walter Koenig, who played Pavel Chekov, dies aged 90
+    p: He played the eager Russian crewman in the original Star Trek series and later appeared in Babylon 5.
+    p: 15 hrs ago Culture
+    [link] MP and MSP detained by Israel and barred from entering West Bank
+    p: SNP MP Lara Bird and the Scottish Greens MSP Kate Nevens were part of an international delegation turned away by Israeli security forces.
+    p: 36 mins ago Scotland Politics
+    [link] Pope's South American trip to go ahead as planned after lung cancer surgery
+    p: The Pope underwent surgery in to remove a tumour on the lower part of his right lung and is gradually resuming his duties.
+    p: 15 hrs ago
+    [link] Apple says it will replace iPhone Duo handsets with screen problems
+    p: Photos shared online showed faults appearing on the screens of Apple's first foldable device.
+    p: 8 hrs ago Business
+H2 Most read
+    [link] Major Chinese brands drop Mbappé as backlash grows over Mao joke
+    [link] Trump faces backlash after invoking 9/11 in verbal assault on El-Sayed
+    [link] Israel heads to polls for pivotal election defined by security and democracy
+    [link] Truce begins in Ukraine city where residents ate weeds to survive
+    [link] Donald Trump's biggest economic problem looks strangely familiar
+    [link] Jordan carries out deadly strike in Syria in retaliation for church attack
+    [link] Opposition leader María Machado returns from exile to a Venezuela reshaped by Trump
+    [link] Lula's comeback in Brazil dents Trump's ambitions for Latin America
+    [link] Rise in sales of radios and tinned foods, say retailers, after call to stock up
+    [link] Will the public change its mind about Meghan?
+H2 Sport
+    [link] 'Brilliant captain, remarkable player' - reaction & your views as Kane wins Ballon d'Or
+    p: All the reaction as England and Bayern Munich striker Harry Kane wins the 2026 Ballon d'Or, becoming the first English player to do so for 25 years.
+    p: LIVE
+    [link] Lancashire consider Anderson farewell amid fan unrest
+    p: Lancashire will look into organising a farewell for bowler James Anderson amid fan unrest over his departure from the club.
+    p: 10 hrs ago County Cricket
+    [link] Kane ends England's 25-year Ballon d'Or wait - how he bucked the trend
+    p: Harry Kane becomes the first English player to win the Ballon d'Or since Michael Owen in 2001 after being crowned the world's best player at a ceremony in London.
+    p: 10 hrs ago England Men
+    [link] Spain's Putellas wins record-equalling third Ballon d'Or
+    p: Barcelona and Spain midfielder Alexia Putellas wins the Ballon d'Or Feminin for a record-equalling third time.
+    p: 10 hrs ago Women's Football
+    [link] How much of Antonelli's success is down to his ability? - F1 Q&A
+    p: BBC F1 correspondent Andrew Benson answers your latest questions after the United States Grand Prix.
+    p: 2 hrs ago Formula 1
+[button] Sift

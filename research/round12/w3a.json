@@ -1,0 +1,565 @@
+{
+ "confirmed": [
+  {
+   "source": "R3-ai-background",
+   "title": "The Short version drops a sentence that differs from an earlier one by one word: the south district's boil-water notice, the evening dose, a recipe step, a second senator's vote",
+   "severity": "high",
+   "where": "src/background/text.ts:946-956 (dropRepeats nearOf), :945 and :972 (prose 'seen' is never reset at a heading); called from src/background/index.ts:896 (checked)",
+   "evidence": "In Chrome 9469 with my mock (fx repeats.html), the model's answer had both 'Residents of the north district must boil their tap water.' and 'Residents of the south district must boil their tap water.' The Short version shows only the north line. The south paragraph is not put back, and the page gives no sign that anything is missing. Offline (r12ai9/repeats.ts, repeats2.ts), dropRepeats also drops '- Take one tablet in the evening with water.' after the morning line, and '2. Add 200 g of sugar and mix well.' after the flour step. It drops 'Senator Jones voted for the bill on Tuesday.' after Smith, 'The museum is open on Sunday until late.' after Saturday, 'Children should take the vaccine\u2026' after Adults, and 'The west line is closed this weekend\u2026' after the east line. Across headings, fx sections.html lost the instruction under 'After using the toilet', because it repeated the one under 'Before cooking'. Offline, a section left empty this way loses its heading too.",
+   "repro": "bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r12ai9/repeats.ts and repeats2.ts. In Chrome: run bun r12ai9/mock.ts (port 8889), then SIFT_PORT=9469 SIFT_TAB=R3-ai-background bun r12ai9/settings.ts mock, then bun r12ai9/watch.ts repeats.html 6. The Short version has no 'south district'.",
+   "suspectedCause": "nearOf treats two sentences of 6 to 19 words as a repeat when one word is swapped (max = floor(len/10) || 1). Only numbers and negations are protected, so names, places, days, 'morning/evening', 'adults/children' and 'flour/sugar' are not. Prose sentences are compared across the whole text, including other sections. Lead: drop only exact repeats after normalizing. Or drop a near repeat only when the differing words are common function words. Keep the prose memory per heading section.",
+   "regression": true,
+   "verdict": "Confirmed, high, regression (dropRepeats is new in the round 11 diff). In Chrome 9469 with my copy of the mock, repeats.html gave 'Residents of the north district must boil their tap water.' but no south district line, on the first visit (1 call) and on the cached revisit (0 calls). The original page has the south paragraph, and nothing in Sift's view shows that anything is missing. sections.html lost 'Wash your hands\u2026' under 'After using the toilet', so that heading was followed by an unrelated line. Offline, dropRepeats drops the south district, Senator Jones, Sunday, Children, the west line, '2. Add 200 g of sugar\u2026' and '- Take one tablet in the evening\u2026'. The 'Platform 4/5' pair is kept only because its numbers differ. Cause confirmed in nearOf: max = floor(len/10) || 1, so one swapped content word in a sentence of 6 to 19 words counts as a repeat. Only negations and digits are protected.",
+   "fix": "src/background/text.ts dropRepeats: drop only exact repeats after normalizing. If near repeats stay, allow the differing words to be function words only, never names, places, days, times of day or nouns. Reset `prose` and `seen` at each heading line, so a section never loses its only sentence."
+  },
+  {
+   "source": "R3-ai-background",
+   "title": "The speaker check now drops a correctly attributed quote when the paragraph names an organization before a 'she said' quote: 'Maria Lopez said \u201cwe will strike\u2026\u201d' disappears",
+   "severity": "medium",
+   "where": "src/background/text.ts:754-760 (speakerNear pronoun branch, new in the F1117 fix) and :777-785 (namesPerson counts any two capitalized words, such as 'European Union' or 'Ford Motor Company')",
+   "evidence": "In Chrome 9469 with the mock (fx strike3.html), the source paragraph is 'Union leader Maria Lopez spoke to workers outside the plant on Friday. The European Union opened an inquiry into the sale of the plant last week. \u201cWe will strike if a single job goes,\u201d she said.' The model wrote 'Maria Lopez said \u201cwe will strike if a single job goes\u201d.' The Short version drops that sentence, and the article's headline point (the strike threat) is gone. Offline (r12ai9/spk.ts), unsupported() returns 'speaker' for it, and also when the middle sentence is 'Ford Motor Company bought the plant in 2019.' The same quote is kept when the middle sentence names no two-word name. In round 10 the pronoun branch accepted Lopez, who is named in the same section.",
+   "repro": "bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r12ai9/spk.ts prints 'speaker' for cases 1 and 2. In Chrome with the mock: bun r12ai9/watch.ts strike3.html 6. No Lopez line.",
+   "suspectedCause": "For a pronoun quote, any namesPerson() match after the speaker's mention rejects the speaker. namesPerson accepts any run of two or more capitalized words that does not follow 'in/from/\u2026', so organizations, products and places count as people. Lead: count only names with a person cue (a role word, or a name the source ties to a speech verb elsewhere). Or ignore runs that start with 'The'.",
+   "regression": true,
+   "verdict": "Confirmed, medium, regression (namesPerson and the para check are new in round 11). In Chrome with the mock, strike3.html's Short version dropped 'Union leader Maria Lopez said \u201cwe will strike if a single job goes\u201d.' on the first visit and on the cached revisit. In the source, 'she' clearly refers to Lopez. Offline, the reporter's spk.ts gives 'speaker' for 'The European Union' and 'Ford Motor Company'. My own cases also give 'speaker' for 'Real Madrid lost\u2026' before a quote by Carlo Ancelotti, and for 'The White House has not commented' before a quote by Senator Cantwell. Without that sentence the same quote is kept, and the F1117 case (John Smith between the speaker and the quote) is still rejected correctly. Common news organizations, clubs and institutions therefore block correctly attributed 'he/she said' quotes.",
+   "fix": "src/background/text.ts namesPerson: skip capitalized runs that start with 'The'. Count a two-word name only when it looks like a person: it has a role word before it, it is tied to a speech verb elsewhere in the source, or it is not a known organization pattern (Union, House, Company, Madrid\u2026). Simplest: in the speakerNear pronoun branch, reject only when the later name is itself the subject of a speech verb or carries a ROLES word."
+  },
+  {
+   "source": "R3-ai-background",
+   "title": "Numbers in a Short version are no longer checked in any language but six: a Russian, Japanese or Dutch Short version can state a number the article does not",
+   "severity": "medium",
+   "where": "src/background/text.ts:814 and :830 (unsupported returns '' when lang is not en/es/pt/fr/de/it, or is ''); src/background/index.ts:896 passes want",
+   "evidence": "Offline (r12ai9/nums.ts). The Russian source has 12 people injured and 40 million rubles. The rewrite '\u041f\u0440\u0438 \u043f\u043e\u0436\u0430\u0440\u0435 \u0432 \u041a\u0430\u0437\u0430\u043d\u0438 \u043f\u043e\u0441\u0442\u0440\u0430\u0434\u0430\u043b\u0438 21 \u0447\u0435\u043b\u043e\u0432\u0435\u043a. \u0423\u0449\u0435\u0440\u0431 \u2014 400 \u043c\u043b\u043d \u0440\u0443\u0431\u043b\u0435\u0439.' is kept whole with lang 'ru'. Without a lang (the round 10 path) it was dropped. In Japanese, the source has 3 workers and 12 fire engines, and a rewrite with 8 and 20 is kept. In Dutch, the source has 7 injured and 2 million euros, and 70 and 20 million are kept. The same happens when proseLang returns '' (Serbian, Norwegian, Malay, or Galician on a pt page).",
+   "repro": "bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r12ai9/nums.ts",
+   "suspectedCause": "The F1115 fix stops the number check for every language without a NUMBER_WORDS list. The check is right in most of these, because the source writes the number in digits. Lead: in such a language, drop a sentence only when the source has no word next to the same noun that could spell the number. Or put the source sentence back, as warningOf does. Or skip only the numbers 0 to 99 that a spelled-out word could stand for, and keep checking the rest.",
+   "regression": true,
+   "verdict": "Confirmed, medium, regression from the F1115 fix (NUMBER_LANGS is new in round 11). Offline, nums.ts keeps the wrong Russian, Japanese and Dutch numbers when a lang is passed, and drops them without one (the old path). In Chrome with the mock, I made a Russian fixture (lang=ru: 12 injured, 40 million rubles). The mocked model answer said 21 and 400. The '\u041a\u0420\u0410\u0422\u041a\u0410\u042f \u0412\u0415\u0420\u0421\u0418\u042f' showed '\u043f\u043e\u0441\u0442\u0440\u0430\u0434\u0430\u043b\u0438 21 \u0447\u0435\u043b\u043e\u0432\u0435\u043a' and '\u0423\u0449\u0435\u0440\u0431 \u2014 400 \u043c\u043b\u043d \u0440\u0443\u0431\u043b\u0435\u0439' on two loads. The number check now guards only en/es/pt/fr/de/it, and pages where the language is ''. The trigger needs the model to misstate a number, but catching that is the whole point of the check.",
+   "fix": "src/background/text.ts unsupported: do not return '' for every language outside NUMBER_LANGS. Skip only the numbers the source could be spelling out: digits with no digit match in the source, when the source has unknown non-digit words in the same position. Or reuse the warningOf approach and put the source sentence back instead of keeping the rewrite. Keep checking numbers of three digits or more, and numbers the source writes in digits."
+  },
+  {
+   "source": "R3-ai-background",
+   "title": "A short line with a count or a time next to label words is still left out of the cache key and of the change hashes: '9 million viewers' becomes 12 million and the revisit silently drops the line (F1113 residue)",
+   "severity": "medium",
+   "where": "src/shared/ticks.ts:50 (VOLATILE match returns true whatever else the line says) and :13 (LABEL has 'today at on the a de la las en'); used by src/background/text.ts:1114 (stableText) and src/content/short.ts:205 (counts)",
+   "evidence": "In Chrome 9469 with the mock, fx final.html first said 'The final drew 9 million viewers.' The first visit made 1 call, and the Short version had that line. The page then said 12 million. The revisit made 0 calls, and the Short version had no viewers line: the cached sentence failed the number check, and the changed paragraph was not shown in full. Offline, stableText is the same before and after for 'The firm sold 3 million shares.'\u21925, 'The proposal drew 1,200 comments.'\u21924,800, 'The fire started two hours ago.'\u2192six, '- Volume: 1.2 million shares'\u21927.9, 'Today at 18:00'\u2192'Today at 20:00' and 'Hoy a las 18:00'\u2192'20:00'. onlyTicks returns true for each of them on the content side too, so a change during the visit is not caught either.",
+   "repro": "bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r12ai9/counts.ts. In Chrome with the mock: cp fx/finalA.html fx/final.html; bun r12ai9/watch.ts final.html 6; cp fx/finalB.html fx/final.html; bun r12ai9/watch.ts final.html 6 (condense=0, no viewers line).",
+   "suspectedCause": "onlyTicks treats any VOLATILE match as a tick line, even when other content words remain. LABEL also holds common words ('today', 'at', 'the', 'a', 'de', 'la', 'las', 'en'), so 'Today at 18:00' counts as a bare label. Lead: apply the label test to VOLATILE lines too: remove the VOLATILE match and require the rest to be labels. Keep 'today', 'at', the articles and the prepositions out of LABEL, or require a real label word ('updated', 'views').",
+   "regression": false,
+   "verdict": "Confirmed, medium (narrower than F1113, same family). In Chrome with the mock: finalA (9 million viewers) took 1 call and showed 'The final drew 9 million viewers.' After switching to finalB (12 million), the revisit took 0 calls, and the Short version had no viewers line at all, while the page says 12 million. Offline with the real stableText, the key is unchanged for 9\u219212 million viewers, 3\u21925 million shares, 1,200\u21924,800 comments, '- Volume: 1.2\u21927.9 million shares', 'Today at 18:00\u219220:00' and 'Hoy a las 18:00\u219220:00'. Doors 19:30\u219220:00 and 'death toll rose to 31\u219240' do change the key. onlyTicks returns true on any VOLATILE match, whatever else the line says. 'Today at \u2026' is arguably a timestamp, and 'two hours ago' changes on its own, so those parts are debatable. The count lines are real content.",
+   "fix": "src/shared/ticks.ts onlyTicks: do not return true on a VOLATILE match alone. Remove the VOLATILE and tick matches, then require the remaining words to be labels. Take 'today', 'at', 'the', 'a', 'de', 'la', 'las', 'en' and other function words out of LABEL, or require at least one real label word. This fixes stableText (text.ts) and counts in src/content/short.ts together."
+  },
+  {
+   "source": "R3-ai-background",
+   "title": "A signed-in page whose sign-out is a button keeps its Short version and full text for 30 days, not 7. Sift also drops that Log out button from its view",
+   "severity": "medium",
+   "where": "src/content/ai.ts:215-226 (privatePage looks only at top/nav labels and at logout links and forms); src/content/extract/generic.ts:6790 (TOP_LABEL has 'log ?in' but no 'log ?out' or 'sign ?out', so a header Log out button never reaches page.top or the Menu)",
+   "evidence": "In Chrome 9469 with the mock, fx account2.html is the same bank message with '<button type=\"button\">Log out</button>' in the header instead of a logout link. After one visit, IndexedDB holds the Short version and the full text ('Dear Ben Ortiz, your account n\u2026'), both with exp '30d (default)'. With the logout link (account.html), they are 7d. README.md:50 says results from signed-in pages are deleted after 7 days. In fx logout3.html (a header with nav links and a Log out button), Sift's view and its Menu list Example Bank, Accounts, Cards and Help, but no Log out. The reader cannot sign out from Sift. With an <a href=/logout> (logout4.html), the Menu shows it.",
+   "repro": "bun r12ai9/watch.ts account2.html 6; bun r12ai9/idb.ts | grep 'Ben Ortiz' (both entries 30d). Then: SIFT_PORT=9469 SIFT_TAB=R3-ai-background bun scripts/act.ts goto:http://127.0.0.1:8889/fx/logout3.html wait:2500 click:Menu wait:500 outline (no Log out).",
+   "suspectedCause": "privatePage's DOM query matches only a[href*=logout] and form[action*=logout]. The SIGN_OUT label test sees only page.top and page.nav, which never get a header button, because TOP_LABEL lacks sign-out words. Lead: add sign-out words to TOP_LABEL so the button stays usable, and let privatePage also test visible button and [role=button] text against SIGN_OUT.",
+   "regression": false,
+   "verdict": "Confirmed, medium, mainly for the lost control. In Chrome 9469, logout3.html (header nav plus <button>Log out</button>): Sift's view and its Menu listed 'Example Bank | Accounts | Cards | Help', with no Log out. I checked this twice. logout4.html (the same page with <a href=/logout>) shows Log out in the Menu. So a reader on a signed-in page cannot sign out from Sift's view. TOP_LABEL in generic.ts has 'log ?in' but no sign-out words, so findTop skips the button. The TTL part also reproduces: account2.html (button logout) stored both the Short version and the source text with '30d (default)', and account.html (link) stored them with 7d. That part alone is low impact and close to the round 10 rejection, so the medium rating rests on the missing Log out control.",
+   "fix": "src/content/extract/generic.ts TOP_LABEL: add sign-out words (sign ?out, log ?out, log ?off, cerrar sesi[o\u00f3]n, salir, sair, abmelden, se d[\u00e9e]connecter, d\u00e9connexion, esci). The header button then reaches page.top and the Menu, and SIGN_OUT in privatePage (src/content/ai.ts) sees it. Optionally, privatePage can also test visible button and [role=button] text against SIGN_OUT."
+  }
+ ],
+ "rejected": [
+  {
+   "source": "R3-ai-background",
+   "title": "The full text of every condensed page, signed-in pages and emails included, is saved on disk. The privacy text says only results are saved",
+   "severity": "medium",
+   "where": "src/background/index.ts:883 (artKey entry stores req.text); README.md:50, site/index.html:48, src/options/index.tsx:71",
+   "evidence": "In Chrome 9469 with the mock, I loaded fx account.html (a bank message with a Sign out link, detected as signed-in) and read the IndexedDB store. Besides the Short version, an entry with exp 7d holds {\"text\":\"Dear Ana Ruiz, your account number ending in 4471 was used on 24 October to pay 1,240 dollars \u2026 call us at once \u2026\"}: the whole message. README says 'Results are saved in the browser', Options says 'Short versions and one-line descriptions are saved in this browser', and the install page says 'Results are cached in your browser'. None of them says the page text itself (an email body, an account message) is kept for 7 or 30 days.",
+   "repro": "Mock running and settings set to mock, then: bun r12ai9/watch.ts account.html 6; bun r12ai9/idb.ts | grep 4471",
+   "suspectedCause": "The round 10 reuse path (condense-article key) keeps the source text, to renumber a Short version on a later visit. Lead: store only what reuseShort needs (textLines hashes, anchors and links, without the prose), or skip that entry for private pages. Otherwise, say in the three privacy texts that the page text is kept too.",
+   "regression": false,
+   "verdict": "Rejected as a re-report of a round 10 rejection. The facts are true: in Chrome with the mock, account.html left a 7d entry {\"text\":\"Dear Ana Ruiz, your account number ending in 4471\u2026\"}, and src/background/index.ts saves req.text under artKey. But research/round10/rejected.md already rejected exactly this report from the same agent ('the cache now also keeps the full page text of every condensed page (signed-in pages included)'), on the grounds that the impact is low. The data stays in the user's own browser profile with the same TTLs as the results, and nothing new has changed that assessment.",
+   "fix": null
+  }
+ ],
+ "stillOpen": [
+  {
+   "id": "F1113",
+   "status": "partly",
+   "evidence": "The reported cases are fixed. In Chrome 9469 with my mock (scratchpad r12ai9/mock.ts on port 8889), doors.html changed from 19:30 to 20:00. The revisit made 1 new condense call and showed 'Doors open at 20:00.' In doorslive.html the line changes during the visit. At 16 s and 30 s the Short version showed only 'Doors open at 20:00. The start is delayed by half an hour.' Offline (r12ai9/recheck1.ts), stableText now differs for 'Pool: open'\u2192'closed', the tablets line, the delays line and 'Concert cancelled.'. In r12ai9/reuse.ts, reuseShort returns null for a renumbered block plus a time change. A short line with a time next to label words, or with a count or 'ago', is still left out of the key: stableText is the same for 'Today at 18:00'\u2192'Today at 20:00', 'Hoy a las 18:00'\u2192'20:00' and 'The final drew 9 million viewers.'\u2192'12 million'. In Chrome, final.html changed 9 to 12 million viewers. The revisit made 0 calls, and the Short version no longer had the viewers line. Reported separately below.",
+   "src": "R3-ai-background",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, confirmed. The original case is fixed: in Chrome with the mock, doorsA\u2192doorsB revisit made 1 new call and showed 'Doors open at 20:00.' Offline, 'Doors open at 19:30\u219220:00' and 'death toll 31\u219240' change stableText. The residue is still within F1113's scope (a short content line with a count): final.html 9\u219212 million viewers made 0 calls on revisit and lost the line, and stableText ignores count lines with viewers/shares/comments and 'Today at HH:MM'. The skeptic's F1113 lead ('drop a line only when it is nothing but a label once its time or count is removed') was not followed for VOLATILE matches. Details are under N3.",
+    "fix": "Same as N3: src/shared/ticks.ts onlyTicks should apply the label-only test after removing VOLATILE matches, instead of returning true on any VOLATILE match. Also trim the function words out of LABEL."
+   }
+  }
+ ],
+ "recheck": {
+  "F1113": {
+   "id": "F1113",
+   "status": "partly",
+   "evidence": "The reported cases are fixed. In Chrome 9469 with my mock (scratchpad r12ai9/mock.ts on port 8889), doors.html changed from 19:30 to 20:00. The revisit made 1 new condense call and showed 'Doors open at 20:00.' In doorslive.html the line changes during the visit. At 16 s and 30 s the Short version showed only 'Doors open at 20:00. The start is delayed by half an hour.' Offline (r12ai9/recheck1.ts), stableText now differs for 'Pool: open'\u2192'closed', the tablets line, the delays line and 'Concert cancelled.'. In r12ai9/reuse.ts, reuseShort returns null for a renumbered block plus a time change. A short line with a time next to label words, or with a count or 'ago', is still left out of the key: stableText is the same for 'Today at 18:00'\u2192'Today at 20:00', 'Hoy a las 18:00'\u2192'20:00' and 'The final drew 9 million viewers.'\u2192'12 million'. In Chrome, final.html changed 9 to 12 million viewers. The revisit made 0 calls, and the Short version no longer had the viewers line. Reported separately below.",
+   "src": "R3-ai-background",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, confirmed. The original case is fixed: in Chrome with the mock, doorsA\u2192doorsB revisit made 1 new call and showed 'Doors open at 20:00.' Offline, 'Doors open at 19:30\u219220:00' and 'death toll 31\u219240' change stableText. The residue is still within F1113's scope (a short content line with a count): final.html 9\u219212 million viewers made 0 calls on revisit and lost the line, and stableText ignores count lines with viewers/shares/comments and 'Today at HH:MM'. The skeptic's F1113 lead ('drop a line only when it is nothing but a label once its time or count is removed') was not followed for VOLATILE matches. Details are under N3.",
+    "fix": "Same as N3: src/shared/ticks.ts onlyTicks should apply the label-only test after removing VOLATILE matches, instead of returning true on any VOLATILE match. Also trim the function words out of LABEL."
+   }
+  },
+  "F1114": {
+   "id": "F1114",
+   "status": "fixed",
+   "evidence": "In Chrome 9469 with the mock, pl.html (lang=\"en\", Polish text) now sends 'The text is in Polish. Write in Polish.' Offline, proseLang(text, 'en', reliable X) returns pl, sv and tr for those detections. It returns '' (no language named) for id, for sr/bs/hr siblings, and for gl on a pt page.",
+   "src": "R3-ai-background"
+  },
+  "F1115": {
+   "id": "F1115",
+   "status": "fixed",
+   "evidence": "In Chrome 9469 the mock replayed the captured real Polish answer for pl2.html (lang=pl). 'KR\u00d3TKA WERSJA' keeps '20 do 9', 'o 10 proc.', '40 autobus\u00f3w', '1 stycznia' and '4 mld z\u0142'. Offline, unsupported('\u202620 do 9.', source with 'dwudziestu\u2026dziewi\u0119ciu', 'pl') is ''. English is still checked ('number'). The fix turns the number check off for every language but six, so invented numbers now pass. Reported separately below.",
+   "src": "R3-ai-background"
+  },
+  "F1116": {
+   "id": "F1116",
+   "status": "fixed",
+   "evidence": "Offline (r12ai9/recheck1.ts), stripPreamble keeps all 7 real paragraphs from the report: Android, Windows 10, the Spanish 'Esta es la primera versi\u00f3n\u2026', the tax form, the Senate and Spanish closings, and the council summary. Real handovers are still removed: 'Here is the shorter version of the text:' and 'Aqu\u00ed tienes la versi\u00f3n corta del texto.'",
+   "src": "R3-ai-background"
+  },
+  "F1117": {
+   "id": "F1117",
+   "status": "fixed",
+   "evidence": "Offline (the spk3 case in r12ai9/recheck1.ts), unsupported('Union leader Maria Lopez said \u201cwe cannot keep every job\u2026\u201d', src) now returns 'speaker'. 'Plant director John Smith said \u2026' is kept. The new rule also drops correctly attributed quotes. Reported separately below.",
+   "src": "R3-ai-background"
+  },
+  "F1118": {
+   "id": "F1118",
+   "status": "fixed",
+   "evidence": "In Chrome 9469 with the mock, teches.html made condense=2 on the first visit and condense=0 on the second. NO_SHORT is now saved for a day (src/background/index.ts:862). The article still gets no Short version, because the paragraph made mostly of English names fails condenseFits.",
+   "src": "R3-ai-background"
+  },
+  "F1122": {
+   "id": "F1122",
+   "status": "fixed",
+   "evidence": "Offline (r12ai9/f1122.ts): entryLang('Koleksi video Boram tentang hari-hari yang menyenangkan', 'es', reliable id 100%, output=true) now returns 'id', so lineFits fails and the title stays. Cached hits now go through lineFits too (src/background/index.ts:534). Spanish lines that Chrome reliably reads as da or eo still return 'es'. An unreliable id guess still returns 'es'. I did not run it on live YouTube.",
+   "src": "R3-ai-background"
+  },
+  "F1124": {
+   "id": "F1124",
+   "status": "fixed",
+   "evidence": "Offline: swapsRole('A man who died after being found in a wheelie bin is named as a murder suspect, who has been charged', 'Man who died after being found in wheelie bin named as murder suspect charged') returns true. vetLine then returns null, and news mode keeps the headline. Cached hits are vetted the same way (index.ts:533), so the saved Mirror line is no longer shown. I did not run it on the live Mirror home, to avoid AI cost. The rule matches this wording only, for example 'died\u2026named as\u2026suspect'.",
+   "src": "R3-ai-background"
+  },
+  "F1137": {
+   "id": "F1137",
+   "status": "fixed",
+   "evidence": "In Chrome 9469 the mock answered echo.html with 'The text is in English. Write in English.' and then the summary. The Short version starts with 'The free harbour concert is on Saturday\u2026'. Offline, stripPreamble removes the English and Spanish echo when it is its own paragraph, when its two sentences are separate lines, and when it is a bold prefix before the first sentence.",
+   "src": "R3-ai-background"
+  },
+  "F1100": {
+   "id": "F1100",
+   "status": "fixed",
+   "evidence": "In Chrome 9469 the mock answered dup.html with its first sentence twice. The Short version shows it once. Offline, dropRepeats on the es.wikipedia Pan text keeps one copy and the hatnote.",
+   "src": "R3-ai-background"
+  },
+  "F1102": {
+   "id": "F1102",
+   "status": "fixed",
+   "evidence": "focusclose.ts on http://127.0.0.1:8799/fx/r11int-focusclose.html, two runs on the merged build. Sift: Account logs ['menu open'], with focus on Account and the menu links shown inline (Your profile, Settings, Sign out). Rename logs ['editing'], with focus in Sift's textarea. Invite people logs ['share open'], with Sift's sheet 'Invite people' open and focus on 'Copy invite link'. The original gives the same logs (focus on button#acct, div#name, button#copyurl), with no close entry anywhere. The F1040 copy buttons still work: r10int-copylink puts 'https://example.org/events/spring-cleanup?ref=share' on the clipboard in Sift, the same as the original, and r10skep-clipboardjs gives '...?ref=clipjs' in both. Screenshot: /home/nico/projects/sift-test-5/research/shots/r12t5-focusclose-account.png",
+   "src": "T5-amazon-gmail-a11y"
+  },
+  "F1103": {
+   "id": "F1103",
+   "status": "fixed",
+   "evidence": "aria15.ts on /fx/r10skep-ariadate.html (the real React Aria DateField), keys 1,2,2,5,2,0,2,7. Sift gives page '12/12 \u2013 December | 25/25 | 2027/2027 | value 2027-12-25' in both runs, the same as the original. With KEYS=1,2, the month becomes 12 and Sift's focus moves to its day box (role=spinbutton, aria-valuemax=31, text 'dd'), as on the original.",
+   "src": "T5-amazon-gmail-a11y"
+  },
+  "F1110": {
+   "id": "F1110",
+   "status": "fixed",
+   "evidence": "axnames.ts on /fx/r10skep-ariadate.html after 6 s and after 15 s. The CDP AX tree has spinbutton 'month, Reservation date', 'day, Reservation date' and 'year, Reservation date', 0 unnamed. The boxes show the page's own text 'mm', 'dd' and 'yyyy'. 'Empty' stays only as aria-valuetext, as on the original. Screenshot: /home/nico/projects/sift-test-5/research/shots/r12t5-ariadate.png",
+   "src": "T5-amazon-gmail-a11y"
+  },
+  "F1041": {
+   "id": "F1041",
+   "status": "fixed",
+   "evidence": "segs.ts on /fx/r10int-datesegs.html. In Sift, typing 7 gives month=7, ArrowUp gives 8, and Tab moves to the next segment (r5), the same as the original. The remaining part, a full date typed in one go on the real React Aria field, now passes (see F1103: 12/25/2027 in Sift).",
+   "src": "T5-amazon-gmail-a11y"
+  }
+ },
+ "works": [
+  "T5-amazon-gmail-a11y: Fetch guard (browser-wide CDP Fetch on my Chrome, port 9465): 3803 requests to amazon or ssl-images hosts were blocked, 2 of them the add-to-cart POSTs and 10 of them www.amazon.com navigations. The 81 requests let through all went to 127.0.0.1:8799. Nothing reached Amazon. I never clicked Continue on the blocked page.",
+  "T5-amazon-gmail-a11y: amazon-search: each action asks for exactly the original's URL or form. Sennheiser, '4 Stars & Up', 'Up to $30' (keyboard), Next (keyboard, ...page=2...ref=sr_pg_1), page 2 (keyboard, ref=sr_pg_2), the AirPods Pro 3 title (dp/B0FQFB8FMG ref=sr_1_5), 'Click to see price' (Sony WH-CH520 dp/B0BS1PRC4L ref=sr_1_13), Returns & Orders (/gp/css/order-history?ref_=nav_orders_first) and Cart (/gp/cart/view.html?ref_=nav_cart) all match. The search box gives /s/ref=nb_sb_noss?url=search-alias%3Daps&field-keywords=gluten+free+bread. Add to cart by mouse POSTs discoveredAsins.0=B0C3HCD34R, and by keyboard on row 3 POSTs B0HJNVNF4F, each with its card's form body. Sort by keyboard and by mouse sets #s-result-sort-select to price-asc-rank. The price slider moves the page's slider (152 -> 150).",
+  "T5-amazon-gmail-a11y: amazon-search content: all 16 results are kept. One-liners keep brand and model on the 9 branded rows (Black and White Soundcore by Anker Q20i, Apple AirPods Pro 3, Black HAOYUYAN, Matte black Beats Solo 4, Black Sony WH-CH520, Apple AirPods 5, BERIBES, Black Sony WH-CH720N), plus the color where the title has one. Filters has 43 groups. Previous and '\u2026 20' are aria-disabled. Menu is a labeled modal with 30 categories plus Close. Words drop from 4852 to 954, and controls from 1032 to 48.",
+  "T5-amazon-gmail-a11y: amazon-product-blocked shows the same text as the original: Continue, Conditions of Use, Privacy Policy and the \u00a9 line (Continue not clicked).",
+  "T5-amazon-gmail-a11y: Product fixture: Blue and White sync both ways ('Color: Blue', aria-pressed, the page's swatchSelect class). White is aria-disabled until chosen and, when clicked, does what it does on the original. A page-side Black click, quantity 3 and '78,027 ratings' show in Sift within 2.5 s. Quantity 2 by keyboard, then Add to Cart (Enter) and Buy Now (Space), gives __added [{qty:'2',btn:'add-to-cart-button'},{qty:'2',btn:'buy-now-button'}], the same as the same steps on the original. By mouse it gives qty 1 for both. About this item keeps its 4 full bullets. Product details, Description and Reviews open with their content. '4.5 out of 5 stars (78,026 ratings)' is kept, and the Sponsored block is gone. Menu has Today's Deals and Gift Cards. Search gives ?field-keywords=gluten+free+bread.",
+  "T5-amazon-gmail-a11y: Cart fixture by keyboard: + + \u2212 \u2212 gives $92.93 \u2192 $132.90 \u2192 $172.87 \u2192 $132.90 \u2192 $92.93. Sift's Qty and subtotal follow, and focus stays on the button, which is described by the item. Save for later replays one click on the page input (counter 1). Delete by keyboard says 'Removed: soundcore by Anker Q20i Hybrid Active Noise Cancelling Headphones.' and moves focus to the next Delete, described by 'Gluten-free sourdough starter, 2 oz'. Delete by mouse gives 'Subtotal (0 items): $0.00'. Proceed to checkout sets __checkout=true.",
+  "T5-amazon-gmail-a11y: Gmail fixture: opening the bakery email by keyboard gives #inbox/2 and says the subject. Back to Inbox says 'Inbox'. Archive from a thread leaves [2,3]. Mark as read/unread toggles with focus kept, described by the subject. Delete says 'Removed: Your class schedule for next week.'. Archiving the last email moves focus to the previous email's Archive. A keyboard reply sends {to:'news@celiac.example', body:'Thanks for the list\\nSee you Sunday'}. Keyboard compose sends {to:'friend@example.com', subject:'Bakery list', body:'Line one\\nLine two'}. Mouse compose sends {to:'bob@example.com', subject:'Lunch', body:'Noon at the GF cafe?'}. Search gives ?q=bakery. Menu > Starred gives #starred. history.back and forward resync and say the title. Promotions replays a click on the page's tab.",
+  "T5-amazon-gmail-a11y: Gmail inline compose: 'Compose opened below.' is said, and the next Tab reaches To. When the page focuses its To field or reply body (including during the Reply click), Sift's focus follows. Switching to the original mid-compose shows q@w / Sub / Body text. 'XY' typed into the original's Subject shows as 'SubXY' in Sift.",
+  "T5-amazon-gmail-a11y: Gmail sync: an email the page adds shows in Sift at 28 ms. Its gist ('Your Muir Woods parking reservation is confirmed for Sunday at 9 AM; show code MW-4421 and arrive within 30 minutes') arrived at 1.5 s.",
+  "T5-amazon-gmail-a11y: Gmail toast fixture (r6t5-gmailtoast): Archive says 'Removed: Your class schedule for next week. Conversation archived. Undo'. Undo by mouse and by keyboard restores [1,2,3] (__undone 1, then 2) and says 'Action undone.'. Dismiss hides the page toast, and Sift's Undo is gone. At 640x450@2 the notice sits at 64-154, under the bar controls (9-10), and at 0-90 once scrolled.",
+  "T5-amazon-gmail-a11y: Gmail floating compose (r8a11y10): inline at 1280. Escape and opening another email keep the draft 'keep@me' in Sift and on the page. ?bd=1 is a 'New Message' modal with main inert. Escape saves {to:'q@w'} and returns focus to Compose. At 200%, Send sits at 348-393 of 450 with a 3px solid ring. r7dlg8 'Save & close' saves {to:'q@w'} and closes the page's compose.",
+  "T5-amazon-gmail-a11y: r8-slots: picking Tue Nov 3 says '5 free times on Tuesday, November 3 9:00, 9:30, 10:30, 14:00, 16:30'. On r4int-slowcart at 640x450@2, 'Added to cart (1).' is shown at 291-319 and said once.",
+  "T5-amazon-gmail-a11y: axe-core: 0 violations on the product, cart, Gmail, amazon-search, amazon-product-blocked, YouTube watch (dQw4w9WgXcQ) and BBC (cq62yg6rggj0o) pages. Also 0 on amazon-search with Filters, Brands, Price and Customer Review open and with Menu open, Gmail with reply plus compose and with Menu open, the toast notice, the backdrop compose, YouTube with Description, Up next and Comments open and with Settings open, and BBC with full text, More links and Menu open. Options page: 0.",
+  "T5-amazon-gmail-a11y: CDP AX tree: 0 unnamed controls on the product (21), cart (13), Gmail inbox (20) and thread (12), blocked page (5), amazon-search (50; 108 with 4 filter groups open; sliders 'Minimum price: $1' and 'Maximum price: $4,900+'), YouTube watch (22; 98 with sections open) and BBC (12). Landmarks are banner > search, then main > h1 and h2 sections, then status. amazon-search adds a form for Filters and nav 'pagination'. The switch is role=switch 'Sift view'.",
+  "T5-amazon-gmail-a11y: Keyboard: the Menu sheets on the product (3), Gmail (4), amazon-search (31), YouTube (12) and BBC (15), and YouTube's Settings sheet (10), are labeled aria-modal dialogs with main inert and focus on Close. Tab makes 0 exits in n+2 presses. Shift+Tab from Close wraps to the last entry (Gift Cards, Sent, Books, Report history, Documentaries, Send feedback). Escape returns focus to the opener. Skip to content focuses main#sift-main. Space and Alt+Shift+S toggle the switch both ways, and focus goes to main on return. Typing 'abc' into YouTube's search during load keeps focus, and both fields get 'abc'.",
+  "T5-amazon-gmail-a11y: Tab order is logical, with only the browser's wrap point outside Sift: product 18 stops, cart 13, Gmail 20, YouTube watch 22, BBC 12, amazon-search 44. Focus rings are 3px solid with a 2px offset.",
+  "T5-amazon-gmail-a11y: 200% zoom (640x450@2): Sift's scroller is 640/640, with 0 elements past the viewport, on all 7 pages, and on amazon-search also with 4 filter groups open. The YouTube video keeps playing (9.9 s \u2192 12.9 s in 3 s), and the portal matches the player exactly (18,148,604x339). The Menu sheets fit with the last entry in view (product Gift Cards 153-192, Gmail Sent 198-237, BBC Documentaries 362-401, amazon-search Books 361-400). At the bottom of the product, cart and Gmail pages, the switch (98x42) covers nothing. While typing in the compose body, the view scrolls to keep the caret in sight.",
+  "T5-amazon-gmail-a11y: 400 px: Sift's scroller is 400/400 on all 7 pages, including amazon-search with filter groups open and Gmail with thread, reply and compose open. The switch is 60x42, keeps its name and covers nothing at the bottom.",
+  "T5-amazon-gmail-a11y: Language: Sift's lang matches the page: en-us on the 3 Amazon pages and both fixtures, en on Gmail and YouTube, en-GB on BBC, es on infobae-article. On infobae every Sift control is Spanish (Ir al contenido, Men\u00fa, Ver texto completo, Reproducir, Atr\u00e1s 10 s, Adelante 10 s, Silenciar, Pantalla completa, Vista Sift, 'Ver la p\u00e1gina original (Alt+Shift+S)').",
+  "T5-amazon-gmail-a11y: Announcements on load: only 'Loading\u2026' on all 7 pages. The YouTube time label is aria-live=off. BBC 'Show full text' and 'Show short version' toggle with focus kept on the button and nothing said; the full text has 875 words against the article's 895.",
+  "T5-amazon-gmail-a11y: Options: axe 0. The 7- and 30-day cache times are stated. 'HTTPS://WWW.Example.COM:8080/path?q=1' plus 'example.com' is saved once as 'example.com', with 'Saved.' shown. I restored the empty list and did not press Clear."
+ ],
+ "polish": [
+  "R3-ai-background: src/background/text.ts:1057-1058 (dropLangEcho, LANG_ONE): if the model rewrites the page's 'Answers must be written in English.' as 'Write in English.', the line is removed as an echo of the prompt, so the instruction is lost. Verified offline: stripPreamble('\u2026\\n\\nWrite in English.\\n\\n\u2026', source) drops it.",
+  "R3-ai-background: src/background/index.ts:772 (condenseFits per paragraph): a Spanish article whose model paragraph is mostly English product names (fx teches.html) never gets a Short version. Since F1118 it costs 2 calls a day instead of 2 per visit.",
+  "R3-ai-background: src/background/text.ts:1124-1134 (stableText): since round 11, 1- and 2-word prose lines that are not ticks (a share button's 'Compartir', or an ad label missing from LABEL such as 'Reklama' or '\u0420\u0435\u043a\u043b\u0430\u043c\u0430') are back in the exact key and in reuseShort's textLines. Such a line that comes and goes between visits makes a new paid call. I did not see it happen on a real site.",
+  "T5-amazon-gmail-a11y: Gmail inline compose (fx/gmail.html, and 'Save & close' on fx/r7dlg8-gmail-saveclose.html): after Send or Save & close, focus lands on 'Primary' (a pressed toggle), not on Compose. The round 11 build does the same, so the merge did not cause it.",
+  "T5-amazon-gmail-a11y: Gmail reply (fx/gmail.html#inbox/2): after 'Reply opened below.', the next Tab goes to Forward, and the reply body is the second Tab. This follows the fixture's own DOM order and is the same on the round 11 build. Round 8's works line ('the next Tab reaches To or the reply body') holds literally only for Compose.",
+  "T5-amazon-gmail-a11y: Cart fixture: the \u2212 and + buttons show as the long 'Decrease quantity by one' / 'Increase quantity by one', and the Qty sits in the line above, not between them. Sift's cart has 62 words against the original's 25. Screenshot /home/nico/projects/sift-test-5/research/shots/r12t5-cart.png",
+  "T5-amazon-gmail-a11y: amazon-search coupon rows (3 and 8) read 'You pay $22.09 15% off coupon appliedYou pay $22.09 with coupon': a repeat with a missing space. It comes from Amazon's aok-hidden span, which shows only because my guard blocks Amazon's CSS, so it is probably a test artifact.",
+  "T5-amazon-gmail-a11y: Gmail compose at 640x450@2: the fixed Sift switch covers the right end of the Message Body box while typing. Screenshot /home/nico/projects/sift-test-5/research/shots/r12t5-z200-compose-body2.png",
+  "T5-amazon-gmail-a11y: BBC article tab walk: in 2 of 7 runs the switch took two Tab presses ('SIFT <button> Sift' twice) before focus left for the page. It did not happen in the last 5 runs.",
+  "T5-amazon-gmail-a11y: Date field (fx/r10skep-ariadate.html): 'Reservation date' shows as a group label and again in each stacked box ('month, Reservation date', ...). Correct for screen readers, but a little wordy on screen."
+ ],
+ "done": [
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with [data-component-type=s-search-result], 3 runs: original 1916/1619/2247 ms, Sift 1916/1619/2247 ms. Median 1916 vs 1916, the same poll."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Sennheiser, 4 Stars & Up, Up to $30 (kb), Next (kb), page 2 (kb), AirPods Pro 3 title, Click to see price, Returns & Orders and Cart all request the original's exact href. Search gives /s/ref=nb_sb_noss?...field-keywords=gluten+free+bread. Add to cart (mouse and kb) POSTs that card's form (B0C3HCD34R, B0HJNVNF4F). Sort (kb and mouse) gives price-asc-rank. The slider goes 152->150. All were blocked by the guard."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search",
+   "check": "language",
+   "pass": true,
+   "evidence": "Page lang en-us, Sift lang en-us. Every control name is English."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "44 tab stops, all in Sift, then the browser wrap. The Menu sheet (31 focusables) keeps focus on Close: 0 exits in 33 Tabs, Shift+Tab goes to Books, Escape goes to Menu."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 (also with Filters, Brands, Price, Customer Review and Menu open). AX: 50 controls, 0 unnamed (108 / 0 with filters open). Landmarks: banner>search, main>form, nav 'pagination', status. Add to cart is described by the product. Only 'Loading\u2026' is said on load."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2: scroller 640/640 with 0 overflow, also with 4 filter groups open. 400x800: 400/400 with 0 overflow. Menu at 200%: Books at 361-400 of 450. Screenshots /home/nico/projects/sift-test-5/research/shots/r12t5-search-640x450x2.png and r12t5-search-400-filters.png"
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search",
+   "check": "content",
+   "pass": true,
+   "evidence": "16/16 results. 9 branded one-liners keep brand+model (+color). 43 filter groups. Pagination with Previous and '\u2026 20' aria-disabled. Words 4852 -> 954, controls 1032 -> 48. Screenshot /home/nico/projects/sift-test-5/research/shots/r12t5-amazon-search.png"
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-product-blocked",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with h4, 3 runs: original 114/123/130, Sift 114/123/130. Median 123 vs 123."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-product-blocked",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Continue, Conditions of Use and Privacy Policy are present as links with the original's targets. Not clicked (it is a bot check)."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-product-blocked",
+   "check": "language",
+   "pass": true,
+   "evidence": "en-us / en-us."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-product-blocked",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Skip to content, 3 links and the switch are reachable. No stops in the original."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-product-blocked",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0. AX 5 controls, 0 unnamed. banner, main>h1 'Amazon.com', status."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-product-blocked",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2 and 400x800: 0 elements past the viewport."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-product-blocked",
+   "check": "content",
+   "pass": true,
+   "evidence": "Same text as the original body: the notice, Continue, both links and the \u00a9 line. Screenshot /home/nico/projects/sift-test-5/research/shots/r12t5-blocked.png"
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with #productTitle: original 211/190/184, Sift 211/190/184. Median 190 vs 190."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Color Blue, White and page-side Black sync both ways. Quantity 2 (kb) + Add to Cart (Enter) + Buy Now (Space) gives __added [{qty:'2',btn:'add-to-cart-button'},{qty:'2',btn:'buy-now-button'}], identical to the same steps on the original. Search gives ?field-keywords=gluten+free+bread. Sections open."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "language",
+   "pass": true,
+   "evidence": "en-us / en-us."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "18 tab stops in a logical order. Menu: focus on Close, 0 exits in 5 Tabs, Shift+Tab goes to Gift Cards, Escape goes to Menu."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0. AX 21 controls, 0 unnamed (combobox 'Quantity', swatches with pressed, White disabled). banner>search, main>h1 + h2 sections, status."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2: 640/640, 0 overflow. 400x800: 400/400. The switch covers nothing at the bottom. Menu at 200%: Gift Cards at 153-192."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "content",
+   "pass": true,
+   "evidence": "Title, rating with 78,026 ratings, price/availability/delivery/seller, color, quantity, 4 full About bullets, Product details/Description/Reviews. Sponsored gone."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-cart.html",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with .sc-list-item: original 167/153/121, Sift 167/153/121. Median 153 vs 153."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-cart.html",
+   "check": "actions",
+   "pass": true,
+   "evidence": "+ + \u2212 \u2212 gives $132.90/$172.87/$132.90/$92.93 on the page, with Sift in step. Save for later counter 1. Delete (kb) says 'Removed: \u2026' with focus to the next Delete. Delete (mouse) gives Subtotal (0 items): $0.00. Checkout sets __checkout=true."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-cart.html",
+   "check": "language",
+   "pass": true,
+   "evidence": "en-us / en-us."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-cart.html",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "13 tab stops in a logical order. Focus stays on +/\u2212 after each press."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-cart.html",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0. AX 13 controls, 0 unnamed. banner, main>h1 Shopping Cart, status. The quantity buttons are described by the item."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-cart.html",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2: 640/640. 400x800: 400/400. The switch covers nothing at the bottom."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-cart.html",
+   "check": "content",
+   "pass": true,
+   "evidence": "Both items with price, Qty, stock, subtotal and checkout are present."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with tr.zA: original 157/142/146, Sift 157/142/146. Median 146 vs 146."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Open thread, Back, Archive (thread and list), Delete, Mark read/unread, Reply (kb), Compose (kb and mouse), Search (?q=bakery), Menu > Starred, history back/forward and Promotions all have the original's effect (__sent and the ids match)."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "language",
+   "pass": true,
+   "evidence": "en / en."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "20 tab stops. Menu has 4 entries, Tab is trapped and Escape returns to the opener. Compose: Tab reaches To > Subject > Body > Send. The backdrop compose traps Tab and Escape saves the draft."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 (inbox, thread with reply and compose, Menu, toast, backdrop compose). AX 20 inbox / 12 thread, 0 unnamed. Primary/Promotions have aria-pressed. 'Compose opened below.', 'Reply opened below.', 'Removed: \u2026' and the subject on open are said."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2: 640/640, Menu Sent at 198-237. 400x800 with thread+reply+compose: 0 overflow. The switch covers nothing at the bottom."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "content",
+   "pass": true,
+   "evidence": "All 3 emails with sender, subject and one-line gists. The thread has the body, the sender and the date."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "youtube.com/watch?v=dQw4w9WgXcQ",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts: against the original's player (#movie_player video), 2757/2346/1841 both. Against the original's title (ytd-watch-metadata h1), original 6778/6808/6155 vs Sift 2072/3049/2230. Medians 6778 vs 2230."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "youtube.com/watch?v=dQw4w9WgXcQ",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Menu (12 entries) and Settings (10) open as modal sheets. Description, Up next and Comments open. The video plays (9.9 -> 12.9 s in 3 s at 200%). Playback controls were left to T1."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "youtube.com/watch?v=dQw4w9WgXcQ",
+   "check": "language",
+   "pass": true,
+   "evidence": "en / en."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "youtube.com/watch?v=dQw4w9WgXcQ",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "22 tab stops (header, Settings, media bar, Position in video, channel, actions, 3 sections, switch). Menu/Settings: focus on Close, Tab trapped, Escape returns to the opener. Early typing keeps 'abc' in both fields."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "youtube.com/watch?v=dQw4w9WgXcQ",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 (also with sections open and with Settings open). AX 22 controls, 0 unnamed (98 with sections open). banner>search, main>h1 + h2 Description/Up next/Comments, status. The time label is aria-live=off."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "youtube.com/watch?v=dQw4w9WgXcQ",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2: 640/640, the portal equals the player (18,148,604x339), and the video keeps playing. 400x800: 400/400. Screenshots /home/nico/projects/sift-test-5/research/shots/r12t5-yt-640x450x2.png and r12t5-yt-400x800x1.png"
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "youtube.com/watch?v=dQw4w9WgXcQ",
+   "check": "content",
+   "pass": true,
+   "evidence": "Player, title, channel with 4.55M subscribers, views/date, Subscribe/Like 19M/Dislike/Save, Description, Up next and Comments (2,460,830). 57 words against the original's 949."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "bbc.com/news/articles/cq62yg6rggj0o",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with 'main h1': original 3826/2042/1048, Sift 3826/2042/1048. Median 2042 vs 2042."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "bbc.com/news/articles/cq62yg6rggj0o",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Show full text / Show short version toggle by keyboard with focus kept. More links opens. Menu opens a 15-entry modal."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "bbc.com/news/articles/cq62yg6rggj0o",
+   "check": "language",
+   "pass": true,
+   "evidence": "en-GB / en-GB (British spelling kept: 'organisations')."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "bbc.com/news/articles/cq62yg6rggj0o",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "12 tab stops. Menu: focus on Close, 0 exits in 17 Tabs, Shift+Tab goes to Documentaries, Escape goes to Menu. Once in 2 of 7 walks the switch took two Tabs (polish)."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "bbc.com/news/articles/cq62yg6rggj0o",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 (also with full text, More links and Menu open). AX 12 controls, 0 unnamed. banner, main>h1 + h2 More links, status. Nothing said on load except 'Loading\u2026'."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "bbc.com/news/articles/cq62yg6rggj0o",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2: 640/640. 400x800: 400/400. Menu at 200%: Documentaries at 362-401."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "bbc.com/news/articles/cq62yg6rggj0o",
+   "check": "content",
+   "pass": true,
+   "evidence": "The Short version arrived within 30 s: 433 words against the page's 1190, with the byline, the lead image and caption and the in-text links. The full text has 875 words against the article's 895. I used this article because I could not find the Limoges article's URL."
+  }
+ ],
+ "pending": [
+  "T6-fixtures"
+ ]
+}

@@ -32,7 +32,7 @@ case "$cmd" in
       mkdir -p .chrome
       # The old log still says "chrome up"; drop it so the wait below sees this launch.
       rm -f "$log"
-      tmux new-window -d -t sift -n "$win" -c "$PWD" "SIFT_PORT=${SIFT_PORT:-9444} SIFT_OUT=${SIFT_OUT:-dist} bun scripts/launch.ts 2>&1 | tee $log"
+      tmux new-window -d -t sift -n "$win" -c "$PWD" "SIFT_PORT=${SIFT_PORT:-9444} SIFT_OUT=${SIFT_OUT:-dist} SIFT_BLOCK_EXTRA='${SIFT_BLOCK_EXTRA:-}' bun scripts/launch.ts 2>&1 | tee $log"
       up=
       for i in $(seq 1 60); do grep -q "chrome up" "$log" 2>/dev/null && { tail -1 "$log"; up=1; break; }; sleep 0.25; done
       [ -n "$up" ] || { echo "did not start"; tail -20 "$log"; exit 1; }

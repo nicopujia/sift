@@ -11,6 +11,16 @@ const profile = root + ".chrome/profile" + sfx;
 mkdirSync(profile, { recursive: true });
 await Bun.write(root + ".chrome/launch" + sfx + ".pid", String(process.pid));
 
+// Amazon forbids automated agents, so the test Chrome can never reach it, even when a saved
+// Amazon page's own form or link tries (round 12). Names Amazon serves from fail to resolve.
+// SIFT_BLOCK_EXTRA adds rules, only to check that blocking works (on a harmless host).
+const AMAZON_RULES = [
+  "amazon.*", "*.amazon.*", "amzn.*", "*.amzn.*", "a.co",
+  "*.media-amazon.com", "*.ssl-images-amazon.com", "*.images-amazon.com",
+  "*.amazon-adsystem.com", "*.amazontrust.com",
+].map((h) => `MAP ${h} ~NOTFOUND`);
+const blockRules = [...AMAZON_RULES, ...(process.env.SIFT_BLOCK_EXTRA ? [process.env.SIFT_BLOCK_EXTRA] : [])].join(", ");
+
 const browser = await puppeteer.launch({
   executablePath: "/usr/bin/google-chrome",
   headless: true,
@@ -31,6 +41,7 @@ const browser = await puppeteer.launch({
     "--disable-background-timer-throttling",
     "--disable-renderer-backgrounding",
     "--disable-backgrounding-occluded-windows",
+    "--host-resolver-rules=" + blockRules,
   ],
 });
 let id = await browser.installExtension(dist);

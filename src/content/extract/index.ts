@@ -22,7 +22,8 @@ export function pageUrl(): URL {
   return new URL(location.href);
 }
 
-export function extract(): Page {
+/** `budget`: ms the generic extractor may take before it returns a partial page (Sift's first view, F1220). */
+export function extract(budget = 0): Page {
   resetCaches();
   const url = pageUrl();
   current = adapters.find((a) => a.match(url)) ?? null;
@@ -38,7 +39,7 @@ export function extract(): Page {
       return p;
     }
   }
-  const g = extractGeneric();
+  const g = extractGeneric(budget);
   try {
     current?.fallback?.(g);
   } catch (e) {

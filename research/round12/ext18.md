@@ -1,0 +1,81 @@
+# Round 12 findings: ext18
+
+Each was reproduced by a skeptic. F12xx are new in round 12; older ids are findings a round 12 recheck found not fully fixed. The suspected cause and fix are leads, not orders.
+
+## F1210 (high, regression): A page wrapped in one <form> (ASP.NET WebForms) moves its Add to cart, Subscribe and other submit buttons into Sift's search bar, out of their own forms
+
+Found by: R1-extractor. Where: src/content/extract/generic.ts:6619-6625 (findSearch, moreSubmits)
+
+Evidence: Fixture /home/nico/projects/sift/research/fixtures/r12rx-aspnet.html (http://127.0.0.1:8799/fx/r12rx-aspnet.html) wraps the whole page in one form, as ASP.NET WebForms does. It has a header search box with a 'Search' submit, a product with Quantity and <input type=submit> 'Add to cart' and 'Add to wish list', and a newsletter Email field with 'Subscribe'. Harness: search more=[Add to cart, Add to wish list, Subscribe], and the content shows 'form: fields=[number:Quantity] actions=[]' and 'form: fields=[email:Email] actions=[]'. r10m kept 'actions=[Add to cart; Add to wish list]' and 'actions=[Subscribe]'. The real extension (port 9468, shot research/shots/r12rx-aspnet.png in sift-test-8) shows the top bar as 'Search | Add to cart | Add to wish list | Subscribe | Menu | My account'. The search box is squeezed to about 40 px, so a query cannot be read. The product and the newsletter form have no button where they are. This was added in round 11 for MoinMoin's Titles/Text (F1101).
+
+Repro: cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r12x && bun run.ts r12.js,r10m.js $PWD/fx/aspnet.html 1 --as http://127.0.0.1:8799/fx/zz-aspnet.html ; or SIFT_PORT=9468 SIFT_TAB=R1-extractor bun scripts/visit.ts http://127.0.0.1:8799/fx/r12rx-aspnet.html r12rx-aspnet
+
+Suspected cause: `more` takes every visible submit with an explicit type in pick.form. When that form is the whole page, the search box's 'form' holds every button of the page. Up to 3 of them are marked used and moved to the bar. Limit it to submits that share the search box's own container (for example the nearest ancestor that holds the box and btn and no other text field), or skip it when the form holds other fields or more than a few controls.
+
+Skeptic: Confirmed, real regression. I rate it high to medium. Harness with a bundle I built from the current src, on fx/r12rx-aspnet.html: 'search: Search products btn=Search more=[Add to cart, Add to wish list, Subscribe]'. The content forms are 'fields=[number:Quantity] actions=[]' and 'fields=[email:Email] actions=[]'. r10m keeps 'actions=[Add to cart; Add to wish list]' and 'actions=[Subscribe]'. In the real extension (port 9468), the top bar is Search box | Search | Add to cart | Add to wish list | Subscribe | Menu | My account. The search input is 50 px wide, so its placeholder and any query are unreadable (shot research/shots/sk12-aspnet.png). The product and the newsletter have no buttons in the content. The cause is as stated: generic.ts:6619 `more` takes every visible submit with an explicit type in pick.form, and here that form is the whole page. I found no live or snapshot page that hits it (no __VIEWSTATE among the snapshots). The pattern is standard for ASP.NET WebForms and JSF pages, though. I did not click the moved buttons, because the hard rules forbid posting forms.
+
+Skeptic's fix lead: src/content/extract/generic.ts findSearch, the `more` filter (line 6619): take only the extra submits that sit inside the smallest ancestor holding both pick and btn (here <header>), with no other visible text field in that ancestor. Or skip `more` when pick.form holds other visible inputs, selects or textareas besides the box. MoinMoin's search form (F1101) still passes either test.
+
+## F1211 (medium, regression): Pricing cells that two plans share are dropped at narrow widths and zoom when the comparison row scrolls sideways (new offscreen rule in stripCopies)
+
+Found by: R1-extractor. Where: src/content/extract/generic.ts:3994-4002 (stripCopies offscreen)
+
+Evidence: Fixture /home/nico/projects/sift/research/fixtures/r12rx-plans.html is a div-based comparison table in an overflow-x:auto box. The Offline row says 'Recents and Favorites auto-download for offline use.' for Plus, Business and Enterprise. At 1280 px all 3 cells show. At 640 px (200% zoom on a 1280 px laptop) only the Plus cell shows, so Business and Enterprise look as if they lack offline use. This was checked in the real extension (port 9468, viewport 640) and in the harness. With marqueeCopies off (r11nomq) all 3 show at 640 px. The later cells are past the window's right edge, so offscreen(c) counts them as marquee copies. I could not find a live page that hits it: notion.com/pricing switches layout at 640 px, and github, linear, figma and slack pricing were unaffected. The snapshots plus live BBC, The Verge and Infobae lose nothing to this rule at 640 px.
+
+Repro: cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r12x && bun run.ts r12.js,r11nomq.js $PWD/fx/plans.html 1 --as http://127.0.0.1:8799/fx/zz-plans.html --width 640 | grep -n '^===\|Recents'  (r12: 1, nomq: 3; with --width 1280 both 3)
+
+Suspected cause: offscreen(c) treats any later twin past the window edge as a scrolling copy, including cells in a horizontally scrolled table or row. Require an animated or transformed strip (a CSS animation or transform on the box), or a run of copies, before the offscreen test counts.
+
+Skeptic: Confirmed, medium. On fx/r12rx-plans.html, at width 640 the current bundle shows 'Recents and Favorites auto-download for offline use.' once. r11nomq and r10m show it 3 times. At 1280 all three bundles show it 3 times. The real extension (port 9468, viewport 640) gives a count of 1 in Sift's main, and 3 at 1280. The cause is offscreen() in stripCopies (generic.ts:3994): at 640 px the Business and Enterprise cells start past innerWidth inside the overflow-x:auto row, so they count as marquee copies. This contradicts stripCopies' own comment ('a pricing cell that two plans share' stays). It is the same notion-style case as F1131, now tied to zoom or width. Caveats: only a fixture shows it, and Sift already flattens this div table into paragraphs without plan names. Still, how many plans include offline use now changes with zoom.
+
+Skeptic's fix lead: src/content/extract/generic.ts stripCopies offscreen(): do not count a copy as offscreen when an ancestor within a few levels scrolls sideways for the user (computed overflow-x auto or scroll). Or require the box to be animated or transformed (getAnimations().length, or a non-none transform on the strip) before the offscreen test counts.
+
+## F1212 (medium, regression): Payment options told apart only by a brand logo now read the same: 'Pay in 4 interest-free payments' twice (logos over 32 px dropped from labels)
+
+Found by: R1-extractor. Where: src/content/dom.ts:698-703 (labelWords, the 32 px size test)
+
+Evidence: Fixture /home/nico/projects/sift/research/fixtures/r12rx-paylogos.html has radios '<img alt=Afterpay width=72 height=24> Pay in 4 interest-free payments' and '<img alt=Klarna width=60 height=24> Pay in 4 interest-free payments'. The round 11 base (r11.js) labeled them 'Afterpay Pay in 4…' and 'Klarna Pay in 4…'. Now both are 'Pay in 4 interest-free payments'. The real extension (shot research/shots/r12rx-paylogos.png in sift-test-8) shows two identical radios under 'Choose how to pay', so the user cannot tell which provider they pick. A screen reader on the original reads 'Afterpay Pay in 4…'. r10m also lacked the brand, so this undoes what F1010's change gave and is not new versus round 10.
+
+Repro: cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r12x && bun run.ts r12b.js,r11.js,r10m.js $PWD/fx/paylogos.html 1 --as http://127.0.0.1:8799/fx/zz-paylogos.html | grep form
+
+Suspected cause: F1132's fix rejects every img wider or taller than 32 px. A logo-sized picture (about 24-48 px tall, under about 120 px wide) whose alt the label's words do not say still names the option. Reject only photo-sized pictures, or keep the alt when it is not in the text and the label would otherwise match a sibling option's label.
+
+Skeptic: Confirmed, medium at the low end. On fx/r12rx-paylogos.html the current bundle gives 'radio:Pay in 4 interest-free payments' twice. r11.js gives 'Afterpay Pay in 4…' and 'Klarna Pay in 4…', and r10m gives the identical pair. The real extension renders two identical radios, '<span>Pay in 4 interest-free payments</span>', with no logo and no aria-label, so the payment provider cannot be told apart. Cause: dom.ts:701 rejects any img over 32 px in either dimension, so the 72x24 and 60x24 logos lose their alt. It is not new versus round 10. It only undoes what round 11 briefly gave. It is narrow, but it sits on a payment step.
+
+Skeptic's fix lead: src/content/dom.ts labelWords adds(): test mainly the height. Keep a picture up to about 40 px tall and about 160 px wide (a logo or badge), and reject square photos such as F1132's 80x80 gift box. pictureAdds(name, t) already drops alts the words say, so 'Red Red' stays fixed.
+
+## F1213 (medium, regression): The date check is still quadratic when many dated lines sit directly in one element ('<br>'-separated references): extraction goes from 0.2 s to 6-9 s
+
+Found by: R1-extractor. Where: src/content/extract/generic.ts:7624-7625 (pageShowsDate, box = p, then box.textContent)
+
+Evidence: The page is an article with meta article:published_time 2021-03-15 (not shown on the page), 30 paragraphs, and a References <p> of 3000 '<br>'-separated entries with years. Bundle built from the current src with a flag that skips the byline meta check, on the same page: check on 9400/5821/6076 ms, check off 225/177/142 ms; r10m 332/287/155 ms. At 1000 entries the check adds about 400 ms per pass, at 300 entries about 100 ms. In the extension (port 9468), firstpaint.ts on fx/r12rx-brrefs.html gives original and Sift both at 2696 ms and 4627 ms. fx/r12rx-brrefs-nodate.html, the same page without the meta tag, gives 627 ms and 683 ms. This repeats on every re-extraction.
+
+Repro: cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r12x && bun runp.ts p.js fx/brrefs.html http://127.0.0.1:8799/fx/zz-brrefs.html 3 1  (flag=0 is the current code, flag=1 skips the meta-date check); extension: SIFT_PORT=9468 SIFT_TAB=R1-extractor bun scripts/firstpaint.ts http://127.0.0.1:8799/fx/r12rx-brrefs.html 'article p' 2
+
+Suspected cause: F1136's fix bounded only the parent's parent. When p.parentElement is large, box = p, and p.textContent (the whole 180 KB paragraph) is rebuilt and searched for each of its 3000 dated text nodes. Test the joined text only when tlen(p) is small too, else test the node's own text plus its neighbors, or cache per box.
+
+Skeptic: Confirmed, but narrow (low to medium). With fx/r12rx-brrefs.html (3000 <br>-separated dated entries in one <p>, a meta date the page does not show), my current-src bundle took 4176/3775/4718 ms. r10m took 230/104/109 ms. A patched copy of src took 227/151/122 ms with the same outline; it skips box.textContent when box === p and tlen(p) >= 200. The nodate variant takes about 0.1-0.2 s in every bundle. The real extension's firstpaint gives 4741/4630/2941 ms, against 428/448/615 ms without the meta tag. The cost scales quadratically: at 300 entries it adds only 10-15 ms, and at 1000 about 150 ms. So it bites only with roughly 1000 or more dated text nodes directly in one element, on a page whose meta date the regex does not find before the list. The cause is as stated at generic.ts:7624-7625.
+
+Skeptic's fix lead: src/content/extract/generic.ts pageShowsDate: use box.textContent only when the box is small. For example, `if (re.test(s) || ((box !== p || tlen(p) < 200) && re.test(box.textContent ?? ""))) return "this";`. Or test the node's text joined with its sibling text nodes.
+
+## F1214 (medium): YouTube comments: an opened thread has no 'Hide replies' in Sift (the threaded layout's #less-replies-sub-thread is not read)
+
+Found by: R1-extractor. Where: src/content/adapters/youtube.ts:915 (repliesOf button selector)
+
+Evidence: Real extension, live watch?v=dQw4w9WgXcQ: I opened Comments and clicked '3 replies' on the first thread. The 3 replies appear nested in Sift, so the new per-thread cache refreshed correctly. Sift's buttons matching /hide|repl/ are then only the other threads' 'N replies'. On the original, the visible collapse control is button < yt-button-shape < ytd-button-renderer#less-replies-sub-thread < div < yt-sub-thread (checkVisibility true). The '#less-replies button' that the selector reads is the hidden one. A reader who opens a thread of 900+ replies cannot fold it again. Not new in round 11: the selector was not changed.
+
+Repro: SIFT_PORT=9468 SIFT_TAB=R1-extractor bun scripts/act.ts goto:https://www.youtube.com/watch?v=dQw4w9WgXcQ wait:9000 click:Comments wait:6000 'click:3 replies' wait:5000 "eval:[...document.querySelector('sift-root').shadowRoot.querySelectorAll('button')].map(b=>b.innerText.trim()).filter(t=>/hide/i.test(t)).length" -> 0, while the original thread has a visible 'Hide replies' (#less-replies-sub-thread).
+
+Suspected cause: The selector list has #more-replies-sub-thread but not #less-replies-sub-thread. Add it.
+
+Skeptic: Confirmed twice on live youtube.com/watch?v=dQw4w9WgXcQ in the real extension, medium at the low end. After I opened the first thread ('11 replies'), Sift showed 'Show more replies' and no control matching hide, less or collapse, by text or aria-label. On the original, '#less-replies button' is hidden (checkVisibility false). ytd-button-renderer#less-replies-sub-thread's 'Hide replies' is visible. The same happened on a second load with the '3 replies' thread: Sift had 0 hide buttons, and the original had a visible 'Hide replies'. That button sits inside the thread's ytd-comment-replies-renderer, and mine() is true for it. So adding it to the selector at youtube.ts:915 would pick it up. It is not a round 11 regression.
+
+Skeptic's fix lead: src/content/adapters/youtube.ts repliesOf (line 915): add '#less-replies-sub-thread button' to the selector list.
+
+## F1136 (still open, partly; original repro in /home/nico/projects/sift/research/round11/*.md)
+
+Recheck by R1-extractor: The repro is fixed: refs3000 takes 293/191/218 ms (r10m 354/207/261, round 11 base 1149/890/974). The same quadratic step is still there when the dated text nodes sit directly in one large element. pageShowsDate falls back to box = p and runs box.textContent on the whole element for each dated text node (generic.ts:7624-7625). Test case: 3000 '<br>'-separated references in one <p>, with a meta article:published_time that the page does not show. Extraction takes 9400/5821/6076 ms, against 225/177/142 ms with the meta check skipped in the same bundle; r10m takes 332/287/155 ms. In the real extension, firstpaint on fx/r12rx-brrefs.html gives 2.7 s and 4.6 s, against 0.63 s and 0.68 s for the same page without the meta tag (fx/r12rx-brrefs-nodate.html). See the separate finding.
+
+Skeptic: Partly fixed, as claimed. The original refs3000 repro is fixed: current 299/167/209 ms, r11 1177/899/859 ms, r10m 261/127/143 ms. The <br>-separated variant is still quadratic: 4.2-4.7 s against 0.1-0.2 s for r10m and for a patched bundle. In the real extension it takes 2.9-4.7 s, against 0.4-0.6 s without the meta date. See N3 for the details and the narrow scope.
+
+Skeptic's fix lead: Same as N3: in src/content/extract/generic.ts pageShowsDate, skip box.textContent when box === p and tlen(p) >= 200.

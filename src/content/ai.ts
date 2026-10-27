@@ -220,9 +220,18 @@ function privatePage(page: Page): boolean {
     labels.some((l) => SIGN_OUT.test(l)) ||
     !!document.querySelector(
       'a[href*="logout" i], a[href*="signout" i], a[href*="sign_out" i], a[href*="sign-out" i], a[href*="log_out" i], a[href*="log-out" i], form[action*="logout" i], form[action*="signout" i]',
-    );
+    ) ||
+    signOutButton();
   if (is) privateFor = page.url;
   return is;
+}
+
+/** A sign-out button ("<button>Log out</button>"), wherever it is (F1219). By tag first: one selector list over a big page costs more. */
+function signOutButton(): boolean {
+  const label = (b: Element) => (b instanceof HTMLInputElement ? b.value : (b.textContent ?? "").trim() || b.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+  for (const list of [document.getElementsByTagName("button"), document.querySelectorAll("[role=button]"), document.querySelectorAll("input[type=submit]")])
+    for (let i = 0; i < list.length && i < 400; i++) if (SIGN_OUT.test(label(list[i]))) return true;
+  return false;
 }
 
 /** The port already told that this page is signed-in. */

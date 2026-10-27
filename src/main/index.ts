@@ -112,6 +112,26 @@ if (!(window as any).__siftMain) {
       if (e.hasAttribute("data-sift-inert")) return true;
     return false;
   };
+  // Sift's click on a page element is running (H.act, F1200). With a shown original (a video, a map, a
+  // frame) <body> is not inert as a whole, so a popup the page appends to it during the click is not inert
+  // yet, and the page's focus() there would take focus out of Sift; Sift's shield makes it inert right
+  // after, which blurs it, and a popup that closes on blur closes. While the click runs, a focus() outside
+  // what the user answers directly (a shown original, a page modal dialog, full screen) fails as on an
+  // inert page, and Sift follows it to its copy.
+  let clicking = 0;
+  document.addEventListener(
+    "sift-click",
+    (e) => {
+      clicking = (e as CustomEvent).detail === "start" ? clicking + 1 : Math.max(0, clicking - 1);
+      e.stopImmediatePropagation();
+    },
+    true,
+  );
+  const shownAt = (n: Element): boolean => {
+    for (let e: Element | null = n; e; e = e.parentElement ?? ((e.getRootNode() as ShadowRoot).host ?? null))
+      if (e.hasAttribute("data-sift-portal") || e.localName === "sift-root" || e === document.fullscreenElement || e.matches(":modal")) return true;
+    return false;
+  };
   let selField: HTMLInputElement | HTMLTextAreaElement | null = null;
   for (const fproto of [HTMLInputElement.prototype, HTMLTextAreaElement.prototype] as any[])
     for (const name of ["select", "setSelectionRange"]) {
@@ -128,7 +148,8 @@ if (!(window as any).__siftMain) {
   const copied = (): string => {
     const f = selField;
     // Never a password: the browser copies none.
-    if (f?.isConnected && inertAt(f) && (f as HTMLInputElement).type !== "password") {
+    // Or a field the page could not focus during Sift's click (above): it would copy as nothing.
+    if (f?.isConnected && (inertAt(f) || (clicking > 0 && !shownAt(f))) && (f as HTMLInputElement).type !== "password") {
       try {
         return f.value.slice(f.selectionStart ?? 0, f.selectionEnd ?? 0);
       } catch {
@@ -192,6 +213,15 @@ if (!(window as any).__siftMain) {
   const focus = proto.focus;
   if (typeof focus === "function") {
     proto.focus = function (this: HTMLElement, ...args: unknown[]) {
+      try {
+        // During Sift's click, outside what Sift shows of the page: no real focus (above, F1200).
+        if (clicking > 0 && this.isConnected && !shownAt(this)) {
+          this.dispatchEvent(new CustomEvent("sift-focus", { bubbles: true, composed: true }));
+          return;
+        }
+      } catch {
+        /* never break the page's own call */
+      }
       const r = focus.apply(this, args);
       try {
         const root = this.getRootNode() as Document | ShadowRoot;

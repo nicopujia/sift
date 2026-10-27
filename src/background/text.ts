@@ -769,17 +769,28 @@ function speakerNear(out: string, q: { at: number; len: number; inner: string },
 /** Words before a place, not a person: "in New York", "desde Buenos Aires". */
 const PLACE_BEFORE = new Set("in at from to into across near of en de desde hacia para por em do da à au aux dans vers aus nach bei von zu nel dal".split(" "));
 
+/** Articles: a name after one ("The European Union", "la Casa Rosada") is a body or a place, not a person. */
+const NAME_ARTICLE = new Set("the el la los las le les der die das il lo".split(" "));
+/** Words that make a name a body, not a person ("Ford Motor Company", "Real Madrid", "Banco Central"). */
+const ORG_WORD = new Set(
+  "union company corporation corp inc ltd llc plc group bank house party council ministry department university college school hospital club fc cf united real athletic sporting commission agency court office government parliament congress senate committee police service services airlines airways motors motor association federation league institute foundation fund organization organisation authority board centre center network news times post army navy forces airport church museum unión compañía banco partido ministerio gobierno universidad casa policía federación liga fundación instituto congreso senado tribunal comisión empresa".split(" "),
+);
+
 /**
  * Whether a sentence names a person: a role after "the", "a" or a possessive
  * ("The plant's director", "el ministro"), or a name of two or more
- * capitalized words not after "in", "from" (a place: "in New York").
+ * capitalized words not after "in", "from" (a place: "in New York"), nor
+ * after or with "the" or a word for a body ("The European Union", "Ford
+ * Motor Company", "Real Madrid": F1216).
  */
 function namesPerson(s: string): boolean {
   for (const m of s.matchAll(/(?<![\p{L}\p{N}])(?:the|a|an|its|his|her|their|el|la|los|las|un|una|su|sus|o|os|um|uma|le|les|der|die|il|lo)\s+(?:[\p{L}'’-]+\s+)?(\p{L}+)/giu)) if (ROLES.has(m[1].toLowerCase())) return true;
   for (const m of s.matchAll(/(?<![\p{L}\p{N}])\p{Lu}[\p{L}'’-]+(?:\s+\p{Lu}[\p{L}'’-]+)+/gu)) {
     if (speakerWords(m[0]).length < 2) continue;
+    const words = m[0].toLowerCase().split(/\s+/);
+    if (NAME_ARTICLE.has(words[0]) || words.some((w) => ORG_WORD.has(w))) continue;
     const before = /(\p{L}+)\s*$/u.exec(s.slice(0, m.index))?.[1]?.toLowerCase();
-    if (!before || !PLACE_BEFORE.has(before)) return true;
+    if (!before || !(PLACE_BEFORE.has(before) || NAME_ARTICLE.has(before))) return true;
   }
   return false;
 }
@@ -819,15 +830,13 @@ const NUMBER_LANGS = new Set(["en", "es", "pt", "fr", "de", "it"]);
  * to it, see speakerNear), "number" (a number in digits the source does not
  * state in any form), or "" when it states neither. Quotation marks keepQuotes
  * had to remove are not a fact: the words stay, as the rewrite's own.
- * `lang`: the language of the source, when known. In one whose number words
- * Sift does not know, numbers are not checked: a sentence is never dropped
- * only because its source spells a number out.
+ * Numbers are checked in every language (F1217): the source's digits always,
+ * its number words where Sift knows them (NUMBER_LANGS); dropUnsupported
+ * deals with a source that may spell one out in words Sift does not know.
  */
-export function unsupported(raw: string, source: string, lang?: string): string {
+export function unsupported(raw: string, source: string): string {
   const fixed = keepQuotes(raw, source);
   for (const q of quotesIn(fixed)) if (!speakerNear(fixed, q, source)) return "speaker";
-  // A number the source may spell out in words Sift does not know ("dwudziestu" for 20) is not one it lacks (F1115).
-  if (lang !== undefined && !NUMBER_LANGS.has(base(lang))) return "";
   const have = sourceNumbers(source);
   if (numbersOf(fixed).some((vals) => !vals.some((v) => have.has(v)))) return "number";
   return "";
@@ -868,18 +877,30 @@ function sentencesOf(line: string): string[] {
 const WARNING =
   /(?<![\p{L}\p{N}])(?:never|do not|don['’]t|must not|mustn['’]t|should not|shouldn['’]t|no more than|not more than|at most|maximum|warning|danger|dangerous|avoid|overdose|nunca|no (?:tome|tomes|tomar|debe|deben|supere|superar|exceda|exceder|use|usar|dé|dar)|máximo|máxima|peligro|peligroso|evite|evitar|advertencia|jamais|niemals|nicht mehr als|non (?:superare|assumere|dare))(?![\p{L}\p{N}])/iu;
 
-/** The source's own sentence a rewritten warning stands for: a warning too, with at least half of its words (three or more); null when none. */
-function warningOf(s: string, source: string, used: Set<string>): string | null {
-  const want = ctokens(s);
+/** A sentence's words for matching it to the source's; pairs of letters in a script written without spaces. */
+function matchTokens(s: string): Set<string> {
+  if (!SPACELESS.test(s)) return ctokens(s);
+  const out = new Set<string>();
+  for (const run of qwords(s)) for (let i = 0; i + 1 < run.length; i++) out.add(run.slice(i, i + 2));
+  return out;
+}
+
+/**
+ * The source's own sentence a rewritten one stands for: with at least half of
+ * its words (three or more), and a warning too unless `anySentence`; null
+ * when none.
+ */
+function warningOf(s: string, source: string, used: Set<string>, anySentence = false): string | null {
+  const want = matchTokens(s);
   let best: string | null = null;
   let most = 0;
   for (const line of source.split("\n")) {
     if (/^\s*#{1,6}\s|^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line)) continue;
     for (const t of sentencesOf(line.replace(/^\s*(?:[-*•>]|\d+[.)])\s+/, ""))) {
-      const have = ctokens(t);
+      const have = matchTokens(t);
       let n = 0;
       for (const w of want) if (have.has(w)) n++;
-      if (n > most && !used.has(t) && WARNING.test(t)) [best, most] = [t, n];
+      if (n > most && !used.has(t) && (anySentence || WARNING.test(t))) [best, most] = [t, n];
     }
   }
   if (!best || most < 3 || most < want.size * 0.5) return null;
@@ -892,10 +913,15 @@ function warningOf(s: string, source: string, used: Set<string>): string | null 
  * state a number, its source does not (see unsupported). A sentence whose
  * only fault is a quote the source does not have stays: keepQuotes takes its
  * quotation marks off. A warning whose only fault is a number is put back as
- * the source says it (see warningOf). Headings and [[B…]] lines stay; a list item keeps its
- * marker; a line left with no sentence goes.
+ * the source says it (see warningOf). So is any sentence whose only fault is
+ * a number when `lang` (the source's language, "" when not known) is one
+ * whose number words Sift does not know: the source may spell the number out
+ * ("dwudziestu" for 20, F1115), and its own sentence states it right
+ * (F1217). Headings and [[B…]] lines stay; a list item keeps its marker; a
+ * line left with no sentence goes.
  */
 export function dropUnsupported(md: string, source: string, lang?: string): string {
+  const spelled = lang !== undefined && !NUMBER_LANGS.has(base(lang));
   const lines: string[] = [];
   const used = new Set<string>();
   for (const line of md.split("\n")) {
@@ -907,57 +933,32 @@ export function dropUnsupported(md: string, source: string, lang?: string): stri
     const all = sentencesOf(line.slice(mark.length));
     // A warning whose only fault is a number in another form ("in 24 hours"
     // for "in a day") stays, in the source's own words.
-    const kept = all.map((s) => (unsupported(s, source, lang) === "number" && WARNING.test(s) ? warningOf(s, source, used) ?? s : s)).filter((s) => !unsupported(s, source, lang));
+    const kept = all.map((s) => (unsupported(s, source) === "number" && (spelled || WARNING.test(s)) ? warningOf(s, source, used, spelled) ?? s : s)).filter((s) => !unsupported(s, source));
     if (kept.length === all.length && kept.every((s, i) => s === all[i])) lines.push(line);
-    else if (kept.length) lines.push(mark + kept.join(" "));
+    // "。" ends a sentence with no space after it.
+    else if (kept.length) lines.push(mark + kept.join(" ").replace(/(?<=[。！？])\s+/gu, ""));
   }
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-/** Words in which two sentences differ (in order, as an edit distance on words); Infinity past `max`. */
-function wordEdits(a: string[], b: string[], max: number): number {
-  if (Math.abs(a.length - b.length) > max) return Infinity;
-  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
-  for (let i = 1; i <= a.length; i++) {
-    const cur = [i];
-    let low = i;
-    for (let j = 1; j <= b.length; j++) {
-      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-      low = Math.min(low, cur[j]);
-    }
-    if (low > max) return Infinity;
-    prev = cur;
-  }
-  return prev[b.length];
-}
-
 /**
  * A Short version that never says the same thing twice (F1100): a sentence of
- * four words or more that repeats an earlier one, word for word or all but a
- * word or two in ten (never a "not", never a number), goes, and so does a
- * paragraph left empty. A list item is held only against the items of its own
- * list: two lists (two recipes) may well share one ("200 g de harina").
+ * four words or more that repeats an earlier one of its section word for word
+ * (case, spacing and punctuation aside) goes, and so does a paragraph left
+ * empty. A sentence that differs by any word ("the south district", "Senator
+ * Jones", "in the evening") is no repeat (F1215), and a heading starts a new
+ * section: the same advice under two headings stays under both. A list item
+ * is held only against the items of its own list: two lists (two recipes) may
+ * well share one ("200 g de harina").
  */
 export function dropRepeats(md: string): string {
-  type Said = { words: string[]; set: Set<string>; key: string; nums: string };
-  const prose: Said[] = [];
-  let list: Said[] = [];
-  const seen = new Set<string>();
-  const nearOf = (s: Said, earlier: Said[]) =>
-    s.words.length >= 6 &&
-    earlier.some((o) => {
-      if (o.nums !== s.nums || o.words.length < 6) return false;
-      const max = Math.floor(Math.max(o.words.length, s.words.length) / 10) || 1;
-      // Each word one has and the other lacks takes an edit: most pairs stop here.
-      const only = s.words.filter((w) => !o.set.has(w));
-      if (only.length > max || wordEdits(o.words, s.words, max) > max) return false;
-      // "is safe" and "is not safe" are no repeat.
-      return ![...only, ...o.words.filter((w) => !s.set.has(w))].some((w) => NEGATION.test(w));
-    });
+  let seen = new Set<string>();
+  let list = new Set<string>();
   const lines: string[] = [];
   for (const line of md.split("\n")) {
     const mark = /^\s*(?:[-*•]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
-    if (!mark) list = [];
+    if (!mark) list = new Set();
+    if (/^\s*#{1,6}\s/.test(line)) seen = new Set();
     if (/^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line) || !line.trim()) {
       lines.push(line);
       continue;
@@ -967,12 +968,10 @@ export function dropRepeats(md: string): string {
       const words = qwords(sentence.replace(/\*\*|__/g, ""));
       // A placeholder's block is put back by the page, wherever its sentence went: never dropped here.
       if (words.length < 4 || /\[\[\s*B\d+\s*\]\]/.test(sentence)) return true;
-      const s: Said = { words, set: new Set(words), key: words.join(" "), nums: words.filter((w) => /\d/.test(w)).sort().join(" ") };
-      const earlier = mark ? list : prose;
-      const again = mark ? list.some((o) => o.key === s.key) : seen.has(s.key);
-      if (again || nearOf(s, earlier)) return false;
-      earlier.push(s);
-      if (!mark) seen.add(s.key);
+      const key = words.join(" ");
+      const earlier = mark ? list : seen;
+      if (earlier.has(key)) return false;
+      earlier.add(key);
       return true;
     });
     if (kept.length === all.length) lines.push(line);

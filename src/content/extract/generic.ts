@@ -221,6 +221,25 @@ export interface Ctx {
 const BUDGET = 25000;
 
 /**
+ * Sift's first look at a page stops at this moment (performance.now()) and shows what it read so far,
+ * as a partial page that the next look completes, so its first view never waits on the whole page (F1220).
+ */
+let deadline = Infinity;
+/** The look under way ran out of time. */
+let timeCut = false;
+let lastCut = false;
+/** Whether the last generic look stopped at its time budget. */
+export const cutShort = () => lastCut;
+/**
+ * The look is out of time, checked every 32 elements read (`n`). It reads at least a screenful (256 elements)
+ * first, however long finding the page's bars and menus took.
+ */
+function pastDeadline(n: number, min = 256, every = 32): boolean {
+  if (!timeCut && n >= min && n % every === 0 && performance.now() > deadline) timeCut = true;
+  return timeCut;
+}
+
+/**
  * MediaWiki's tools around an article (Wikipedia and other wikis): the
  * Article/Talk and Read/Edit tabs, the protection badge, navboxes (folded
  * grids of links to other articles) and authority control identifiers.
@@ -3991,9 +4010,16 @@ function stripCopies(ks: Element[], copies: Set<Element>): Set<Element> | null {
     for (let c: Element | null = e, i = 0; c && i < 4; c = c.parentElement, i++) if (/marquee|ticker/i.test(c.getAttribute("class") ?? "")) return true;
     return false;
   };
+  // Off screen inside a box that clips it (a belt or marquee). A cell past the edge of a row that scrolls sideways,
+  // or of a page wider than the window, shows when scrolled: a pricing row at 640 px is not a marquee (F1211).
   const offscreen = (e: Element) => {
     const r = e.getBoundingClientRect();
-    return r.width > 0 && (r.left >= innerWidth || r.right <= 0);
+    if (!(r.width > 0 && (r.left >= innerWidth || r.right <= 0))) return false;
+    for (let a = e.parentElement; a; a = a.parentElement) {
+      const o = getComputedStyle(a).overflowX;
+      if (o !== "visible") return o === "hidden" || o === "clip";
+    }
+    return false;
   };
   let out: Set<Element> | null = null;
   for (const c of copies) {
@@ -4220,6 +4246,7 @@ function navInto(el: Element, out: Out, ctx: Ctx) {
   const acts: Action[] = [];
   const seen = new Set<string>();
   for (const a of links) {
+    if (pastDeadline(acts.length + 1)) break;
     const label = labelOf(a);
     if (!usefulControl(a, label) || label.length > 80) continue;
     // A picture link named only "icon" or "logo" beside its labelled twin (a portal's emblem).
@@ -4289,6 +4316,7 @@ function drawnCode(el: Element): string {
 
 function visitEl(el: Element, out: Out, ctx: Ctx) {
   if (ctx.count > BUDGET) return budgetCut(out, ctx);
+  if (timeCut) return;
   const tag = el.localName;
   if (SKIP.has(tag) || ctx.used.has(el)) return;
   // Inside a player shown as a portal, through its shadow roots (its controls are the portal's).
@@ -4314,6 +4342,7 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
   if (!visible(el)) return;
   // Only elements that show count toward the budget: hidden menus and scripts cost little.
   if (++ctx.count > BUDGET) return budgetCut(out, ctx);
+  if (pastDeadline(ctx.count)) return;
   if (tag === "slot") return walk(el, out, ctx);
   if (isAd(el) || ctx.drop?.(el)) return;
   if (el.classList.contains("cnx-main-container") && sitePlaylist(el)) return;
@@ -5500,6 +5529,7 @@ function itemsInto(el: Element, members: Set<Element>, out: Out, ctx: Ctx) {
   let made = 0;
   for (const k of kids(el)) {
     if (members.has(k)) {
+      if (pastDeadline(made, 24, 8)) break;
       const it = toItem(k, ctx);
       if (it) {
         // Two comments by one author are two posts, not one card repeated.
@@ -6009,7 +6039,11 @@ function table(el: HTMLTableElement, out: Out, ctx: Ctx) {
     const x = inlineOf(c, ctx, true);
     return shown.size ? x.filter((p) => !(typeof p === "object" && "a" in p && p.ref && shown.has(p.ref))) : x;
   };
-  let data = body.slice(0, MAX_ROWS).map((r) => Array.from(r.cells).map(cell));
+  let data: Inline[][][] = [];
+  for (const r of body.slice(0, MAX_ROWS)) {
+    if (pastDeadline(data.length, 40, 8)) break;
+    data.push(Array.from(r.cells).map(cell));
+  }
   if (!data.length) return;
   // A column with no header and nothing in it (file icons, checkboxes Sift does not show) is dropped.
   const cols2 = Math.max(head.length, ...data.map((r) => r.length));
@@ -6580,6 +6614,23 @@ const STRONG_SEARCH =
   "input[type=search], input[role=searchbox], [role=search] input, input[name=q], input[name=query], input[name=search], input[name=search_query], input[name=field-keywords], input[aria-label*=search i], input[placeholder*=search i], input[aria-label*=buscar i], input[placeholder*=buscar i], input[aria-label*=busc i], input[placeholder*=busc i]";
 const SEARCH_PLACE = "header,#header,[role=banner],nav,[role=search]";
 
+/**
+ * Where the search box's own buttons are: its form, unless that form wraps the page (ASP.NET WebForms puts one
+ * <form> around everything). Such a form is not a search form, so only the smallest box around the search box
+ * that holds a button counts, and Add to cart or Subscribe stay where they are (F1210). Null: no such box.
+ */
+function searchHome(pick: HTMLInputElement, form: HTMLFormElement): Element | null {
+  if (!form.querySelector("main, [role=main], article, h1") && tlen(form) < 2000) return form;
+  for (let a = pick.parentElement; a && a !== form; a = a.parentElement) {
+    if (Array.from(a.querySelectorAll("button, input[type=submit], input[type=image], [role=button]")).some((b) => b !== pick && visible(b))) {
+      // A box that also holds another field to type in (a quantity, an email) is a form of its own.
+      const other = Array.from(a.querySelectorAll("input, textarea")).some((i) => i !== pick && !/^(hidden|submit|button|image|reset|checkbox|radio)$/.test((i as HTMLInputElement).type) && visible(i));
+      return other ? null : a;
+    }
+  }
+  return null;
+}
+
 export function findSearch(ctx: Ctx): Field | undefined {
   const cands = (Array.from(document.querySelectorAll(SEARCH_SEL)) as HTMLInputElement[]).filter(
     (i) => !["hidden", "submit", "checkbox", "radio", "button"].includes(i.type) && !i.disabled && (i.matches(STRONG_SEARCH) || !!i.closest(SEARCH_PLACE)),
@@ -6609,7 +6660,7 @@ export function findSearch(ctx: Ctx): Field | undefined {
   let btn: Element | null = null;
   // The form's own button: one that says search, else its submit button.
   if (pick.form) {
-    const own = Array.from(pick.form.querySelectorAll("button, input[type=submit], input[type=image], [role=button]")).filter((b) => b !== pick && visible(b));
+    const own = Array.from(searchHome(pick, pick.form)?.querySelectorAll("button, input[type=submit], input[type=image], [role=button]") ?? []).filter((b) => b !== pick && visible(b));
     // Not a button that is something else by its role (a date picker's "Calendar" tab, a toggle), though a <button> with no type submits.
     const plain = own.filter((b) => !b.matches("[role=tab], [role=option], [role=menuitem], [role=switch], [role=checkbox], [role=radio], [aria-pressed], [aria-selected]"));
     // Its id counts as a name too, so the role check comes first (Booking's tab id "calendar-searchboxdatepicker-tab-trigger").
@@ -6785,9 +6836,9 @@ export function findNav(ctx: Ctx): Action[] {
   return [...visibleLinks, ...hiddenLinks].slice(0, 150);
 }
 
-/** Account and cart controls the top bar keeps, in English, Spanish and Portuguese (G1's "Entrar com Conta Globo", F926). */
+/** Account and cart controls the top bar keeps, in English, Spanish, Portuguese (G1's "Entrar com Conta Globo", F926), Italian, French and German (Corriere's "Accedi", F1232), and a way to sign out (F1219). */
 const TOP_LABEL =
-  /\b(cart|basket|bag|carrito|cesta|bolsa|sign ?in|log ?in|sign ?up|register|create account|account|my account|orders|iniciar sesi[oó]n|ingres(a|ar)|reg[ií]strate|registrarse|crear cuenta|mi cuenta|cuenta|pedidos|notifications|registrarme|entrar|fazer login|cadastr(e-se|ar)|criar conta|minha conta|conta|carrinho|sacola)\b/i;
+  /\b(cart|basket|bag|carrito|cesta|bolsa|sign ?in|log ?in|sign ?up|register|create account|account|my account|orders|iniciar sesi[oó]n|ingres(a|ar)|reg[ií]strate|registrarse|crear cuenta|mi cuenta|cuenta|pedidos|notifications|registrarme|entrar|fazer login|cadastr(e-se|ar)|criar conta|minha conta|conta|carrinho|sacola|sign ?out|log ?out|log ?off|cerrar sesi[oó]n|salir|sair|terminar sess[aã]o|abmelden|se d[ée]connecter|d[ée]connexion|esci|disconnetti|accedi|registrati|il mio account|carrello|se connecter|connexion|s['’](identifier|inscrire)|mon compte|panier|anmelden|einloggen|registrieren|mein konto|konto|warenkorb)\b/i;
 
 /** An icon-only account or profile button, by its coded name or its classes. */
 const ACCOUNT_ICON = /(^|[\s_-])(my ?account|account|avatar|profile|user)(?=$|[\s_-])/i;
@@ -7622,7 +7673,10 @@ function pageShowsDate(iso: string, dayMonth = false): "this" | "other" | "none"
     // A date split over spans ("<span>Oct 26</span>, <span>2026</span>") reads whole in its box.
     // (tlen is measured once per pass: the box's own text, built for every dated entry of a long list, was quadratic: F1136.)
     const box = p.parentElement && tlen(p.parentElement) < 200 ? p.parentElement : p;
-    if (re.test(s) || re.test(box.textContent ?? "")) return "this";
+    // In a big box (3000 <br>-separated references in one <p>), the node with its neighbors, not the whole box per node (F1213).
+    const side = (x: ChildNode | null) => (x && (x.nodeType === 3 || (x.nodeType === 1 && tlen(x as Element) < 200)) ? x.textContent ?? "" : "");
+    const near = box !== p || tlen(p) < 200 ? box.textContent ?? "" : side(n.previousSibling) + s + side(n.nextSibling);
+    if (re.test(s) || re.test(near)) return "this";
     if (/\b(19|20)\d\d\b/.test(s)) other = true;
   }
   if (dm) {
@@ -8434,7 +8488,21 @@ function commentsBeside(root: Element, scope: Element): Element[] {
   return out;
 }
 
-export function extractGeneric(): Page {
+export function extractGeneric(budget = 0): Page {
+  deadline = budget > 0 ? performance.now() + budget : Infinity;
+  timeCut = false;
+  try {
+    const page = extractAll();
+    if (timeCut) page.partial = true;
+    return page;
+  } finally {
+    lastCut = timeCut;
+    deadline = Infinity;
+    timeCut = false;
+  }
+}
+
+function extractAll(): Page {
   const ctx = newCtx({ visited: new WeakSet(), bars: new WeakSet() });
   const search = findSearch(ctx);
   const top = findTop();
@@ -8488,10 +8556,20 @@ export function extractGeneric(): Page {
     const i = blocks.findIndex((b) => b.t === "h" && b.level === 1);
     blocks.splice(i >= 0 ? i + 1 : 0, 0, { t: "p", key: "byline", content: [by], small: true });
   }
+  // A dialog over the page is read whole, even by a look cut short: it is small, and it is what the reader sees first.
+  const cut = timeCut;
+  const due = deadline;
+  timeCut = false;
+  deadline = Infinity;
   const dialog = findDialog(ctx, blocks);
+  timeCut = cut;
+  deadline = due;
   // Popups are told from page layout by what the page view showed before the user's action (see findPopup).
-  if (ctx.visited) lastShown = ctx.visited;
-  lastBars = ctx.bars ?? new WeakSet();
+  // A look cut short saw only part of the page view: it is not that view.
+  if (!timeCut) {
+    if (ctx.visited) lastShown = ctx.visited;
+    lastBars = ctx.bars ?? new WeakSet();
+  }
   return {
     url: location.href,
     title,

@@ -892,7 +892,7 @@ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: 
    */
   function checked(out: string) {
     // The input's "Title:" field echoed as a line is no part of the text. Nor is a sentence it says twice (F1100).
-    // Numbers are checked in the text's language: "" (not known) checks none (F1115).
+    // Numbers are checked in every language; in one whose number words Sift does not know ("" when not known), a sentence they fail is put back as the source says it (F1115, F1217).
     return dropRepeats(keepQuotes(dropUnsupported(stripPreamble(dropTitleLine(out, req.title, req.text), req.text), source, want), source));
   }
 

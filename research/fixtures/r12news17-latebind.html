@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Late-bound search (F1235)</title>
+</head>
+<body>
+<header>
+  <h1>Giornale di prova</h1>
+  <nav class="menu--burger">
+    <form class="menu--burger__search" action="#" method="post">
+      <input type="text" name="search" class="search-input js-search-input" placeholder="Cerca nel giornale">
+      <button type="submit" class="js-search-button" aria-label="Cerca"></button>
+      <input type="hidden" name="value" value="Giornale">
+    </form>
+  </nav>
+</header>
+<main>
+  <article>
+    <h2>Notizia uno</h2>
+    <p>Il motore di ricerca di questa pagina si collega solo tre secondi dopo il caricamento, come quello del Corriere. Prima di allora il modulo invia un POST a "#", che ricarica la pagina e perde la ricerca.</p>
+    <p id="status">ricerca non ancora pronta</p>
+  </article>
+</main>
+<script>
+  // The site's search binds late (Corriere's rcs_cor_top-search-bar render()).
+  addEventListener("load", () => setTimeout(() => {
+    const go = (v) => { if (v.length > 3) location.href = location.pathname + "?q=" + encodeURIComponent(v); };
+    document.querySelectorAll(".js-search-input").forEach((i) => i.addEventListener("keyup", (e) => { if (e.key === "Enter") go(i.value); }));
+    document.querySelectorAll(".js-search-button").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); go(b.parentNode.querySelector(".js-search-input").value); }));
+    document.getElementById("status").textContent = "ricerca pronta";
+  }, 3000));
+</script>
+</body>
+</html>

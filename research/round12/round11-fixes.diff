@@ -1,0 +1,1516 @@
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -6,7 +6,7 @@
+ import { mergeSettings } from "../shared/messages";
+ import { cacheClear, cacheGet, cacheSet } from "./cache";
+ import { bump, flushStats } from "./stats";
+-import { addsLink, addsSpeaker, claimsNoAnswer, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, movesKicker, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, swapsPerson, unquoted, unsupported } from "./text";
++import { addsLink, addsSpeaker, claimsNoAnswer, dropRepeats, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, movesKicker, proseLang, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, swapsPerson, swapsRole, unquoted, unsupported } from "./text";
+ 
+ // ---------- settings ----------
+ 
+@@ -529,7 +529,9 @@
+     if (hit === KEEP_TITLE) continue;
+     // A saved line passes the same checks as a new one (it may have been saved
+     // before they existed, or for an older context); one that fails keeps the title.
+-    const shown = hit && (hit === it.t ? hit : scriptFits(hit, langs[i] ? langScript(langs[i]) : scriptOf(it.t), it.t) && vetLine(hit, it, mode));
++    // Its language too, not only its script: an Indonesian line saved for a Spanish page (F1122).
++    const vetted = hit && hit !== it.t ? vetLine(hit, it, mode) : null;
++    const shown = hit && (hit === it.t ? hit : vetted && (await lineFits(vetted, langs[i], it.t)) && vetted);
+     if (shown) reply({ id: req.id, item: it.id, text: shown });
+     else if (!hit) misses.push({ it, key: keys[i], lang: langs[i] });
+   }
+@@ -707,6 +709,8 @@
+   if (mode !== "gist" && (claimsNoAnswer(text, src) || addsSpeaker(text, src) || addsLink(text, src) || quoteAsFact(text, it.t))) return null;
+   // A group or an ally given to the wrong person, or a kicker's quote set beside another noun (F1036).
+   if (mode !== "gist" && (swapsPerson(text, src) || movesKicker(text, it.t) || movesKicker(text, it.c ?? ""))) return null;
++  // The victim made the suspect, the winner the loser (F1124).
++  if (mode !== "gist" && swapsRole(text, src)) return null;
+   if (mode === "news" ? META.test(text) : wrapsTitle(text, it.t)) return null;
+   return text;
+ }
+@@ -750,10 +754,11 @@
+ }
+ 
+ /**
+- * The language a Short version is written in: the page's, unless its text is
+- * clearly in another one (a Spanish page marked "en"). "" when neither is known.
++ * The language a Short version is written in: the one its text is in, which
++ * is the page's unless the text is clearly in another one (a Spanish or a
++ * Polish page marked "en"). "" when it is not known: no language is named.
+  */
+-const condenseLang = (req: { lang: string; text: string }) => entryLang(proseText(req.text).slice(0, 6000), req.lang, detect);
++const condenseLang = (req: { lang: string; text: string }) => proseLang(proseText(req.text).slice(0, 6000), req.lang, detect);
+ 
+ /**
+  * A Short version in the language asked for (F1035): written in its script,
+@@ -848,11 +853,15 @@
+         2000,
+       );
+       // A note of the model's own about its task ("El texto fuente contiene…") is not part of the text.
+-      all = all.slice(0, from) + stripPreamble(all.slice(from));
++      all = all.slice(0, from) + stripPreamble(all.slice(from), part);
+       const got = all.slice(from);
+       // A rewrite in another language (an English one of a Portuguese article) is asked for once more, told so; never shown or saved.
+       if (!(await condenseFits(got, want))) {
+-        if (again) return reply({ id: req.id, error: "the Short version came back in another language", code: "http", final: true });
++        if (again) {
++          // Remembered for a day, as other final failures are: a revisit does not pay twice again (F1118).
++          if (useCache) cacheSet(key, NO_SHORT, Math.min(ttlOf(req, pc) ?? DAY, DAY));
++          return reply({ id: req.id, error: "the Short version came back in another language", code: "http", final: true });
++        }
+         note = ` A first rewrite was not in ${langName(want)}. Write only in ${langName(want)}, the language of the text. Never translate.`;
+         continue;
+       }
+@@ -882,8 +891,9 @@
+    * that states a quote, a speaker, or a number the source does not.
+    */
+   function checked(out: string) {
+-    // The input's "Title:" field echoed as a line is no part of the text.
+-    return keepQuotes(dropUnsupported(stripPreamble(dropTitleLine(out, req.title, req.text)), source), source);
++    // The input's "Title:" field echoed as a line is no part of the text. Nor is a sentence it says twice (F1100).
++    // Numbers are checked in the text's language: "" (not known) checks none (F1115).
++    return dropRepeats(keepQuotes(dropUnsupported(stripPreamble(dropTitleLine(out, req.title, req.text), req.text), source, want), source));
+   }
+ 
+   /** `from`: the text the Short version was made from. */
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -1,6 +1,8 @@
+ // Text helpers for model calls: which language to ask for per list entry, a
+ // token estimate that works across scripts, and splitting long text in parts.
+ 
++import { onlyTicks } from "../shared/ticks";
++
+ export interface Detection {
+   isReliable: boolean;
+   languages: { language: string; percentage: number }[];
+@@ -132,6 +134,7 @@
+   let found = "";
+   let pct = 0;
+   const r = await detect(lower).catch(() => null);
++  const reliable = !!r?.isReliable;
+   if (r) {
+     const best = [...r.languages].sort((a, b) => b.percentage - a.percentage)[0];
+     if (best?.language && best.language !== "und" && (r.isReliable || (output && best.percentage >= 50))) [found, pct] = [base(best.language), best.percentage];
+@@ -148,8 +151,15 @@
+   if (!found) return page;
+   const words = lower.match(/\p{L}+/gu) ?? [];
+   const theirs = FUNCTION_WORDS[found];
+-  if (!theirs || words.length < 3) return page;
+   const ours = FUNCTION_WORDS[page] ?? new Set<string>();
++  // A written line reliably in a language of the page's script that has no word
++  // list (Indonesian, Malay, Tagalog on a Spanish page) is in that language,
++  // unless it uses two of the page's common words: Chrome calls a few English
++  // or Spanish lines "reliably" Danish or Esperanto (F1122). Not for a page
++  // without a word list, nor for a sibling of the page's language.
++  if (!theirs && output && reliable && words.length >= 3 && FUNCTION_WORDS[page] && scriptOfLang(found) === script && !SIBLINGS.some((g) => g.includes(found) && g.includes(page)))
++    return new Set(words.filter((w) => ours.has(w))).size >= 2 ? page : found;
++  if (!theirs || words.length < 3) return page;
+   const uniq = new Set(words);
+   let them = 0;
+   let us = 0;
+@@ -164,6 +174,35 @@
+   return page;
+ }
+ 
++/**
++ * Languages a detection mixes up with each other: Serbian in Latin letters
++ * reads as Bosnian, Malay as Indonesian. The last pair only with the page's.
++ */
++const SIBLINGS = [["sr", "hr", "bs", "sh", "cnr"], ["no", "nb", "nn", "da"], ["ms", "id"], ["gl", "pt"]];
++
++/**
++ * The language an article's text is in, to write its Short version in (F1114):
++ * as for one entry (see entryLang), but a long text that a reliable detection
++ * reads as another language is in that one, word list or not (a Polish
++ * article on a page marked lang="en"). When the detection may have mixed it up
++ * with a close one (Serbian and Bosnian), "": no language is named, and the
++ * model keeps the text's own.
++ */
++export async function proseLang(text: string, pageLang: string, detect: (t: string) => Promise<Detection | null>): Promise<string> {
++  const want = await entryLang(text, pageLang, detect);
++  const r = await detect(text.toLowerCase()).catch(() => null);
++  const best = r?.isReliable ? [...r.languages].sort((a, b) => b.percentage - a.percentage)[0] : undefined;
++  const found = best?.language && best.language !== "und" ? base(best.language) : "";
++  const lang = found || want;
++  // Serbian in Latin letters: asked for in "Serbian", it would be checked as Cyrillic.
++  const script = scriptOf(text);
++  if (!lang || (script && langScript(lang) !== script)) return "";
++  const page = base(pageLang);
++  if (lang === page) return lang;
++  const group = SIBLINGS.find((g) => g.includes(lang));
++  return group && (group.includes(page) || group !== SIBLINGS[SIBLINGS.length - 1]) ? "" : lang;
++}
++
+ /** Fewest titles that can move a list away from its page's language. */
+ const LIST_SAMPLE = 4;
+ /** Share of titles, each read alone, that must be clearly in another language for the list to be in it. */
+@@ -706,10 +745,19 @@
+   const sEnd = sEndRel < 0 ? src.length : found.index + found[0].length + sEndRel;
+   const theirs = speakerOf(src.slice(sStart, sEnd), found.index - sStart, found.index + found[0].length - sStart);
+   if (theirs.some((t) => !ROLES.has(t.toLowerCase()))) return named.some((w) => theirs.some((t) => same(w, t)));
+-  // A pronoun ("she said"): the person must be named before it in its section
+-  // (since the heading before it), at any distance, or near it after.
++  // A pronoun ("she said"): the nearest person named before it in its
++  // paragraph, so no one else may be named after that person and before the
++  // quote (F1117). A paragraph that names no one: the person must be named
++  // before it in its section (since the heading before it), at any distance,
++  // or near it after.
+   const after = found.index + found[0].length + 300;
+   if (saidByPronoun(src.slice(sStart, sEnd), found.index - sStart, found.index + found[0].length - sStart)) {
++    // Up to the quote's opening mark, without quoted words: they name no one who speaks.
++    const para = sentencesOf(unquoted(src.slice(src.lastIndexOf("\n", found.index) + 1, found.index).replace(/[“"«„「『][^“”"«»„「」『』]*$/u, "")));
++    let at = -1;
++    para.forEach((t, i) => named.some((w) => wordIn(w, t)) && (at = i));
++    if (para.slice(at + 1).some(namesPerson)) return false;
++    if (at >= 0) return true;
+     const head = src.slice(0, found.index).search(/(?:^|\n)#{1,6}\s[^\n]*\n(?![\s\S]*\n#{1,6}\s)/);
+     return named.some((w) => wordIn(w, src.slice(Math.max(0, head), after)));
+   }
+@@ -718,6 +766,24 @@
+   return named.some((w) => wordIn(w, window));
+ }
+ 
++/** Words before a place, not a person: "in New York", "desde Buenos Aires". */
++const PLACE_BEFORE = new Set("in at from to into across near of en de desde hacia para por em do da à au aux dans vers aus nach bei von zu nel dal".split(" "));
++
++/**
++ * Whether a sentence names a person: a role after "the", "a" or a possessive
++ * ("The plant's director", "el ministro"), or a name of two or more
++ * capitalized words not after "in", "from" (a place: "in New York").
++ */
++function namesPerson(s: string): boolean {
++  for (const m of s.matchAll(/(?<![\p{L}\p{N}])(?:the|a|an|its|his|her|their|el|la|los|las|un|una|su|sus|o|os|um|uma|le|les|der|die|il|lo)\s+(?:[\p{L}'’-]+\s+)?(\p{L}+)/giu)) if (ROLES.has(m[1].toLowerCase())) return true;
++  for (const m of s.matchAll(/(?<![\p{L}\p{N}])\p{Lu}[\p{L}'’-]+(?:\s+\p{Lu}[\p{L}'’-]+)+/gu)) {
++    if (speakerWords(m[0]).length < 2) continue;
++    const before = /(\p{L}+)\s*$/u.exec(s.slice(0, m.index))?.[1]?.toLowerCase();
++    if (!before || !PLACE_BEFORE.has(before)) return true;
++  }
++  return false;
++}
++
+ /** A verb that says someone spoke words, in the past: "said", "dijo". */
+ const SPOKE = /(?<![\p{L}\p{N}])(?:said|told|replied|exclaimed|dijo|dijeron|afirmó|aseguró|declaró|exclamó|respondió|disse|afirmou|declarou)(?![\p{L}\p{N}])/giu;
+ 
+@@ -744,16 +810,24 @@
+ const STARTERS = new Set("según segun tras para ante desde durante after before during while when despite according said says dijo dice afirma aseguró asegura sostuvo explicó".split(" "));
+ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+ 
++/** The languages whose number words NUMBER_WORDS knows. */
++const NUMBER_LANGS = new Set(["en", "es", "pt", "fr", "de", "it"]);
++
+ /**
+  * What a rewrite states that its source does not, once keepQuotes has put its
+  * quotes right: "speaker" (a quote given to someone the source does not tie
+  * to it, see speakerNear), "number" (a number in digits the source does not
+  * state in any form), or "" when it states neither. Quotation marks keepQuotes
+  * had to remove are not a fact: the words stay, as the rewrite's own.
++ * `lang`: the language of the source, when known. In one whose number words
++ * Sift does not know, numbers are not checked: a sentence is never dropped
++ * only because its source spells a number out.
+  */
+-export function unsupported(raw: string, source: string): string {
++export function unsupported(raw: string, source: string, lang?: string): string {
+   const fixed = keepQuotes(raw, source);
+   for (const q of quotesIn(fixed)) if (!speakerNear(fixed, q, source)) return "speaker";
++  // A number the source may spell out in words Sift does not know ("dwudziestu" for 20) is not one it lacks (F1115).
++  if (lang !== undefined && !NUMBER_LANGS.has(base(lang))) return "";
+   const have = sourceNumbers(source);
+   if (numbersOf(fixed).some((vals) => !vals.some((v) => have.has(v)))) return "number";
+   return "";
+@@ -821,7 +895,7 @@
+  * the source says it (see warningOf). Headings and [[B…]] lines stay; a list item keeps its
+  * marker; a line left with no sentence goes.
+  */
+-export function dropUnsupported(md: string, source: string): string {
++export function dropUnsupported(md: string, source: string, lang?: string): string {
+   const lines: string[] = [];
+   const used = new Set<string>();
+   for (const line of md.split("\n")) {
+@@ -833,13 +907,80 @@
+     const all = sentencesOf(line.slice(mark.length));
+     // A warning whose only fault is a number in another form ("in 24 hours"
+     // for "in a day") stays, in the source's own words.
+-    const kept = all.map((s) => (unsupported(s, source) === "number" && WARNING.test(s) ? warningOf(s, source, used) ?? s : s)).filter((s) => !unsupported(s, source));
++    const kept = all.map((s) => (unsupported(s, source, lang) === "number" && WARNING.test(s) ? warningOf(s, source, used) ?? s : s)).filter((s) => !unsupported(s, source, lang));
+     if (kept.length === all.length && kept.every((s, i) => s === all[i])) lines.push(line);
+     else if (kept.length) lines.push(mark + kept.join(" "));
+   }
+   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+ }
+ 
++/** Words in which two sentences differ (in order, as an edit distance on words); Infinity past `max`. */
++function wordEdits(a: string[], b: string[], max: number): number {
++  if (Math.abs(a.length - b.length) > max) return Infinity;
++  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
++  for (let i = 1; i <= a.length; i++) {
++    const cur = [i];
++    let low = i;
++    for (let j = 1; j <= b.length; j++) {
++      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
++      low = Math.min(low, cur[j]);
++    }
++    if (low > max) return Infinity;
++    prev = cur;
++  }
++  return prev[b.length];
++}
++
++/**
++ * A Short version that never says the same thing twice (F1100): a sentence of
++ * four words or more that repeats an earlier one, word for word or all but a
++ * word or two in ten (never a "not", never a number), goes, and so does a
++ * paragraph left empty. A list item is held only against the items of its own
++ * list: two lists (two recipes) may well share one ("200 g de harina").
++ */
++export function dropRepeats(md: string): string {
++  type Said = { words: string[]; set: Set<string>; key: string; nums: string };
++  const prose: Said[] = [];
++  let list: Said[] = [];
++  const seen = new Set<string>();
++  const nearOf = (s: Said, earlier: Said[]) =>
++    s.words.length >= 6 &&
++    earlier.some((o) => {
++      if (o.nums !== s.nums || o.words.length < 6) return false;
++      const max = Math.floor(Math.max(o.words.length, s.words.length) / 10) || 1;
++      // Each word one has and the other lacks takes an edit: most pairs stop here.
++      const only = s.words.filter((w) => !o.set.has(w));
++      if (only.length > max || wordEdits(o.words, s.words, max) > max) return false;
++      // "is safe" and "is not safe" are no repeat.
++      return ![...only, ...o.words.filter((w) => !s.set.has(w))].some((w) => NEGATION.test(w));
++    });
++  const lines: string[] = [];
++  for (const line of md.split("\n")) {
++    const mark = /^\s*(?:[-*•]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
++    if (!mark) list = [];
++    if (/^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line) || !line.trim()) {
++      lines.push(line);
++      continue;
++    }
++    const all = sentencesOf(line.slice(mark.length));
++    const kept = all.filter((sentence) => {
++      const words = qwords(sentence.replace(/\*\*|__/g, ""));
++      // A placeholder's block is put back by the page, wherever its sentence went: never dropped here.
++      if (words.length < 4 || /\[\[\s*B\d+\s*\]\]/.test(sentence)) return true;
++      const s: Said = { words, set: new Set(words), key: words.join(" "), nums: words.filter((w) => /\d/.test(w)).sort().join(" ") };
++      const earlier = mark ? list : prose;
++      const again = mark ? list.some((o) => o.key === s.key) : seen.has(s.key);
++      if (again || nearOf(s, earlier)) return false;
++      earlier.push(s);
++      if (!mark) seen.add(s.key);
++      return true;
++    });
++    if (kept.length === all.length) lines.push(line);
++    else if (kept.length) lines.push(mark + kept.join(" "));
++  }
++  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
++}
++
+ /**
+  * A paragraph in which the model talks about its task instead of the page. It
+  * opens like a note ("Here is the shorter version", "El texto fuente
+@@ -859,14 +1000,82 @@
+  */
+ const NOTE_TOPIC =
+   /(?<![\p{L}\p{N}])(?:(?:shorter|short|shortened|condensed|abridged|rewritten|simplified|summari[sz]ed|requested|concise|brief)\s+(?:version|text|rewrite|summary|form)|(?:source|original|input|provided|given)\s+text|word\s+count|\(\s*~?\d+\s+words?\s*\)|(?:has|is|contains|of)\s+(?:about\s+|around\s+|roughly\s+)?\d+\s+words|placeholders?|marcadores|(?:the|these|your|las|tus)\s+instru(?:ctions|cciones)|as\s+(?:requested|asked|instructed)|(?:kept|keep|preserved|retained|removed|omitted|dropped|cut|left\s+out)\s+(?:all\s+)?(?:the\s+)?(?:links|headings|lists|quotes|markers|formatting|structure)|versi[oó]n\s+(?:corta|abreviada|resumida|condensada|reducida|más\s+corta|breve)|texto\s+(?:fuente|original|de\s+origen|resumido|condensado|abreviado|reescrito|proporcionado)|recuento\s+de\s+palabras|(?:tiene|contiene|de)\s+(?:unas\s+)?\d+\s+palabras|como\s+se\s+(?:pidió|solicitó|indicó)|(?:mantenido|conservado|eliminado|omitido|mantuvieron|conservaron|eliminaron)\s+(?:todos\s+)?(?:los\s+|las\s+)?(?:enlaces|encabezados|títulos|listas|citas))(?![\p{L}\p{N}])|\[\[B/iu;
+-/** "Here is a summary", "Aquí tienes la versión…": a note that hands over the text. */
++/**
++ * "Here is a summary:", "Aquí tienes la versión corta del texto.": a note that
++ * hands over the text, and says nothing else. "This is the first version of
++ * Android that…" or "This is a summary of the council's decisions" goes on
++ * about something of the page's: an article's own paragraph (F1116).
++ */
+ const NOTE_HANDOVER =
+-  /^[\s(*_]*(?:here is|here's|here are|below is|below are|this is|aquí (?:está|tienes|va|van)|a continuación(?:,)?(?: se presenta| está| va| tienes)?|esta es)\s+(?:(?:a|an|the|my|your|una?|el|la|tu)\s+)?(?:\p{L}+\s+){0,2}?(?:version|summary|rewrite|versión|resumen|reescritura)(?![\p{L}\p{N}])/iu;
++  /^[\s(*_]*(?:here is|here's|here are|below is|below are|this is|aquí (?:está|tienes|va|van)|a continuación(?:,)?(?: se presenta| está| va| tienes)?|esta es)\s+(?:(?:a|an|the|my|your|una?|el|la|tu)\s+)?(?:[\p{L}-]+,?\s+){0,3}?(?:version|summary|rewrite|versión|resumen|reescritura)(?:\s+(?:of|for|de|del|para)\s+(?:(?:the|this|that|your|el|la|los|las|este|esta|tu|su)\s+)?(?:(?:source|original|provided|full|fuente|completo)\s+)?(?:text|article|page|source|original|passage|content|post|story|key points|main points|texto|artículo|página|contenido|nota|noticia|fuente|puntos clave|puntos principales)(?:\s+(?:fuente|original|completo))?)?(?:,?\s+(?:in|en|with|con)\s+(?:about\s+|around\s+|unas\s+|alrededor\s+de\s+)?\d+\s+(?:words|palabras))?[\s.:;!*_)]*$/iu;
+ const NOTE_ANYWHERE = /\[\[B[…*.]|versi[oó]n (?:solicitada|pedida)|requested (?:version|rewrite|length)|^[\s(*_]*~?\d+\s+(?:words|palabras)[\s)*_.]*$/iu;
+ 
+-/** A Short version without a note of the model's own before or after the text. */
+-export function stripPreamble(md: string): string {
+-  const paras = md.split(/\n\s*\n/);
++/** Language names in English, Spanish and Portuguese ("english", "inglés", "inglês"), lowercase. */
++let langNames: Set<string> | undefined;
++function isLangName(s: string): boolean {
++  if (!langNames) {
++    langNames = new Set();
++    const codes = "af am ar az be bg bn bs ca cs cy da de el en eo es et eu fa fi fil fr ga gl gu ha he hi hr hu hy id ig is it ja jv ka kk km kn ko ku ky la lb lo lt lv mg mi mk ml mn mr ms mt my nb ne nl nn no pa pl ps pt ro ru rw sd si sk sl sm sn so sq sr st su sv sw ta te tg th tk tl tr ug uk ur uz vi xh yi yo zh zu".split(" ");
++    for (const ui of ["en", "es", "pt"]) {
++      try {
++        const dn = new Intl.DisplayNames([ui], { type: "language" });
++        for (const c of codes) langNames.add((dn.of(c) ?? c).toLowerCase());
++      } catch {
++        /* no display names */
++      }
++    }
++  }
++  return langNames.has(s.toLowerCase().trim());
++}
++
++const LANG_NAME = String.raw`\p{L}+(?:[ -]\p{L}+){0,2}`;
++/** "The text is in English. Write in English.", or its Spanish or Portuguese form: the prompt's language line, echoed (F1137). */
++const LANG_PAIR = new RegExp(
++  String.raw`[*_]*\s*(?:the text is (?:written )?in|el texto est[áa] (?:escrito )?en|o texto est[áa] (?:escrito )?em|o texto [ée] em)\s+(${LANG_NAME})\s*[.:;]?\s*(?:(?:write|escribe|escriba|escribir|escreva|escreve|escrever)\s+(?:it\s+|lo\s+|o\s+)?(?:only\s+|solo\s+|sólo\s+|solamente\s+|apenas\s+|somente\s+)?(?:in|en|em)\s+(${LANG_NAME})\s*[.!]?)?\s*[*_]*`,
++  "giu",
++);
++/** One sentence of that line, alone on a line of the output: "Write in English.", "Escribe en español." */
++const LANG_ONE = new RegExp(
++  String.raw`^\s*(?:[-*>]\s+)?[*_]*\s*(?:the text is (?:written )?in|el texto est[áa] (?:escrito )?en|o texto est[áa] (?:escrito )?em|o texto [ée] em|(?:write|escribe|escriba|escreva|escreve)\s+(?:only\s+|solo\s+|sólo\s+|apenas\s+|somente\s+)?(?:in|en|em))\s+(${LANG_NAME})\s*[.!]?\s*[*_]*\s*$`,
++  "iu",
++);
++
++/**
++ * A Short version without the prompt's language line ("The text is in
++ * English. Write in English.") echoed by the model, wherever it stands: alone,
++ * as a paragraph, or before the first sentence of one (F1137). Only with a
++ * language's name, so "Write in pencil." stays.
++ */
++export function dropLangEcho(md: string, source = ""): string {
++  if (!/text|texto|writ|escri|escre/i.test(md)) return md;
++  // The page's own words ("Write in English." in an exam's rules) are no echo.
++  const flat = (t: string) => " " + (t.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).join(" ") + " ";
++  const src = flat(source);
++  const own = (t: string) => src.includes(flat(t));
++  const first = md.split("\n").findIndex((l) => l.trim());
++  const lines = md.split("\n").map((line, i) => {
++    const one = LANG_ONE.exec(line);
++    if (one && isLangName(one[1]) && !own(one[0])) return null;
++    let cut = false;
++    const l = line.replace(LANG_PAIR, (m, a: string, b?: string) => {
++      if (!isLangName(a) || (b && !isLangName(b)) || own(m)) return m;
++      // A sentence of its own: at the line's start or after one that ends.
++      // "The text is in Latin." without "Write in …" only where the output starts: it may be the page's.
++      const at = line.indexOf(m);
++      if (!b && (i !== first || at > 0)) return m;
++      if (at > 0 && !/(?:^|[.!?:]\s*|^\s*(?:[-*>]|#{1,6})\s*)$/.test(line.slice(0, at))) return m;
++      cut = true;
++      return at > 0 && /\S$/.test(line.slice(0, at)) ? " " : "";
++    });
++    return cut && !l.trim() ? null : cut ? l.replace(/^(\s*(?:[-*>]\s+|#{1,6}\s+)?)\s+/, "$1").replace(/\s+$/, "") : l;
++  });
++  const out = lines.filter((l) => l !== null).join("\n");
++  return out === md ? md : out.replace(/^\s*\n+/, "").replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "");
++}
++
++/** A Short version without a note of the model's own before or after the text (`source`: the text it was made from). */
++export function stripPreamble(md: string, source = ""): string {
++  const paras = dropLangEcho(md, source).split(/\n\s*\n/);
+   const meta = (p: string | undefined) => {
+     if (!p || /^\s*(?:#|\[\[\s*B\d+\s*\]\]\s*$)/.test(p)) return false;
+     const own = p.replace(QUOTED, " ");
+@@ -898,10 +1107,19 @@
+ }
+ 
+ /**
+- * An article's text for its cache key: without short lines that carry no
+- * prose or tick (a share button's "Compartir", a comment count, "12' minutos
+- * de lectura"), so a revisit of the same article finds its Short version.
+- * Headings, placeholders, and lines with links stay: the saved text refers to them by number.
++ * A line that only ticks or labels: "Updated 10:32", "5 min ago", "1,2 M
++ * views", "12' minutos de lectura", "Comentarios (12)". A line that also says
++ * something ("Doors open at 19:30.", "Pool: closed") is not one, however short.
++ */
++const ticksOnly = (line: string) => fewWords(line, 8) && onlyTicks(line, TICK);
++
++/**
++ * An article's text for its cache key: without lines that only tick or label
++ * (a comment count, "12' minutos de lectura", "Actualizado 10:32"), so a
++ * revisit of the same article finds its Short version. Any other line stays,
++ * however short ("Pool: closed", "Doors open at 20:00."): a change there is a
++ * change of the text. Headings, placeholders, and lines with links stay: the
++ * saved text refers to them by number.
+  */
+ export function stableText(text: string): string {
+   return text
+@@ -910,8 +1128,7 @@
+       const l = line.trim();
+       if (!l) return false;
+       if (/^#|\[\[\s*B\d+\s*\]\]|\]\(\s*#?L\d+\s*\)/.test(l)) return true;
+-      if (fewWords(l, 2)) return false;
+-      return !(fewWords(l, 8) && TICK.test(l));
++      return !ticksOnly(l.replace(/^(?:[-*•>]|\d+[.)])\s+/, ""));
+     })
+     .join("\n");
+ }
+@@ -1153,6 +1370,90 @@
+   return false;
+ }
+ 
++/** Words that give a person a role in a crime or a contest: a victim, an accused, a winner, a loser. */
++const ROLE_OF = new Map<string, string>();
++for (const [role, words] of Object.entries({
++  victim: "victim victims died dies dead killed murdered slain stabbed víctima víctimas muerto muerta murió asesinado asesinada vítima vítimas morto morta morreu assassinado assassinada",
++  accused: "suspect suspects accused charged arrested convicted jailed killer murderer sospechoso sospechosa acusado acusada imputado imputada detenido detenida arrestado arrestada condenado condenada asesino asesina suspeito suspeita preso presa assassino assassina",
++  winner: "winner winners won beat beats defeated defeats ganador ganadora ganó venció derrotó vencedor vencedora venceu derrotou",
++  loser: "loser losers lost perdedor perdedora perdió perdeu",
++}))
++  for (const w of words.split(" ")) ROLE_OF.set(w, role);
++const OPPOSITE: Record<string, string> = { victim: "accused", accused: "victim", winner: "loser", loser: "winner" };
++/** Verbs whose subject and object take opposite roles: "X killed Y", "X beat Y". */
++const ACTIVE: Record<string, [string, string]> = Object.fromEntries([
++  ..."killed murdered stabbed shot mató asesinó matou assassinou".split(" ").map((w) => [w, ["accused", "victim"]]),
++  ..."beat beats defeated defeats venció derrotó venceu derrotou".split(" ").map((w) => [w, ["winner", "loser"]]),
++]);
++const ROLE_NAME = String.raw`\p{Lu}[\p{Ll}\p{M}]+(?:[-'’]\p{Lu}[\p{Ll}\p{M}]+)?(?:\s+\p{Lu}[\p{Ll}\p{M}]+(?:[-'’]\p{Lu}[\p{Ll}\p{M}]+)?){0,2}`;
++const ROLE_LINK = String.raw`(?:\s*,)?\s+(?:(?:is|was|has been|had been|es|fue|ha sido|foi|é)\s+)?(?:(?:named|identified|revealed|confirmed|nombrado|nombrada|identificado|identificada|señalado|señalada|apontado|apontada)\s+(?:as|como)\s+)?(?:(?:a|an|the|el|la|un|una|o|um|uma)\s+)?(?:\p{Ll}+\s+)?`;
++const ROLE_WORD = `(${[...ROLE_OF.keys(), ...Object.keys(ACTIVE)].join("|")})(?![\\p{L}])`;
++const ROLE_AFTER = new RegExp(String.raw`(${ROLE_NAME})${ROLE_LINK}${ROLE_WORD}(?:\s+(?:(?:the|el|la|al|a|o)\s+)?(${ROLE_NAME}))?`, "gu");
++const ROLE_BEFORE = new RegExp(String.raw`(?<![\p{L}])(\p{L}+)\s+(${ROLE_NAME})`, "gu");
++const DEATH_OF = new RegExp(String.raw`(?<![\p{L}])(?:murder|killing|death|stabbing|asesinato|muerte|crimen|homicidio|assassinato|morte)\s+(?:of|de|do|da)\s+(${ROLE_NAME})`, "giu");
++/** Role words that are nouns: "suspect Abotaka" says who the suspect is. */
++const ROLE_NOUN = /^(?:victims?|suspects?|accused|killer|murderer|winners?|losers?|víctimas?|sospechos[oa]s?|acusad[oa]|imputad[oa]|asesin[oa]|ganador[a]?|perdedor[a]?|vítimas?|suspeit[oa]s?|vencedor[a]?|assassin[oa])$/;
++const lastName = (n: string) => n.split(/\s+/).filter(isName).pop()?.toLowerCase();
++
++/** Who a text gives a role: "Abotaka charged", "suspect Abotaka", "Abotaka killed Barzai", "the murder of Barzai". */
++function roleTies(text: string): { name: string; role: string }[] {
++  const own = text.replace(QUOTED, " ");
++  const ties: { name: string; role: string }[] = [];
++  const add = (n: string | undefined, role: string) => {
++    const name = n && lastName(n);
++    if (name) ties.push({ name, role });
++  };
++  for (const m of own.matchAll(ROLE_AFTER)) {
++    const w = m[2].toLowerCase();
++    const act = ACTIVE[w];
++    // "X killed Y": X the killer, Y the victim; "X killed in a crash": X the victim.
++    if (act && m[3] && m[0].slice(m[1].length).trim().toLowerCase().startsWith(w)) {
++      add(m[1], act[0]);
++      add(m[3], act[1]);
++    } else if (ROLE_OF.has(w) && !act && !(m[3] && ROLE_NOUN.test(w))) add(m[1], ROLE_OF.get(w)!);
++    // "X was killed", "X killed in a crash": the victim.
++    else if (act?.[0] === "accused" && !m[3]) add(m[1], "victim");
++  }
++  for (const m of own.matchAll(ROLE_BEFORE)) {
++    const w = m[1].toLowerCase();
++    const role = ROLE_OF.get(w);
++    // Only a role noun names who it is: "suspect Abotaka", not "charged Abotaka".
++    if (role && ROLE_NOUN.test(w)) add(m[2], role);
++  }
++  for (const m of own.matchAll(DEATH_OF)) add(m[1], "victim");
++  return ties;
++}
++
++/** "Suspect charged", "sospechoso detenido": the source's accused is a person of its own, who did the charged thing. */
++const SUSPECT_ACTS = /(?<![\p{L}])(?:suspect|suspects|sospechos[oa]s?|suspeit[oa]s?)\s+(?:(?:is|was|has been|es|fue|ha sido|foi|é)\s+)?(?:charged|arrested|held|detained|jailed|accused|detenid[oa]|arrestad[oa]|imputad[oa]|acusad[oa]|pres[oa])(?![\p{L}])/iu;
++/** A dead person said to be the suspect: "A man who died … is named as a murder suspect". */
++const DEAD_IS_SUSPECT = new RegExp(
++  String.raw`(?<![\p{L}])(?:died|dies|dead|killed|murdered|murió|muert[oa]|asesinad[oa]|morreu|mort[oa]|assassinad[oa])(?![\p{L}])[^.;:!?]*?(?<![\p{L}])(?:(?:is|was|has been|es|fue|ha sido|foi|é)\s+)?(?:(?:named|identified|revealed|confirmed|nombrad[oa]|identificad[oa]|señalad[oa]|apontad[oa])\s+(?:as|como)|(?:is|was|es|fue|foi|é)\s+(?:a|an|the|el|la|un|una|o|um|uma))\s+(?:(?:a|an|the|el|la|un|una|o|um|uma)\s+)?(?:\p{L}+\s+)?(?:suspect|killer|murderer|sospechos[oa]|asesin[oa]|suspeit[oa]|assassin[oa])(?![\p{L}])`,
++  "iu",
++);
++/** The same, with a verb that says so: the source itself makes the dead person the suspect. */
++const DEAD_IS_SUSPECT_STATED = new RegExp(DEAD_IS_SUSPECT.source.replace(String.raw`(?:(?:is|was|has been|es|fue|ha sido|foi|é)\s+)?`, String.raw`(?:is|was|has been|es|fue|ha sido|foi|é)\s+`), "iu");
++
++/**
++ * A one-liner that swaps people's roles (F1124): it gives a name the opposite
++ * role of the one its title and context give it (the victim becomes the
++ * suspect, the winner the loser), or it makes someone who died the suspect
++ * where the source has a suspect of its own ("Man who died … named as murder
++ * suspect charged": the dead man is named, and a suspect is charged).
++ */
++export function swapsRole(line: string, source: string): boolean {
++  const mine = roleTies(line);
++  if (mine.length) {
++    const theirs = roleTies(source);
++    for (const { name, role } of mine) {
++      const other = OPPOSITE[role];
++      if (theirs.some((t) => t.name === name && t.role === other) && !theirs.some((t) => t.name === name && t.role === role)) return true;
++    }
++  }
++  const own = line.replace(QUOTED, " ");
++  return DEAD_IS_SUSPECT.test(own) && SUSPECT_ACTS.test(source) && !DEAD_IS_SUSPECT_STATED.test(source.replace(QUOTED, " "));
++}
++
+ /** Text right before a quote that sets it beside a noun, as what that noun is ("el triunfo de Lula, un “…”"). */
+ const APPOSITION = /[\p{L}\p{N})]\s*[,–—]\s*(?:(?:un|una|unos|unas|el|la|los|las|lo|a|an|the|o|os|as|um|uma|le|les|une|des|il|uno|ein|eine)\s+)?$/iu;
+ 
+@@ -1242,17 +1543,18 @@
+ 
+ /**
+  * The lines of a text that say what it is, as words only: the lines its cache
+- * key keeps (see stableText) of three words or more, short ones included,
+- * without placeholders and link ids (they are renumbered when a block or a
+- * link before them comes or goes), nor a one- or two-word link (a promotion).
++ * key keeps (see stableText), short ones included ("Pool: closed"), without
++ * placeholders and link ids (they are renumbered when a block or a link
++ * before them comes or goes), nor a one- or two-word link or heading (a
++ * promotion, a section that loads late).
+  */
+ function textLines(text: string): string[] {
+   return stableText(text)
+     .split("\n")
+     .filter((l) => !/^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(l))
+-    .map((l) => qwords(l))
+-    .filter((w) => w.length > 2)
+-    .map((w) => w.join(" "))
++    .map((l) => ({ w: qwords(l), aside: /^\s*#|\]\(\s*#?L\d+\s*\)/.test(l) }))
++    .filter(({ w, aside }) => w.length > (aside ? 2 : 0))
++    .map(({ w }) => w.join(" "))
+     .sort();
+ }
+ 
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -510,7 +510,13 @@
+   const captions = cc && cc.style.display !== "none" && cc.getAttribute("aria-disabled") !== "true" ? refOf(cc) : undefined;
+   const ratio = video && video.videoWidth ? video.videoHeight / video.videoWidth : 9 / 16;
+   // On a playlist or Mix, its own Previous and Next (on the first video, Previous replays it once it has started).
++  // YouTube hides both inline in a small player (a narrow window, zoom), but they still work: kept, so Sift's
++  // bar and Shift+N and Shift+P reach them at every size (F1120).
+   const list = new URL(location.href).searchParams.has("list");
++  const step = (sel: string) => {
++    const b = q(sel, player);
++    return b && b.getAttribute("aria-disabled") !== "true" ? refOf(b) : undefined;
++  };
+   return {
+     t: "portal",
+     key: "player",
+@@ -519,7 +525,7 @@
+     label,
+     media: {
+       video: video ? refOf(video) : undefined, play: vis(".ytp-play-button"), captions, fullscreen: vis(".ytp-fullscreen-button"),
+-      prev: list ? vis(".ytp-prev-button") : undefined, next: list ? vis(".ytp-next-button") : undefined,
++      prev: list ? step(".ytp-prev-button") : undefined, next: list ? step(".ytp-next-button") : undefined,
+     },
+   };
+ }
+@@ -811,13 +817,44 @@
+ 
+ const COMMENT_SEL = "ytd-comment-view-model, ytd-comment-renderer";
+ 
++/**
++ * Each top-level thread's item as last read, until anything inside it changes (its text, likes, replies
++ * opened or hidden). Sift reads the page again on every change, and with 1000+ threads loaded, reading
++ * each one again would hold the page for seconds (F1123).
++ */
++let threadItems = new WeakMap<Element, Item | null>();
++let threadRoot: Element | null = null;
++let threadWatch: MutationObserver | null = null;
++function threadsChanged(muts: MutationRecord[]) {
++  for (const m of muts) {
++    // The outermost thread around the change.
++    let el: Element | null = m.target instanceof Element ? m.target : m.target.parentElement;
++    let th: Element | null = null;
++    while ((el = el?.closest("ytd-comment-thread-renderer") ?? null)) {
++      th = el;
++      el = el.parentElement;
++    }
++    if (th) threadItems.delete(th);
++  }
++}
++
+ /** The visible top-level comment threads, each with its visible replies nested under it. */
+ function commentList(root: Element): Item[] {
++  if (threadRoot !== root) {
++    threadWatch?.disconnect();
++    threadItems = new WeakMap();
++    threadRoot = root;
++    threadWatch = new MutationObserver(threadsChanged);
++    threadWatch.observe(root, { subtree: true, childList: true, attributes: true, characterData: true });
++  } else threadsChanged(threadWatch!.takeRecords());
++  const read = (th: Element) => {
++    if (!threadItems.has(th)) threadItems.set(th, commentItem(th, 0));
++    return threadItems.get(th);
++  };
+   return qa("ytd-comment-thread-renderer", root)
+     .filter((th) => !th.parentElement?.closest("ytd-comment-thread-renderer") && visible(th))
+-    // Enough for a long read; scrolling to the end of Sift loads more.
+-    .slice(0, 400)
+-    .map((th) => commentItem(th, 0))
++    // All of them, as long as the original keeps loading: scrolling to the end of Sift loads more (F1123).
++    .map(read)
+     .filter(Boolean) as Item[];
+ }
+ 
+@@ -1106,6 +1143,10 @@
+   return els.find((e) => visible(e)) ?? null;
+ }
+ 
++/** The page parts whose changes are noise (the player, tooltips), as last read: see `quiet`. */
++let quietAt = -Infinity;
++let quietEls: Element[] = [];
++
+ const POPUP_HOST = "ytd-popup-container, tp-yt-paper-dialog, tp-yt-iron-dropdown, dialog, [role=dialog], [role=alertdialog], [aria-modal=true]";
+ 
+ export const youtube: Adapter = {
+@@ -1134,8 +1175,22 @@
+     const add = top().filter((a) => !have.has(a.ref) && !have.has(a.label.toLowerCase()));
+     if (add.length) p.top = [...(p.top ?? []), ...add];
+     p.dialog = settingsMenu() ?? p.dialog;
++    // And the same Menu: YouTube's whole guide, as on home and watch, not just the mini guide (F1121).
++    // A page without the guide (an embed, the consent page) keeps the generic one.
++    const n = q("ytd-guide-renderer, ytd-mini-guide-renderer") ? nav() : [];
++    if (n.length) p.nav = n;
++  },
++  quiet: () => {
++    // Sift asks on every change in the page. With 1000+ comments loaded (200,000 elements), a query over the
++    // whole page each time, and each change checked against two tooltips per comment, held it for seconds
++    // (F1123): read again at most once a second, without the comments' tooltips (never hovered under Sift).
++    const now = performance.now();
++    if (now - quietAt < 1000 && quietEls.every((e) => e.isConnected)) return quietEls;
++    quietAt = now;
++    const comments = q("ytd-comments");
++    quietEls = qa("#movie_player, ytd-miniplayer, #video-preview, tp-yt-paper-tooltip").filter((e) => e.localName !== "tp-yt-paper-tooltip" || !comments?.contains(e));
++    return quietEls;
+   },
+-  quiet: () => qa("#movie_player, ytd-miniplayer, #video-preview, tp-yt-paper-tooltip"),
+   // YouTube opens its popups in a few known hosts. Fixed or absolute page parts (the masthead,
+   // a shelf's "Show more") are not popups, and the bot check (role=dialog) is already a note.
+   dropDialog: (el) => !!el.closest("#error-screen, yt-player-interstitial-renderer") || !el.closest(POPUP_HOST),
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -522,6 +522,18 @@
+ const ICON_WORD = /\b(icons?|logo|arrow|chevron|caret|close|search|menu|share|star|heart|like|comments?|play|pause|info|external|download|clock|calendar|location|pin|eye|view|user|bookmark|cart|bell|check|plus|minus)\b/;
+ 
+ /**
++ * A picture's name is read with the words beside it only when it adds meaning ("Not included", "Yes"
++ * drawn as a cross or a tick, F1010): never a decorative icon's name ("star", "arrow", "chevron down")
++ * or words the text says already (a "Red" swatch beside "Red") (F1132, F1133). A mark that alone says
++ * a state ("check", "plus") still counts.
++ */
++export function pictureAdds(name: string, said: string): boolean {
++  const n = name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
++  if (!n || (!/\d/.test(n) && n.split(" ").length <= 3 && ICON_WORD.test(n) && !/^(check|check ?mark|tick|cross|plus|minus)$/.test(n))) return false;
++  return !` ${said.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ")} `.includes(` ${n} `);
++}
++
++/**
+  * With no hidden twin, an icon that alone says a short cell's state is read by
+  * its title (weather.com's hourly strip: "15:00", a sun titled "Sunny", "66°").
+  */
+@@ -619,7 +631,9 @@
+       .split(/\s+/)
+       .map((id) => el.ownerDocument.getElementById(id))
+       .filter(Boolean)
+-      .map((n) => (n as HTMLElement).innerText || n!.textContent)
++      // A referenced node's own aria-label is its name, as in the accessible-name rules: a date segment
++      // labelled by itself and the field reads "month, Reservation date", not "mm Reservation date" (F1110).
++      .map((n) => n!.getAttribute("aria-label")?.trim() || (n as HTMLElement).innerText || n!.textContent)
+       .join(" "),
+   );
+ }
+@@ -680,7 +694,15 @@
+ function labelWords(l: Element): string {
+   const t = textIn(l);
+   if (!t || !l.querySelector("[role=img][aria-label], img[alt]:not([alt=''])")) return t;
+-  return contentName(l, true) || t;
++  // Only pictures that add meaning: not a product photo (an img bigger than an icon) or a swatch named by the words beside it (F1132).
++  const adds = (pic: Element, name: string) => {
++    if (pic instanceof HTMLImageElement) {
++      const w = pic.width || pic.getBoundingClientRect().width, h = pic.height || pic.getBoundingClientRect().height;
++      if (!w || !h || w > 32 || h > 32) return false;
++    }
++    return pictureAdds(name, t);
++  };
++  return contentName(l, true, adds) || t;
+ }
+ 
+ /** What an element without words says through its tooltip or picture (a label holding only an icon). */
+@@ -700,7 +722,7 @@
+  * pictures that name themselves (role=img with a label, an img's alt), without
+  * the parts hidden from screen readers.
+  */
+-function contentName(el: Element, apart = false): string {
++function contentName(el: Element, apart = false, keep?: (pic: Element, name: string) => boolean): string {
+   const parts: string[] = [];
+   const go = (n: Element) => {
+     for (let c = n.firstChild; c; c = c.nextSibling) {
+@@ -713,8 +735,9 @@
+       if (e.getAttribute("aria-hidden") === "true" || !visible(e)) continue;
+       if (e.getAttribute("role") === "img" || e.localName === "img") {
+         const name = clean(e.getAttribute("aria-label")) || clean((e as HTMLImageElement).alt);
+-        if (name) parts.push(" ", name, " ");
+-        else if (e.localName !== "img") go(e);
++        if (name) {
++          if (!keep || keep(e, name)) parts.push(" ", name, " ");
++        } else if (e.localName !== "img") go(e);
+         continue;
+       }
+       if (NO_TEXT.has(e.localName)) continue;
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -10,7 +10,7 @@
+   AD_HOSTS, AD_LABEL, NOISE_TOKEN, SHARE_LABEL, SHARE_MAYBE, SOCIAL_HOSTS,
+   accName, clean, hasControl, hostOf, hrefOf, imgSrc, isAd, labelNodes, lang, passNo, shadowRootOf, firstLine, spaceAfter, spaceBefore, textIn, textInRaw, textLines, textPrefix, tlen, tokens, visible, visualTwin,
+ } from "../dom";
+-import { glyphName } from "../dom";
++import { glyphName, pictureAdds } from "../dom";
+ import { t } from "../i18n";
+ import { armCount, enteredField, recentNodes } from "../recent";
+ import { portalElements } from "../portal";
+@@ -881,7 +881,8 @@
+     for (const w of has) if (w === want[i]) i++;
+     return want.length > 0 && i === want.length && has.length > want.length;
+   };
+-  if ((el.hasAttribute("aria-label") || el.hasAttribute("aria-labelledby")) && !field) {
++  // A spinbutton's shown words are its value ("yyyy", "07"), not its name (F1110).
++  if ((el.hasAttribute("aria-label") || el.hasAttribute("aria-labelledby")) && !field && el.getAttribute("role") !== "spinbutton") {
+     const vis = textIn(el);
+     if (vis && vis !== s && /\p{L}.*\p{L}/su.test(vis)) {
+       const inName = s.toLowerCase().includes(vis.toLowerCase());
+@@ -1153,8 +1154,8 @@
+   if (alt.length > 40 || LOGO_NAME.test(alt) || /\.(png|jpe?g|gif|svg|webp)$/i.test(alt)) return false;
+   const w = img.width || img.getBoundingClientRect().width, h = img.height || img.getBoundingClientRect().height;
+   if (!w || !h || w > 32 || h > 32) return false;
+-  const around = img.parentElement ? textIn(img.parentElement).toLowerCase() : "";
+-  return !around.includes(alt.toLowerCase());
++  // Not a decorative icon ("star", "arrow") or the words beside it (F1133).
++  return pictureAdds(alt, img.parentElement ? textIn(img.parentElement) : "");
+ }
+ 
+ export function inlineOf(el: Element, ctx: Ctx | null = null, buttons = false): Inline[] {
+@@ -1198,6 +1199,11 @@
+     const sep = (e: Element, t: string) => {
+       if (spaceBefore(tail, t, e, prev, parent)) put(" ");
+     };
++    // A picture's words are never part of the word before them ("Yes" after "Delivery zones", two icons side by side).
++    const sepWord = (e: Element, t: string) => {
++      if (/[\p{L}\p{N}]$/u.test(tail) && /^[\p{L}\p{N}]/u.test(t)) put(" ");
++      else sep(e, t);
++    };
+     let i = 0;
+     for (let c: Node | undefined | null = list ? list[0] : first; c; c = list ? list[++i] : c.nextSibling) {
+       if (c.nodeType === 3) {
+@@ -1251,8 +1257,9 @@
+       // An icon that names itself ("Not included", "Yes" drawn as a cross or a tick) says its words (F1010).
+       if (tag === "svg" && e.getAttribute("role") === "img" && e.getAttribute("aria-hidden") !== "true" && visible(e)) {
+         const label = clean(e.getAttribute("aria-label")) || (e.hasAttribute("aria-labelledby") ? accName(e) : "");
+-        if (label && !LOGO_NAME.test(label) && !/(^|\W)logo(\W|$)/i.test(`${e.getAttribute("class") ?? ""} ${e.getAttribute("category") ?? ""}`)) {
+-          sep(e, label);
++        // A decorative icon ("star", "arrow") or the words beside it again says nothing (F1133).
++        if (label && !LOGO_NAME.test(label) && !/(^|\W)logo(\W|$)/i.test(`${e.getAttribute("class") ?? ""} ${e.getAttribute("category") ?? ""}`) && pictureAdds(label, e.parentElement ? textIn(e.parentElement) : "")) {
++          sepWord(e, label);
+           put(label);
+           prev = e;
+         }
+@@ -1306,7 +1313,8 @@
+         // Keep emoji-like inline images as their alt text, and an icon that says what it means
+         // ("Not included" drawn as a cross beside a feature) unless the words beside it say it already (F1010).
+         if (alt && (alt.length <= 3 || iconWord(e as HTMLImageElement, alt))) {
+-          sep(e, alt);
++          if (alt.length <= 3) sep(e, alt);
++          else sepWord(e, alt);
+           put(alt);
+           prev = e;
+         }
+@@ -1693,8 +1701,20 @@
+  * width stands for it (F1039). Its own width otherwise.
+  */
+ function lazyWidth(img: HTMLImageElement, r: DOMRect = img.getBoundingClientRect()): number {
+-  if (r.width || img.naturalWidth || r.height < 50) return r.width;
+-  if (!(img.loading === "lazy" || img.hasAttribute("srcset") || img.hasAttribute("data-src"))) return 0;
++  if (r.width || img.naturalWidth) return r.width;
++  const lazy = img.loading === "lazy" || img.hasAttribute("srcset") || img.hasAttribute("data-src");
++  if (r.height < 50) {
++    // A lazy photo not loaded yet in a box that shrinks to its content (NY Post's display:table figure,
++    // 78 px wide, F1126) has no size at all: its size attributes and the column it sits in give one.
++    const aw = Number(img.getAttribute("width")) || 0;
++    if (!lazy || r.height || aw < 160 || !Number(img.getAttribute("height")) || !img.getClientRects().length) return r.width;
++    for (let p = img.parentElement, i = 0; p && i < 4; p = p.parentElement, i++) {
++      const w = p.getBoundingClientRect().width;
++      if (w >= 160) return Math.min(w, aw);
++    }
++    return 0;
++  }
++  if (!lazy) return 0;
+   return img.parentElement?.getBoundingClientRect().width ?? 0;
+ }
+ 
+@@ -1971,7 +1991,7 @@
+     return { t: "portal", key: "v:" + refOf(el), ref: refOf(el), ratio: r.height / Math.max(1, r.width), label, maxWidth: Math.round(r.width), tool };
+   }
+   if (tag === "video") {
+-    if (r.width < 200 || r.height < 112) return null;
++    if (r.width < 200 || r.height < 112 || sitePlaylist(el)) return null;
+     const player = playerOf(el);
+     if (!claimPortal(player, ctx)) return null;
+     // The player's own controls, poster, settings and overlay ("Play video") are the portal's, not page content.
+@@ -1999,6 +2019,35 @@
+   return null;
+ }
+ 
++/** Words too common to tell what a headline is about. */
++const COMMON_WORD = /^(that|this|with|from|have|will|after|before|over|into|about|more|most|says|said|what|when|where|which|while|their|they|them|then|than|been|were|just|your|news|video|videos|watch|today|year|years|amid|last|first|back|could|would|should|other|some|only|also|here|there|para|como|sobre|tras|entre|desde|hasta|este|esta|pero|años)$/;
++function topicWords(s: string): Set<string> {
++  return new Set((s.toLowerCase().match(/[\p{L}\d][\p{L}\d'’]{3,}/gu) ?? []).map((w) => w.replace(/['’]s?$/, "")).filter((w) => w.length >= 4 && !COMMON_WORD.test(w)));
++}
++
++/**
++ * A site-wide video playlist dropped into a story (NY Post's Connatix player under "Today's Video Headlines",
++ * with "Keep Watching" and its own "Close Player", F1125): its clips are other stories, so it is noise.
++ * One whose clip title shares a word with the story's headline is the story's own video and stays.
++ */
++function sitePlaylist(el: Element): boolean {
++  const box = el.closest(".cnx-main-container");
++  if (!box) return false;
++  const head = topicWords(clean(document.querySelector("h1")?.textContent) || document.title);
++  if (!head.size) return true;
++  // The clip's title, drawn in the player's shadow roots.
++  const titles: string[] = [];
++  const look = (root: ParentNode, depth: number) => {
++    for (const e of Array.from(root.querySelectorAll("*"))) {
++      if (titles.length < 6 && (/(^|-)title$/.test(e.localName) || /(^|[\s_-])title($|[\s_-])/i.test(tokens(e)))) titles.push(clean(e.textContent));
++      const sr = depth < 3 ? shadowOf(e) : null;
++      if (sr) look(sr, depth + 1);
++    }
++  };
++  look(box, 0);
++  return !titles.some((x) => [...topicWords(x)].some((w) => head.has(w)));
++}
++
+ /**
+  * Click-to-load players: a poster with a play button that loads the real
+  * player on click (JW Player facades, lite-youtube). Hints that an element is one.
+@@ -2037,7 +2086,7 @@
+   const video = el.querySelector("video") ?? deepQuery(el, "video");
+   if (video) {
+     const vr = video.getBoundingClientRect();
+-    if (vr.width < 200 || r.width * r.height > vr.width * vr.height * 2.2) return null;
++    if (vr.width < 200 || r.width * r.height > vr.width * vr.height * 2.2 || sitePlaylist(video)) return null;
+   } else if (tlen(el) > 200) return null;
+   const play = video ? null : playTarget(el);
+   if ((!video && !play) || !claimPortal(el, ctx)) return null;
+@@ -2284,6 +2333,7 @@
+     return {
+       ...base, kind: "spinbutton", value: attr("aria-valuenow") ?? "", min: attr("aria-valuemin"), max: attr("aria-valuemax"),
+       valueText: attr("aria-valuetext") ?? (clean(textIn(el)) || undefined), readOnly: el.getAttribute("aria-readonly") === "true" || undefined,
++      shown: clean(textIn(el)) || undefined,
+     };
+   }
+   if ((el as HTMLElement).isContentEditable || role === "textbox" || role === "searchbox") {
+@@ -3884,24 +3934,81 @@
+  */
+ function marqueeCopies(ks: Element[]): Set<Element> | null {
+   if (ks.length < 2) return null;
+-  let byLen: Map<number, Element[]> | null = null;
++  // Per text length: the first sibling of that length, then (once a second one shares it) the keys seen.
++  // Each sibling's key is built once, so 6000 same-length comments stay linear (F1111).
++  let byLen: Map<number, Element | Set<string>> | null = null;
+   let out: Set<Element> | null = null;
+   const key = (e: Element) => `${e.localName}|${(e.textContent ?? "").replace(/\s+/g, " ").trim()}|${Array.from(e.querySelectorAll("a[href]"), (a) => (a as HTMLAnchorElement).href).join(" ")}`;
+   for (const k of ks) {
+     const n = tlen(k);
+     // Short twins ("Yes", "Reply") are separate controls; only a long run of the same words is a copy.
+     if (n < 40) continue;
+-    const same = (byLen ??= new Map<number, Element[]>()).get(n);
+-    if (!same) {
+-      byLen.set(n, [k]);
++    let seen = (byLen ??= new Map<number, Element | Set<string>>()).get(n);
++    if (!seen) {
++      byLen.set(n, k);
+       continue;
+     }
+-    if (!k.querySelector("input, select, textarea") && same.some((o) => key(o) === key(k))) (out ??= new Set()).add(k);
+-    else same.push(k);
++    if (!(seen instanceof Set)) byLen.set(n, (seen = new Set([key(seen)])));
++    const kk = key(k);
++    if (!k.querySelector("input, select, textarea") && seen.has(kk)) (out ??= new Set()).add(k);
++    else seen.add(kk);
++  }
++  return out && stripCopies(ks, out);
++}
++
++/**
++ * Of the twins marqueeCopies found, only a real repeated strip is said once (F1131): copies hidden from screen
++ * readers, drawn off screen, inside a ticker or marquee box, or a strip of short items that fills its box three
++ * or more times in a row (G1's quote ticker). Content that happens to repeat stays: a pricing cell that two plans
++ * share, a poem's refrain, and the visible twin of a hidden responsive block (its earlier twin is not shown).
++ */
++function stripCopies(ks: Element[], copies: Set<Element>): Set<Element> | null {
++  const norm = (e: Element) => `${e.localName}|${(e.textContent ?? "").replace(/\s+/g, " ").trim()}`;
++  const keys = ks.map(norm);
++  const first = new Map<string, Element>();
++  const count = new Map<string, number>();
++  keys.forEach((k, i) => {
++    if (!first.has(k)) first.set(k, ks[i]);
++    count.set(k, (count.get(k) ?? 0) + 1);
++  });
++  // The whole box is one strip repeated: siblings i and i - p always match.
++  const m = Math.max(...count.values());
++  const p = ks.length / m;
++  let run = m >= 3 && Number.isInteger(p) && keys.every((k, i) => i < p || k === keys[i - p]);
++  if (run) {
++    // A ticker's strip is short items ("Dólar", "R$ 5,40", "8,2%"), never a sentence.
++    const parts: number[] = [];
++    for (const u of ks.slice(0, p)) {
++      const w = document.createTreeWalker(u, NodeFilter.SHOW_TEXT);
++      for (let n = w.nextNode(); n; n = w.nextNode()) {
++        const s = (n.nodeValue ?? "").trim().length;
++        if (s) parts.push(s);
++      }
++    }
++    run = parts.length >= 3 && parts.every((s) => s < 40);
++  }
++  const box = (e: Element) => {
++    for (let c: Element | null = e, i = 0; c && i < 4; c = c.parentElement, i++) if (/marquee|ticker/i.test(c.getAttribute("class") ?? "")) return true;
++    return false;
++  };
++  const offscreen = (e: Element) => {
++    const r = e.getBoundingClientRect();
++    return r.width > 0 && (r.left >= innerWidth || r.right <= 0);
++  };
++  let out: Set<Element> | null = null;
++  for (const c of copies) {
++    const o = first.get(norm(c));
++    if (!o || o === c || !visible(o)) continue;
++    if (run || c.getAttribute("aria-hidden") === "true" || box(c) || offscreen(c)) (out ??= new Set()).add(c);
+   }
+   return out;
+ }
+ 
++/** A box that holds only the site's logo: a picture link and no words (MoinMoin's div#logo, F1046). */
++function logoBox(el: Element): boolean {
++  return el.localName === "div" && /^logo$/i.test(el.id) && !tlen(el) && el.querySelectorAll("a[href]").length === 1 && !!el.querySelector("a[href] img");
++}
++
+ /** Sibling rows of one kind (2 to 50), each with a button and another button or link of its own, and no field to fill. */
+ function controlRows(ks: Element[]): boolean {
+   if (ks.length < 2 || ks.length > 50) return false;
+@@ -4209,6 +4316,7 @@
+   if (++ctx.count > BUDGET) return budgetCut(out, ctx);
+   if (tag === "slot") return walk(el, out, ctx);
+   if (isAd(el) || ctx.drop?.(el)) return;
++  if (el.classList.contains("cnx-main-container") && sitePlaylist(el)) return;
+   // A link through Google's ad click redirect is an ad, labeled or not (Maps' tour ad under "Sponsored · By …": F961).
+   if (tag === "a" && AD_CLICK.test(el.getAttribute("href") ?? "")) return;
+   if (!ctx.inArticle && sweepstakes(el)) return;
+@@ -4309,9 +4417,13 @@
+     if (i > 0) {
+       fromTitle(el, out, ctx);
+       for (const k of ks.slice(0, i)) visit(k, out, ctx);
++      // The logo box set just before the header (MoinMoin's div#logo, a picture link) follows the title too.
++      const logo = el.previousElementSibling;
++      if (logo && logoBox(logo)) walk(logo, out, ctx);
+       return;
+     }
+   }
++  if (logoBox(el) && el.nextElementSibling && /^header$/i.test(el.nextElementSibling.id) && ctx.titleEl && el.nextElementSibling.contains(ctx.titleEl) && !inMain(el)) return;
+   if (isChrome(el, ctx)) return;
+   // A site bar outside the main region that also holds the page's title (an h1
+   // in the masthead) keeps only the title.
+@@ -6502,6 +6614,15 @@
+     const plain = own.filter((b) => !b.matches("[role=tab], [role=option], [role=menuitem], [role=switch], [role=checkbox], [role=radio], [aria-pressed], [aria-selected]"));
+     // Its id counts as a name too, so the role check comes first (Booking's tab id "calendar-searchboxdatepicker-tab-trigger").
+     btn = plain.find(named) ?? plain.find((b) => (b as HTMLButtonElement).type === "submit" || b.getAttribute("type") === "image") ?? null;
++    // The form's other submit buttons search the same box another way (MoinMoin's "Titles" and "Text"):
++    // they stay beside it in the bar, in the page's order (F1101). Only those marked as submits, with words.
++    const more = btn ? plain.filter((b) => b !== btn && /^(submit|image)$/i.test(b.getAttribute("type") ?? "") && b.matches("button, input")) : [];
++    for (const b of more.slice(0, 3)) {
++      const label = b instanceof HTMLInputElement ? clean(b.value) || clean(b.alt) || accName(b) : textIn(b) || accName(b);
++      if (!label || label.length > 30 || !/\p{L}/u.test(label)) continue;
++      ctx.used.add(b);
++      (f.moreSubmits ??= []).push({ ref: refOf(b), label, before: !!(b.compareDocumentPosition(btn!) & Node.DOCUMENT_POSITION_FOLLOWING) });
++    }
+   }
+   // No button in the form, or no form: a nearby button that says search
+   // (Google Maps keeps it outside the form). Never just any button nearby.
+@@ -6673,6 +6794,17 @@
+ /** A status page's "Subscribe to updates" (Statuspage): a button that opens the ways to follow it, not a paid appeal. */
+ const UPDATES_LABEL = /\b(subscribe|sign up|suscr[ií]b\w*)\b.*\b(updates|alerts|notifications|actualizaciones|alertas|notificaciones)\b/i;
+ 
++/** Held by a box moved beside the window (fixed, absolute or translated: a closed drawer), not by a row that starts on screen. */
++function slidOut(el: Element): boolean {
++  for (let a: Element | null = el; a && a !== document.body; a = a.parentElement) {
++    const r = a.getBoundingClientRect();
++    if (r.right > 0 && r.left < innerWidth) return false;
++    const cs = getComputedStyle(a);
++    if (cs.position === "fixed" || cs.position === "absolute" || cs.transform !== "none" || cs.translate !== "none") return true;
++  }
++  return true;
++}
++
+ export function findTop(): Action[] {
+   const roots = Array.from(document.querySelectorAll("header, [role=banner], nav")).filter((n) => !n.closest("footer,article"));
+   // A site header built from plain boxes (Infobae's div#siteheader.site-header) at the top of the page.
+@@ -6700,8 +6832,9 @@
+       const updates = UPDATES_LABEL.test(label) && (el.hasAttribute("aria-haspopup") || el.matches("button, [role=button]"));
+       if (!label || label.length > 50 || (!TOP_LABEL.test(probe) && !updates)) continue;
+       // A closed slide-in panel sits beside the window: its copy of "Sign in" is not on screen.
++      // A header row that only runs past a narrow window (Daily Mail's 964 px masthead at 200% zoom) still offers it (F1128).
+       const box = el.getBoundingClientRect();
+-      if (box.left >= innerWidth || box.right <= 0) continue;
++      if ((box.left >= innerWidth || box.right <= 0) && slidOut(el)) continue;
+       // "INICIAR SESION" and "Iniciar sesión" are one action.
+       const k = label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+       if (seen.has(k)) continue;
+@@ -7487,7 +7620,8 @@
+     const p = n.parentElement;
+     if (!p || /^(script|style|noscript|template)$/.test(p.localName) || p.closest("footer, [role=contentinfo]")) continue;
+     // A date split over spans ("<span>Oct 26</span>, <span>2026</span>") reads whole in its box.
+-    const box = p.parentElement && (p.parentElement.textContent?.length ?? 0) < 200 ? p.parentElement : p;
++    // (tlen is measured once per pass: the box's own text, built for every dated entry of a long list, was quadratic: F1136.)
++    const box = p.parentElement && tlen(p.parentElement) < 200 ? p.parentElement : p;
+     if (re.test(s) || re.test(box.textContent ?? "")) return "this";
+     if (/\b(19|20)\d\d\b/.test(s)) other = true;
+   }
+@@ -7675,6 +7809,16 @@
+ }
+ 
+ /**
++ * A link to this page itself, whatever query the visit added (?utm_source=, the ?pow_referer= a wiki's
++ * bot check redirects to): same path, and every parameter the link has, the address has too (F1135).
++ */
++function thisPageLink(a: HTMLAnchorElement): boolean {
++  if (a.origin !== location.origin || a.pathname !== location.pathname) return false;
++  const here = new URLSearchParams(location.search);
++  return Array.from(new URLSearchParams(a.search)).every(([k, v]) => here.getAll(k).includes(v));
++}
++
++/**
+  * The page's own title: the visible h1 that best matches the page title, not a
+  * headline inside a story card or a heading inside an answer or comment.
+  */
+@@ -7690,7 +7834,7 @@
+   for (const h of h1s) {
+     // A headline that links to another page is a story card, not this page's title.
+     const a = h.closest("a[href]") ?? h.querySelector("a[href]");
+-    if (a && !inPage(a) && (a as HTMLAnchorElement).href.split("#")[0] !== location.href.split("#")[0]) continue;
++    if (a && !inPage(a) && !thisPageLink(a as HTMLAnchorElement)) continue;
+     const words = norm(textIn(h)).split(" ").filter((w) => w.length > 2);
+     if (!words.length) continue;
+     // Headlines and their short <title> versions share most of the shorter one's words.
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -381,7 +381,11 @@
+     if (spot?.inSheet && opener) {
+       const o = opener;
+       if (tryFocus(o.el, true)) return;
+-      const same = Array.from(shadow.querySelectorAll<HTMLElement>(FOCUSABLE)).find((c) => c.localName === o.tag && labelOf(c) === o.label && !c.closest(".layer") && c.getClientRects().length > 0);
++      // Re-rendered: the control for the same page element first (a combobox whose label now shows the pick, F1112), else one with the same label.
++      const ref = o.el.dataset.ref;
++      const outside = Array.from(shadow.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((c) => c.localName === o.tag && !c.closest(".layer, .suggest") && c.getClientRects().length > 0);
++      const byRef = ref ? outside.filter((c) => c.dataset.ref === ref) : [];
++      const same = byRef.find((c) => labelOf(c) === o.label) ?? byRef[0] ?? outside.find((c) => labelOf(c) === o.label);
+       if (tryFocus(same, true)) return;
+     }
+     if (spot && spot.list >= 0) {
+@@ -975,10 +979,21 @@
+     // A digit typed in a segment the page edits itself (React Aria's date and time fields) reaches it as
+     // the browser sends it after an uncancelled keydown: beforeinput, then input if not cancelled (F1041).
+     const typed = /^[0-9]$/.test(e.key) && (el as HTMLElement).isContentEditable;
+-    proxy.key(el, e.key, typed ? () => {
+-      const init = { inputType: "insertText", data: e.key, bubbles: true, cancelable: true, composed: true };
+-      if (el.dispatchEvent(new InputEvent("beforeinput", init))) el.dispatchEvent(new InputEvent("input", { ...init, cancelable: false }));
+-    } : undefined);
++    // The page moves on to the next segment once one is filled (12, then the day), or on ArrowRight: during
++    // the key the page-world helper names the segment as the active element and lets the page's focus
++    // manager find the next one, whose focus() Sift then follows to its copy (F1103).
++    const seg = el.getAttribute("role") === "spinbutton";
++    store.actAt = Date.now();
++    if (seg) el.dispatchEvent(new CustomEvent("sift-enter", { bubbles: true, composed: true, detail: "key" }));
++    try {
++      proxy.key(el, e.key, typed ? () => {
++        const init = { inputType: "insertText", data: e.key, bubbles: true, cancelable: true, composed: true };
++        if (el.dispatchEvent(new InputEvent("beforeinput", init))) el.dispatchEvent(new InputEvent("input", { ...init, cancelable: false }));
++      } : undefined);
++    } finally {
++      // On the document: the page may have replaced the segment meanwhile.
++      if (seg) document.dispatchEvent(new CustomEvent("sift-leave", { detail: "key" }));
++    }
+     store.actAt = Date.now();
+     keyAct(el, tg);
+     return true;
+@@ -2590,6 +2605,8 @@
+       if (m.type === "attributes") {
+         const n = m.attributeName ?? "";
+         if (n.startsWith("data-sift") || n === "inert" || n === "popover" || n === "role") continue;
++        // A name or id written again with the same value changed nothing.
++        if ((n === "aria-label" || n === "aria-labelledby" || n === "id") && m.oldValue === (tgt as Element).getAttribute(n)) continue;
+       }
+       if (q.some((el) => deepContains(el, tgt))) {
+         inQuiet = true;
+@@ -2663,7 +2680,8 @@
+     attributes: true,
+     // To tell a real change from a page writing the same value again (see noteMutations).
+     attributeOldValue: true,
+-    attributeFilter: ["class", "hidden", "open", "aria-hidden", "aria-expanded", "aria-selected", "aria-checked", "aria-pressed", "aria-disabled", "disabled", "value", "src", "href", "style", "inert"],
++    // Names a page sets after it mounts (React Aria points a date segment's aria-labelledby at its own id a moment later, F1110).
++    attributeFilter: ["class", "hidden", "open", "aria-hidden", "aria-expanded", "aria-selected", "aria-checked", "aria-pressed", "aria-disabled", "disabled", "value", "src", "href", "style", "inert", "aria-labelledby", "aria-label", "id"],
+   };
+   mo.observe(document, moOpts);
+   observeRoot = (r) => mo.observe(r, moOpts);
+@@ -3407,16 +3425,11 @@
+           if (blurPending && commitsField(el, blurPending)) proxy.change(blurPending);
+           if (el.localName === "a") followSeek();
+           // A click the page's consent wall swallowed shows that wall, and why (F1034).
+-          // The clicked path, and what the page adds to <body> during the click, are out of `inert`
+-          // while it runs: a Copy button selects a text field it appends and copies with execCommand
+-          // (clipboard.js, copy-to-clipboard). Focus the page took meanwhile comes back to Sift, which
+-          // then follows it as it follows a focus the page could not move (its menu's first item) (F1040).
+-          const back = proxy.deepActive();
+-          const swallowed = clickSwallowed(el, () => withoutShield(() => proxy.click(el), el));
+-          const now = document.activeElement;
+-          const took = now && now !== host && now !== document.body && now !== document.documentElement ? proxy.deepActive() : null;
+-          if (back && shadow.contains(back) && shadow.activeElement !== back) back.focus({ preventScroll: true });
+-          if (took?.isConnected) took.dispatchEvent(new CustomEvent("sift-focus", { bubbles: true, composed: true }));
++          // The page stays inert during the click: a focus() it makes then (a menu's first item, a name
++          // turned editable, a popup's button) fails and Sift follows it, without blurring what the page
++          // focused, which closes menus and ends edits (F1102). A Copy button that copies with execCommand
++          // still copies: the page-world helper gives the copy the text the page selected (F1040).
++          const swallowed = clickSwallowed(el, () => proxy.click(el));
+           const wall = swallowed && store.mode === "sift" ? consentWallUp() : null;
+           if (wall) showConsent(wall, "click");
+           flushBlur();
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -80,6 +80,8 @@
+   submit?: string;
+   /** A slider's or spinbutton's value as words ("12 pt", "18:00"). */
+   valueText?: string;
++  /** The words a spinbutton shows on the page ("mm", "07"), drawn in Sift's box; valueText ("Empty") is for screen readers (F1110). */
++  shown?: string;
+   /** The page marks the value as wrong (aria-invalid). */
+   invalid?: boolean;
+   /** What the page says is wrong with it (its error message). */
+@@ -88,6 +90,8 @@
+   desc?: string;
+   /** The visible words on the page's own submit button (an Arabic page's "بحث"), shown on Sift's button. */
+   submitLabel?: string;
++  /** A search form's other submit buttons (MoinMoin's "Text" beside "Titles"), kept beside it in the bar; `before`: it comes before the main one on the page (F1101). */
++  moreSubmits?: { ref: string; label: string; before?: boolean }[];
+   /** Buttons in the field's own box (a password's Show button), shown right after it. */
+   after?: Action[];
+   /** The named group it belongs to (a fieldset's legend, a radio group's name: "Payment method"), shown as its fieldset. */
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -7,6 +7,7 @@
+ 
+ import type { Block, Inline } from "./model";
+ import { textOf, wordCount } from "./model";
++import { onlyTicks } from "../shared/ticks";
+ 
+ export interface Link {
+   a: string;
+@@ -196,8 +197,12 @@
+  */
+ const TICK =
+   /\d{1,2}(?::|h)\d{2}(?!\d)|(?<!\p{L})(?:ago|just now|geleden|temu|назад)(?!\p{L})|(?<!\p{L})hace\s+(?:\d|un[oa]?s?\s|pocos?\s)|\d+\s*(?:s|secs?|seconds?|m|mins?|minutes?|h|hrs?|hours?|segundos?|minutos?|horas?|secondes?|heures?|sekunden|minuten|stunden|secondi|minuti|ore)(?!\p{L})|\d[\d.,]*\s*[kmb]?\s+(?:\p{L}+\s+){0,2}(?:views?|viewers?|watching|likes?|comments?|shares?|reads?|vistas?|visitas?|viendo|reproducciones|visualizaciones|comentarios?|vues|commentaires?|aufrufe|kommentare|visualizzazioni|commenti)(?!\p{L})/iu;
+-/** Whether a prose part counts as one whose change matters: a longer one, or a short one of a few words that does not tick. */
+-const counts = (u: Unit) => u.kind === "p" && (u.words >= LONG || (normWords(u.plain).split(" ").length >= 3 && !TICK.test(u.plain)));
++/**
++ * Whether a prose part counts as one whose change matters: a longer one, or a
++ * short one that says more than a time or a count ("Doors open at 19:30.",
++ * "Pool: closed"; not "Updated 10:32", "5 min ago").
++ */
++const counts = (u: Unit) => u.kind === "p" && (u.words >= LONG || !onlyTicks(u.plain, TICK));
+ 
+ function hash(s: string): number {
+   let h = 0x811c9dc5;
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -342,7 +342,7 @@
+             aria-invalid={f.invalid || undefined}
+             {...fieldEvents(f.ref)}
+           >
+-            {f.valueText || f.value}
++            {f.shown || f.valueText || f.value}
+           </span>
+         </div>
+       );
+@@ -876,7 +876,18 @@
+     case "pre":
+       return <pre>{b.text}</pre>;
+     case "img": {
+-      const img = <img class="content" src={b.img.src} alt={b.img.alt} loading="lazy" decoding="async" style={b.img.w ? { width: Math.min(b.img.w, 800) + "px" } : undefined} />;
++      // A tall photo (a portrait crop, not a long chart) is at most about the window's height, in its own shape (F1129).
++      // The photo the page served decides (La Nación's narrow layout serves a portrait crop of a wide hero).
++      const { w, h } = b.img;
++      const wide = w ? Math.min(w, 800) + "px" : "";
++      const tall = (r: number) => r > 1 && r <= 2.2;
++      const img = (
++        <img
++          class="content" src={b.img.src} alt={b.img.alt} loading="lazy" decoding="async"
++          style={w ? { width: h && tall(h / w) ? `min(${wide}, ${((80 * w) / h).toFixed(2)}vh)` : wide } : undefined}
++          onLoad={(e) => e.currentTarget.classList.toggle("tall", tall(e.currentTarget.naturalHeight / Math.max(1, e.currentTarget.naturalWidth)))}
++        />
++      );
+       return (
+         <figure>
+           {b.href ? <A href={b.href} refId={b.ref} label={b.img.alt || b.caption || t("openImage")}>{img}</A> : img}
+@@ -944,7 +955,10 @@
+         {...fieldEvents(f.ref)}
+         {...comboProps(f)}
+       />
+-      <button type="submit" class="btn primary">{f.submitLabel || t("search")}</button>
++      {f.moreSubmits?.filter((b) => b.before).map((b) => <button key={b.ref} type="button" class="btn" data-ref={b.ref} onClick={() => H.act(b.ref)}>{b.label}</button>)}
++      {/* After another submit on the page, this one is not what Enter presses: it is pressed itself. */}
++      <button type="submit" class="btn primary" onClick={f.moreSubmits?.some((b) => b.before) && f.submit ? (e) => { e.preventDefault(); H.act(f.submit); } : undefined}>{f.submitLabel || t("search")}</button>
++      {f.moreSubmits?.filter((b) => !b.before).map((b) => <button key={b.ref} type="button" class="btn" data-ref={b.ref} onClick={() => H.act(b.ref)}>{b.label}</button>)}
+     </form>
+   );
+ }
+@@ -1106,6 +1120,16 @@
+   return root?.querySelector(".sheet.suggest") && anchor.el?.isConnected ? anchor.el : null;
+ }
+ 
++/** The Sift control the user last pressed outside a sheet, and when: what a sheet that then opens is about (F1127). */
++const pressed = { label: "", at: -Infinity };
++function notePress(e: MouseEvent) {
++  const a = (e.target as HTMLElement | null)?.closest?.("button, a, summary, [role=button]") as HTMLElement | null;
++  if (!a || a.closest(".layer, .sheet")) return;
++  const lab = (a.getAttribute("aria-label") || a.innerText || "").trim();
++  pressed.label = lab.length <= 60 ? lab : "";
++  pressed.at = performance.now();
++}
++
+ function DialogView({ page }: { page: Page }) {
+   const d = page.dialog!;
+   const box = useRef<HTMLDivElement>(null);
+@@ -1140,7 +1164,11 @@
+   const choices = !!field && !close && d.blocks.length === 1 && d.blocks[0].t === "actions";
+   useEffect(() => markSuggest(field, field ? box.current : null, d.key, choices ? new Set((d.blocks[0] as Extract<Block, { t: "actions" }>).actions.filter((a) => a.pressed).map((a) => a.ref)) : undefined));
+   useEffect(() => () => markSuggest(null, null, ""), []);
+-  const name = d.title || firstLine(d.blocks) || page.title;
++  // A sheet with no name of its own is named by the Sift control the user pressed to open it (BBC's
++  // search drawer: "Search"), never by the page's title (F1127). Read once per sheet, before focus moves in.
++  const opener = useRef({ key: "", label: "" });
++  if (opener.current.key !== d.key) opener.current = { key: d.key, label: performance.now() - pressed.at < 5000 ? pressed.label : "" };
++  const name = d.title || firstLine(d.blocks) || opener.current.label || page.title;
+   if (field) {
+     const r = field.getBoundingClientRect();
+     const top = Math.round(r.bottom + 4);
+@@ -1254,7 +1282,7 @@
+   // The live region and the switch stay usable.
+   const behind = store.menuOpen || (!!dialog && !anchorOf(dialog) && !typedOver(dialog));
+   return (
+-    <div class="sift" lang={page?.lang || undefined} dir={dirOf(page?.lang)}>
++    <div class="sift" lang={page?.lang || undefined} dir={dirOf(page?.lang)} onClickCapture={notePress}>
+       <button type="button" class="skip" inert={behind} onClick={(e) => (e.currentTarget.getRootNode() as ShadowRoot).getElementById("sift-main")?.focus()}>
+         {t("skip")}
+       </button>
+@@ -1298,11 +1326,33 @@
+   );
+ }
+ 
++/**
++ * A lead photo above the title that would push the title below the first screen (La Nación's portrait crop
++ * at 200% zoom, F1129) goes after the title and its byline and standfirst: the title comes first.
++ */
++function titleFirst(blocks: Block[], h1: Block): Block[] {
++  const at = blocks.indexOf(h1);
++  const pic = blocks.slice(0, at).find((b): b is Extract<Block, { t: "img" }> => b.t === "img");
++  if (!pic?.img.w || !pic.img.h) return blocks;
++  // As drawn: the column's width, at most 80% of the window's height (img.content in BlockView).
++  const drawn = Math.min((Math.min(800, pic.img.w, innerWidth - 32) * pic.img.h) / pic.img.w, innerHeight * 0.8);
++  if (drawn <= innerHeight - 220) return blocks;
++  let end = at + 1;
++  while (end < blocks.length && end - at <= 3) {
++    const b = blocks[end];
++    if (b.t !== "actions" && !(b.t === "p" && textOf(b.content).length <= 300)) break;
++    end++;
++  }
++  const out = blocks.filter((b) => b !== pic);
++  out.splice(end - 1, 0, pic);
++  return out;
++}
++
+ /** The page's blocks, with its own first h1 (if any) rendered as Sift's h1. */
+ function FirstH1Blocks({ blocks, h1 }: { blocks: Block[]; h1?: Extract<Block, { t: "h" }> }) {
+   return (
+     <>
+-      {blocks.map((b) =>
++      {(h1 ? titleFirst(blocks, h1) : blocks).map((b) =>
+         b === h1 ? <h1 key={b.key}>{h1.href ? <A href={h1.href} refId={h1.ref}>{h1.text}</A> : h1.text}</h1> : <BlockView key={b.key} b={b} />,
+       )}
+     </>
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -73,6 +73,7 @@
+ pre { background: var(--soft); padding: .8em 1em; border-radius: .4em; overflow: auto; font-size: .85em; line-height: 1.45; white-space: pre-wrap; }
+ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; background: var(--soft); padding: .05em .3em; border-radius: .25em; }
+ img.content { display: block; max-width: 100%; height: auto; border-radius: .4em; margin: .8em 0 .3em; }
++img.content.tall { max-height: 80vh; object-fit: contain; }
+ figure { margin: 1em 0; }
+ figcaption { font-size: .88em; color: var(--muted); }
+ hr { border: 0; border-top: 1px solid var(--line); margin: 1.5em 0; }
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -40,9 +40,16 @@
+   // with suggestions and focus is in Sift, activeElement names that field, as
+   // on the original.
+   let entered: Element | null = null;
++  // Sift's key on a page segment (detail "key", F1103): only for that key, and the field entered before comes back.
++  let keying = false;
++  let enteredBefore: Element | null = null;
+   document.addEventListener(
+     "sift-enter",
+     (e) => {
++      if ((e as CustomEvent).detail === "key") {
++        if (!keying) enteredBefore = entered;
++        keying = true;
++      }
+       entered = e.composedPath()[0] as Element;
+       e.stopImmediatePropagation();
+     },
+@@ -51,11 +58,30 @@
+   document.addEventListener(
+     "sift-leave",
+     (e) => {
+-      if (e.composedPath()[0] === entered) entered = null;
++      if ((e as CustomEvent).detail === "key") {
++        if (keying) entered = enteredBefore;
++        keying = false;
++        enteredBefore = null;
++      } else if (e.composedPath()[0] === entered) entered = null;
+       e.stopImmediatePropagation();
+     },
+     true,
+   );
++  // A date field's segments (React Aria) move on to the next segment with a focus manager that skips
++  // inert elements, and the page is inert while Sift is shown. While Sift's key reaches a segment,
++  // Sift's own `inert` reads false to the page, so it finds the next one; its focus() there still
++  // fails (the page stays inert) and Sift follows it to its copy of that segment (F1103).
++  const inertD = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "inert");
++  if (inertD?.get) {
++    const getInert = inertD.get;
++    Object.defineProperty(HTMLElement.prototype, "inert", {
++      ...inertD,
++      get(this: HTMLElement) {
++        const v = getInert.call(this);
++        return v && keying && this.hasAttribute("data-sift-inert") ? false : v;
++      },
++    });
++  }
+   const active = Object.getOwnPropertyDescriptor(Document.prototype, "activeElement");
+   if (active?.get) {
+     const get = active.get;
+@@ -76,6 +102,71 @@
+     });
+   }
+ 
++  // A Copy button that copies with execCommand (clipboard.js, copy-to-clipboard) selects a field or a
++  // span it appends to <body> and calls execCommand("copy"). While Sift is shown <body> is inert: the
++  // field cannot take focus and an inert selection copies as nothing, while the page says "Link copied".
++  // Sift keeps the page inert during its clicks (a page focus() then must fail, F1102), so the copy
++  // gets the text the page selected, as the browser copies it on the original (F1040).
++  const inertAt = (n: Node | null | undefined): boolean => {
++    for (let e: Element | null = n instanceof Element ? n : (n?.parentElement ?? null); e; e = e.parentElement ?? ((e.getRootNode() as ShadowRoot).host ?? null))
++      if (e.hasAttribute("data-sift-inert")) return true;
++    return false;
++  };
++  let selField: HTMLInputElement | HTMLTextAreaElement | null = null;
++  for (const fproto of [HTMLInputElement.prototype, HTMLTextAreaElement.prototype] as any[])
++    for (const name of ["select", "setSelectionRange"]) {
++      const orig = fproto[name];
++      if (typeof orig !== "function") continue;
++      fproto[name] = function (this: HTMLInputElement | HTMLTextAreaElement, ...args: unknown[]) {
++        const r = orig.apply(this, args);
++        // Only the copy that follows in the same task.
++        const f = (selField = this);
++        setTimeout(() => selField === f && (selField = null));
++        return r;
++      };
++    }
++  const copied = (): string => {
++    const f = selField;
++    // Never a password: the browser copies none.
++    if (f?.isConnected && inertAt(f) && (f as HTMLInputElement).type !== "password") {
++      try {
++        return f.value.slice(f.selectionStart ?? 0, f.selectionEnd ?? 0);
++      } catch {
++        return "";
++      }
++    }
++    const sel = getSelection();
++    if (!sel?.rangeCount || String(sel) || !inertAt(sel.getRangeAt(0).commonAncestorContainer)) return "";
++    let text = "";
++    for (let i = 0; i < sel.rangeCount; i++) text += sel.getRangeAt(i).toString();
++    return text;
++  };
++  const exec = (Document.prototype as any).execCommand;
++  if (typeof exec === "function") {
++    (Document.prototype as any).execCommand = function (this: Document, ...args: unknown[]) {
++      let text = "";
++      try {
++        if (String(args[0]).toLowerCase() === "copy" && siftShown()) text = copied();
++      } catch {
++        /* never break the page's own call */
++      }
++      if (!text) return exec.apply(this, args);
++      // First in line: the page's own copy listeners can still change or cancel it.
++      const fill = (e: Event) => {
++        const d = (e as ClipboardEvent).clipboardData;
++        if (!d) return;
++        d.setData("text/plain", text);
++        e.preventDefault();
++      };
++      addEventListener("copy", fill, true);
++      try {
++        return exec.apply(this, args);
++      } finally {
++        removeEventListener("copy", fill, true);
++      }
++    };
++  }
++
+   // A popover opened inside a shadow root sends no toggle event to the
+   // document, so Sift would not know it now paints over its view. Tell it.
+   const proto = HTMLElement.prototype as any;
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -0,0 +1,54 @@
++// Parts of a short line that change between visits without the text changing:
++// a clock time, "5 min ago", a view count, and the words that label them.
++
++/** "3時間前", "5분 전": a relative time in scripts written without spaces, one word to \p{L}+. */
++const TICKS_CJK = /\d+\s*(?:秒|分|分钟|分鐘|時間|小时|小時|日|天|週間|周|か月|ヶ月|个月|個月|年|초|분|시간|일|주|개월|년)\s*(?:前|전)/gu;
++/**
++ * Words that only label a time or a count ("Updated", "min read", "hace",
++ * "views", "Publicidad"), and the units of time: a line of nothing else, once
++ * its numbers are gone, says nothing about what the text is.
++ */
++const LABEL = new Set(
++  (
++    "updated update published posted edited modified last read reading time current duration elapsed remaining loaded progress ago just now today yesterday at on by of the a views view comments comment likes shares reads replies votes advertisement advert ad ads sponsored " +
++    "s sec secs second seconds m min mins minute minutes h hr hrs hour hours d day days w wk week weeks mo month months y yr yrs year years " +
++    "actualizado actualizada actualización publicado publicada editado modificado última lectura leer tiempo de del el la las los en hace hoy ayer ahora vistas visitas comentarios respuestas votos publicidad anuncio patrocinado " +
++    "segundo segundos minuto minutos hora horas día días dia dias semana semanas mes meses año años " +
++    "atualizado atualizada leitura há hoje ontem agora do da em às comentários mês ano anos " +
++    "mis à jour publié publiée modifié lecture il y aujourd hui hier le du des vues commentaires publicité seconde secondes heure heures jour jours semaines mois an ans " +
++    "aktualisiert veröffentlicht lesezeit vor heute gestern um am kommentare aufrufe werbung anzeige sekunde sekunden minuten stunde stunden std tag tage tagen woche wochen monat monate monaten jahr jahre jahren " +
++    "aggiornato pubblicato lettura fa oggi ieri alle commenti visualizzazioni pubblicità secondo secondi minuti ora ore giorno giorni settimana settimane mese mesi anno anni " +
++    "bijgewerkt gepubliceerd geleden leestijd vandaag gisteren seconden minuut uur dag dagen weken maand maanden jaar " +
++    "temu zaktualizowano opublikowano dzisiaj wczoraj sekund sekundy minut minuty godzina godziny godzin dni tydzień tygodnie miesiąc miesiące rok lat " +
++    "назад обновлено опубликовано сегодня вчера секунду секунды секунд минуту минуты минут час часа часов день дня дней неделю недели месяц месяца месяцев год года лет"
++  ).split(" "),
++);
++/**
++ * A time relative to now ("3hrs ago", "hace 3 horas", "vor 2 Tagen", "3時間前")
++ * or a count of views, likes or comments: it changes on its own between
++ * visits, whatever else a short line says ("BBC·3hrs ago", "Daily Mail · 266 comments").
++ */
++const VOLATILE = new RegExp(
++  [
++    "(?<!\\p{L})(?:ago|just now|geleden|temu|назад)(?!\\p{L})",
++    "(?<!\\p{L})hace\\s+(?:\\d|un[oa]?s?\\s|pocos?\\s)",
++    "(?<!\\p{L})(?:há|il y a|vor)\\s+(?:\\d+|uma?|une?|einer?|einem)\\s+(?:segundos?|minutos?|horas?|dias?|semanas?|mês|meses|anos?|secondes?|minutes?|heures?|jours?|semaines?|mois|ans?|sekunden?|minuten?|stunden?|tag(?:en)?|wochen?|monat(?:en)?|jahr(?:en)?)(?!\\p{L})",
++    "\\d+\\s+(?:secondi|minuti|ore|giorni|settimane|mesi|anni)\\s+fa(?!\\p{L})",
++    TICKS_CJK.source,
++    "\\d[\\d.,]*\\s*[kmb]?\\s+(?:\\p{L}+\\s+){0,2}(?:views?|viewers?|watching|likes?|comments?|shares?|reads?|vistas?|visitas?|viendo|reproducciones|visualizaciones|comentarios?|vues|commentaires?|aufrufe|kommentare|visualizzazioni|commenti)(?!\\p{L})",
++  ].join("|"),
++  "iu",
++);
++
++/**
++ * Whether a short line only ticks: it has a time relative to now or a count
++ * (see VOLATILE), or it is only a label once the parts `tick` matches (a
++ * clock time, a duration) and its numbers are gone: "Updated 10:32",
++ * "Comentarios (12)". "Doors open at 19:30." and "Pool: closed" say something.
++ */
++export function onlyTicks(line: string, tick: RegExp): boolean {
++  if (VOLATILE.test(line)) return true;
++  const all = new RegExp(tick.source, tick.flags.includes("g") ? tick.flags : tick.flags + "g");
++  const rest = line.replace(all, " ").replace(TICKS_CJK, " ").toLowerCase().match(/\p{L}+/gu) ?? [];
++  return rest.every((w) => LABEL.has(w));
++}
