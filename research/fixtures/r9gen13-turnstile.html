@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Just a moment...</title>
+<style>
+  body { font: 16px sans-serif; margin: 0; }
+  .b { max-width: 650px; margin: 80px auto 0; }
+  .d { font-size: 2.5rem; margin: 2rem 0; }
+  #host { width: 100%; }
+</style>
+</head>
+<body class="a">
+<!-- A Cloudflare challenge page as F956 found it: the widget's frame sits in a closed shadow root, beside a hidden response field. -->
+<div class="b">
+  <h1 class="d">Just a moment…</h1>
+  <div class="main-wrapper"><div class="main-content">
+    <h2 id="znon2"></h2>
+    <p id="zezB9"></p>
+    <div id="XWAst9"><div><div><div id="host"></div><input type="hidden" name="cf-turnstile-response" id="cf-chl-widget-test1_response"></div></div></div>
+  </div></div>
+  <p class="e">Ray ID: 0000000000000000</p>
+</div>
+<script>
+  const sr = document.getElementById("host").attachShadow({ mode: "closed" });
+  sr.innerHTML = '<iframe title="Widget containing a Cloudflare security challenge" style="width:100%;height:0;border:0;display:block" srcdoc="<label style=\'font:16px sans-serif\'><input type=checkbox onclick=\'parent.document.body.dataset.checked=1\'> Verify you are human</label>"></iframe>';
+  // Cloudflare sizes its frame a moment later, inside the closed shadow root: no light DOM change tells.
+  setTimeout(() => { sr.querySelector("iframe").style.height = "65px"; }, 1500);
+</script>
+</body>
+</html>

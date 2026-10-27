@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Copy buttons · Crumb</title>
+<!-- r9 ctrl12 (F904): copy buttons in four places.
+     ?v=dialog: a Drive-like share dialog ("Anyone with the link can view", Copy link, Done): Copy link must stay.
+     ?v=article: a story with a share bar (Share, Copy link): the share bar is noise, Copy link goes with it.
+     ?v=code: a doc with a code block and its Copy button, and a plain "Copy" for an API key that is not shown.
+     Every handler only logs to window.__log and writes the clipboard. -->
+<style>body{font-family:system-ui;margin:0}main{max-width:720px;margin:20px auto;padding:0 12px}
+[role=dialog]{position:fixed;inset:20% 25% auto;background:#fff;border:1px solid #888;padding:16px;box-shadow:0 4px 30px #0005}
+.share-tools{display:flex;gap:8px}</style>
+</head><body>
+<script>window.__log = []; const v = new URLSearchParams(location.search).get("v") || "dialog";
+async function cp(t, what) { try { await navigator.clipboard.writeText(t); __log.push("copied " + what); } catch (e) { __log.push("copy failed " + e.name); } }</script>
+<main id="m"></main>
+<script>
+const m = document.getElementById("m");
+if (v === "dialog") {
+  m.innerHTML = '<h1>Bakery recipes</h1><p>4 files.</p><ul><li><a href="/f/rye">Rye sourdough.pdf</a></li><li><a href="/f/seeded">Seeded loaf.docx</a></li></ul>';
+  const d = document.createElement("div");
+  d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-labelledby", "dt");
+  d.innerHTML = '<h2 id="dt">Share "Bakery recipes"</h2><p>Anyone with the link can view.</p><button type="button" id="cl">Copy link</button> <button type="button" id="done">Done</button>';
+  document.body.append(d);
+  d.querySelector("#cl").onclick = () => cp("https://drive.example/s/bakery-recipes", "link");
+  d.querySelector("#done").onclick = () => { d.remove(); __log.push("done"); };
+} else if (v === "article") {
+  m.innerHTML = '<article><h1>How to keep a sourdough starter alive</h1><div class="share-tools"><button type="button">Share</button><button type="button" id="cl">Copy link</button></div>' +
+    '<p>' + 'A starter needs flour, water and a warm place. Feed it every day at the same hour, and keep a little of the old starter each time. '.repeat(4) + '</p>' +
+    '<p>' + 'If it smells of nail polish, it is hungry: feed it twice a day for a few days and it comes back. '.repeat(4) + '</p></article>';
+  m.querySelector("#cl").onclick = () => cp(location.href, "page link");
+} else {
+  m.innerHTML = '<h1>API keys</h1><p>Your key is hidden. Copy it into your app settings.</p><p><button type="button" id="key">Copy</button></p>' +
+    '<h2>Install</h2><div class="code-wrap"><pre><code>bun add crumb-sdk</code></pre><button type="button" id="cc">Copy</button></div>';
+  m.querySelector("#key").onclick = () => cp("ck_live_8f2a", "key");
+  m.querySelector("#cc").onclick = () => cp("bun add crumb-sdk", "code");
+}
+</script>
+</body></html>

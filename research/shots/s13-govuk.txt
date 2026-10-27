@@ -1,0 +1,25 @@
+[button] Skip to content
+  [input:search]  Search GOV.UK
+  [button] Search
+[button] Menu
+H1 Renew or replace your adult passport
+[link] Renew
+[link] Replace a lost, stolen or damaged passport
+H2 Overview
+  p: It costs £102 to renew or replace your passport if you apply online or £115.50 if you fill in a paper form.
+    [link] get a passport for a child
+    [link] renew or replace your passport if you’re outside the UK
+  H2 How long it takes
+    [link] Check how long it will take to get a passport
+    [link] find out more about the Online Premium or 1 week Fast Track services
+  p: Do not book travel until you have a valid passport - your new passport will not have the same number as your old one.
+  H2 Tracking your passport application
+    [link] track your passport application
+  H2 Getting your new passport
+  p: Your new passport will be sent to you by courier or Royal Mail. They’ll either:
+    li: post it through your letterbox
+    li: hand it to you if you’re home
+    li: leave a card or post you a letter saying how you can get it (it will not say the package is your passport)
+[link] Next Renew
+    [link] View a printable version of the whole guide
+[button] Sift

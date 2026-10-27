@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Team chat</title>
+<style>body { font: 16px sans-serif; margin: 2em; } li { margin: .3em 0; }</style>
+</head>
+<body>
+<h1>Team chat</h1>
+<p>Messages to the whole team. Type a message and press Enter or Send.</p>
+<ol id="msgs"><li>Ana: Morning all, standup moved to 10.</li><li>Ben: Thanks, see you then.</li></ol>
+<form id="f">
+  <label for="m">Message</label>
+  <span id="box"><input id="m" name="message" autocomplete="off"></span>
+  <button type="submit">Send</button>
+</form>
+<script>
+  window.__sent = [];
+  // As a keyed React composer does: after a send, a fresh empty field takes the old one's place and gets focus.
+  document.getElementById('f').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const old = document.querySelector('#box input');
+    const text = old.value.trim();
+    if (!text) return;
+    window.__sent.push(text);
+    const li = document.createElement('li');
+    li.textContent = 'You: ' + text;
+    document.getElementById('msgs').appendChild(li);
+    const fresh = document.createElement('input');
+    fresh.id = 'm'; fresh.name = 'message'; fresh.autocomplete = 'off';
+    old.replaceWith(fresh);
+    fresh.focus();
+  });
+</script>
+</body>
+</html>

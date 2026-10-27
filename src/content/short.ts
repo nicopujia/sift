@@ -300,6 +300,25 @@ export function proseChanged(meta: ShortMeta, src: ShortSource): boolean {
 }
 
 /**
+ * Whether the article's text really changed since a Short version was made
+ * from `meta`: a fourth or more of the prose it was made from is gone or
+ * edited. New paragraphs alone (text the page loads late), a promotion that
+ * came or went, or one changed number do not: those parts show in full in the
+ * Short version already shown (see planShort), which stays for the visit.
+ */
+export function rewritten(meta: ShortMeta, src: ShortSource): boolean {
+  const now = new Set(src.dfp);
+  let all = 0;
+  let gone = 0;
+  meta.dfp.forEach((h, i) => {
+    const n = Math.max(1, wordCount(meta.dplain?.[i] ?? ""));
+    all += n;
+    if (!now.has(h)) gone += n;
+  });
+  return all > 0 && gone >= all * 0.25;
+}
+
+/**
  * Whether a Short version made from `meta` belongs to this article: most of its
  * longer paragraphs are the same and its length is about the same. A site that
  * reuses an element for the next story fails this, so that story never shows

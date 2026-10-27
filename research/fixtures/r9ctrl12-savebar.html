@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Store settings · Loafly Admin</title>
+<!-- r9 ctrl12 (F901): r9-savebar with the bar really hidden until a change ([hidden] wins over #savebar's display).
+     ?v=fixed: the bar is fixed at the top, outside main (Shopify Polaris). ?v=main: the bar sits inside main, sticky at the bottom, with Cancel and Update.
+     Original comment: r9 (T6-fixtures): an admin settings page with a contextual save bar, as in Shopify or WordPress admin.
+     The bar ("Unsaved changes" with Discard and Save) appears at the top only after a change, and the page then asks before
+     leaving (beforeunload). "Order cut-off" is a custom spinbutton (role=spinbutton, ArrowUp/ArrowDown, aria-valuenow).
+     "Delivery days" is a segmented control of toggle buttons (aria-pressed). "Pickup only" is a role=switch.
+     Save shows "Saving…" then a toast "Settings saved" for 3 s and hides the bar. Discard restores the last saved values.
+     An "Advanced" disclosure hides the minimum order field. Nothing posts: every handler only logs to window.__log.
+     A "What's new" promo and a help bubble are noise. -->
+<style>
+body{font-family:system-ui;margin:0}
+header{background:#1e293b;color:#fff;padding:10px 24px;display:flex;gap:16px}header a{color:#fff}
+.whatsnew{background:#ede9fe;padding:8px 24px}
+#savebar{position:sticky;top:0;background:#111;color:#fff;padding:10px 24px;display:flex;gap:12px;align-items:center;z-index:5}
+#savebar span{flex:1}
+#savebar[hidden]{display:none}
+.v-fixed #savebar{position:fixed;left:0;right:0;top:0}
+.v-main #savebar{position:sticky;bottom:0;top:auto}
+main{max-width:640px;margin:20px auto;padding:0 12px}
+label{display:block;margin-top:14px;font-weight:600}
+.spin{display:inline-flex;align-items:center;gap:6px;border:1px solid #888;padding:4px 8px;border-radius:4px;min-width:90px}
+.seg button{border:1px solid #888;background:#fff;padding:6px 10px}.seg button[aria-pressed=true]{background:#1e293b;color:#fff}
+[role=switch]{width:44px;height:24px;border-radius:12px;background:#ccc;border:0}[role=switch][aria-checked=true]{background:#16a34a}
+#toast{position:fixed;bottom:16px;left:16px;background:#111;color:#fff;padding:10px 16px;border-radius:6px}
+.bubble{position:fixed;right:16px;bottom:16px;background:#7c3aed;color:#fff;border-radius:24px;padding:10px 16px}
+</style></head>
+<body>
+<script>{ const v = new URLSearchParams(location.search).get("v"); if (v) document.body.className = "v-" + v; }</script>
+<header><a href="/admin">Loafly Admin</a><a href="/admin/orders">Orders</a><a href="/admin/products">Products</a><a href="/admin/settings">Settings</a></header>
+<div class="whatsnew">What's new: gift cards are here. <a href="/admin/gift-cards">Try them</a></div>
+<div id="savebar" hidden><span>Unsaved changes</span><button type="button" id="discard">Discard</button><button type="button" id="save">Save</button></div>
+<main>
+<h1>Delivery settings</h1>
+<p>These settings apply to every order from tomorrow.</p>
+<label for="shopname">Shop name</label>
+<input id="shopname" value="Crumb &amp; Co">
+<label id="cut-l">Order cut-off (hour, 24 h)</label>
+<div class="spin"><button type="button" id="dec" aria-label="Earlier" tabindex="-1">−</button><span role="spinbutton" id="cut" tabindex="0" aria-labelledby="cut-l" aria-valuemin="12" aria-valuemax="22" aria-valuenow="18" aria-valuetext="18:00">18:00</span><button type="button" id="inc" aria-label="Later" tabindex="-1">+</button></div>
+<p id="days-l"><strong>Delivery days</strong></p>
+<div class="seg" role="group" aria-labelledby="days-l">
+  <button type="button" aria-pressed="true" data-d="Tue">Tue</button><button type="button" aria-pressed="false" data-d="Wed">Wed</button><button type="button" aria-pressed="true" data-d="Thu">Thu</button><button type="button" aria-pressed="true" data-d="Fri">Fri</button><button type="button" aria-pressed="false" data-d="Sat">Sat</button>
+</div>
+<p><span id="pk-l">Pickup only</span> <button type="button" role="switch" id="pickup" aria-checked="false" aria-labelledby="pk-l"></button></p>
+<details id="adv"><summary>Advanced</summary>
+<label for="min">Minimum order ($)</label>
+<input id="min" type="number" min="0" value="15">
+</details>
+<p id="status" role="status"></p>
+</main>
+<script>if (document.body.className === "v-main") { const b = document.getElementById("savebar"); document.querySelector("main").append(b); document.getElementById("discard").textContent = "Cancel"; document.getElementById("save").textContent = "Update"; }</script>
+<div id="toast" role="status" hidden></div>
+<div class="bubble" role="button" tabindex="0">Need help?</div>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+const cur = () => ({ name: $("shopname").value, cut: +$("cut").getAttribute("aria-valuenow"), days: [...document.querySelectorAll(".seg button[aria-pressed=true]")].map((b) => b.dataset.d).join(","), pickup: $("pickup").getAttribute("aria-checked") === "true", min: $("min").value });
+let saved = cur();
+const dirty = () => JSON.stringify(cur()) !== JSON.stringify(saved);
+function changed(what) { __log.push("change " + what); $("savebar").hidden = !dirty(); }
+function setCut(v) { v = Math.max(12, Math.min(22, v)); $("cut").setAttribute("aria-valuenow", v); $("cut").setAttribute("aria-valuetext", v + ":00"); $("cut").textContent = v + ":00"; changed("cut " + v); }
+$("cut").addEventListener("keydown", (e) => { const v = +$("cut").getAttribute("aria-valuenow"); if (e.key === "ArrowUp") { e.preventDefault(); setCut(v + 1); } if (e.key === "ArrowDown") { e.preventDefault(); setCut(v - 1); } });
+$("inc").onclick = () => setCut(+$("cut").getAttribute("aria-valuenow") + 1);
+$("dec").onclick = () => setCut(+$("cut").getAttribute("aria-valuenow") - 1);
+for (const b of document.querySelectorAll(".seg button")) b.onclick = () => { b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true")); changed("day " + b.dataset.d); };
+$("pickup").onclick = () => { $("pickup").setAttribute("aria-checked", String($("pickup").getAttribute("aria-checked") !== "true")); changed("pickup"); };
+$("shopname").addEventListener("input", () => changed("name"));
+$("min").addEventListener("input", () => changed("min"));
+$("save").onclick = () => {
+  $("save").disabled = true; $("save").textContent = "Saving…";
+  setTimeout(() => { saved = cur(); __log.push("save " + JSON.stringify(saved)); $("save").disabled = false; $("save").textContent = "Save"; $("savebar").hidden = true; $("toast").textContent = "Settings saved"; $("toast").hidden = false; setTimeout(() => { $("toast").hidden = true; }, 3000); }, 600);
+};
+$("discard").onclick = () => {
+  $("shopname").value = saved.name; $("cut").setAttribute("aria-valuenow", saved.cut); $("cut").setAttribute("aria-valuetext", saved.cut + ":00"); $("cut").textContent = saved.cut + ":00";
+  for (const b of document.querySelectorAll(".seg button")) b.setAttribute("aria-pressed", String(saved.days.split(",").includes(b.dataset.d)));
+  $("pickup").setAttribute("aria-checked", String(saved.pickup)); $("min").value = saved.min;
+  $("savebar").hidden = true; __log.push("discard"); $("status").textContent = "Changes discarded.";
+};
+addEventListener("beforeunload", (e) => { if (dirty()) { __log.push("beforeunload"); e.preventDefault(); e.returnValue = ""; } });
+</script>
+</body></html>

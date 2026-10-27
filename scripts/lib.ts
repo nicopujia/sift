@@ -81,3 +81,50 @@ export async function siftOutline(page: Page, limit = 400): Promise<string> {
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Compares the code the extension's service worker is running with
+ * <SIFT_OUT>/background.js on disk (F923: Chrome restarted on an old profile
+ * keeps the old worker script while content scripts are new). Wakes a sleeping
+ * worker with a harmless "config" message from Sift's Options page. The marker
+ * is PROMPT_VERSION plus a short hash of the whole script.
+ */
+export async function workerCheck(browser: Browser, id: string): Promise<{ ok: boolean; running: string; disk: string }> {
+  const root = new URL("..", import.meta.url).pathname;
+  const disk = await readFile(root + (process.env.SIFT_OUT ?? "dist") + "/background.js", "utf8");
+  const origin = `chrome-extension://${id}/`;
+  const isWorker = (t: Target) => t.type() === "service_worker" && t.url().startsWith(origin);
+  let worker = browser.targets().find(isWorker);
+  if (!worker) {
+    const page = await browser.newPage();
+    await page.goto(origin + "options.html").catch(() => {});
+    await page.evaluate(() => (globalThis as any).chrome.runtime.sendMessage({ type: "config" })).catch(() => {});
+    worker = await browser.waitForTarget(isWorker, { timeout: 10000 }).catch(() => undefined);
+    await page.close().catch(() => {});
+  }
+  const mark = (src: string) => `PROMPT_VERSION ${src.match(/PROMPT_VERSION = (\d+)/)?.[1] ?? "?"}, ${Bun.hash(src).toString(16).slice(0, 10)} (${src.length} chars)`;
+  if (!worker) return { ok: false, running: "no service worker", disk: mark(disk) };
+  const cdp = await worker.createCDPSession();
+  const scripts: { scriptId: string; url: string }[] = [];
+  cdp.on("Debugger.scriptParsed", (e) => scripts.push(e));
+  await cdp.send("Debugger.enable");
+  let running = "";
+  for (let i = 0; i < 40 && !running; i++) {
+    const s = scripts.find((x) => x.url === origin + "background.js");
+    if (s) running = (await cdp.send("Debugger.getScriptSource", { scriptId: s.scriptId })).scriptSource;
+    else await sleep(100);
+  }
+  await cdp.send("Debugger.disable").catch(() => {});
+  await cdp.detach().catch(() => {});
+  if (!running) return { ok: false, running: "background.js not found in the worker", disk: mark(disk) };
+  return { ok: running === disk, running: mark(running), disk: mark(disk) };
+}
+
+// `bun scripts/lib.ts worker <extension id>`: prints the check, exits 1 when the worker is stale.
+if (import.meta.main && process.argv[2] === "worker") {
+  const browser = await connect();
+  const r = await workerCheck(browser, process.argv[3] ?? "");
+  browser.disconnect();
+  console.log(r.ok ? `service worker = dist: ${r.running}` : `SERVICE WORKER IS STALE: running ${r.running}; dist has ${r.disk}`);
+  process.exit(r.ok ? 0 : 1);
+}

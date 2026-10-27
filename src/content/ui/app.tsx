@@ -55,6 +55,7 @@ function Inl({ c }: { c: Inline[] }) {
               class="cell-btn"
               data-ref={x.ref}
               aria-label={x.name}
+              title={x.name}
               aria-expanded={x.expanded}
               aria-pressed={x.pressed}
               aria-disabled={x.disabled || undefined}
@@ -172,10 +173,20 @@ function fieldEvents(ref: string) {
 
 function useMirror(f: Field) {
   const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  const was = useRef(f.ref);
   useEffect(() => {
     const el = ref.current;
+    const prev = was.current;
+    was.current = f.ref;
     if (!el || el.value === f.value) return;
     const root = el.getRootNode() as ShadowRoot;
+    // The page put a new field in place of the one the reader is typing into (YouTube's search box
+    // while it loads, the old one still there a moment): the new one gets the text Sift's field
+    // shows, so Enter and Search send it (F900).
+    if (prev !== f.ref && root.activeElement === el && (typedAt.get(el) ?? 0) > store.actAt) {
+      H.input(f.ref, el.value);
+      return;
+    }
     // Never under the user's fingers; but a value the page set after an action
     // (a picked suggestion) shows even in the focused field, unless they typed since.
     if (root.activeElement !== el || (store.actAt > (typedAt.get(el) ?? 0) && Date.now() - store.actAt < 3000)) el.value = f.value;
@@ -286,6 +297,8 @@ function enterSubmits(f: Field, formRef?: string) {
   };
 }
 
+const ariaNum = (s: string | undefined) => (s && isFinite(+s) ? +s : undefined);
+
 function FieldView({ f, formRef, group }: { f: Field; formRef?: string; group: string }) {
   switch (f.kind) {
     case "checkbox":
@@ -304,6 +317,30 @@ function FieldView({ f, formRef, group }: { f: Field; formRef?: string; group: s
       );
     case "select":
       return <SelectField f={f} />;
+    case "spinbutton":
+      // The page's spinbutton, as itself: its value shows, and its keys go to the page (index.ts sliderKey, F902).
+      return (
+        <div class="field">
+          <span id={"lbl-" + f.key}>{f.label}</span>
+          <span
+            class="spin"
+            role="spinbutton"
+            tabIndex={f.disabled ? -1 : 0}
+            data-ref={f.ref}
+            aria-labelledby={"lbl-" + f.key}
+            aria-valuenow={ariaNum(f.value)}
+            aria-valuemin={ariaNum(f.min)}
+            aria-valuemax={ariaNum(f.max)}
+            aria-valuetext={f.valueText}
+            aria-disabled={f.disabled || undefined}
+            aria-readonly={f.readOnly || undefined}
+            aria-invalid={f.invalid || undefined}
+            {...fieldEvents(f.ref)}
+          >
+            {f.valueText || f.value}
+          </span>
+        </div>
+      );
     case "file":
       return (
         <label class="field">
@@ -582,6 +619,8 @@ function PortalView({ b }: { b: Extract<Block, { t: "portal" }> }) {
   const el = b.media ? null : elOf(b.ref);
   const frame = !!el && (el.localName === "iframe" || !!el.querySelector("iframe"));
   const named = b.label && b.label !== t("interactive") ? `: ${b.label}` : "";
+  // A chart shown as it is reads as a picture, like a video's box: nothing in it to use (F929).
+  const pic = !!b.media || !!b.chart;
   return (
     <figure class="portal-wrap">
       <div
@@ -591,14 +630,14 @@ function PortalView({ b }: { b: Extract<Block, { t: "portal" }> }) {
           // Keyboard users press Enter here to work inside the original element
           // (a map, a payment field); Escape there comes back here.
           // preventDefault: the key must not also press the control focus moves to.
-          if (el && !b.media) onEnter.set(el, (e) => { e.preventDefault(); H.enterPortal(b.ref); });
+          if (el && !pic) onEnter.set(el, (e) => { e.preventDefault(); H.enterPortal(b.ref); });
         }}
         style={{ aspectRatio: `${1 / ratio}`, maxWidth: b.maxWidth ? b.maxWidth + "px" : undefined }}
-        role={b.media ? "img" : "group"}
-        aria-label={b.media ? b.label : `${t("interactive")}${named}. ${frame ? t("enterToUseFrame") : t("enterToUse")}`}
+        role={pic ? "img" : "group"}
+        aria-label={pic ? b.label : `${t("interactive")}${named}. ${frame ? t("enterToUseFrame") : t("enterToUse")}`}
         // A video box is not a tab stop (Sift's buttons below it are), but Escape
         // from inside the player comes back to it.
-        tabIndex={b.media ? -1 : 0}
+        tabIndex={pic ? -1 : 0}
       />
       {b.media && <MediaBar media={b.media} portalRef={b.ref} />}
     </figure>
@@ -694,9 +733,91 @@ function Section({ b }: { b: Extract<Block, { t: "section" }> }) {
       }}
     >
       {/* A heading inside the summary keeps the outline: an h3 in the section follows an h2. */}
-      <summary><Heading level={Math.max(2, b.level ?? 2)}>{b.title}</Heading></summary>
+      <summary><Heading level={Math.max(2, b.level ?? 2)}>{b.title || t("details")}</Heading></summary>
       {open && <Blocks blocks={b.blocks} />}
     </details>
+  );
+}
+
+/**
+ * A data table. One with many short columns (a browser compatibility table) is compact, and when it is wider
+ * than the column it may use the window's width, as the original does; what still does not fit scrolls, with a
+ * visible scrollbar and a note of how many columns are off to the side (F962).
+ */
+function TableView({ b }: { b: Extract<Block, { t: "table" }> }) {
+  const wrap = useRef<HTMLDivElement>(null);
+  const [off, setOff] = useState(0);
+  const cells = b.rows.slice(0, 20).flat();
+  const compact = b.head.length >= 7 && cells.length > 0 && cells.reduce((n, c) => n + textOf(c).length, 0) / cells.length <= 14;
+  useEffect(() => {
+    const w = wrap.current;
+    const tbl = w?.firstElementChild as HTMLElement | null;
+    if (!w || !tbl) return;
+    let raf = 0;
+    const count = () => {
+      const r = w.getBoundingClientRect();
+      const ths = Array.from(tbl.querySelectorAll("thead th, thead td"));
+      const cols = ths.length ? ths : Array.from(tbl.querySelector("tr")?.children ?? []);
+      setOff(w.scrollWidth > w.clientWidth + 1 ? cols.filter((c) => { const x = c.getBoundingClientRect(); return x.right > r.right + 1 || x.left < r.left - 1; }).length : 0);
+    };
+    const fit = () => {
+      w.style.width = w.style.marginInlineStart = "";
+      w.classList.remove("wide");
+      const col = w.clientWidth;
+      if (tbl.offsetWidth <= col + 1) return count();
+      // Room in the window beside the column, kept clear of its edges.
+      const root = w.getRootNode();
+      const vw = (root instanceof ShadowRoot ? root.host.clientWidth : 0) || document.documentElement.clientWidth;
+      const r = w.getBoundingClientRect();
+      const gap = 16;
+      const room = Math.max(col, vw - 2 * gap);
+      // As narrow as its columns allow (headers wrap between words), with a little air.
+      tbl.style.width = "min-content";
+      const want = Math.min(room, Math.ceil(tbl.offsetWidth * 1.1));
+      tbl.style.width = "";
+      w.style.width = want + "px";
+      const extra = want - col;
+      const left = Math.max(0, Math.min(r.left - gap, Math.max(extra / 2, extra - (vw - gap - r.right))));
+      const rtl = getComputedStyle(w).direction === "rtl";
+      w.style.marginInlineStart = -(rtl ? Math.max(0, Math.min(vw - gap - r.right, Math.max(extra / 2, extra - (r.left - gap)))) : left) + "px";
+      w.classList.add("wide");
+      count();
+    };
+    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(count); };
+    fit();
+    const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fit); });
+    ro.observe(w.parentElement ?? w);
+    ro.observe(tbl);
+    w.addEventListener("scroll", onScroll, { passive: true });
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); w.removeEventListener("scroll", onScroll); };
+  }, [b]);
+  return (
+    <>
+      {off > 0 && <p class="notice info table-more">{t("moreCols", { n: off })}</p>}
+      <div class={compact ? "table-wrap compact" : "table-wrap"} ref={wrap}>
+        <table>
+            {b.caption && <caption>{b.caption}</caption>}
+            {/* An empty corner cell (over the rows' names) heads nothing. */}
+            {b.head.length > 0 && (
+              <thead>
+                <tr>
+                  {b.head.map((h, i) => {
+                    // A header that sorts its column stays a button (or the page's sort link), with its sort state.
+                    const c = b.heads?.[i];
+                    if (!h) return <td key={i} />;
+                    return (
+                      <th key={i} scope="col" aria-sort={c?.sort as any}>
+                        {c?.checked !== undefined ? <CellCheck refId={c.ref} label={h} checked={c.checked} /> : c?.href ? <A href={c.href} refId={c.ref}>{h}</A> : c?.ref ? <button type="button" class="th-btn" data-ref={c.ref} onClick={() => H.act(c.ref)}>{h}</button> : h}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+            )}
+            <tbody>{b.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}><Inl c={c} /></td>)}</tr>)}</tbody>
+          </table>
+        </div>
+    </>
   );
 }
 
@@ -752,31 +873,7 @@ export function BlockView({ b }: { b: Block }) {
         </dl>
       );
     case "table":
-      return (
-        <div class="table-wrap">
-          <table>
-            {b.caption && <caption>{b.caption}</caption>}
-            {/* An empty corner cell (over the rows' names) heads nothing. */}
-            {b.head.length > 0 && (
-              <thead>
-                <tr>
-                  {b.head.map((h, i) => {
-                    // A header that sorts its column stays a button (or the page's sort link), with its sort state.
-                    const c = b.heads?.[i];
-                    if (!h) return <td key={i} />;
-                    return (
-                      <th key={i} scope="col" aria-sort={c?.sort as any}>
-                        {c?.checked !== undefined ? <CellCheck refId={c.ref} label={h} checked={c.checked} /> : c?.href ? <A href={c.href} refId={c.ref}>{h}</A> : c?.ref ? <button type="button" class="th-btn" data-ref={c.ref} onClick={() => H.act(c.ref)}>{h}</button> : h}
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-            )}
-            <tbody>{b.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}><Inl c={c} /></td>)}</tr>)}</tbody>
-          </table>
-        </div>
-      );
+      return <TableView b={b} />;
     case "section":
       return <Section b={b} />;
     case "article":

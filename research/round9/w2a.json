@@ -1,0 +1,840 @@
+{
+ "confirmed": [
+  {
+   "source": "R2-interaction",
+   "title": "Sift's bar Search button no longer sends the field's change and blur before clicking the page's button, so a search without a form runs with the old query",
+   "severity": "high",
+   "regression": true,
+   "where": "src/content/index.ts:774 (mousedown on 'form.search button[type=submit]' is cancelled, F856) with src/content/proxy.ts:598 (no-form search with via 'button': click(button) without finishEditing)",
+   "evidence": "Fixture fx/r9int-searchchange.html is a bar search with no <form>. Its query is kept on the field's change event, as a value binding does, and its Search button reads it. Mouse: type 'bread' in Sift's bar field, click Sift's Search. Current build: page log ['search \"\"'], results 'Type something to search.'. Original (Sift off, same mouse flow): ['change bread','blur','search \"bread\"'], 'Results for bread\u2026'. Pre-round-8 build (sift-r8-base on port 9477): ['change bread','blur','search \"bread\"'], same results as the original. Before, mousedown moved focus off Sift's field, so H.leave sent change and blur first. Now focus stays, and proxy.submit's no-form button path only clicks the page button.",
+   "repro": "Start the test Chrome. Run SIFT_PORT=9467 SIFT_TAB=R2-interaction bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r9int/searchchange.ts. It prints SIFT {\"log\":[\"search \\\"\\\"\"]\u2026}. Add 'orig' as the first argument for the original. By hand: open http://127.0.0.1:8799/fx/r9int-searchchange.html, type 'bread' in Sift's top search field, and click Sift's Search button with the mouse.",
+   "suspectedCause": "F856 keeps focus in the field to stop Discourse's blur, but the field's edit then never ends. In proxy.submit's no-form branch, finishEditing(field) (change) should run before click(button), as the blur did before.",
+   "verdict": "Reproduced twice on the current build (port 9467) with fx/r9int-searchchange.html. I typed 'bread' in Sift's bar field and clicked Sift's Search with the mouse. Page log: ['search \"\"'], results 'Type something to search.' Original (Sift off, same mouse flow): ['change bread','blur','search \"bread\"'] and 'Results for bread\u2026'. The pre-round-8 build (scratchpad/pre8, which is sift-r8-base's src, on 9477) gave the same as the original in 2 of 2 runs, so this is a regression. In the code, index.ts ~774 cancels mousedown on 'form.search button[type=submit]' while focus is in that form's field (F856), so focus never leaves the field and H.leave never sends change and blur. proxy.submit's no-form branch with via 'button' then runs only `else if (button) click(button)`, with no finishEditing. The form branch and the Enter branch both call finishEditing, so only the mouse button path on searches without a form is hit. That limits the scope to pages that commit the query on change or blur (Knockout value bindings, v-model.lazy). On those pages it is a real wrong-result search. I would call it medium to high.",
+   "fix": "src/content/proxy.ts submit(), no-form branch: call finishEditing(field) before click(button) when field is set (`else if (button) { if (field) finishEditing(field); click(button); }`). Or in index.ts H.submit, flush the field's change (and a blur if wanted) before proxy.submit when F856's mousedown kept focus in the field."
+  },
+  {
+   "source": "R2-interaction",
+   "title": "Escape on a popup the page keeps open hides Sift's copy for good: a calendar under a read-only date field can then never be reached in Sift",
+   "severity": "high",
+   "regression": true,
+   "where": "src/content/index.ts:995-1005 (escapeList: hidden(true) dismisses the list even when the page still shows it) and src/content/index.ts:3185-3190 (only H.input on the same field clears that dismissal)",
+   "evidence": "Fixture fx/r9int-pickesc.html: a read-only 'Day' field opens a calendar on focus and click. The calendar ignores Escape and closes on a pick or an outside press. Current build: the click shows Sift's sheet with 27-31. After Escape, the sheet is gone while the page calendar is still open. Tab goes to 'Book'. Shift+Tab back, a click on the field, and ArrowDown all leave the sheet 'none'. The field is read-only, so no typing can bring it back, and the day cannot be picked in Sift. Pre-round-8 build: the sheet stays after Escape, Tab reaches button 27, and ArrowDown focuses 27. On the original, the calendar stays open after Escape and Tab reaches its days.",
+   "repro": "SIFT_PORT=9467 SIFT_TAB=R2-interaction bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r9int/pickesc.ts prints siftSheet 'none' after Escape, Tab, Shift+Tab, click and ArrowDown, while pageCal stays true. With the pre-round-8 build (port 9477) every line shows 'sheet suggest:27,28,29,30,31'.",
+   "suspectedCause": "The F853 fix forces the dismissal at setTimeout 0 for any anchored list, and only typing undoes it. Force it only for the plain-search panels F853 was about ('fp:' lists), or also clear the dismissal when the user enters or clicks the field again (H.focus, H.fieldClick).",
+   "verdict": "Reproduced twice on the current build with fx/r9int-pickesc.html. Clicking the read-only Day field shows Sift's sheet with 27-31. After Escape the sheet is 'none' while the page calendar stays open. Tab goes to 'Book'. Shift+Tab back, another click on the field, and ArrowDown all leave the sheet 'none'. In an extra run I clicked Sift's heading and then the field again, and still nothing came back after 7 s: the page calendar never closes (Sift's own presses do not reach the page's outside-mousedown handler), so the dismissal is never lifted. The field is read-only, so the only lift (typing, in H.input via escapedList) cannot happen. The day cannot be picked in Sift. Original: after Escape the calendar stays open, Tab reaches '27', and Enter picks 'Oct 27'. The pre-round-8 build keeps the sheet after Escape, Tab reaches 27, and ArrowDown focuses 27. In the code, escapeList's `setTimeout(() => hidden(true), 0)` (index.ts ~995-1005, the F853 change) forces the dismissal for any list the page still shows. Pre8's hidden() returned early whenever the list was still visible. This is a regression, but only for pickers that ignore Escape. jQuery UI and Bootstrap pickers close on Escape, so they are not affected. Medium to high.",
+   "fix": "src/content/index.ts escapeList: force the dismissal (hidden(true)) only for plain-search panels (fieldPanel 'fp:' / fieldList 'fl:' keys, the F853 case). And/or in H.focus and H.fieldClick, when escapedList?.ref === ref, delete escapedList.key from store.dismissed and dismissedRefs, as H.input already does, so pressing the field again brings the page's still-open popup back."
+  },
+  {
+   "source": "R2-interaction",
+   "title": "After a message is sent, the page's fresh message field gets the sent text again, and a second Enter sends it twice",
+   "severity": "high",
+   "regression": false,
+   "where": "src/content/index.ts:3082 (sift-focus listener calls liveField(refOf(pageFocus)) with sync on) and src/content/index.ts:2864 (proxy.setValue(now, mine.value))",
+   "evidence": "Fixture fx/r9int-resend.html is a chat form. On submit it posts the text, replaces the input name=message with a fresh empty one in the same place, and focuses it, as a keyed composer or an HTMX swap with autofocus does. Sift: type 'hello team', press Enter. Sent ['hello team'], but the page field and Sift's field both hold 'hello team'. A second Enter gives sent ['hello team','hello team']. Original: after Enter the page field is '' and the second Enter sends nothing. A page-side trace shows change@old, then focus@new and input@new='hello team' within 9 ms. That is liveField adopting the fresh field on the page's focus() and copying Sift's stale text into it. The pre-round-8 build does the same.",
+   "repro": "SIFT_PORT=9467 SIFT_TAB=R2-interaction bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r9int/resend.ts. Add 'orig' as the first argument for the original. resend2.ts in the same folder prints the event trace.",
+   "suspectedCause": "liveField's sync copies Sift's field value into the adopted field even right after an action. carry() already guards this with lastTyped > store.actAt, and the sift-focus path should use the same guard (or sync=false).",
+   "verdict": "Reproduced twice on the current build with fx/r9int-resend.html. I typed 'hello team' and pressed Enter. Result: sent ['hello team'], but the page's fresh field and Sift's field both hold 'hello team'. A second Enter gives sent ['hello team','hello team']. Original: after Enter the page field is '' and the second Enter sends nothing. The pre-round-8 build does the same as the current one, so this is not a regression. In the code, the 'sift-focus' listener (index.ts ~3082) calls liveField(refOf(pageFocus)) with the default sync=true when the page focuses the field it swapped in. liveField then runs proxy.setValue(now, mine.value) (~2864), which copies Sift's stale text into the page's new empty field. carry() has a lastTyped > store.actAt guard against exactly this, and this path does not. It only hits pages that replace the composer element after a send and focus the new one (keyed remount, HTMX outerHTML with autofocus). When it does, it leads to duplicate sends or old text stuck in the field. High is fair.",
+   "fix": "src/content/index.ts sift-focus listener: call liveField(refOf(pageFocus), false) there, or in liveField only sync when lastTyped(mine) > store.actAt, the same guard carry() uses. Then Sift's field takes the page's new (empty) value on the next render."
+  },
+  {
+   "source": "R2-interaction",
+   "title": "When the page redraws the cart row being edited, Sift moves focus to the first field with the same label, so the next key changes another item's quantity",
+   "severity": "high",
+   "regression": false,
+   "where": "src/content/index.ts:302-303 (twinOf falls back to the first control with the same label), used by refocusNow at src/content/index.ts:352-353. The page's own focus on the redrawn field is ignored at src/content/index.ts:3088 because no action was recent.",
+   "evidence": "Fixture fx/r9int-cartrow.html has 3 rows, each labelled 'Quantity' with name=qty, as in Shopify's Dawn cart. After a quantity is saved, the page redraws that row and focuses its new field. In Sift: click the 2nd Quantity (Seeded rye), type '1', wait 1.5 s, type '2'. Result: rows [row-a:21, row-b:11, row-c:1], log ['b=11','a=21'], and focus ends on Rye loaf's Quantity. Original: [row-a:1, row-b:211, row-c:1], log ['b=11','b=211']: only Seeded rye changes. With per-item labels (?v=named), Sift matches the original. The pre-round-8 build is worse ('a=11','a=211'). Round 8 removed the text carry (F851) but kept the label-only focus.",
+   "repro": "SIFT_PORT=9467 SIFT_TAB=R2-interaction bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r9int/cartrow.ts. Add 'orig' as the first argument for the original, or append '?v=named' as the second argument for the control.",
+   "suspectedCause": "With several Sift controls sharing the label, twinOf takes the first. It should prefer the same rank among same-label controls, or follow the page's own focus() into the redrawn same-kind field while the user is typing (allow pageFocusTo when typedAt is recent).",
+   "verdict": "Reproduced twice on the current build with fx/r9int-cartrow.html. I clicked the 2nd 'Quantity' (Seeded rye), typed '1', waited 1.5 s, then typed '2'. Result: rows [row-a:21, row-b:11, row-c:1], log ['b=11','a=21'], and Sift's focus ends on Rye loaf's Quantity (value 21). Original: [row-a:1, row-b:211, row-c:1], log ['b=11','b=211']. With ?v=named (per-item labels), Sift matches the original. The pre-round-8 build is worse: ['b=11','a=11','a=211']. Not a regression. The cause is in index.ts. liveField cannot adopt the redrawn field: the nearest connected container (#rows) holds 3 qty fields, so `place.n[i] !== 1 && i > 0` returns null. The page's own focus() on the new field is ignored because no action was recent (the check at ~3088). refocusNow then calls twinOf, which falls back to `all.find(c => labelOf(c) === spot.label)`, the first 'Quantity'. Dawn-style carts label every row 'Quantity' and refocus the redrawn row, so the next key or ArrowUp changes the wrong item's quantity. High.",
+   "fix": "src/content/index.ts: record in spotOf the spot's rank among Sift controls with the same tag and label, and in twinOf pick the same-label control at that rank (fall back to the first only when there is a single one). Or, in the sift-focus listener, follow the page's focus() into a same-kind field when typedAt is recent (treat recent typing like a recent action), so focus goes to Sift's copy of the field the page focused."
+  },
+  {
+   "source": "R2-interaction",
+   "title": "Waking embeds scrolls the hidden original far enough to fire its 'next story' loader, and Sift then shows that story appended",
+   "severity": "medium",
+   "regression": true,
+   "where": "src/content/index.ts:1768-1776 (wakeEmbeds: el.scrollIntoView on the hidden original, up to 3 s per embed)",
+   "evidence": "Fixture fx/r9int-nextart.html is an article with a blockquote.twitter-tweet near its end. Its widget never renders, as on a page with consent not given. Below the article, an IntersectionObserver (rootMargin 800px) loads the next story. Current build: about 1.7 s after load the page log shows 'first scroll' and 'next story loaded'. Sift's main view then contains the next story's text ('coastal road'), and the reader never scrolled there. Pre-round-8 build: log [], no next story. On La Naci\u00f3n (F830's URL) the original was scrolled to y=2882 twice, at 6.4 s and 19.4 s, each time for about 6 s.",
+   "repro": "SIFT_PORT=9467 SIFT_TAB=R2-interaction bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r9int/nextart.ts prints log ['first scroll\u2026','next story loaded\u2026']. Then bun scripts/act.ts \"eval:document.querySelector('sift-root').shadowRoot.querySelector('#sift-main').textContent.includes('coastal road')\" prints true. With the pre-round-8 build (port 9477), the log is [].",
+   "suspectedCause": "scrollIntoView({block:'center'}) shows the whole viewport around the embed in the original, so any scroll-linked loader near it fires too. Bring only the embed into view (block 'nearest' near the viewport's top edge), or skip waking when the scroll would reach the page's end.",
+   "verdict": "Reproduced twice on the current build with fx/r9int-nextart.html. About 1.7 s after load the page log shows ['first scroll at ~1700','next story loaded at ~1700']. Sift's #sift-main then contains the next story's text ('coastal road' is true; its paragraphs are appended at the end of Sift's view), though the reader never got near the end. The original's scroll is restored afterward (docY 0). The pre-round-8 build: log [] and 'coastal road' false, so this is a regression from the F830 change. In the code, wakeEmbeds (index.ts ~1751-1777) calls el.scrollIntoView({block:'center'}) on the hidden original for each embed quote and holds it there up to 3 s. Any scroll-linked loader near the embed fires (next-story loaders, lazy comments, read tracking). I did not check La Naci\u00f3n live; the evidence is the fixture plus the code. One caution on the reporter's fix: block 'nearest' or 'start' would not help here, because with an 800 px rootMargin the sentinel right after the embed still intersects. Medium is fair.",
+   "fix": "src/content/index.ts wakeEmbeds: skip (or defer until the reader scrolls near it in Sift) any embed whose wake scroll would bring the viewport within about a screen plus a margin of the document's end (el's bottom + scrollY + innerHeight + ~1000 > scrollHeight). Or watch for large content appended outside the embed during the wake, and stop waking when that happens. Changing only the scrollIntoView block option is not enough."
+  },
+  {
+   "source": "T4-generic",
+   "title": "GitHub Status history drops the preview incidents of the later months: 6 of 9 incident links on load, 19 of 25 after expanding October",
+   "severity": "high",
+   "where": "https://www.githubstatus.com/history",
+   "evidence": "On load, the original shows 3 incidents per month for October, September and August: 9 visible incident links. Sift has 6. All 3 August previews are missing ('Elevated rate of errors for OpenAI models provided by Copilot', 'Disruption with GitHub Billing', 'Incident with Copilot AI Model Providers'), and 'August 2026' is followed directly by '+ Show All 27 Incidents'. After '+ Show All 19 Incidents' (October), the original shows 25 links and Sift 19: the 3 September previews also vanish ('Copilot Code Review is unable to complete reviews', 'Disruption with billing information updates', 'Incident across several services'). Both runs gave the same result. Expanding August (33/33) and then September (44/44) brings everything back. Round 8 works.md line 34 had 25 incident links in Sift and 25 in the original after expanding October. Outline: /home/nico/projects/sift-test-4/research/shots/r9t4-ghhistory.txt, shot /home/nico/projects/sift-test-4/research/shots/r9t4-ghhistory-exp.png",
+   "repro": "SIFT_PORT=9464 SIFT_TAB=T4-generic bun scripts/act.ts goto:https://www.githubstatus.com/history wait:8000 'eval:(()=>{const r=document.querySelector(\"sift-root\").shadowRoot;const s=new Set([...r.querySelectorAll(\"main a\")].filter(a=>/\\/incidents\\//.test(a.href)).map(a=>a.href));const o=[...document.querySelectorAll(\"a\")].filter(a=>/\\/incidents\\//.test(a.href)&&a.getBoundingClientRect().height>0);return [o.length,s.size]})()' 'click:+ Show All 19 Incidents' wait:2500 (same eval again). It prints [9,6], then [25,19].",
+   "regression": true,
+   "suspectedCause": "Unverified. The preview incidents of a month whose 'Show All' toggle is collapsed (aria-expanded=false) seem to be treated as hidden or folded content. Only the first month (or the month just expanded) keeps its previews. The 'Incident across several services' entry also gets a Short version ('Show full text'). A round 8 change to collapsed regions or post bodies in src/content/extract/generic.ts may be involved.",
+   "verdict": "Reproduced twice with the given eval: [9,6] on load, then [25,19] after '+ Show All 19 Incidents'. The claim is wrong on one point: the incidents are not dropped. They are folded. Sift's shadow DOM has <details class=section data-key=s:r10><summary><h2>August 2026</h2></summary></details>, which is collapsed and renders its children only when opened. Clicking that summary shows the 3 August incidents ('Elevated rate of errors for OpenAI models provided by Copilot', and so on). After October is expanded, both 'September 2026' and 'August 2026' become collapsed sections. The original shows all three previews of every month in plain view. Cause, from the code: the incident bodies are div.message with text between <br><br> and no <p>. So the F832 fallback in findArticle() (src/content/extract/generic.ts, about line 3203, 'No story in <p>s: one set as runs of text between <br>s') picks one long incident body as the page's article. That is why 'Incident across several services' (and, after expanding, the Oct 5 'Incident with Actions') gets 'Show full text'. article() then sets ctx.afterArticle = true, and itemsInto() (about line 4704) folds every later list as 'more stories after the article', titled by the month H2. This fits a round 8 regression: works.md line 34 had 25/25. Severity is medium rather than high, because the content can be reached by opening the month, but nothing signals that the bare month heading holds incidents.",
+   "fix": "In src/content/extract/generic.ts findArticle(), in the F832 <br>-run fallback, skip a text run whose box sits inside one of several same-signature sibling entries (for example, an ancestor within 3 levels with a sibling of the same signature(), like div.incident-data), or apply the postGroup/inPostGroup/resultList filters to the fallback's candidates. Otherwise a list of entries is never one article. As a backstop, itemsInto() should not fold a list whose siblings include the list that holds ctx.articleEl."
+  },
+  {
+   "source": "T4-generic",
+   "title": "Cloudflare bot-check page: Sift hides the 'Verify you are human' checkbox, so a person in Sift cannot pass the check",
+   "severity": "high",
+   "where": "https://stackoverflow.com/questions/927358/how-do-i-undo-the-most-recent-local-commits-in-git?answertab=trending (when Cloudflare challenges the visit)",
+   "evidence": "One load of Stack Overflow got Cloudflare's 'Performing security verification' page. Sift showed only 'stackoverflow.com', the H2 'Performing security verification' and the paragraph about bots: no checkbox, no hint, nothing to act on (/home/nico/projects/sift-test-4/research/shots/r9t4-so-trending.png). With Sift switched off, the same page shows the Turnstile widget 'Verify you are human' with its checkbox (/home/nico/projects/sift-test-4/research/shots/r9t4-so-cf-orig.png). The page's light DOM has no iframe, only a 0x0 input, so the widget seems to sit in a closed shadow root that Sift's challenges.cloudflare/turnstile portal rule cannot see. I did not click or otherwise interact with the check. A later load passed on its own.",
+   "repro": "When stackoverflow.com (or any Cloudflare site) answers with 'Performing security verification': SIFT_PORT=9464 SIFT_TAB=T4-generic bun scripts/act.ts shot:cf-sift press:Alt+Shift+S wait:1500 shot:cf-orig press:Alt+Shift+S. cf-sift has no checkbox, and cf-orig shows 'Verify you are human'. Do not click the checkbox.",
+   "regression": false,
+   "suspectedCause": "Unverified. extract/generic.ts portals Turnstile only when it finds an iframe from challenges.cloudflare.com. On the new challenge page the widget is in a closed shadow root, so nothing is portaled. A challenge page (title 'Just a moment...', a cf-turnstile-response input) could show the original instead, or portal the widget's host element.",
+   "verdict": "Stack Overflow was not challenged in my run. I reproduced the same Sift behavior on two other Cloudflare challenge pages, without clicking anything. On https://www.timeanddate.com/ (title 'Just a moment...', input[name=cf-turnstile-response] present), Sift's outline is only 'H1 Just a moment\u2026' and 'p: Nothing to show yet.' (research/shots/skeptic-cf-sift.png). With Sift off, the original shows the 'Verify you are human' checkbox widget (research/shots/skeptic-cf-orig.png). It was the same on https://www.allrecipes.com/: Sift shows 'Just a moment... / Nothing to show yet.', and the original shows the checkbox widget (research/shots/skeptic-cf-orig2.png). Both pages have 0 iframes in the light DOM. The widget is a 650x69 (or 300x72) div whose only light children are div > input#cf-chl-widget-\u2026_response (0x0), so the frame sits in a closed shadow root. The iframe-src rules (EMBED_HOST/TOOL_HOST 'challenges.cloudflare|turnstile') never match. A person in Sift gets a dead page with no control and no hint. They must find the switch to pass the check. The behavior is Sift's, not the site's, and no bot check is worked around. Not a regression: research/site-sweep.md already recorded 'Just a moment... / Nothing to show yet.' on Allrecipes.",
+   "fix": "In src/content/extract/generic.ts (the portal and embed detection that uses EMBED_HOST/TOOL_HOST), treat a Cloudflare challenge widget as a tool portal: the host element of input[name=cf-turnstile-response] or [id^=cf-chl-widget] (its sized ancestor), even when no iframe is visible. Or detect a challenge page (that input plus a title like 'Just a moment...' or 'Performing security verification') in src/content/index.ts and show the original page, or a notice with a 'Show original to verify' action, instead of 'Nothing to show yet.'"
+  },
+  {
+   "source": "T4-generic",
+   "title": "GOV.UK passport renewal guide shows a 14-year-old date ('Oct 10, 2012') under the H1 that the page never shows",
+   "severity": "medium",
+   "where": "https://www.gov.uk/renew-adult-passport and /renew-adult-passport/renew",
+   "evidence": "Sift's outline: 'H1 Renew or replace your adult passport' and then 'p: Oct 10, 2012' (<p class=\"small\">). The original's text has no '2012' anywhere. The date comes from the page's JSON-LD (\"datePublished\": \"2012-10-10T20:37:20+01:00\"; dateModified 2015-01-12; meta govuk:updated-at 2026-09-09). The page has no meta article date and no <time>. A reader is told this passport guide dates from 2012 when it was updated in 2026. The round 8 F832 change added ldDate() as the byline date fallback (diff around line 1497, '+ if (!when) when = ldDate();'), so this is new with the merge. I did not run the old build. /council-tax and /pay-council-tax show no date. Outline /home/nico/projects/sift-test-4/research/shots/r9t4-govoverview.txt",
+   "repro": "SIFT_PORT=9464 SIFT_TAB=T4-generic bun scripts/act.ts goto:https://www.gov.uk/renew-adult-passport/renew wait:5000 'eval:[document.querySelector(\"sift-root\").shadowRoot.querySelector(\"main h1 + p\")?.innerText, /2012/.test(document.body.innerText)]' prints ['Oct 10, 2012', false].",
+   "regression": true,
+   "suspectedCause": "src/content/extract/generic.ts byline(): the new ldDate() fallback takes the first datePublished of any *Article in JSON-LD. GOV.UK guides use an Article schema with the first-publish date. The fallback could require that the visible page shows a date, or prefer dateModified, or apply only to news articles.",
+   "verdict": "Reproduced on both URLs. On /renew-adult-passport/renew and /renew-adult-passport, the eval prints ['Oct 10, 2012', false]: Sift's p after the H1 says 'Oct 10, 2012', and '2012' appears nowhere in the original's text. The page has no <time>. Its JSON-LD has @type 'Article' with datePublished 2012-10-10T20:37:20+01:00 and dateModified 2015-01-12, while meta govuk:updated-at is 2026-09-09. In the code, byline() (src/content/extract/generic.ts, about line 6645) falls back to ldDate() ('TOI has no meta date and no <time>, F832'). ldDate() (about line 6575) accepts any @type ending in 'Article' and returns its datePublished. GOV.UK's plain 'Article' schema carries the 2012 first-publish date. Sift shows it with no label, as if it were the guide's date, on official guidance updated in 2026. The likely result is that every GOV.UK guide shows its 2012-2015 first-publish date. Medium: it misleads the reader about how current the guidance is.",
+   "fix": "In src/content/extract/generic.ts ldDate(), accept only news and blog types (/(NewsArticle|ReportageNewsArticle|AnalysisNewsArticle|BlogPosting|LiveBlogPosting)$/) rather than any '*Article'. Also, or instead, use the JSON-LD date only when its year (or the formatted date) appears in the page's visible text. Prefer dateModified, or a meta '*updated-at', when it is newer."
+  }
+ ],
+ "rejected": [],
+ "stillOpen": [],
+ "recheck": {
+  "F850": {
+   "id": "F850",
+   "status": "fixed",
+   "evidence": "Ran scratchpad/r8int/cartzero.ts on fx/r8int-cartzero.html in all four variants (?v=labels, default, ?v=number, ?v=names), port 9467. Every run gives rows [row2:1], log [row1=, row1=0], Total $8.00. This matches the original run ('orig': rows [row2:1], $8.00). Row 2 never gets focus or input events. fieldList now calls liveField(ref, false) (index.ts:1899). liveField only adopts a field swapped in place (index.ts:2850-2857). The Wikipedia typeahead swap still works: on en.wikipedia.org/wiki/Bread, typing 'Pumper' reaches the new Codex field ('Pumper*'), Sift shows 11 suggestions, and ArrowDown then Enter opens /wiki/Fire_engine.",
+   "src": "R2-interaction"
+  },
+  "F851": {
+   "id": "F851",
+   "status": "fixed",
+   "evidence": "Same cartzero runs: ?v=names and ?v=number both keep row2 at 1 ($8.00). No input event reaches row 2. Focus then lands on the other item's Quantity, and its value stays 1. carry() now writes text only into the same page field or an adopted one (index.ts:312-316).",
+   "src": "R2-interaction"
+  },
+  "F852": {
+   "id": "F852",
+   "status": "fixed",
+   "evidence": "scratchpad/r8int/slowtype.ts at 400 ms per key, role=search field: 'runs during typing []', max key lag 134 ms. The note field gives 0 runs, max 101 ms. slowdocs.ts on docs.python.org stdtypes Quick search: 0 runs for 'frozenset', key lags 7-62 ms, no long tasks. H.input now takes the fast path only when a list is shown or fieldPanel finds one (index.ts:3194).",
+   "src": "R2-interaction"
+  },
+  "F853": {
+   "id": "F853",
+   "status": "fixed",
+   "evidence": "act.ts on www.wikipedia.org: typing 'Pumper' shows 6 entries in Sift's .sheet.suggest. After Escape: 0 entries, focus stays in the field. It stays closed after a page change. Typing again brings the list back (Backspace to 'Pumper' shows 6). One difference remains: the original's Escape also clears the type=search box, while Sift's field and the page field keep 'Pumper' (see polish).",
+   "src": "R2-interaction"
+  },
+  "F854": {
+   "id": "F854",
+   "status": "fixed",
+   "evidence": "users.rust-lang.org/latest: Search, type 'lifetime', Enter shows 6 results. ArrowDown focuses 'Lifetime issue - expected lifetime\u2026'. Then I appended 3 divs and waited 9 s, and one run fired (24 to 25). The sheet is still there and focus is still on the same result. The same holds when Tab is used to enter the list (runs 21 to 22): sheet kept, focus kept.",
+   "src": "R2-interaction"
+  },
+  "F855": {
+   "id": "F855",
+   "status": "fixed",
+   "evidence": "927358?answertab=scoredesc: the repro eval now prints [69,69,0,null]. All 69 code blocks are verbatim, and 118/118 answer paragraphs (>30 chars) appear in Sift. There are 0 li.item cards and no revisions links. 178325 (scoredesc): 42 pre in the original, 42 in Sift, and 5/5 'Run code snippet' buttons. Run code snippet shows the result in a 628x126 portal with 'Hide results' (shot /home/nico/projects/sift-test-4/research/shots/r9t4-so-snippet.png). 2003505: 68/68 pre. Its 4 li.item entries are the steps of a real numbered list inside an answer ('Click on the project containing the branch', 'Switching branch'\u2026). Shot /home/nico/projects/sift-test-4/research/shots/r9t4-so-927358.png.",
+   "src": "T4-generic"
+  },
+  "F856": {
+   "id": "F856",
+   "status": "fixed",
+   "evidence": "Ran the repro twice. Run 1 typed 'lifetime': the sheet was open before the click. A real click on the bar's Search button then showed the results sheet ('Lifetime issue - expected lifetime getting replaced\u2026', 'Why does a longer lifetime\u2026'), the same as Enter. The URL stays /latest, as with Enter. Run 2 typed 'borrow checker': after the click, the sheet held 6 results ('Understanding the borrow checker when borrowing\u2026'). Clicking the first result opened /t/lifetime-issue-expected-lifetime-getting-replaced-with-unexpected-lifetime/61190 with the matching H1. Shot /home/nico/projects/sift-test-4/research/shots/r9t4-disc-searchbtn.png.",
+   "src": "T4-generic"
+  },
+  "F857": {
+   "id": "F857",
+   "status": "fixed",
+   "evidence": "hn.algolia.com/?q=rust: the repro eval prints [30,0], so no item has a URL headline. Items 3 and 4 now read 'A half-hour to learn Rust' and 'Announcing Rust 1.0', each with its '(https://\u2026)' source on the line below. 30/30 headline links equal the original's item?id= title links. The tab order is now title, URL, author, comments. Shot /home/nico/projects/sift-test-4/research/shots/r9t4-hns-rust.png.",
+   "src": "T4-generic"
+  },
+  "F858": {
+   "id": "F858",
+   "status": "partly",
+   "evidence": "Fixed part: on 3 loads of booking.com, Sift's main starts with H1 'Booking.com' and then the dates and travelers controls. 'No purchase necessary', '$5,000 Cruise Giveaway' and 'Enter here' are gone, while the original still has them (its only h1 is '$5,000 Cruise Giveaway'). Still open: the 'Offers' block keeps the credit-card ad 'Earn 6% in Travel Credits on stays with the Genius Rewards Visa\u00ae' with 'Learn more' (outline lines 26-29). The finding's evidence named that ad as well. Shot /home/nico/projects/sift-test-4/research/shots/r9t4-booking-home.png (round 8: r8t4-booking-home.png).",
+   "src": "T4-generic",
+   "skeptic": {
+    "confirmed": false,
+    "verdict": "Checked on 2 loads of https://www.booking.com/ with identical outlines. The F858 problem is fixed. Sift's main starts with 'H1 Booking.com' and then the dates and travelers controls. 'No purchase necessary', '$5,000 Cruise Giveaway' and 'Enter here' do not appear in Sift. The original's body still has 'Giveaway' and 'No purchase necessary'. The tester is right that the 'Offers' block still shows 'H3 Earn 6% in Travel Credits on stays with the Genius Rewards Visa\u00ae', its terms line and 'Learn more' (data-testid='promotional-banner-content-title' on the original). But it sits far down, under the site's own heading 'Offers / Promotions, deals, and special offers for you', after the search form and the 'Why Booking.com?' block. It no longer takes the H1 or the first screen, which is what made F858 medium. Alone it is a low-severity leftover. I would count F858 as fixed, and if wanted, file the Visa card as a separate low finding: add data-testid*='promotional-banner' or 'Rewards Visa'/credit-card wording to promo detection in src/content/extract/generic.ts.",
+    "fix": null
+   }
+  },
+  "F636": {
+   "id": "F636",
+   "status": "fixed",
+   "evidence": "MapClick.php?lat=37.7749&lon=-122.4194 at 1280x900: after the H1, main now goes Hazardous Weather Conditions, then 'Current conditions at' (y=237, was 453) and the temperature line 'NA \u00b7 63\u00b0F \u00b7 17\u00b0C' (y=368, was 584). The readings sit two to a row. The first 7-day period 'Tonight \u00b7 Low: 54 \u00b0F' is at y=801 (was 1119), so it is on the first screen. 'View Location Examples', 'Your local forecast office is' and 'News Headlines' now come at the end of the page. On the same load with Sift off, the original has #current-conditions at y=330 and #seven-day-forecast-list at y=605. Only the first two 7-day periods fit on Sift's first screen. Shots /home/nico/projects/sift-test-4/research/shots/r9t4-nws-first.png and /home/nico/projects/sift-test-4/research/shots/r9t4-nws-orig.png.",
+   "src": "T4-generic"
+  }
+ },
+ "works": [
+  "T4-generic: F855: Stack Overflow on the default sort reads answers in full again: 69/69 code blocks and 118/118 paragraphs on 927358, 42/42 code blocks and 5/5 'Run code snippet' on 178325, 68/68 on 2003505. Run code snippet shows its result portal.",
+  "T4-generic: F856: Discourse's bar Search button after typing shows the results sheet, the same as Enter (2 of 2 runs), and a result opens the topic.",
+  "T4-generic: F857: HN Search headlines are the story titles for 30/30 items, linked to the same item?id= as the original.",
+  "T4-generic: HN thread 50224463: 668/668 comments have the same author and depth as the original (0 differences), with a deepest level of 13. Collapse on the first comment gives '247 more' (the original shows '[247 more]') with focus on it. '247 more' restores all 668 with focus on Collapse. 'next' brings fwlr, the second top-level comment, to the top (y=87).",
+  "T4-generic: HN front: 30/30 items, each with upvote and comments. 'More' gives ?p=2, whose first item matches the original's rank 31. HN's search field is in Sift's bar, and 'rust' plus Enter gives hn.algolia.com/?q=rust with 30/30 items.",
+  "T4-generic: HN Search: the 'Popularity' sheet holds Popularity and Date. Date gives sort=byDate, and the first 3 titles match the original's. Page '2' gives page=1 with 30 items, aria-pressed=true, and the first 3 titles match.",
+  "T4-generic: Stack Overflow trending: 72/72 code blocks are verbatim, with no ads and no Hot Network Questions. An answer's 'Show all comments' expands in place with focus on 'Collapse comments'. The sort select changed with ArrowDown gives answertab=modifieddesc, the same value as the original's select. The question's 'Comments' fold opens, and 'Show 8 more comments' shows 13 comments.",
+  "T4-generic: GOV.UK: 'council tax' from the home field gives /search/all?keywords=council+tax with 10/10 first links matching. Filter and sort, then Sort by, Updated (newest) and Apply give order=updated-newest with 10/10 matching (first item dated 26 October 2026). 'Next page 2 of 1,628' gives page=2 with 10/10 matching. On the renew guide, the keyboard order is Skip, Search, Menu, Overview, the inline links, Renew online, Previous/Next, printable version, Sift. Related links are in the Menu. 'Renew online' goes to passport.service.gov.uk/filter, which the site blocks for this browser ('The URL you requested has been blocked'), as in round 8.",
+  "T4-generic: Craigslist: the 'SF bay area' sheet lists 19 nearby areas plus 'use map'. Inside Filters, 'wheel size' opens its 18 options (10 in \u2026 other/unknown) with aria-expanded=true. min 100, max 400 and apply give min_price=100&max_price=400. The sort sheet's '\ufe69\u2192 $$$' adds sort=priceasc with the filter kept. 28 of the first 30 titles match the original's order, and the other 2 differ only in whitespace or a missing title attribute. Results start at $100. A listing shows the title with price, 13 image buttons, the map portal, the reply/favorite/hide/flag buttons and the posting text.",
+  "T4-generic: arXiv 'gluten': 21/21 results. '\u25bd More' turns into '\u25b3 Less' with focus on it, and the item grows to 2044 chars. The sort select moved by ArrowDown plus Go gives order=submitted_date, and the select values match the original's.",
+  "T4-generic: Python docs pathlib: 21/21 headings and 83/83 pre blocks are verbatim. 'pure paths' focuses the 'Pure paths' h2 at y=73. The Menu holds the table of contents and the previous/next topic pages. Quick search 'glob' gives search.html?q=glob with 88/88 results.",
+  "T4-generic: Discourse: in the thread, 'This post has 1 reply' gets aria-expanded=true and shows the embedded reply's text. The screenshot image is present (518 px). Scrolling the 34-post thread showed posts 2-32 and 34 in the same order as the original. Post 33 is a 'small action' with no text, and post 1 has no numbered link. On /latest, the wheel loads 330 rows in the original and Sift shows the first 300.",
+  "T4-generic: argentina.gob.ar: 'dni' from the home field plus Enter gives /tramitar/tramites_y_servicios/dni with '620 resultados para \"dni\"', the same as the original. /buscar/pasaporte shows '756 resultados' with the first result at y=199, and page '2' gives ?page=1. lang=es on the page and on Sift's root, and Sift's controls read Ir al contenido, Buscar and Men\u00fa.",
+  "T4-generic: Allbirds Tree Runner: the Navy Night swatch changes the URL to /mens-tree-runners-navy-night, the line to 'Color: Navy Night (classic edition)' and the photo alt. Size 10 gets aria-pressed=true, and 'Add to Cart - $100' appears (not clicked). 'Open image' opens a dialog with 4 images and 'Go to image 1-4', and Escape returns focus to 'Open image'. No shipping popup or chat bubble.",
+  "T4-generic: GitHub Status home: 11 visible components, each with its uptime and incident days. The incident days match the original's bar colors (Actions: 6 colored days, 6 listed).",
+  "T4-generic: BBC Good Food gluten-free bread: 6/6 ingredients and 3/3 method steps are verbatim. The Metric/US radios are labeled, and US gives '1\u2154 cups gluten-free white bread flour'. The tabs show aria-pressed. '22 comments' focuses h2 'Comments, questions and tips (22)' at y=74. In Sift the ingredients start higher than on the original (y=1444 vs 1656).",
+  "T4-generic: Booking: 'Mendoza' shows the same suggestions as the original, with the field as a combobox (aria-expanded=true). Picking one fills 'Mendoza, Mendoza Province, Argentina' and opens the calendar. Picking Nov 20 and Nov 26 sets 'Fri, Nov 20 \u2014 Thu, Nov 26'. Search went to /city/ar/mendoza.html. The original, driven the same way in the same session, also went to /city/ar/mendoza.html.",
+  "T4-generic: weather.gov: 'Seattle, WA' plus Go opens lat=47.6032&lon=-122.3303, and all 15 detailed-forecast periods are present.",
+  "T4-generic: axe-core finds 0 violations on 17 of 18 pages: Discourse latest and thread, Python docs, GOV.UK search, overview and renew, Craigslist, arXiv, Allbirds, HN Search, GitHub Status, HN front and thread, argentina.gob.ar search, Stack Overflow 927358, BBC Good Food and Booking home. weather.gov has 1 (a pre-existing Basemap select).",
+  "T4-generic: 200% zoom (640x450 CSS viewport): no horizontal overflow on any of the 17 pages checked. HN replies 13 levels deep keep 513 px of text width."
+ ],
+ "polish": [
+  "R2-interaction: src/content/ui/app.tsx:1049 with src/content/index.ts:1056-1065: a typedOver sheet (F870) is announced as non-modal (no aria-modal), but wrapTab still traps Tab inside .layer once it is entered, and the grey backdrop takes the first click anywhere as Close.",
+  "R2-interaction: src/content/index.ts:911-912: Escape in Wikipedia portal's type=search field closes Sift's list but leaves 'Pumper' in both fields; the original's Escape clears the box.",
+  "R2-interaction: src/content/index.ts:1967 (fieldPanel word filter, older than round 8): on www.wikipedia.org, typing 'Pumpers' or 'Pumpere' gives the page 6 suggestions and Sift none, because no entry contains the typed word.",
+  "R2-interaction: src/content/index.ts:2520 (tabAt guard): after any Tab press, a scroll Sift's view gets from a screen reader's browse mode or from find-in-page never loads more entries; only wheel, touch, a press, or a scrolling key does.",
+  "R2-interaction: src/content/index.ts:1531 (overdue run): in a background tab whose timers are throttled, during its first 30 s every page mutation after a missed timer runs extraction at once. The test Chrome disables throttling, so this is not measured.",
+  "R2-interaction: src/content/index.ts:1764-1776: on a page whose embed script never loads, wakeEmbeds scrolls the hidden original for 3 s per embed (up to 8, so 24 s). Switching to the original mid-wake shows it at the embed, then it jumps back within 250 ms.",
+  "R2-interaction: src/content/ui/app.tsx:1027-1030: aria-activedescendant is set on the field while DOM focus is on the option button itself, so it has no effect.",
+  "R2-interaction: src/content/index.ts:2330 (F874 map rule): a replace-only hash change on a page with a Leaflet or MapLibre portal is never treated as a new page, including a hash route on such an app.",
+  "T4-generic: Discourse latest: the search results sheet is only 257 px wide at a 1280 px window, so each result wraps to about 10 lines (/home/nico/projects/sift-test-4/research/shots/r9t4-disc-searchbtn.png).",
+  "T4-generic: Discourse latest: Sift's table stops at 300 rows with '30 more rows on the original page.' while the original keeps loading (330 after wheel scrolling). This is the MAX_ROWS cap, not new.",
+  "T4-generic: Python docs pathlib Menu: the 'Previous topic' and 'Next topic' labels are dropped, so 'File and Directory Access' and 'os.path \u2014 Common pathname manipulations' sit unlabeled after the table of contents.",
+  "T4-generic: weather.gov Seattle (lat=47.6032&lon=-122.3303): the national headline banner 'Precipitation in the Pacific Northwest into the Northern Rockies; Bering Sea Storm in Alaska' (the original's only h1, a 16 px banner) becomes Sift's H1. The location 'Downtown Seattle WA' is only an H2.",
+  "T4-generic: weather.gov 7-day list: one period is split into three lines ('Tuesday' / 'High: 56 \u00b0F' / 'Slight Chance Rain'), while the others are one line each ('Tonight \u00b7 Low: 47 \u00b0F \u00b7 Rain Likely'). Seen on both San Francisco and Seattle.",
+  "T4-generic: weather.gov: the Basemap select has no accessible name (axe select-name, 1 violation). This is pre-existing.",
+  "T4-generic: argentina.gob.ar home: the icon text '\u00edcono flecha ir al contenido' leaks into the end of each topic description (Documentaci\u00f3n, Educaci\u00f3n, Transporte).",
+  "T4-generic: GOV.UK /council-tax: a 'Register to vote' banner link is Sift's first main item, before the H1.",
+  "T4-generic: Discourse thread: the screenshot image's link name is its file name 'signal-2026-10-18-101319'.",
+  "T4-generic: Booking home at 200% zoom: the floating Sift switch covers the end of the 'Number of travelers and rooms\u2026' button (/home/nico/projects/sift-test-4/research/shots/r9t4-z-booking.png).",
+  "T4-generic: Booking calendar: the date list starts with the 26 past October days as disabled checkboxes before the first date you can pick. Same as round 8."
+ ],
+ "done": [
+  {
+   "src": "T4-generic",
+   "page": "Discourse latest (users.rust-lang.org/latest)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with .topic-list-item, 3 runs. Original 3593/3293/2808 ms (median 3293), Sift 2498/1726/1284 ms (median 1726). Sift is faster."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Discourse latest",
+   "check": "actions",
+   "pass": true,
+   "evidence": "The bar Search button and Enter both show results, and a result opens the topic (/t/\u2026/61190), the same as the original's search menu. The wheel loads more rows and Sift follows up to its 300-row cap (the original had 330)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Discourse latest",
+   "check": "language",
+   "pass": true,
+   "evidence": "The page is lang en, and Sift's text and controls are English."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Discourse latest",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, Menu, Search, Sign Up, Log In, Latest, Hot, Categories, the Replies/Views/Activity sort buttons, then the topics. All stops are inside Sift."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Discourse latest",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Discourse latest",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "At 640 px CSS there is no overflow, and the table fits (/home/nico/projects/sift-test-4/research/shots/r9t4-z-disclatest.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Discourse thread (t/is-ai-actually-getting-that-good/143208)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with .topic-post .cooked. Original median 3252 ms (3868/2969/3252), Sift median 1280 ms (1892/1125/1280)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Discourse thread",
+   "check": "actions",
+   "pass": true,
+   "evidence": "'This post has 1 reply' expands the embedded reply (aria-expanded=true, the reply text is shown). Scrolling loads every post, 2-34, in order, as the original does."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Discourse thread",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, Menu, Search, Sign Up, Log In, title, category, author, date, 'This post has 3 replies', the like and copy-link buttons, then the topic map. All stops are in Sift."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Discourse thread",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Discourse thread",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-discthread.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Python docs pathlib",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with h1: original 2049/2533/1977 ms, Sift the same poll each run (median 2049 for both)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Python docs pathlib",
+   "check": "actions",
+   "pass": true,
+   "evidence": "The in-page link 'pure paths' focuses the h2 at y=73. Quick search 'glob' gives search.html?q=glob with 88/88 results."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Python docs pathlib",
+   "check": "content",
+   "pass": true,
+   "evidence": "21/21 headings and 83/83 pre blocks are verbatim."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Python docs pathlib",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, Quick search, Go, Menu, then the inline links in reading order."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Python docs pathlib",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Python docs pathlib",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-pydocs.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GOV.UK search (council tax)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with .gem-c-document-list__item: 2507/616/1329 ms, the original and Sift at the same poll each run (median 1329 for both)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GOV.UK search",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Home field search gives 10/10 matching results. Sort Updated (newest) plus Apply gives order=updated-newest with 10/10 matching. Next page gives page=2 with 10/10 matching."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GOV.UK search",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, search field, Search, Menu, Filter and sort, then the results."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GOV.UK search",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GOV.UK search",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-govsearch.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GOV.UK passport renewal (renew-adult-passport/renew)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with h1: 1519/362/250 ms, both at the same poll each run (median 362)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GOV.UK passport renewal",
+   "check": "actions",
+   "pass": true,
+   "evidence": "'Renew online' goes to the same passport.service.gov.uk/filter URL as the original (the site blocks this browser). The Menu holds related links. Previous/Next work."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GOV.UK passport renewal",
+   "check": "content",
+   "pass": false,
+   "evidence": "A date the page never shows, 'Oct 10, 2012', appears under the H1 (see finding)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GOV.UK passport renewal",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, Search, Menu, Overview, Replace\u2026, the inline links, Renew online, in Welsh, the links, Previous Overview, Next Replace\u2026, printable version, Sift. The loop stays in Sift."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GOV.UK passport renewal",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations on the overview and on /renew."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GOV.UK passport renewal",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-govrenew.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Craigslist search (bike, price 100-400, sort priceasc)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint2 with .cl-search-result vs Sift li.item: 7753/3022/2619 ms, both at the same poll each run (median 3022). Sift's frame shows even earlier (about 1.2 s) without results."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Craigslist search",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Area sheet (19 areas). 'wheel size' shows 18 options. min/max plus apply gives min_price=100&max_price=400. The sort '\ufe69\u2192 $$$' gives sort=priceasc with the filter kept. 30/30 titles in the original's order (2 differ only in whitespace). The listing opens."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Craigslist search",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, search, Search, Menu, SF bay area, Filters, list/thumb/gallery/map, relevance/price/condition/sold by, then the results."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Craigslist search",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Craigslist search",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-craigslist.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "arXiv search (gluten)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with li.arxiv-result: 11461/5961/3141 ms, both at the same poll each run (median 5961)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "arXiv search",
+   "check": "actions",
+   "pass": true,
+   "evidence": "21/21 results. '\u25bd More' turns into '\u25b3 Less' with focus. Sort by ArrowDown plus Go gives order=submitted_date, the same as the original's select."
+  },
+  {
+   "src": "T4-generic",
+   "page": "arXiv search",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, search, Search, Menu, Log in, \u2026, field select, term input, Advanced Search, size select, sort select, Go, then the results."
+  },
+  {
+   "src": "T4-generic",
+   "page": "arXiv search",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "arXiv search",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-arxiv.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Allbirds Men's Tree Runner",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with 'aside h1': 14828/12944/13063 ms, both at the same poll each run (median 13063, a slow site under load)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Allbirds Men's Tree Runner",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Swatch changes the URL, color line and photo, the same as the original. Size 10 is pressed, and 'Add to Cart - $100' appears (not clicked). The gallery dialog shows 4 images, and Escape returns focus."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Allbirds Men's Tree Runner",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, Menu, Search, View Cart, Open image, Women's Sizes, 6 swatches, Women's Sizes, sizes 8-14."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Allbirds Men's Tree Runner",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Allbirds Men's Tree Runner",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-allbirds.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "HN Search (hn.algolia.com/?q=rust)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint2 with .Story_title vs Sift li.item: original 2049/1034/860 ms, Sift 2946/1034/860 ms (medians 1034 for both). Run 1 had Sift 0.9 s later."
+  },
+  {
+   "src": "T4-generic",
+   "page": "HN Search",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Search from the HN bar, the Date sort and page 2 match the original. Headlines are now the titles (F857)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "HN Search",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, field, Search, Menu, Search Hacker News, Stories, Popularity, All time, then per item title, URL, author, comments."
+  },
+  {
+   "src": "T4-generic",
+   "page": "HN Search",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "HN Search",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-hnsearch.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GitHub Status home",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with .component-container: 1837/1274/999 ms, both at the same poll each run (median 1274)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GitHub Status home",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Links (historical uptime, Incident History, regional status sites) and Subscribe to Updates are present. The 11 visible components show their uptime."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GitHub Status history",
+   "check": "content",
+   "pass": false,
+   "evidence": "6 of 9 visible incident links on load, and 19 of 25 after expanding October (see finding)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GitHub Status home",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, Menu, Subscribe to Updates, View historical uptime, Incident History, 4 regional links, Sift."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GitHub Status home",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "GitHub Status home",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-ghstatus.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Hacker News front",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with .titleline: 2001/921/972 ms, both at the same poll each run (median 972)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Hacker News front",
+   "check": "actions",
+   "pass": true,
+   "evidence": "30/30 items with upvote and comments. 'More' gives ?p=2 whose first item is the original's rank 31. Search 'rust' goes to hn.algolia.com with 30/30."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Hacker News front",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, Search field, Search, Hacker News, new\u2026login, then per story title, upvote, comments."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Hacker News front",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Hacker News front",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-hnfront.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Hacker News thread 50224463",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with .comment: 9800/14058/4938 ms, both at the same poll each run (median 9800, network-bound under load)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Hacker News thread 50224463",
+   "check": "actions",
+   "pass": true,
+   "evidence": "668/668 comments with the same author and depth. Collapse gives '247 more' (the original shows '[247 more]'), and expanding restores 668. 'next' jumps to fwlr."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Hacker News thread 50224463",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, Search, Search, nav links, story title, site, author, age, \u2026. Focus stays on the toggle after Collapse and after 'N more'."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Hacker News thread 50224463",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Hacker News thread 50224463",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px. The deepest replies keep 513 px of text width (/home/nico/projects/sift-test-4/research/shots/r9t4-z-hnthread.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "argentina.gob.ar search (buscar/pasaporte)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with h1: 1700/1178/617 ms, both at the same poll each run (median 1178)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "argentina.gob.ar search",
+   "check": "actions",
+   "pass": true,
+   "evidence": "The home field 'dni' plus Enter gives the same URL and '620 resultados' as the original. /buscar/pasaporte shows '756 resultados'. Page 2 gives ?page=1 with 15 results."
+  },
+  {
+   "src": "T4-generic",
+   "page": "argentina.gob.ar search",
+   "check": "language",
+   "pass": true,
+   "evidence": "Page lang es, Sift's root div lang=es, and Sift's controls read Ir al contenido, Buscar, Men\u00fa. The results text is Spanish."
+  },
+  {
+   "src": "T4-generic",
+   "page": "argentina.gob.ar search",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Ir al contenido, Buscar en el sitio, Buscar, Men\u00fa, then the result links."
+  },
+  {
+   "src": "T4-generic",
+   "page": "argentina.gob.ar search",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "argentina.gob.ar search",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-argsearch.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Stack Overflow 927358",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with '#question .s-prose': 8239/8484/7092 ms, both at the same poll each run (median 8239)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Stack Overflow 927358",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Show all comments, the question's Show 8 more comments (13 shown), sort select to modifieddesc and Run code snippet (178325) all work as on the original."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Stack Overflow 927358",
+   "check": "content",
+   "pass": true,
+   "evidence": "Default sort: 69/69 code blocks and 118/118 paragraphs. Trending: 72/72. No ads and no Hot Network Questions."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Stack Overflow (Cloudflare check)",
+   "check": "actions",
+   "pass": false,
+   "evidence": "On one load, Cloudflare's 'Verify you are human' checkbox was missing from Sift's view (see finding)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Stack Overflow 927358",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Stack Overflow 927358",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-so.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "BBC Good Food gluten-free bread (recipe site)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with h1: 7871/5773/4346 ms, both at the same poll each run (median 5773)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "BBC Good Food gluten-free bread",
+   "check": "actions",
+   "pass": true,
+   "evidence": "US units give '1\u2154 cups gluten-free white bread flour' (radios checked [false,true]). Tabs show aria-pressed. '22 comments' focuses the comments h2."
+  },
+  {
+   "src": "T4-generic",
+   "page": "BBC Good Food gluten-free bread",
+   "check": "content",
+   "pass": true,
+   "evidence": "6/6 ingredients and 3/3 method steps are verbatim. The ingredients are higher in Sift (y=1444) than on the original (y=1656)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "BBC Good Food gluten-free bread",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, Search, Search, Menu, Sign in, Register, Save recipe, Manage Collections, rating, 22 comments, Print, Alternatives, Complete the dish, the 3 related recipes, Ingredients, Nutrition, units radio, ingredient links."
+  },
+  {
+   "src": "T4-generic",
+   "page": "BBC Good Food gluten-free bread",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "BBC Good Food gluten-free bread",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px (/home/nico/projects/sift-test-4/research/shots/r9t4-z-goodfood.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Booking.com home (travel search)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with [data-testid=searchbox-dates-container]: 3471/2013/2126 ms, both at the same poll each run (median 2126)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Booking.com home",
+   "check": "actions",
+   "pass": true,
+   "evidence": "The same suggestions for 'Mendoza'. Picking one fills the field, and dates Nov 20-26 are set. Search goes to /city/ar/mendoza.html, the same URL as the original driven the same way."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Booking.com home",
+   "check": "content",
+   "pass": false,
+   "evidence": "The giveaway is gone, but the Offers block still shows the Genius Rewards Visa credit-card ad (F858 partly)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Booking.com home",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Tab order: Skip, destination field, Search, Menu, Language, Register, Sign in, dates, 2 checkboxes, travelers, then content links."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Booking.com home",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T4-generic",
+   "page": "Booking.com home",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "No overflow at 640 px. The floating switch overlaps the travelers button text (polish) (/home/nico/projects/sift-test-4/research/shots/r9t4-z-booking.png)."
+  },
+  {
+   "src": "T4-generic",
+   "page": "All English target pages",
+   "check": "language",
+   "pass": true,
+   "evidence": "Every English page has lang en, and Sift's text and controls are English (Skip to content, Menu, Search). No AI rewrite changed the language."
+  }
+ ],
+ "pending": [
+  "T3-tools"
+ ]
+}

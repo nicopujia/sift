@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Video page with a late search box</title>
+<style>body{font:16px/1.5 sans-serif;max-width:720px;margin:0 auto;padding:0 16px}</style></head><body>
+<!-- F900: the page's search box is swapped for a new, empty one while the page loads (as YouTube's yt-searchbox does).
+     Text typed into Sift's search box before the swap must reach the new box, and Enter must search for it.
+     The old box stays in the page for a moment after the new one shows. ?swap=<ms> sets when (default 2500). -->
+<header><a href="/">Tube</a>
+<form id="sf" role="search" action="/fx/r9misc12-swapsearch.html" method="get"><span id="box"><input name="search_query" type="text" placeholder="Search" aria-label="Search"></span><button type="submit" aria-label="Search">Search</button></form>
+</header>
+<main><h1>A video about bread</h1><p>This page shows a video about gluten-free bread, with a description long enough to be real prose.</p>
+<p id="q"></p></main>
+<script>
+const params = new URL(location.href).searchParams;
+document.getElementById("q").textContent = params.has("search_query") ? "Results for: " + params.get("search_query") : "";
+const ms = +(params.get("swap") || 2500);
+setTimeout(() => {
+  const box = document.getElementById("box");
+  const old = box.querySelector("input");
+  const parked = document.createElement("div");
+  parked.hidden = true;
+  document.body.append(parked);
+  parked.append(old);
+  const neu = document.createElement("input");
+  neu.name = "search_query"; neu.type = "text"; neu.placeholder = "Search"; neu.setAttribute("aria-label", "Search");
+  box.append(neu);
+  setTimeout(() => parked.remove(), 400);
+}, ms);
+</script>
+</body></html>

@@ -6,7 +6,7 @@ import type { AiReply, AiRequest, LineInput, ModelCfg, RuntimeMsg, Settings } fr
 import { mergeSettings } from "../shared/messages";
 import { cacheClear, cacheGet, cacheSet } from "./cache";
 import { bump, flushStats } from "./stats";
-import { claimsNoAnswer, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, unsupported } from "./text";
+import { addsLink, addsSpeaker, claimsNoAnswer, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, unsupported } from "./text";
 
 // ---------- settings ----------
 
@@ -42,7 +42,8 @@ chrome.storage.onChanged.addListener((ch) => {
 // (color, size), never wrap the title ("A video titled X"), and keep "then-19" or "forced to" without datelines.
 // 9: A teaser headline keeps its own words (it may stay a question), and no line says the story leaves something unanswered.
 // 10: No line names who said, did, or chose something its title and context leave unnamed.
-const PROMPT_VERSION = 10;
+// 11: No line puts facts in an order or a cause its title and context do not state (a teaser's quote is not the story's setting).
+const PROMPT_VERSION = 11;
 
 const LINES_INTRO = `You rewrite entries from a list on a web page into plain, literal one-line descriptions, for people who need pages to be simple and fast to read: low vision, ADHD, dyslexia, older users.
 
@@ -52,6 +53,7 @@ const LINES_RULES = `- Write the line in the language given by the entry's "lang
 - No clickbait: no ALL CAPS, no emojis, no hype words, no questions.
 - Use only what the title and context state or clearly imply. Do not invent results, names, numbers, or reasons.
 - Never say who said, did, or chose something unless the title or context names that person for it. "A phrase for posterity" stays "a phrase", not "X said a memorable phrase".
+- Never put two facts in an order or make one the cause of the other ("after", "before", "because", "tras", "porque") unless the title or context does so.
 - Keep names, brands, models, and numbers that identify the entry, and the details that tell similar entries apart, such as color, size, capacity, edition, or pack count.`;
 
 const LINES_OUTPUT = `Output JSON Lines only: one object per line, {"id": "<id>", "s": "<line>"}, in input order, one line per entry.
@@ -92,6 +94,7 @@ Rules:
 ${LINES_RULES}
 - Say the news directly, the way a plain news line would. Never mention the headline, title, article, note, report, or story itself: never write "The headline says", "The article explains", "A report on", "El artículo informa", "El título pregunta", "La nota repasa", or the like. Wrong: "The headline claims a leaked list names five replacements". Right: "A leaked list names five possible replacements".
 - Keep who said what: a claim stays a claim of its source ("X says", "según X"), never a fact. Keep a direct quote in quotation marks, with who said it.
+- A quote that opens a headline and the story's event stay apart: the quote is not when, where, or why the event happened. Wrong: "The band made the song after the singer's death was reported" for "‘My death was reported’: how the band made the song". Right: "‘My death was reported’: how the band made the song".
 - A name after "By" or "Por" is the writer of the piece. Never present the writer as a speaker or as the source of a quote or claim. Keep "I" and "we" as the headline has them: never turn them into a role such as "the writer", "the speaker", or "the authors".
 - Keep exactly who did what to whom. Never swap the actor (fans are not teammates), and never drop a negation or a word that sets the relation, such as "not", "against", "contra", "sin", "sobre".
 - Keep the words that set when, how, or how sure: "then-19", "former", "forced to", "allegedly", "reportedly". An age or a role at the time of the events stays with them.
@@ -497,8 +500,12 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
   // first, and a batch sent with the first waits for its decision instead of
   // making its own. Only when neither is known does each title decide, and
   // then the title alone: context is often a name ("King Von") that looks foreign.
+  // Names of videos, songs, and products, and messages, are often in another
+  // language than the page (English songs on a Spanish YouTube): their lines
+  // are always in the page's language when it is known. Only headlines may
+  // move a list away from it (a news site that marks Spanish pages "en").
   const page = knownLang(req.lang);
-  let langP = pc.lang;
+  let langP = page && mode !== "news" ? Promise.resolve(page) : pc.lang;
   if (!langP) {
     langP = listLang(req.items.map((it) => it.t), page, detect);
     if (page || req.items.length >= 4) pc.lang = langP;
@@ -687,14 +694,14 @@ async function lineFits(text: string, want: string, title: string): Promise<bool
  * saw only the title and context, so a line fails when it states a quote, a
  * speaker, or a number they do not; when it says the story or video leaves
  * something unanswered (a guess; a message's gist may rightly say "you did not
- * provide…"); in news mode, when it talks about the headline instead of the
+ * provide…"), or has a named person say something they tie no words to; in news mode, when it talks about the headline instead of the
  * news; elsewhere, when it only wraps the title ("A video titled X").
  */
 function vetLine(raw: string, it: LineInput, mode: string): string | null {
   const src = quoteSource(it);
   const text = keepQuotes(raw.trim(), src).replace(/[.。]$/, "");
   if (!text || unsupported(raw.trim(), src)) return null;
-  if (mode !== "gist" && claimsNoAnswer(text, src)) return null;
+  if (mode !== "gist" && (claimsNoAnswer(text, src) || addsSpeaker(text, src) || addsLink(text, src) || quoteAsFact(text, it.t))) return null;
   if (mode === "news" ? META.test(text) : wrapsTitle(text, it.t)) return null;
   return text;
 }
@@ -733,7 +740,12 @@ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: 
   // Keyed by the article's own text: a share button, a comment count, a
   // reading time, or a count in the tab's title differ between visits of the
   // same article, and must not make it a new one (paid for again).
-  const key = await hash(`condense|${PROMPT_VERSION}|${site}|${s.condense.model}|${req.title.replace(/^\s*\(\d+\+?\)\s*/, "")}|${stableText(req.text)}`);
+  const title = req.title.replace(/^\s*\(\d+\+?\)\s*/, "");
+  const key = await hash(`condense|${PROMPT_VERSION}|${site}|${s.condense.model}|${title}|${stableText(req.text)}`);
+  // The latest Short version of this article, with the text it was made from:
+  // the page may have loaded more or less of it this time, or shown a
+  // promotion that came and went, and the text sent differs from the last visit's.
+  const artKey = await hash(`condense-article|${PROMPT_VERSION}|${site}|${s.condense.model}|${title}`);
   const hit = useCache ? await cacheGet(key) : undefined;
   if (hit && !ttlOf(req, pc)) pc.saved.set(key, hit);
   if (hit === NO_SHORT) return reply({ id: req.id, error: "no short version for this text", code: "http", final: true });
@@ -742,11 +754,32 @@ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: 
   // A saved Short version passes the same checks as a new one: it may have
   // been saved before they existed, or from a text whose numbers changed since.
   if (hit) return finish(checked(hit));
+  // One made from an earlier text of the same article that covers all of this
+  // one's prose: renumbered to this text, checked against it, and measured
+  // against the text it was made from.
+  const prior = useCache ? await cacheGet(artKey) : undefined;
+  if (prior) {
+    try {
+      const p = JSON.parse(prior) as { text: string; out: string };
+      const reused = reuseShort(p.out, p.text, req.text);
+      if (reused && !tooLong(reused, p.text)) {
+        if (!ttlOf(req, pc)) pc.saved.set(artKey, prior);
+        const out = checked(reused);
+        save(pc, req, key, out);
+        return finish(out, p.text);
+      }
+    } catch {
+      /* an older or broken entry: made again */
+    }
+  }
   if (!s.apiKey) return reply({ id: req.id, error: "No API key", code: "nokey", quiet: await toldBefore("nokey") });
   bump("aiCondense");
   let all = "";
   const parts = splitText(req.text, PART_TOKENS);
-  // A failed or cut call saves nothing (it throws): a later visit asks again.
+  // A failed call saves nothing (it throws): a later visit asks again. A text
+  // every model stopped at a filter or an output limit is remembered for a day,
+  // so a revisit does not pay for the same stop again.
+  try {
   for (const [i, part] of parts.entries()) {
     if (i) all += "\n\n";
     const from = all.length;
@@ -782,12 +815,19 @@ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: 
       note = ` A first rewrite had ${proseWords(got, req.lang)} words: far too many. Leave out more.`;
     }
   }
+  } catch (e) {
+    if (finalIncomplete(e) && useCache) cacheSet(key, NO_SHORT, Math.min(ttlOf(req, pc) ?? DAY, DAY));
+    throw e;
+  }
   all = checked(all);
   // "Not much shorter" is kept for a day at most, whichever model wrote it: a
   // slow fallback's long answer must not block the article for a month.
   if (all.trim() && useCache) {
     if (tooLong(all)) cacheSet(key, NO_SHORT, Math.min(ttlOf(req, pc) ?? DAY, DAY));
-    else save(pc, req, key, all);
+    else {
+      save(pc, req, key, all);
+      save(pc, req, artKey, JSON.stringify({ text: req.text, out: all }));
+    }
   }
   finish(all);
 
@@ -797,18 +837,20 @@ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: 
    * that states a quote, a speaker, or a number the source does not.
    */
   function checked(out: string) {
-    return keepQuotes(dropUnsupported(stripPreamble(out), source), source);
+    // The input's "Title:" field echoed as a line is no part of the text.
+    return keepQuotes(dropUnsupported(stripPreamble(dropTitleLine(out, req.title, req.text)), source), source);
   }
 
-  function finish(out: string) {
+  /** `from`: the text the Short version was made from. */
+  function finish(out: string, from = req.text) {
     // A "Short version" that is barely shorter is not worth reading instead of the original.
-    if (tooLong(out)) return reply({ id: req.id, error: "not much shorter than the full text", code: "http", final: true });
+    if (tooLong(out, from)) return reply({ id: req.id, error: "not much shorter than the full text", code: "http", final: true });
     if (out.trim()) reply({ id: req.id, full: out });
     reply({ id: req.id, done: true });
   }
   /** Too long to be worth it, by length and by words: a rewrite in shorter words can be much shorter yet hardly fewer. */
-  function tooLong(out: string) {
-    return proseTokens(out) > proseTokens(req.text) * MAX_RATIO || proseWords(out, req.lang) > proseWords(req.text, req.lang) * MAX_WORD_RATIO;
+  function tooLong(out: string, from = req.text) {
+    return proseTokens(out) > proseTokens(from) * MAX_RATIO || proseWords(out, req.lang) > proseWords(from, req.lang) * MAX_WORD_RATIO;
   }
 }
 

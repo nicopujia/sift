@@ -1,0 +1,50 @@
+url: https://news.ycombinator.com/item?id=1
+first sift content: 714 ms
+logs:
+
+--- outline (45 lines) ---
+[button] Skip to content
+  [input:search]  Search
+  [button] Search
+H1 Y Combinator
+  [link] Hacker News
+  [link] new
+  [link] past
+  [link] comments
+  [link] ask
+  [link] show
+  [link] jobs
+  [link] submit
+    [link] login
+  [link] Y Combinator
+  [link] ycombinator.com
+  [link] pg
+  [link] on Oct 9, 2006
+  [link] hide
+  [link] past
+  [link] favorite
+  [link] 3 comments
+    [link] on Oct 9, 2006
+    p: "the rising star of venture capital" -unknown VC eating lunch on SHR
+    [link] upvote
+    [button] Collapse
+        [link] on Oct 9, 2006
+        p: Is there anywhere to eat on Sandhill Road?
+        [link] upvote
+        [link] parent
+        [button] Collapse
+            [link] on Feb 25, 2007
+            p: sure
+            [link] upvote
+            [link] root
+            [link] parent
+            [button] Collapse
+  [link] Guidelines
+  [link] FAQ
+  [link] Lists
+  [link] API
+  [link] Security
+  [link] Legal
+  [link] Apply to YC
+  [link] Contact
+[button] Sift

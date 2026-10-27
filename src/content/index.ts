@@ -61,6 +61,16 @@ function playControl(root: Element | null): HTMLElement | null {
   return found.sort((a, b) => area(b) - area(a))[0] ?? null;
 }
 
+/** The part of a poster with no labeled Play that a click starts: its largest element with a pointer cursor (F924). */
+function posterTarget(root: Element | null): HTMLElement | null {
+  if (!root) return null;
+  const area = (el: Element) => el.getBoundingClientRect().width * el.getBoundingClientRect().height;
+  let best: HTMLElement | null = null;
+  for (const el of [root, ...Array.from(root.querySelectorAll("*")).slice(0, 300)])
+    if (el instanceof HTMLElement && getComputedStyle(el).cursor === "pointer" && area(el) > (best ? area(best) : 0)) best = el;
+  return best;
+}
+
 /** A loaded player: a video with a source, in an element still on screen. */
 function livePlayer(el: Element | null, video: Element | null): boolean {
   if (!el || !el.isConnected) return false;
@@ -257,9 +267,13 @@ function boot() {
     }
     const all = Array.from(shadow.querySelectorAll<HTMLElement>(FOCUSABLE));
     const i = all.indexOf(el);
+    const label = labelOf(el);
+    const inSheet = !!el.closest(".layer, .suggest");
+    // A field: the fields with its tag and label (each cart row's Quantity), to find its row's again (F953).
+    const peers = /^(input|textarea|select)$/.test(el.localName) ? all.filter((c) => c.localName === el.localName && !!c.closest(".layer, .suggest") === inSheet && labelOf(c) === label) : [el];
     return {
       el,
-      inSheet: !!el.closest(".layer, .suggest"),
+      inSheet,
       list: list ? lists.indexOf(list) : -1,
       listLabel: list?.getAttribute("aria-label") ?? null,
       item: li && list ? Array.from(list.children).indexOf(li) : -1,
@@ -267,7 +281,10 @@ function boot() {
       pos: li ? Array.from(li.querySelectorAll(FOCUSABLE)).indexOf(el) : -1,
       /** Its item's title, to tell when the item itself is gone. */
       itemTitle: li?.querySelector(".title")?.textContent ?? null,
-      label: labelOf(el),
+      label,
+      /** Its rank among the fields with its tag and label, and how many there were. */
+      rank: peers.indexOf(el),
+      peers: peers.length,
       tag: el.localName,
       /** The page element it stands for. */
       ref: el.dataset?.ref ?? null,
@@ -300,7 +317,11 @@ function boot() {
     }
     // In a list, the same place in the same item comes next (see refocus); elsewhere, the same label.
     if (spot.list >= 0 || !spot.label) return null;
-    return all.find((c) => labelOf(c) === spot.label) ?? null;
+    const same = all.filter((c) => labelOf(c) === spot.label);
+    // Several fields share the label (each cart row's Quantity): the same row's, at its rank while as
+    // many are there; never simply the first, where the next key would change another row (F953).
+    if (spot.peers > 1) return same.length === spot.peers && spot.rank >= 0 ? same[spot.rank] ?? null : null;
+    return same[0] ?? null;
   }
 
   /** Keep the text being typed, and the caret, in a field a re-render replaced. */
@@ -870,9 +891,10 @@ function boot() {
   }
 
   // Focus that falls out of Sift (a closed popup, a removed control, a page
-  // script that blurred it) comes back to it.
+  // script that blurred it) comes back to it. So does focus a page script gave Sift's root
+  // itself: the root is the page's active element, and Google Maps focuses it again after a route update (F960).
   function onSiftBlur(e: FocusEvent) {
-    if (e.relatedTarget) return;
+    if (e.relatedTarget && e.relatedTarget !== host) return;
     const spot = spotOf((e.composedPath()[0] as HTMLElement) ?? host);
     // A click on Sift's plain text leaves focus on <body>, as on any page.
     const clicked = pressing;
@@ -932,8 +954,12 @@ function boot() {
   }
 
   // ---------- sliders the page draws itself (role=slider) ----------
-  /** The page slider Sift's range field `tg` stands for, if it is not a native range. */
+  /** The page slider Sift's range field `tg` stands for, if it is not a native range, or the page spinbutton Sift's spinbutton is (F902). */
   const ariaSlider = (tg: Element | null): Element | null => {
+    if (tg instanceof HTMLElement && tg.getAttribute("role") === "spinbutton" && tg.dataset.ref) {
+      const el = elOf(tg.dataset.ref);
+      return el?.getAttribute("role") === "spinbutton" ? el : null;
+    }
     if (!(tg instanceof HTMLInputElement) || tg.type !== "range") return null;
     const el = elOf(tg.dataset.ref);
     return el && !(el instanceof HTMLInputElement) && el.getAttribute("role") === "slider" ? el : null;
@@ -941,7 +967,10 @@ function boot() {
   /** A slider key on Sift's copy of a page slider: the page slider gets it, and decides the new value. */
   function sliderKey(e: KeyboardEvent, tg: HTMLElement): boolean {
     const el = ariaSlider(tg);
-    if (!el || e.altKey || e.ctrlKey || e.metaKey || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(e.key)) return false;
+    if (!el || e.altKey || e.ctrlKey || e.metaKey || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
+      // A spinbutton the page draws may take typed digits too (a time's hour).
+      if (!el || el.getAttribute("role") !== "spinbutton" || e.altKey || e.ctrlKey || e.metaKey || !/^([0-9]|Backspace|Delete)$/.test(e.key)) return false;
+    }
     e.preventDefault();
     proxy.key(el, e.key);
     store.actAt = Date.now();
@@ -1004,6 +1033,18 @@ function boot() {
     hidden(false);
     setTimeout(() => hidden(true), 0);
     setTimeout(() => schedule(0), 60);
+  }
+  /**
+   * Escape closed the list for that opening only: the user opens it again (enters the field,
+   * clicks it, types) and the list the page still shows comes back (F951: a calendar under a
+   * read-only date field that ignores Escape).
+   */
+  function unescapeList(ref: string) {
+    if (escapedList?.ref !== ref) return;
+    store.dismissed.delete(escapedList.key);
+    dismissedRefs.delete(escapedList.key);
+    escapedList = null;
+    changed();
   }
 
   /** Sift's own Escape: it closes Sift's menu or the sheet of a page popup. False when there is none. */
@@ -1409,6 +1450,26 @@ function boot() {
   /** A single-page navigation still shows the last page's title: its own is said once the page names it. */
   let titleWait = false;
   let titleTimer = 0;
+  /** The title and first heading of the page shown when the address changed: never said for the next page (F921). */
+  let titleFrom = { title: "", head: "" };
+  const headOf = (p: Page | null | undefined) => (p?.blocks.find((b) => b.t === "h" && b.level === 1) as { text?: string } | undefined)?.text ?? "";
+  /**
+   * A new page still shows the last one's title (YouTube swaps it seconds later, longer under load): say its
+   * own once it has one, or its new heading (a page that shares the site's title), never the old title.
+   */
+  function lateTitle() {
+    const p = store.page;
+    if (!titleWait || !p) return;
+    const head = headOf(p);
+    const name = p.title && p.title !== titleFrom.title ? p.title : head && head !== titleFrom.title && head !== titleFrom.head ? head : "";
+    if (name) {
+      titleWait = false;
+      return say(name);
+    }
+    if (Date.now() - navAt < 12000) titleTimer = window.setTimeout(lateTitle, 1000);
+    // Still the old title: nothing new to say. A page with no title yet keeps waiting for one.
+    else if (p.title) titleWait = false;
+  }
   let lastToast = "";
   /**
    * Entries of the lists Sift shows: in the page, and in open sections and articles (a watch page's comments).
@@ -1482,6 +1543,14 @@ function boot() {
     // that frame, the page's changes (not a ticking clock) are read promptly for a minute (F873).
     performance.now() - loadStart > (!minor && store.page && !store.page.partial && thinView(store.page.blocks) ? 60000 : 10000);
   /**
+   * The page is still coming in: its first half minute, or, on a slow or busy machine, while it has not
+   * finished loading or Sift shows only its frame, up to a minute and a half (F873).
+   */
+  const stillLoading = () => {
+    const t = performance.now() - loadStart;
+    return t < 30000 || (t < 90000 && (document.readyState !== "complete" || (!!store.page && thinView(store.page.blocks))));
+  };
+  /**
    * Only a title and a line (a results page before its results come in, F728), or only the
    * frame's headings and a few links (weather.com before its forecast, F873): the content is still to come.
    */
@@ -1501,7 +1570,7 @@ function boot() {
     if (delay !== undefined) d = delay;
     // `grew`: the page added a lot of new text in its first half minute (its forecast, its code):
     // on a slow machine that is its content still coming in, not a routine update (F873).
-    else if (!contentShown(minor) || performance.now() - loadStart < 3000 || (grew && performance.now() - loadStart < 30000)) {
+    else if (!contentShown(minor) || performance.now() - loadStart < 3000 || (grew && stillLoading())) {
       // While the page loads (until its content shows, and its first seconds,
       // when a map or a player appears), keep up with it: right after
       // the change (a loading page has no idle moment, and its next long task
@@ -1516,7 +1585,9 @@ function boot() {
       const backoff = Math.min(2000, 60 * Math.pow(1.6, Math.min(same, 8)));
       d = Math.max(60, Math.min(800, Math.max(lastDur * 6, backoff)));
       // A big page (a long feed): extraction takes at most about a tenth of the time.
-      if (lastDur > 80) d = Math.max(d, lastDur * 9);
+      // While it still loads, a page's new content is read sooner, at about a quarter of the time: on a slow machine
+      // (a 4x slower CPU) nine times a long read put weather.com's forecast seconds behind the original (F873).
+      if (lastDur > 80) d = Math.max(d, lastDur * (!minor && stillLoading() ? 3 : 9));
       // Text that keeps changing (a clock, a counter) is no reason to hurry;
       // the page's answer to the user's action (a cart count, "Added") is.
       if (minor && performance.now() - Math.max(actedAt, typedAt) > 5000) d = Math.max(d, 2500);
@@ -1528,7 +1599,7 @@ function boot() {
     // The page held its main thread past the time the coming run was due (a slow machine building the
     // page in long tasks): the change that ends such a task is read now, as the page shows it, not after
     // one more wait for a timer and an idle moment (F873).
-    if (pending && pendingDue < performance.now() - 50 && performance.now() - loadStart < 30000) return run();
+    if (pending && pendingDue < performance.now() - 50 && stillLoading()) return run();
     const due = performance.now() + d;
     if (pending) {
       if (due >= pendingDue) return;
@@ -1553,6 +1624,8 @@ function boot() {
         );
     }, d);
   };
+  // The extractor saw a box that is drawn later in a closed shadow root, which no page change tells (a bot check's widget, F956).
+  document.addEventListener("sift-reread", () => schedule(0));
 
   function collectPortals(blocks: Block[], out: { ref: string; el: Element; kind: "video" | "other"; focus?: [number, number] }[]) {
     for (const b of blocks) {
@@ -1747,6 +1820,8 @@ function boot() {
    * then back where it was. The X Post then shows through its portal. Once per post.
    */
   const wokenEmbeds = new WeakSet<Element>();
+  /** Next stories the page added while it was scrolled for a post: out of this page's view until the reader reaches its end. */
+  const wakeAdded: Element[] = [];
   let wakeTimer = 0;
   let waking = false;
   function wakeEmbeds(page: Page) {
@@ -1764,18 +1839,63 @@ function boot() {
       const se = document.scrollingElement ?? document.documentElement;
       const top = se.scrollTop;
       const left = se.scrollLeft;
+      // The stories Sift shows: a post is woken only well before its story's end, so a loader of
+      // the next story (an observer with a wide margin under the article) never fires (F954).
+      const arts: Element[] = [];
+      const findArts = (bs: Block[]) => {
+        for (const b of bs) {
+          const a = b.t === "article" ? elOf(/:(r[0-9a-z]+)$/.exec(b.key)?.[1]) : null;
+          if (a) arts.push(a);
+          if (b.t === "section" || b.t === "article") findArts(b.blocks);
+        }
+      };
+      findArts(store.page?.blocks ?? []);
+      // A next story the page adds after a story while it is scrolled (a loader with a wider margin): no more waking.
+      let added = false;
+      const mo = new MutationObserver((ms) => {
+        for (const m of ms)
+          for (const n of Array.from(m.addedNodes)) {
+            if (added || !(n instanceof HTMLElement) || !n.isConnected) continue;
+            const after = arts.some((a) => a.isConnected && !a.contains(n) && !n.contains(a) && !!(a.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING));
+            if (after && n.querySelector("h1, h2") && Array.from(n.querySelectorAll("p")).reduce((k, p) => k + (p.textContent?.length ?? 0), 0) > 400) {
+              added = true;
+              wakeAdded.push(n);
+              schedule(0);
+            }
+          }
+      });
+      mo.observe(document.body, { childList: true, subtree: true });
       try {
         for (const el of els) {
           wokenEmbeds.add(el);
-          if (done(el) || !live()) continue;
-          el.scrollIntoView({ block: "center", behavior: "instant" });
-          for (let t = 0; t < 3000 && !done(el) && live(); t += 250) await new Promise((r) => setTimeout(r, 250));
+          if (done(el) || !live() || added) continue;
+          // Only to the post's own place: its bottom at the view's bottom (its top at the top, when it is taller),
+          // and only while a screen and 1000 px of its story (else the page) still lie below the view.
+          const y = se.scrollTop;
+          const r = el.getBoundingClientRect();
+          const art = arts.find((a) => a.contains(el));
+          const end = Math.min(se.scrollHeight, art ? art.getBoundingClientRect().bottom + y : Infinity);
+          const to = Math.max(0, Math.min(r.top + y, r.bottom + y - innerHeight));
+          if (to + innerHeight + innerHeight + 1000 > end) continue;
+          se.scrollTo({ top: to, left, behavior: "instant" });
+          for (let t = 0; t < 3000 && !done(el) && live() && !added; t += 250) await new Promise((r) => setTimeout(r, 250));
         }
       } finally {
+        mo.disconnect();
         se.scrollTo({ top, left, behavior: "instant" });
         waking = false;
       }
     }, 1500);
+  }
+
+  /** `bs` without the blocks of a next story waking posts made the page add (F954). */
+  function dropWakeAdded(bs: Block[]): Block[] {
+    return bs.filter((b) => {
+      const el = blockEl(b);
+      if (el && wakeAdded.some((n) => n.contains(el))) return false;
+      if (b.t === "section" || b.t === "article") b.blocks = dropWakeAdded(b.blocks);
+      return true;
+    });
   }
 
   /** The key of the consent wall Sift showed because the reader pressed Play (see playFacade). */
@@ -1793,6 +1913,12 @@ function boot() {
     const r = spot.getBoundingClientRect();
     const away = r.bottom < 0 || r.top > innerHeight;
     if (away) spot.scrollIntoView({ block: "center", behavior: "instant" });
+    // A site may give its poster a click handler only once the player shows at least half in view
+    // (La Nación's JW facades, F924): Sift's box for it comes into view first.
+    const box = portal ? boxOf(refOfPortal(portal) ?? "") : null;
+    const b = box?.getBoundingClientRect();
+    const hidden = !!b && b.height > 0 && (Math.min(b.bottom, innerHeight) - Math.max(b.top, 0)) / b.height < 0.6;
+    if (hidden) box!.scrollIntoView({ block: "nearest", behavior: "instant" });
     const loaded = () => !start.isConnected || !start.checkVisibility() || !!portal?.querySelector("iframe, video[src], video source");
     window.setTimeout(() => {
       if (store.mode !== "sift") return;
@@ -1809,7 +1935,7 @@ function boot() {
         consentKey = "dlg:" + refOf(wall);
         schedule(0);
       }, 2500);
-    }, away ? 800 : 0);
+    }, away ? 800 : hidden ? 300 : 0);
   }
 
   /**
@@ -1908,7 +2034,9 @@ function boot() {
     }
     const ids = ["aria-controls", "aria-owns"].flatMap((n) => (pf.getAttribute(n) ?? "").split(/\s+/)).filter(Boolean);
     for (const id of ids) {
-      const list = document.getElementById(id);
+      let list = document.getElementById(id);
+      // Or the list inside the popup it controls (GitHub's "Go to file": a dialog around its listbox) (F963).
+      if (list && !list.matches("[role=listbox], [role=grid], [role=tree], [role=menu]")) list = list.querySelector("[role=listbox], [role=grid], [role=tree], [role=menu]");
       if (!list || !list.matches("[role=listbox], [role=grid], [role=tree], [role=menu]") || !visible(list)) continue;
       let opts = Array.from(list.querySelectorAll("[role=option], [role=menuitem], [role=treeitem]"));
       const rows = !opts.length;
@@ -2146,6 +2274,7 @@ function boot() {
     keepPlayers(store.page, page);
     keepFocusedPortal(store.page, page);
     dropNestedPortals(page);
+    if (wakeAdded.length) page.blocks = dropWakeAdded(page.blocks);
     const alert = newAlert();
     const json = JSON.stringify(page);
     if (json === lastJson) {
@@ -2188,15 +2317,10 @@ function boot() {
       // The app may name the new page a moment after showing it (GitHub's <title>): say the new name then.
       // A page shown with no name yet (YouTube's video before its title) is said once it has one.
       clearTimeout(titleTimer);
-      titleWait = page.title === prevTitle || !page.title;
-      if (titleWait)
-        titleTimer = window.setTimeout(() => {
-          if (!titleWait || !store.page?.title) return;
-          say(store.page.title);
-          titleWait = false;
-        }, 2500);
+      titleWait = page.title === prevTitle || page.title === titleFrom.title || !page.title;
+      if (titleWait) titleTimer = window.setTimeout(lateTitle, 2500);
       else say(page.title);
-    } else if (titleWait && page.title && page.title !== prevTitle) {
+    } else if (titleWait && page.title && page.title !== prevTitle && page.title !== titleFrom.title) {
       titleWait = false;
       clearTimeout(titleTimer);
       say(page.title);
@@ -2225,6 +2349,9 @@ function boot() {
     const opened = prev && prevUrl === page.url && !navigated && Date.now() - store.actAt < 2500 ? newForm(prev, page) : null;
     if (page.blocks.length || !page.partial) store.booting = false;
     const before = shadow.activeElement;
+    // A choice (a travel mode radio, a select) in the terms its re-rendered twin is found by (F960).
+    const choices = (el: Element) => Array.from(el.closest("fieldset")?.querySelectorAll("input") ?? []).map(labelOf).join("|");
+    const chose = before instanceof HTMLSelectElement || (before instanceof HTMLInputElement && /^(radio|checkbox)$/.test(before.type)) ? { tag: before.localName, type: (before as HTMLInputElement).type, ref: (before as HTMLElement).dataset.ref, label: labelOf(before), choices: choices(before) } : null;
     paint();
     followPageFocus();
     if (opened) {
@@ -2240,7 +2367,11 @@ function boot() {
     // the address).
     if (navigated && page.blocks.length) {
       const a = document.activeElement;
-      if (!a || a === document.body || a === document.documentElement || (a === host && (!before || !before.isConnected))) main()?.focus({ preventScroll: true });
+      // A choice that wrote the address (a travel mode radio, a select) keeps focus on its re-rendered twin:
+      // the same page element, or the same label among the same choices (the page may rebuild them) (F960).
+      const now = shadow.activeElement as HTMLElement | null;
+      const twin = !!chose && !!now && now.localName === chose.tag && (now as HTMLInputElement).type === chose.type && (now.dataset.ref === chose.ref || (labelOf(now) === chose.label && choices(now) === chose.choices));
+      if (!a || a === document.body || a === document.documentElement || (a === host && (!before || !before.isConnected) && !twin)) main()?.focus({ preventScroll: true });
       // A link or button that opened another page in place (a place beside the results) may still have focus.
       else if (before && !/^(input|textarea|select)$/.test(before.localName) && Date.now() - store.actAt < 4000) openedFrom = { el: before, title: prevTitle ?? "", at: Date.now() };
     }
@@ -2358,6 +2489,8 @@ function boot() {
     sweepRefs();
     firstPaint = 0;
     loadStart = performance.now();
+    // What the reader last had: the next page is not named by it, however long the page keeps it.
+    if (!navPending) titleFrom = { title: store.page?.title ?? "", head: headOf(store.page) };
     navPending = true;
     navAt = Date.now();
     return true;
@@ -2425,7 +2558,7 @@ function boot() {
       return;
     }
     let grew = 0;
-    if (!minor && performance.now() - loadStart < 30000)
+    if (!minor && stillLoading())
       for (const n of added) {
         if (q.some((el) => deepContains(el, n))) continue;
         grew += (n.textContent ?? "").length;
@@ -2509,15 +2642,22 @@ function boot() {
       // replace the text under them.
       if (host.scrollTop > 120) noteReading();
       const near = host.scrollTop + host.clientHeight > host.scrollHeight - host.clientHeight * 1.5;
+      // The reader reached this story's end: the next story the page loaded early shows now, as on the original.
+      if (near && wakeAdded.length && Date.now() - userScrollAt < 1000) {
+        wakeAdded.length = 0;
+        schedule(0);
+      }
       const moved = host.scrollTop - lastTop;
       lastTop = host.scrollTop;
       // Only the reader's own scrolling moves the original along: Sift's view also scrolls when the page redraws.
       const mine = Date.now() - userScrollAt < 1000;
       if (!store.page || Date.now() - lastStep < 1500 || (mine && stepWith(near, Math.sign(moved)))) return;
       if (!near || Date.now() - lastNudge < 1500) return;
-      // Tabbing through a list's last entries must reach what follows it, not keep it growing (F820):
-      // more loads once the reader scrolls (wheel, touch, a scrolling key, the scrollbar) after Tab.
-      if (tabAt > userScrollAt) return;
+      // Tabbing through a list's last entries must reach what follows it (Up next before Comments), not keep
+      // it growing (F820): there, more loads once the reader scrolls (wheel, touch, a scrolling key, the
+      // scrollbar) after Tab. A list nothing follows (home, search, comments at the end) grows as Tab nears
+      // its end, as on the original (F920).
+      if (tabAt > userScrollAt && !tabInLastList()) return;
       // A list in an open section counts too (a watch page's comments).
       if (!shownItems(store.page.blocks)) return;
       // A thread that unloads its posts loads more as it is scrolled (stepWith), never by a jump to its end.
@@ -2528,6 +2668,24 @@ function boot() {
     },
     { passive: true },
   );
+
+  /**
+   * Focus is in a list Tab may grow (F920): the page's own feed (home, search: what Sift folds after it, its
+   * Shorts, comes from that feed), or a list in a section with nothing focusable after it (comments at the end).
+   */
+  function tabInLastList(): boolean {
+    const m = main();
+    const a = shadow.activeElement;
+    let list = m && a && m.contains(a) ? a.closest("ul, ol") : null;
+    if (!m || !list) return false;
+    // The outer list (a comment's replies are a list in its thread).
+    for (let up = list.parentElement?.closest("ul, ol"); up && m.contains(up); up = up.parentElement?.closest("ul, ol")) list = up;
+    const l = list;
+    if (!l.closest("details")) return true;
+    return !Array.from(m.querySelectorAll<HTMLElement>(FOCUSABLE)).some(
+      (c) => !l.contains(c) && !!(l.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) && c.getClientRects().length > 0,
+    );
+  }
 
   /**
    * A page that keeps only the posts near its own scroll position (a Discourse
@@ -2558,7 +2716,7 @@ function boot() {
   /** Which way a scrolling key moves Sift's view: -1 up, 1 down, 0 not a scroll (a key a field or a group of controls takes). */
   function keyDir(ke: KeyboardEvent, tg: EventTarget | undefined): number {
     if (ke.altKey || ke.ctrlKey || ke.metaKey) return 0;
-    if (tg instanceof Element && tg.closest("input, textarea, select, [contenteditable], [role=listbox], [role=radiogroup], [role=slider], [role=menu], [role=tablist], [role=grid], .layer, .suggest, .media")) return 0;
+    if (tg instanceof Element && tg.closest("input, textarea, select, [contenteditable], [role=listbox], [role=radiogroup], [role=slider], [role=spinbutton], [role=menu], [role=tablist], [role=grid], .layer, .suggest, .media")) return 0;
     if (ke.key === " ") return tg instanceof Element && tg.closest("button, summary, [role=button]") ? 0 : ke.shiftKey ? -1 : 1;
     return ({ Home: -1, PageUp: -1, ArrowUp: -1, End: 1, PageDown: 1, ArrowDown: 1 } as Record<string, number>)[ke.key] ?? 0;
   }
@@ -2861,7 +3019,8 @@ function boot() {
       proxy.focus(now);
     }
     const mine = shadow.querySelector<HTMLInputElement>(`input[data-ref="${window.CSS.escape(ref)}"], textarea[data-ref="${window.CSS.escape(ref)}"]`);
-    if (sync && mine && mine.value !== now.value) proxy.setValue(now, mine.value);
+    // Only text typed since the last action, as carry: after Send, the page's fresh field is empty on purpose (F952).
+    if (sync && mine && mine.value !== now.value && lastTyped(mine) > store.actAt) proxy.setValue(now, mine.value);
     return now;
   }
 
@@ -3182,12 +3341,7 @@ function boot() {
       typedAt = performance.now();
       typedUrl = location.href;
       // Its list Escape closed while the page kept it: what the page shows now for the new text shows again.
-      if (escapedList?.ref === ref) {
-        store.dismissed.delete(escapedList.key);
-        dismissedRefs.delete(escapedList.key);
-        escapedList = null;
-        changed();
-      }
+      unescapeList(ref);
       // A field with a suggestion list (or a search box the page shows one under): Sift shows the list once
       // the user pauses, not at the next routine look, which on a long page (a Wikipedia article) is seconds away.
       // A plain search box with no list (Python docs' Quick search) costs no extra looks.
@@ -3218,6 +3372,7 @@ function boot() {
       // A re-render replaced Sift's field: the page field never left either.
       // Sift putting focus back after a sheet closed: the user did not enter it.
       if (pageFocus === el || rescuing) return;
+      unescapeList(ref);
       if (pageFocus) leaveField(pageFocus);
       pageFocus = el;
       entrySel = { el, sel: selOf(el), at: performance.now() };
@@ -3247,6 +3402,7 @@ function boot() {
       const was = entrySel?.el === el && performance.now() - entrySel.at < 1500 ? entrySel.sel : selOf(el);
       proxy.click(el);
       armRecent(2500, true);
+      unescapeList(ref);
       // The page selected its whole text on that click (Google Maps' directions fields): so does
       // Sift's field, so the first key typed replaces the text there as it would on the page.
       const f = shadow.activeElement as HTMLInputElement | null;
@@ -3284,11 +3440,16 @@ function boot() {
       flushEdits();
       flushBlur();
       stat("action");
-      store.actAt = Date.now();
+      // The field first: text typed before this submit still reaches a field the page swapped in.
       const fieldEl = field ? liveField(field.ref) : null;
+      store.actAt = Date.now();
       const form = (elOf(formRef) as HTMLFormElement | null) ?? (fieldEl as HTMLInputElement | null)?.form ?? null;
       const keep = inShownDialog(form ?? fieldEl);
-      const problem = proxy.submit(fieldEl, elOf(buttonRef), form instanceof HTMLFormElement ? form : null, via);
+      // Sift's Search button keeps focus in its field (F856). With no form, the page's own button is clicked,
+      // and a press there would have ended the field's edit first: change and blur go before the click (F950).
+      const btn = elOf(buttonRef);
+      if (via !== "enter" && fieldEl && btn && !(form instanceof HTMLFormElement) && !proxy.opensSearch(btn)) leaveField(fieldEl);
+      const problem = proxy.submit(fieldEl, btn, form instanceof HTMLFormElement ? form : null, via);
       // The page would show its validation bubble on a hidden field; say it here.
       if (problem) {
         notify(problem);
@@ -3309,7 +3470,7 @@ function boot() {
           else {
             // The player has not loaded its video yet (a poster with a big Play
             // button): start it the way a user would, with its own control.
-            const start = playControl(portal);
+            const start = playControl(portal) ?? (v ? null : posterTarget(portal));
             if (start) playFacade(portal, start);
             else v?.play().catch(() => {});
           }

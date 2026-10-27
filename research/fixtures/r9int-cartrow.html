@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Your basket</title>
+<style>body { font: 16px sans-serif; margin: 2em; } .row { margin: .6em 0; } input { width: 4em; }</style>
+</head>
+<body>
+<h1>Your basket</h1>
+<p>Change a quantity and the basket saves it. Prices include tax.</p>
+<div id="rows"></div>
+<p id="total"></p>
+<script>
+  // An autosaving basket that draws a row afresh once its quantity is saved, and keeps the
+  // shopper in that row's field (focus moves to the new field), as many server-rendered carts do.
+  window.__log = [];
+  const items = [ { id: 'a', name: 'Rye loaf', price: 6, qty: 1 }, { id: 'b', name: 'Seeded rye', price: 8, qty: 1 }, { id: 'c', name: 'Sourdough', price: 7, qty: 1 } ];
+  const label = new URLSearchParams(location.search).get('v') === 'named';
+  const rowHtml = (it) => `<div class="row" id="row-${it.id}"><span class="name">${it.name}</span> $${it.price} <label>${label ? 'Quantity of ' + it.name : 'Quantity'} <input type="number" min="0" name="qty" value="${it.qty}"></label></div>`;
+  const total = () => { document.getElementById('total').textContent = 'Total: $' + items.reduce((s, it) => s + it.price * it.qty, 0); };
+  const draw = () => { document.getElementById('rows').innerHTML = items.map(rowHtml).join(''); items.forEach(wire); total(); };
+  const timers = {};
+  const wire = (it) => {
+    const input = document.querySelector(`#row-${it.id} input`);
+    input.addEventListener('input', () => {
+      clearTimeout(timers[it.id]);
+      timers[it.id] = setTimeout(() => {
+        it.qty = Number(input.value) || 0;
+        __log.push(it.id + '=' + it.qty);
+        const had = document.activeElement === input || input.dataset.siftHad === '1';
+        const tmp = document.createElement('div');
+        tmp.innerHTML = rowHtml(it);
+        document.getElementById('row-' + it.id).replaceWith(tmp.firstElementChild);
+        wire(it);
+        const fresh = document.querySelector(`#row-${it.id} input`);
+        fresh.focus();
+        total();
+      }, 400);
+    });
+  };
+  draw();
+</script>
+</body>
+</html>

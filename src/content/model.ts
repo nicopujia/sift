@@ -40,7 +40,9 @@ export interface Action {
 export type FieldKind =
   | "text" | "search" | "email" | "password" | "number" | "tel" | "url"
   | "date" | "time" | "datetime-local" | "month" | "week" | "color" | "range"
-  | "textarea" | "select" | "checkbox" | "radio" | "editable" | "file";
+  | "textarea" | "select" | "checkbox" | "radio" | "editable" | "file"
+  /** A page's own role=spinbutton: its value, min and max, and keys that go to the page (F902). */
+  | "spinbutton";
 
 export interface Option {
   value: string;
@@ -76,7 +78,7 @@ export interface Field {
   combo?: string;
   /** Ref of a button that submits this field when there is no <form>. */
   submit?: string;
-  /** A slider's value as words ("12 pt"). */
+  /** A slider's or spinbutton's value as words ("12 pt", "18:00"). */
   valueText?: string;
   /** The page marks the value as wrong (aria-invalid). */
   invalid?: boolean;
@@ -135,7 +137,7 @@ export type Block =
   | { t: "quote"; key: string; content: Inline[]; /** A social post's fallback quote (X's blockquote.twitter-tweet): one post, kept whole. */ embed?: boolean }
   | { t: "pre"; key: string; text: string }
   | { t: "img"; key: string; img: Img; caption?: string; href?: string; ref?: string }
-  | { t: "portal"; key: string; ref: string; ratio: number; label: string; media?: MediaInfo; maxWidth?: number; /** A working surface (a map, an editor, a canvas, a payment form), not an embedded video or post. */ tool?: boolean; /** The middle of the part the page leaves uncovered (a map under a side panel), as fractions of its size. */ focus?: [number, number] }
+  | { t: "portal"; key: string; ref: string; ratio: number; label: string; media?: MediaInfo; maxWidth?: number; /** A working surface (a map, an editor, a canvas, a payment form), not an embedded video or post. */ tool?: boolean; /** The middle of the part the page leaves uncovered (a map under a side panel), as fractions of its size. */ focus?: [number, number]; /** A chart shown as it is (a seat chart): read as a picture, its numbers in its label. */ chart?: boolean }
   | { t: "items"; key: string; title?: string; items: Item[]; thumbs?: boolean; /** oneliner: the title becomes a plain line. summary: the snippet does. */ rewrite?: "oneliner" | "summary"; aiMode?: "about" | "gist" | "news"; more?: Action }
   | { t: "form"; key: string; ref?: string; title?: string; fields: Field[]; actions: Action[] }
   | { t: "actions"; key: string; actions: Action[]; /** The name of the page's navigation this row is (a pager): Sift shows it as a navigation landmark. */ nav?: string }

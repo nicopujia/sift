@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Search recipes · Crumb</title>
+<!-- r9 ctrl12 (F903): boxes named "adv" for "advanced" are content; boxes named "adv" on Italian news sites are ad slots.
+     Content: details#adv (Advanced, a number field), div.adv-search (a form), div#advOptions (checkboxes), p.adv-note (a note).
+     Ads: div.card.card--adv ("Pubblicità" and a 300x250 frame), div#adv-Top (an empty 728x90 slot), div.box-adv ("ADV" label). -->
+<style>body{font-family:system-ui;margin:0}main{max-width:720px;margin:20px auto;padding:0 12px}.slot{width:300px;height:250px;background:#eee}#adv-Top{width:728px;height:90px;background:#eee}</style>
+</head><body>
+<main>
+<h1>Search recipes</h1>
+<form action="/search" onsubmit="event.preventDefault(); __log.push('search ' + new FormData(this).get('q'))">
+<label for="q">Recipe</label> <input id="q" name="q"> <button>Search</button>
+<details id="adv"><summary>Advanced</summary>
+<label for="min">Minimum rating</label> <input id="min" name="min" type="number" min="1" max="5" value="3">
+</details>
+</form>
+<div class="adv-search"><h2>Advanced search</h2><label for="ing">Ingredient</label> <input id="ing" name="ing"></div>
+<div id="advOptions"><label><input type="checkbox" id="gf"> Gluten-free only</label> <label><input type="checkbox" id="vg"> Vegan only</label></div>
+<p class="adv-note">Advanced filters apply to every recipe in the collection, including the ones added this week.</p>
+<div class="card card--adv"><span>Pubblicità</span><div class="slot"></div><script>window.__x = 1;</script></div>
+<h2>Popular</h2>
+<ul><li><a href="/r/rye">Rye sourdough</a></li><li><a href="/r/seeded">Seeded loaf</a></li></ul>
+<div id="adv-Top"></div>
+<div class="box-adv">ADV</div>
+</main>
+<script>window.__log = [];</script>
+</body></html>

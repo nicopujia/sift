@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Recipe finder</title>
+<style>body { font: 16px sans-serif; margin: 0; } header { background: #eee; padding: 1em; } main { padding: 1em 2em; }</style>
+</head>
+<body>
+<header>
+  <strong>Recipe finder</strong>
+  <div role="search" class="searchbar">
+    <input type="search" id="q" aria-label="Search recipes" placeholder="Search recipes">
+    <button type="button" id="go">Search</button>
+  </div>
+</header>
+<main>
+  <h1>Recipes</h1>
+  <p>Find a recipe by name or ingredient. Type a word and press Search.</p>
+  <h2>Popular this week</h2>
+  <ul><li><a href="#r1">Rye loaf</a></li><li><a href="#r2">Seeded rye</a></li><li><a href="#r3">Sourdough</a></li></ul>
+  <p id="results" role="status"></p>
+</main>
+<script>
+  // The query is kept when the field's edit ends (change), as a value binding does; Search reads it.
+  window.__log = [];
+  let query = '';
+  const q = document.getElementById('q');
+  q.addEventListener('change', () => { query = q.value; __log.push('change ' + q.value); });
+  q.addEventListener('blur', () => __log.push('blur'));
+  q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { query = q.value; run(); } });
+  const run = () => { __log.push('search "' + query + '"'); document.getElementById('results').textContent = query ? 'Results for ' + query + ': Rye loaf, Seeded rye' : 'Type something to search.'; };
+  document.getElementById('go').addEventListener('click', run);
+</script>
+</body>
+</html>

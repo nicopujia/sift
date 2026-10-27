@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Pinch-style recipes</title>
+<style>body{font:16px sans-serif;margin:0} main{max-width:800px;margin:0 auto;padding:16px}</style></head><body>
+<!-- F939: a closed Slickstream-style search panel (shadow root, role=dialog aria-modal, inert, aria-hidden, full-window and see-through) never opens as a modal on load. The "Open search" button opens it the way the site does; then it is a dialog. -->
+<header><a href="/">Recipe Site</a> <form role="search" action="/search"><label>Search our recipes <input name="s" type="search"></label><button>Go</button></form>
+<button id="open" type="button">Open search</button></header>
+<main><h1>Quick weeknight dinners</h1>
+<p>Thirty-minute meals for busy nights, all tested in our kitchen. Pick one, shop once, and cook it in a single pan with what you already have at home.</p>
+<ul><li><a href="/r/1">Sheet pan chicken with lemon and potatoes</a></li><li><a href="/r/2">Black bean tacos with lime crema</a></li><li><a href="/r/3">Peanut noodles with crispy tofu</a></li></ul>
+</main>
+<slick-search-panel></slick-search-panel>
+<script>
+customElements.define("slick-search-panel", class extends HTMLElement {
+  constructor() {
+    super();
+    const sr = this.attachShadow({ mode: "open" });
+    sr.innerHTML = `<style>#shell{position:fixed;inset:0;pointer-events:none;z-index:10}#shell>*{opacity:0;transition:none}#shell.open{pointer-events:auto;background:#fff}#shell.open>*{opacity:1}.low{transform:translateY(900px)}#shell.open .low{transform:none}</style>
+    <div id="shell" role="dialog" aria-modal="true" inert aria-hidden="true" aria-label="Search">
+      <div><button id="x" type="button">Close Search</button></div>
+      <section class="low"><label>Search recipes <input type="search" placeholder="Search"></label></section>
+      <div class="low"><p>Powered by Slickstream</p></div>
+    </div>`;
+    const shell = sr.getElementById("shell");
+    const set = (on) => { shell.classList.toggle("open", on); shell.toggleAttribute("inert", !on); shell.setAttribute("aria-hidden", String(!on)); };
+    document.getElementById("open").addEventListener("click", () => set(true));
+    sr.getElementById("x").addEventListener("click", () => set(false));
+  }
+});
+</script></body></html>

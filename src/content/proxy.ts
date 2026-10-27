@@ -409,7 +409,7 @@ addEventListener("beforeunload", () => (navAt = performance.now()));
  * opens with the search box as its object. Never a button named for searching
  * or its results ("Search", "Show results").
  */
-function opensSearch(el: Element): boolean {
+export function opensSearch(el: Element): boolean {
   if (el.hasAttribute("aria-expanded") || el.hasAttribute("aria-haspopup")) return true;
   // Its name: what a screen reader says ("Show results" for a button showing "Search").
   const label = (el.getAttribute("aria-label") || el.getAttribute("title") || (el as HTMLElement).innerText || "").trim();

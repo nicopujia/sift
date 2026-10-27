@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coit Tower - Google Maps (fixture)</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  .panel { width: 408px; }
+  .sec { padding: 12px 24px; border-bottom: 1px solid #ddd; }
+  h1.ad { font-size: 14px; font-weight: 400; margin: 0; }
+  h1.ad span { color: #555; }
+  .row { display: flex; gap: 8px; align-items: center; }
+</style>
+</head>
+<body>
+<!-- F961: Google Maps place panel. Sponsored tour ads are marked only by a heading
+     ("Sponsored · By Viator", h1 with a "Sponsored" span) and a "Why this ad?" button. -->
+<div class="panel" role="main" aria-label="Coit Tower">
+  <div class="sec">
+    <h1 class="DUwDvf">Coit Tower</h1>
+    <div><span role="img" aria-label="4.6 stars">4.6</span> · Historical landmark</div>
+    <p>Storied 1930s-era building known for its WPA murals, 360-degree views &amp; resident flock of parrots.</p>
+  </div>
+
+  <!-- Variant A: the sponsored h1 is a direct child of the ad's section. -->
+  <div class="m6QErb XiKgde" id="tourA">
+    <h1 class="ad" aria-label="Sponsored · By Viator"><span>Sponsored</span><span>By Viator</span></h1>
+    <button aria-label="Why this ad?">i</button>
+    <div class="carousel">
+      <div class="Ymd7jc">
+        <a href="https://www.viator.com/tours/San-Francisco/t0/d651-0P1" class="fKm1Mb"><div class="cXHGnc">San Francisco City Highlights Open-Air Private Driving Tour</div></a>
+        <div class="W4Efsd">IRR 499 · 5.0 (18) · Free cancellation</div>
+        <span role="img" aria-label="5.0 stars 18 Reviews">5.0</span>
+      </div>
+      <div class="Ymd7jc">
+        <a href="https://www.viator.com/tours/San-Francisco/t1/d651-1P1" class="fKm1Mb"><div class="cXHGnc">Alcatraz and City Tour</div></a>
+        <div class="W4Efsd">IRR 900 · 4.7 (210) · Free cancellation</div>
+        <span role="img" aria-label="4.7 stars 210 Reviews">4.7</span>
+      </div>
+      <div class="Ymd7jc">
+        <a href="https://www.viator.com/tours/San-Francisco/t2/d651-2P1" class="fKm1Mb"><div class="cXHGnc">Golden Gate Bike Rental</div></a>
+        <div class="W4Efsd">IRR 300 · 4.5 (1,024)</div>
+        <span role="img" aria-label="4.5 stars 1024 Reviews">4.5</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Variant B: the sponsored h1 sits in the section's header row, next to "Why this ad?". -->
+  <div class="Hk4XGb" id="tourB">
+    <div class="row">
+      <h1 class="ad" aria-label="Sponsored · By Tripadvisor"><span>Sponsored</span>By Tripadvisor</h1>
+      <button aria-label="Why this ad?"><span>Why this ad?</span></button>
+    </div>
+    <div class="carousel">
+      <div class="Ymd7jc">
+        <a href="https://www.viator.com/tours/San-Francisco/t0/d651-0P1" class="fKm1Mb"><div class="cXHGnc">Coit Tower Hike Personalized Self-Guided App Tour</div></a>
+        <div class="W4Efsd">IRR 5 · 3.0 (2) · Free cancellation</div>
+        <span role="img" aria-label="3.0 stars 2 Reviews">3.0</span>
+      </div>
+      <div class="Ymd7jc">
+        <a href="https://www.viator.com/tours/San-Francisco/t1/d651-1P1" class="fKm1Mb"><div class="cXHGnc">North Beach Food Walk</div></a>
+        <div class="W4Efsd">IRR 700 · 4.9 (88)</div>
+        <span role="img" aria-label="4.9 stars 88 Reviews">4.9</span>
+      </div>
+      <div class="Ymd7jc">
+        <a href="https://www.viator.com/tours/San-Francisco/t2/d651-2P1" class="fKm1Mb"><div class="cXHGnc">Telegraph Hill Murals Walk</div></a>
+        <div class="W4Efsd">IRR 200 · 4.6 (31)</div>
+        <span role="img" aria-label="4.6 stars 31 Reviews">4.6</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Variant C: an h2 whose text says "Sponsored · By Trip.com". -->
+  <div class="TIHn2" id="tourC">
+    <h2>Sponsored · By Trip.com</h2>
+    <a href="https://www.trip.com/things-to-do/detail/12345/">Private San Francisco City Tour by Open-Air Jeep</a>
+    <div>IRR 120 · 4.8 (40)</div>
+  </div>
+
+  <div class="RcCsl" id="info">
+    <button aria-label="Address: 1 Telegraph Hill Blvd, San Francisco, CA 94133, United States">1 Telegraph Hill Blvd, San Francisco, CA 94133</button>
+    <button aria-label="Copy address">Copy</button>
+    <div>Hours: Closed · Opens 10 AM Tue</div>
+    <a href="https://sfrecpark.org/">sfrecpark.org</a>
+  </div>
+
+  <!-- Control: a page section about the tower's sponsor is not an ad. -->
+  <div class="PYvSYb" id="history">
+    <h2>History</h2>
+    <p>The tower was paid for with a bequest from Lillie Hitchcock Coit and finished in 1933. Its murals were sponsored by the Public Works of Art Project.</p>
+  </div>
+</div>
+</body>
+</html>

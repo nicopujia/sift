@@ -1,0 +1,59 @@
+url: https://g1.globo.com/
+first sift content: 3180 ms
+logs:
+[pageerror] Error: Uncaught (in promise) unauthorized
+[pageerror] TypeError: Cannot read properties of null (reading 'querySelectorAll')
+https://s.glbimg.com/bs/delivery/show/ba2023-c37298c0e253f622882ee1126d2cdba4.js:28:1669
+[error] [[Show-Regua] - GeolocationHandler] Erro na geolocalização: Error: Dados inválidos
+[warn] [Player API] could not load a/b experiment: Error
+[error] [bastian] ERROR TypeError: Failed to fetch (recomendacao.globo.com)
+--- outline (49 lines) ---
+[button] Ir para o conteúdo
+  [input:search]  BUSCAR
+  [button] Pesquisar
+[button] Menu
+[button] Entrar com Conta Globo
+H1 G1
+    [link] Mapa de apuração Presidente
+p: Diferença de votos
+p: Carregando...
+[PORTAL] Área interativa da página original. Pressione Enter para usar e Escape para voltar.
+[button] Abrir mapa de apuração por estado
+[button] Pontos percentuais
+[button] Número de votos
+[button] Brasil
+[button] Região
+p: Brasil
+p: 100,00 %
+p: Lula · 13 · PT
+p: 51,79 % · 64.256.232 votos
+p: Flavio Bolsonaro · 22 · PL
+p: 48,21 % · 59.826.041 votos
+p: Apuração atualizada em 23:26 de 25/10/2026 (horário de Brasília)
+    [link] Ver mapa completo
+p: Confira também a apuração para governador
+    [link] Ver mapa de governador
+p: Senador investigado
+    [link] Moraes manda Flávio Bolsonaro entregar passaporte e o proíbe de deixar o país
+p: Há 6 horas Política
+p: Presidente dos EUA
+    [link] Sem provas, Trump diz que eleição no Brasil 'pareceu fraudada'
+p: Há 6 horas Mundo
+    [link] Alckmin rebate fala de Trump sobre eleição: 'Totalmente equivocada'
+p: Há 6 horas Eleições 2026 no Vale do Paraíba e Região - SP
+p: Dia seguinte
+    [link] Lula se reúne com chanceler, assessores, Motta e Alcolumbre
+p: Há 1 hora Eleições 2026
+    [link] Líderes da direita na América Latina reconhecem resultado e parabenizam Lula
+p: Há 6 horas Mundo
+p: Apuração do 2º turno
+    [link] Menos de 35 mil votos foram registrados após as 17h; Lula teve vantagem de 4,4 milhões
+p: Há 13 horas Eleições 2026
+    [link] Confira em 7 mapas e gráficos como foi a disputa no 2º turno
+p: Há 10 horas Eleições 2026
+    [link] Lula virou em 211 cidades; saiba em quais a vitória foi por apenas um voto a mais
+    p: Há 31 minutos Jornal Nacional
+    [link] Mega-Sena acumula, e prêmio vai a R$ 305 milhões
+    p: Loterias 🍀🍀🍀 · Há 2 horas Sorteios Caixa
+[button] Mostrar mais conteúdos
+[button] Sift

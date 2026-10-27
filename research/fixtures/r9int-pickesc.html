@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pick a date</title>
+<style>
+  body { font: 16px sans-serif; margin: 2em; }
+  .wrap { position: relative; display: inline-block; }
+  .cal { position: absolute; top: 100%; left: 0; background: #fff; border: 1px solid #888; padding: 8px; z-index: 10; }
+  .cal[hidden] { display: none; }
+  .cal button { margin: 2px; }
+</style>
+</head>
+<body>
+<h1>Book a table</h1>
+<p>Pick the day you want to come. The calendar stays open until you pick a day or click outside it.</p>
+<form id="f" onsubmit="event.preventDefault(); log('submit ' + document.getElementById('day').value)">
+  <label for="day">Day</label>
+  <div class="wrap">
+    <input id="day" name="day" readonly placeholder="Choose a day">
+    <div class="cal" id="cal" hidden role="dialog" aria-label="Choose a day">
+      <div>October 2026</div>
+      <button type="button">27</button><button type="button">28</button><button type="button">29</button><button type="button">30</button><button type="button">31</button>
+    </div>
+  </div>
+  <p><button type="submit">Book</button></p>
+</form>
+<p id="out"></p>
+<script>
+  const log = (s) => { (window.__log ||= []).push(s); document.getElementById('out').textContent = s; };
+  const day = document.getElementById('day');
+  const cal = document.getElementById('cal');
+  // Opens on focus and click; ignores Escape (as many hand-made pickers do); closes on a pick or a click outside.
+  day.addEventListener('focus', () => { cal.hidden = false; log('open'); });
+  day.addEventListener('click', () => { cal.hidden = false; });
+  day.addEventListener('keydown', (e) => log('key ' + e.key));
+  cal.addEventListener('click', (e) => { if (e.target.localName === 'button') { day.value = 'Oct ' + e.target.textContent; cal.hidden = true; log('picked ' + day.value); } });
+  document.addEventListener('mousedown', (e) => { if (!e.target.closest('.wrap')) cal.hidden = true; });
+</script>
+</body>
+</html>

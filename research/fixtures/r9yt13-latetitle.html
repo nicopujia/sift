@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>First story about the old mill</title></head>
+<body>
+<!-- F921: a single-page app that keeps the last page's title and heading for 4 s after a navigation
+     (as YouTube does under load), and one that keeps its site title and changes only the heading. -->
+<main>
+<h1 id="h">First story about the old mill</h1>
+<p id="body">The stone mill at the bend of the river was the reason the town existed. Farmers brought their grain there each autumn, and the miller's family ground it into flour for the whole valley.</p>
+<p><a id="late" href="?story=2">Next story, named late</a></p>
+<p><a id="same" href="?story=3">Next story, same site title</a></p>
+</main>
+<script>
+const go = (url, title, head, text, delay) => {
+  history.pushState(null, "", url);
+  document.getElementById("body").textContent = text;
+  setTimeout(() => {
+    if (title) document.title = title;
+    document.getElementById("h").textContent = head;
+  }, delay);
+};
+document.getElementById("late").addEventListener("click", (e) => {
+  e.preventDefault();
+  go("?story=2", "A new bus line opens on Monday", "A new bus line opens on Monday", "A new bus line between the railway station and the hospital opens on Monday, with buses every twenty minutes.", 4000);
+});
+document.getElementById("same").addEventListener("click", (e) => {
+  e.preventDefault();
+  go("?story=3", "", "The library opens on Sundays", "From next month the town library opens on Sundays from ten to four, with the reading room and the children's corner.", 0);
+});
+</script>
+</body></html>

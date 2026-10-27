@@ -130,6 +130,7 @@ a.btn[aria-current] { text-decoration: none; border-color: #111; }
 .field > span { font-weight: 600; font-size: .95em; }
 .field input, .field select, .field textarea { font: inherit; font-size: 1em; padding: .5em .65em; border: 2px solid #555; border-radius: .45em; background: #fff; color: var(--text); width: 100%; max-width: 34em; min-height: 2.6em; }
 .field textarea { min-height: 7em; resize: vertical; }
+.field > .spin { font-weight: 400; font-size: 1em; justify-self: start; min-width: 5em; padding: .5em .65em; border: 2px solid #555; border-radius: .45em; background: #fff; color: var(--text); font-variant-numeric: tabular-nums; }
 .field [aria-invalid=true] { border-color: var(--danger); border-width: 3px; }
 .check { display: flex; gap: .55em; align-items: center; font-size: 1em; cursor: pointer; }
 .check input { width: 1.3em; height: 1.3em; margin: 0; accent-color: #111; }
@@ -142,6 +143,14 @@ legend { font-weight: 600; padding: 0; margin-bottom: .2em; }
 .facts dd { margin: 0; }
 @media (min-width: 720px) { .facts.short { grid-template-columns: repeat(2, minmax(6em, max-content) max-content); column-gap: 1em; } .facts.short dd:nth-of-type(odd) { margin-right: 2em; } }
 .table-wrap { overflow-x: auto; margin: .8em 0; }
+/* A wide table scrolls with a scrollbar that shows (F962); one with many short columns is compact, its headers wrapping between words. */
+.table-wrap::-webkit-scrollbar { height: 12px; }
+.table-wrap::-webkit-scrollbar-thumb { background: #767676; border-radius: 6px; border: 2px solid #fff; }
+.table-wrap::-webkit-scrollbar-track { background: var(--soft); }
+.table-wrap.compact table { font-size: .82em; }
+.table-wrap.compact th, .table-wrap.compact td { padding: .35em .4em; }
+.table-wrap.compact .cell-btn { min-width: 0; padding: .15em .35em; margin: 0; white-space: nowrap; }
+.table-more { margin-bottom: 0; }
 /* Quirks-mode pages reset table text (color, weight, size) to the page's; Sift's tables follow Sift. */
 table { border-collapse: collapse; color: inherit; font-family: inherit; font-weight: inherit; font-style: inherit; line-height: inherit; white-space: inherit; font-size: .92em; min-width: 50%; }
 th, td { text-align: start; padding: .45em .7em; border-bottom: 1px solid var(--line); vertical-align: top; }

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Shared folder · Crumb Drive</title>
+<!-- r9 (T6-fixtures): buttons whose effect needs the user's own click (transient user activation) or a native browser dialog:
+     "Copy link" and "Copy code" (navigator.clipboard.writeText, then "Link copied" / "Code copied" for 2 s), "Delete" per file (window.confirm, then the row goes
+     and a status line says so), "Export list" (a Blob download through a[download].click()), "Open help" (window.open to a new
+     window, blocked without a user click), and "Remove all" (confirm, then a 3 s "Undo" toast). Nothing posts: every handler
+     only logs to window.__log. A promo strip and a chat bubble are noise. -->
+<style>
+body{font-family:system-ui;margin:0}
+header{background:#234;color:#fff;padding:10px 24px;display:flex;gap:16px}header a{color:#fff}
+.promo{background:#fde68a;padding:8px 24px}
+main{max-width:720px;margin:20px auto;padding:0 12px}
+ul.files{list-style:none;padding:0}ul.files li{display:flex;gap:12px;align-items:center;border-bottom:1px solid #ddd;padding:8px 0}
+ul.files li .n{flex:1}
+.copied{color:#15803d;font-weight:600}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:6px}
+.chat{position:fixed;right:16px;bottom:16px;background:#06c;color:#fff;border-radius:24px;padding:10px 16px}
+</style></head>
+<body>
+<header><a href="/">Crumb Drive</a><a href="/recent">Recent</a><a href="/shared">Shared</a><a href="/trash">Trash</a></header>
+<div class="promo">Get 2 TB for $1.99 a month this week only. <a href="/upgrade">Upgrade</a></div>
+<main>
+<h1>Bakery recipes</h1>
+<p>Shared with 4 people. Anyone with the link can view.</p>
+<p><button type="button" id="copy">Copy link</button> <span id="copied" class="copied" role="status"></span></p>
+<p>Invite code: <code>BREAD-42</code> <button type="button" id="copycode">Copy code</button></p>
+<p><button type="button" id="export">Export list</button> <button type="button" id="help">Open help</button> <button type="button" id="all">Remove all</button></p>
+<h2>Files</h2>
+<ul class="files" id="files"></ul>
+<p id="status" role="status"></p>
+</main>
+<div id="toast" role="status" hidden></div>
+<div class="chat" role="button" tabindex="0">Questions? Chat with us</div>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+let files = ["Rye sourdough.pdf", "Seeded loaf.docx", "Croissant timings.xlsx", "Starter care.txt"];
+let removed = null;
+function draw() {
+  $("files").innerHTML = files.map((f) => '<li><span class="n"><a href="/f/' + encodeURIComponent(f) + '">' + f + '</a></span><button type="button" class="del" data-f="' + f + '" aria-label="Delete ' + f + '">Delete</button></li>').join("") || "<li>No files.</li>";
+}
+draw();
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText("https://drive.example/s/bakery-recipes"); __log.push("copied"); $("copied").textContent = "Link copied"; setTimeout(() => { $("copied").textContent = ""; }, 2000); }
+  catch (e) { __log.push("copy failed " + e.name); $("copied").textContent = "Could not copy the link."; }
+};
+$("copycode").onclick = async () => {
+  try { await navigator.clipboard.writeText("BREAD-42"); __log.push("code copied"); $("copied").textContent = "Code copied"; setTimeout(() => { $("copied").textContent = ""; }, 2000); }
+  catch (e) { __log.push("code copy failed " + e.name); $("copied").textContent = "Could not copy the code."; }
+};
+$("files").addEventListener("click", (e) => {
+  const b = e.target.closest(".del"); if (!b) return;
+  const f = b.dataset.f;
+  const ok = confirm("Delete " + f + "? You cannot undo this.");
+  __log.push("confirm " + f + " " + ok);
+  if (!ok) return;
+  files = files.filter((x) => x !== f); draw(); $("status").textContent = f + " deleted.";
+});
+$("export").onclick = () => {
+  const blob = new Blob(["name\n" + files.join("\n")], { type: "text/csv" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "bakery-recipes.csv";
+  document.body.appendChild(a); a.click(); a.remove(); __log.push("export " + files.length);
+};
+$("help").onclick = () => {
+  const w = window.open("/fx/r4-cookiewall.html", "crumbhelp", "width=500,height=600");
+  __log.push(w ? "help opened" : "help blocked");
+  if (!w) $("status").textContent = "Your browser blocked the help window.";
+};
+$("all").onclick = () => {
+  if (!confirm("Remove all " + files.length + " files from this folder?")) { __log.push("remove all cancel"); return; }
+  removed = files; files = []; draw(); __log.push("remove all");
+  $("toast").innerHTML = 'All files removed. <button type="button" id="undo">Undo</button>'; $("toast").hidden = false;
+  $("undo").onclick = () => { files = removed; draw(); __log.push("undo"); $("toast").textContent = "Files restored."; setTimeout(() => { $("toast").hidden = true; }, 2500); };
+  setTimeout(() => { if ($("undo")) $("toast").hidden = true; }, 6000);
+};
+</script>
+</body></html>

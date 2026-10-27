@@ -1,0 +1,2714 @@
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -6,7 +6,7 @@
+ import { mergeSettings } from "../shared/messages";
+ import { cacheClear, cacheGet, cacheSet } from "./cache";
+ import { bump, flushStats } from "./stats";
+-import { claimsNoAnswer, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, scriptFits, scriptOf, splitText } from "./text";
++import { claimsNoAnswer, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, unsupported } from "./text";
+ 
+ // ---------- settings ----------
+ 
+@@ -41,7 +41,8 @@
+ // 8: Short versions aim at a third of the length and never guess a job; one-liners keep variant details
+ // (color, size), never wrap the title ("A video titled X"), and keep "then-19" or "forced to" without datelines.
+ // 9: A teaser headline keeps its own words (it may stay a question), and no line says the story leaves something unanswered.
+-const PROMPT_VERSION = 9;
++// 10: No line names who said, did, or chose something its title and context leave unnamed.
++const PROMPT_VERSION = 10;
+ 
+ const LINES_INTRO = `You rewrite entries from a list on a web page into plain, literal one-line descriptions, for people who need pages to be simple and fast to read: low vision, ADHD, dyslexia, older users.
+ 
+@@ -50,6 +51,7 @@
+ const LINES_RULES = `- Write the line in the language given by the entry's "lang" field. Never use any other language. If an entry has no "lang", use the language of its title.
+ - No clickbait: no ALL CAPS, no emojis, no hype words, no questions.
+ - Use only what the title and context state or clearly imply. Do not invent results, names, numbers, or reasons.
++- Never say who said, did, or chose something unless the title or context names that person for it. "A phrase for posterity" stays "a phrase", not "X said a memorable phrase".
+ - Keep names, brands, models, and numbers that identify the entry, and the details that tell similar entries apart, such as color, size, capacity, edition, or pack count.`;
+ 
+ const LINES_OUTPUT = `Output JSON Lines only: one object per line, {"id": "<id>", "s": "<line>"}, in input order, one line per entry.
+@@ -96,7 +98,7 @@
+ - A dateline such as "Desde Managua" or "WASHINGTON —" only says where the writer is. Never put it in the line.
+ - Keep a short label that carries news, such as "Absuelto", "Live", "Opinion", or "Análisis", at the start, followed by a colon.
+ - Drop teaser openings ("You won't believe", "De no creer", "A horas de") and hype, never the facts.
+-- A question or a teaser that holds back its point ("the answer is …", "cuánto puede remontar", "here's why") is answered in the story, which you do not see. If the context gives the answer, say it. If not, write the headline in its own words, as it is; this is the one case where a line may be a question. Never restate it as a claim, and never add who asks, wonders, or explains it.
++- A question or a teaser that holds back its point ("the answer is …", "cuánto puede remontar", "here's why") is answered in the story, which you do not see. If the context gives the answer, say it. If not, write the headline in its own words, as it is; this is the one case where a line may be a question. Never restate it as a claim, and never add who asks, wonders, explains, says, or does it.
+ - Never say or hint that the story leaves something out, unanswered, unknown, or unclear: never write "does not give the answer", "remains unanswered", "it is unclear", "no se indica", "no se sabe", or the like, unless the headline or context says so itself.
+ - A column title that does not say what happened keeps its own words, made plain.
+ - If an entry is not a news story (an ad, a promotion, a call to action such as "Sign up", "Enter your zip code", or "Explore the collection", or a link to a section, newsletter, podcast, or app), write "s": "" for it.
+@@ -352,7 +354,7 @@
+  * model that refused for credit is skipped for a while. Text already shown
+  * cannot be taken back, so an error after the first text ends the chain.
+  */
+-async function withChain(s: Settings, chain: ModelCfg[], c: Call, firstTokenMs: number) {
++async function withChain(s: Settings, chain: ModelCfg[], c: Call, firstTokenMs: number, tried?: { m: ModelCfg; e?: unknown }[]) {
+   await skipLoaded;
+   const seen = new Set<string>();
+   const links = chain.filter((m) => m.model && !seen.has(linkId(m)) && seen.add(linkId(m)));
+@@ -371,9 +373,12 @@
+       refused &&= REFUSED.includes(sk.status);
+       continue;
+     }
++    const t: { m: ModelCfg; e?: unknown } = { m };
++    tried?.push(t);
+     try {
+       return await tryModel(s, m, wrapped, firstTokenMs * (i ? 3 : 1));
+     } catch (e) {
++      t.e = e;
+       if (c.signal.aborted) throw e;
+       if (any) throw new ChainError(e, false, e instanceof HttpError ? e.status : undefined, link);
+       last = e;
+@@ -435,6 +440,8 @@
+   saved: Map<string, string>;
+   /** The language of this page's lines, once settled (see doLines): a promise, so batches sent together share one decision. */
+   lang?: Promise<string>;
++  /** Calls this page spent asking again for list entries a filter or an output limit stopped (see doLines). */
++  lineRetries?: number;
+ }
+ 
+ /** How long a result is kept: short for a signed-in page, even one found to be so after it asked. */
+@@ -472,8 +479,10 @@
+   return ` ${l.join(" ")} `.includes(` ${t.join(" ")} `) && l.length - t.length <= 4;
+ }
+ 
+-/** Most calls for one batch of lines, its retries in smaller batches after a filter or an output limit included. */
++/** Most calls per page spent asking again, in smaller batches, for list entries a filter or an output limit stopped. */
+ const MAX_LINE_CALLS = 12;
++/** How long entries left unsettled at that limit keep their titles, so a revisit does not pay for the same search again. */
++const UNSETTLED_MS = 6 * 60 * 60_000;
+ 
+ /** What a line's quotes must come from: its entry's title and context. */
+ const quoteSource = (it: LineInput) => it.t + "\n" + (it.c ?? "");
+@@ -481,23 +490,24 @@
+ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply, signal: AbortSignal, useCache: boolean, site: string, pc: PortCtx) {
+   const s = await settings();
+   const mode = req.mode ?? "about";
+-  // One language for every line on the page: the one its text is written in.
+-  // The lang attribute is a hint: titles clearly in another language (a site
+-  // that marks Spanish pages "en") win. Settled once per page on enough
+-  // titles, so a later list matches the first, and a batch sent with the first
+-  // waits for its decision instead of making its own. Only when neither is known does
+-  // each title decide, and then the title alone: context is often a name
+-  // ("King Von") that looks foreign.
++  // One language for every line on the page: the page's, unless nearly all
++  // titles are clearly in another one (a site that marks Spanish pages "en").
++  // Settled once per page, by the first batch however small when the page's
++  // language is known (a few titles keep it), so a later list matches the
++  // first, and a batch sent with the first waits for its decision instead of
++  // making its own. Only when neither is known does each title decide, and
++  // then the title alone: context is often a name ("King Von") that looks foreign.
+   const page = knownLang(req.lang);
+   let langP = pc.lang;
+   if (!langP) {
+     langP = listLang(req.items.map((it) => it.t), page, detect);
+-    if (req.items.length >= 4) pc.lang = langP;
++    if (page || req.items.length >= 4) pc.lang = langP;
+   }
+   const list = await langP;
+   const langs = list ? req.items.map(() => list) : await Promise.all(req.items.map((it) => entryLang(it.t, req.lang, detect)));
+-  // Keyed by site, so one site can neither read nor plant another site's lines.
+-  const keys = await Promise.all(req.items.map((it, i) => hash(`lines|${PROMPT_VERSION}|${site}|${mode}|${s.lines.model}|${langs[i]}|${it.t}|${it.c ?? ""}`)));
++  // Keyed by site, so one site can neither read nor plant another site's lines;
++  // and without the context's ticking parts ("12h ago"), so a revisit does not pay again.
++  const keys = await Promise.all(req.items.map((it, i) => hash(`lines|${PROMPT_VERSION}|${site}|${mode}|${s.lines.model}|${langs[i]}|${it.t}|${stableContext(it.c ?? "")}`)));
+   const misses: { it: LineInput; key: string; lang: string }[] = [];
+   for (const [i, it] of req.items.entries()) {
+     // A teaser that holds back its answer, with nothing in its context that
+@@ -507,8 +517,11 @@
+     const hit = useCache ? await cacheGet(keys[i]) : undefined;
+     if (hit && !ttlOf(req, pc)) pc.saved.set(keys[i], hit);
+     if (hit === KEEP_TITLE) continue;
+-    if (hit) reply({ id: req.id, item: it.id, text: keepQuotes(hit, quoteSource(it)) });
+-    else misses.push({ it, key: keys[i], lang: langs[i] });
++    // A saved line passes the same checks as a new one (it may have been saved
++    // before they existed, or for an older context); one that fails keeps the title.
++    const shown = hit && (hit === it.t ? hit : vetLine(hit, it, mode));
++    if (shown) reply({ id: req.id, item: it.id, text: shown });
++    else if (!hit) misses.push({ it, key: keys[i], lang: langs[i] });
+   }
+   if (!misses.length) return reply({ id: req.id, done: true });
+   if (!s.apiKey) return reply({ id: req.id, error: "No API key", code: "nokey", quiet: await toldBefore("nokey") });
+@@ -518,7 +531,7 @@
+   const lineChars = mode === "about" ? 100 : 140;
+   type Miss = (typeof misses)[number];
+   /** One call for some of the entries: the error it ended in, if any, and the entries it gave no line for. */
+-  const ask = async (part: Miss[]): Promise<{ err: unknown; left: Miss[] }> => {
++  const ask = async (part: Miss[], chain: ModelCfg[], tried?: { m: ModelCfg; e?: unknown }[]): Promise<{ err: unknown; left: Miss[] }> => {
+     // Short ids keep the prompt small; map them back afterwards.
+     const byShort = new Map(part.map((m, i) => [String(i + 1), m]));
+     const input = part.map((m, i) => ({ id: String(i + 1), lang: m.lang || undefined, title: m.it.t, context: m.it.c || undefined }));
+@@ -532,18 +545,14 @@
+         const o = JSON.parse(l);
+         const m = byShort.get(String(o.id));
+         if (!m || typeof o.s !== "string" || done.has(String(o.id))) return;
+-        // A quote stays word for word, as the title or context has it.
+-        let text = keepQuotes(o.s.trim(), quoteSource(m.it)).replace(/[.。]$/, "");
+         // In news mode, an empty line means "not a story" (a promo), and a line
+-        // about the headline instead of the news is no better: keep the title.
+-        // A line that says the story or video leaves something unanswered is a guess: the model saw only the title
+-        // and context. (A message's gist may rightly say "you did not provide…".)
+-        const noAnswer = mode !== "gist" && !!text && claimsNoAnswer(text, quoteSource(m.it));
+-        if (mode === "news" && (!text || META.test(text) || noAnswer)) text = m.it.t;
+-        if (!text) return;
++        // that fails the checks (see vetLine) is no better: keep the title, as the line.
++        let text = vetLine(o.s, m.it, mode);
++        if (mode === "news" && !text) text = m.it.t;
++        if (!text && !o.s.trim()) return;
+         done.add(String(o.id));
+-        // A line that only wraps the title ("A video titled X") says nothing more: the title stays.
+-        if (mode !== "news" && (noAnswer || wrapsTitle(text, m.it.t))) {
++        // Elsewhere such a line keeps the title, remembered so it is not paid for again.
++        if (!text) {
+           if (useCache) save(pc, req, m.key, KEEP_TITLE);
+           return;
+         }
+@@ -571,7 +580,7 @@
+     try {
+       await withChain(
+       s,
+-      [s.lines, s.linesFallback, s.lastResort],
++      chain,
+       {
+         system: mode === "gist" ? GIST_SYSTEM : mode === "news" ? NEWS_SYSTEM : LINES_SYSTEM,
+         user: JSON.stringify(input),
+@@ -588,6 +597,7 @@
+         },
+       },
+         2500,
++        tried,
+       );
+     } catch (e) {
+       err = e;
+@@ -600,30 +610,61 @@
+   };
+   // A filter or an output limit stops a batch, not each entry: the entries it
+   // left are asked again in halves, so one flagged title, or lines in a script
+-  // that takes many tokens, cost no other entry its line. Only an entry that
+-  // fails alone keeps its title, for a day, so a revisit does not pay again.
+-  let calls = 0;
++  // that takes many tokens, cost no other entry its line. The halves go to the
++  // first model that stopped so, one call each; the other models are asked
++  // only for an entry that fails alone, last. Such an entry keeps its title,
++  // for a day, so a revisit does not pay again. The calls spent so are capped
++  // per page: entries left then keep their titles for a few hours.
++  const chain = [s.lines, s.linesFallback, s.lastResort];
+   let unsettled: unknown;
+-  const run = async (part: Miss[], why?: unknown): Promise<void> => {
+-    // Each try may be paid for: entries past this many stay asked for on this page only.
+-    if (calls >= MAX_LINE_CALLS) {
++  let one: ModelCfg[] = chain;
++  /** Entries that failed alone, with the models already asked for each. */
++  const alone: { m: Miss; asked: ModelCfg[] }[] = [];
++  // Calls spent after a filter count per page; after an output limit (each
++  // call still brings lines), per batch.
++  let batchCalls = 0;
++  const spent = () => pc.lineRetries ?? 0;
++  const keepTitle = (m: Miss, ms: number) => useCache && cacheSet(m.key, KEEP_TITLE, Math.min(ttlOf(req, pc) ?? ms, ms));
++  // Larger parts first, so the calls the cap allows settle the most entries.
++  const queue: { part: Miss[]; why?: unknown }[] = [{ part: misses }];
++  for (let q = queue.shift(); q; q = queue.shift()) {
++    const { part, why } = q;
++    const filtered = why !== undefined && /filter/.test(finalIncomplete(why)?.message ?? "");
++    if (why !== undefined && (filtered ? spent() : batchCalls) >= MAX_LINE_CALLS) {
+       unsettled = why;
+-      return;
++      for (const m of part) keepTitle(m, UNSETTLED_MS);
++      continue;
+     }
+-    calls++;
+-    const r = await ask(part);
+-    if (!r.err) return;
++    const tried: { m: ModelCfg; e?: unknown }[] = [];
++    const r = await ask(part, why === undefined ? chain : one, tried);
++    if (filtered) pc.lineRetries = spent() + tried.length;
++    else if (why !== undefined) batchCalls += tried.length;
++    if (!r.err) continue;
+     if (!finalIncomplete(r.err) || signal.aborted) throw r.err;
+-    if (!r.left.length) return;
++    if (!r.left.length) continue;
++    if (why === undefined) one = [tried.find((t) => finalIncomplete(t.e))?.m ?? chain[0]];
+     if (part.length === 1) {
+-      if (useCache) cacheSet(part[0].key, KEEP_TITLE, Math.min(ttlOf(req, pc) ?? DAY, DAY));
+-      return;
++      alone.push({ m: part[0], asked: tried.map((t) => t.m) });
++      continue;
+     }
+     const half = Math.ceil(r.left.length / 2);
+-    await run(r.left.slice(0, half), r.err);
+-    if (half < r.left.length) await run(r.left.slice(half), r.err);
+-  };
+-  await run(misses);
++    queue.push({ part: r.left.slice(0, half), why: r.err });
++    if (half < r.left.length) queue.push({ part: r.left.slice(half), why: r.err });
++  }
++  // An entry that failed alone is asked of the other models, while calls are
++  // left; refused by them too (or with no calls left), it keeps its title.
++  for (const { m, asked } of alone) {
++    if (signal.aborted) break;
++    const rest = chain.filter((c) => c.model && !asked.some((a) => linkId(a) === linkId(c)));
++    if (rest.length && spent() < MAX_LINE_CALLS) {
++      const tried: { m: ModelCfg; e?: unknown }[] = [];
++      const r = await ask([m], rest, tried);
++      pc.lineRetries = spent() + tried.length;
++      // Not refused, only failed (a busy model): asked again on a later visit.
++      if (!r.err || !r.left.length || !finalIncomplete(r.err)) continue;
++    }
++    keepTitle(m, DAY);
++  }
+   if (unsettled) throw unsettled;
+   reply({ id: req.id, done: true });
+ }
+@@ -640,9 +681,27 @@
+   return !got || got === want;
+ }
+ 
++/**
++ * A model's line for a list entry as it may be shown, its quotes as the title
++ * and context have them; null when the title should stay instead. The model
++ * saw only the title and context, so a line fails when it states a quote, a
++ * speaker, or a number they do not; when it says the story or video leaves
++ * something unanswered (a guess; a message's gist may rightly say "you did not
++ * provide…"); in news mode, when it talks about the headline instead of the
++ * news; elsewhere, when it only wraps the title ("A video titled X").
++ */
++function vetLine(raw: string, it: LineInput, mode: string): string | null {
++  const src = quoteSource(it);
++  const text = keepQuotes(raw.trim(), src).replace(/[.。]$/, "");
++  if (!text || unsupported(raw.trim(), src)) return null;
++  if (mode !== "gist" && claimsNoAnswer(text, src)) return null;
++  if (mode === "news" ? META.test(text) : wrapsTitle(text, it.t)) return null;
++  return text;
++}
++
+ /** A news line that talks about the headline or article instead of the news. */
+ const META =
+-  /\b(the|this) (headline|title|article|story|piece|report|feature) (says|asks|claims|alleges|describes|reports|invites|explains|suggests|teases|notes|reviews|raises|poses|questions|wonders|highlights|details|discusses|examines|looks at|argues|warns|states|mentions|reveals|tells|lists|covers|focuses)\b|\b(el titular|el título|la nota|el artículo|la noticia|la columna|a manchete|o título|o artigo|a notícia|a matéria) (dice|pregunta|informa|repasa|explica|analiza|afirma|describe|invita|plantea|cuenta|detalla|señala|destaca|aborda|advierte|sugiere|revela|muestra|indica|recoge|diz|pergunta|questiona|mostra|aponta|destaca|revela)\b/i;
++  /\b(the|this) (headline|title|article|story|piece|report|feature) (says|asks|claims|alleges|describes|reports|invites|explains|suggests|teases|notes|reviews|raises|poses|questions|wonders|highlights|details|discusses|examines|looks at|argues|warns|states|mentions|reveals|tells|lists|covers|focuses|weighs|considers|ponders|withholds|leaves)\b|\b(el titular|el título|la nota|el artículo|la noticia|la columna|a manchete|o título|o artigo|a notícia|a matéria) (dice|pregunta|informa|repasa|explica|analiza|afirma|describe|invita|plantea|cuenta|detalla|señala|destaca|aborda|advierte|sugiere|revela|muestra|indica|recoge|diz|pergunta|questiona|mostra|aponta|destaca|revela)\b/i;
+ 
+ /** Longest part of a text condensed in one call; longer text goes in parts. */
+ const PART_TOKENS = 6000;
+@@ -671,30 +730,41 @@
+ 
+ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: Reply, signal: AbortSignal, useCache: boolean, site: string, pc: PortCtx) {
+   const s = await settings();
+-  const key = await hash(`condense|${PROMPT_VERSION}|${site}|${s.condense.model}|${req.title}|${req.text}`);
++  // Keyed by the article's own text: a share button, a comment count, a
++  // reading time, or a count in the tab's title differ between visits of the
++  // same article, and must not make it a new one (paid for again).
++  const key = await hash(`condense|${PROMPT_VERSION}|${site}|${s.condense.model}|${req.title.replace(/^\s*\(\d+\+?\)\s*/, "")}|${stableText(req.text)}`);
+   const hit = useCache ? await cacheGet(key) : undefined;
+   if (hit && !ttlOf(req, pc)) pc.saved.set(key, hit);
+   if (hit === NO_SHORT) return reply({ id: req.id, error: "no short version for this text", code: "http", final: true });
++  /** What a Short version may state: the title and the text. */
++  const source = req.title + "\n" + req.text;
+   // A saved Short version passes the same checks as a new one: it may have
+-  // been saved before they existed.
+-  if (hit) return finish(keepQuotes(hit, req.text));
++  // been saved before they existed, or from a text whose numbers changed since.
++  if (hit) return finish(checked(hit));
+   if (!s.apiKey) return reply({ id: req.id, error: "No API key", code: "nokey", quiet: await toldBefore("nokey") });
+   bump("aiCondense");
+   let all = "";
+   const parts = splitText(req.text, PART_TOKENS);
+-  try {
+-    for (const [i, part] of parts.entries()) {
+-      if (i) all += "\n\n";
+-      // The output is at most about as long as the input; size it by script.
+-      const est = estTokens(part);
+-      // Models keep far more than asked unless given a number.
+-      const words = proseWords(part, req.lang);
++  // A failed or cut call saves nothing (it throws): a later visit asks again.
++  for (const [i, part] of parts.entries()) {
++    if (i) all += "\n\n";
++    const from = all.length;
++    // The output is at most about as long as the input; size it by script.
++    const est = estTokens(part);
++    // Models keep far more than asked unless given a number.
++    const words = proseWords(part, req.lang);
++    // A rewrite that came back hardly shorter is asked for once more, told how
++    // long it was: a slow fallback model often keeps nearly everything at first.
++    let note = "";
++    for (let again = 0; again < 2; again++) {
++      all = all.slice(0, from);
+       await withChain(
+         s,
+         [s.condense, s.condenseFallback, s.lastResort],
+         {
+           system: i ? CONDENSE_PART_SYSTEM : CONDENSE_SYSTEM,
+-          user: `Title: ${req.title}${parts.length > 1 ? ` (part ${i + 1} of ${parts.length})` : ""}\nThe text has ${words} words. Write about ${Math.max(30, Math.round(words * 0.35))} words, and never more than ${Math.max(30, Math.round(words * 0.5))}, not counting heading and [[B…]] lines.\n\n${part}`,
++          user: `Title: ${req.title}${parts.length > 1 ? ` (part ${i + 1} of ${parts.length})` : ""}\nThe text has ${words} words. Write about ${Math.max(30, Math.round(words * 0.35))} words, and never more than ${Math.max(30, Math.round(words * 0.5))}, not counting heading and [[B…]] lines.${note}\n\n${part}`,
+           maxTokens: Math.min(8000, 300 + est),
+           minTokens: Math.min(8000, 300 + Math.round(est * 0.7)),
+           signal,
+@@ -705,23 +775,31 @@
+         },
+         2000,
+       );
++      // A note of the model's own about its task ("El texto fuente contiene…") is not part of the text.
++      all = all.slice(0, from) + stripPreamble(all.slice(from));
++      const got = all.slice(from);
++      if (!(proseTokens(got) > proseTokens(part) * MAX_RATIO || proseWords(got, req.lang) > words * MAX_WORD_RATIO)) break;
++      note = ` A first rewrite had ${proseWords(got, req.lang)} words: far too many. Leave out more.`;
+     }
+-  } catch (e) {
+-    // "This text has no Short version" is kept for good only when the main
+-    // model itself ended that way; a fallback's stop is kept for a day, so the
+-    // main model tries again once it is back.
+-    if (finalIncomplete(e) && useCache) {
+-      const main = !(e instanceof ChainError) || e.link === linkId(s.condense);
+-      if (main) save(pc, req, key, NO_SHORT);
+-      else cacheSet(key, NO_SHORT, Math.min(ttlOf(req, pc) ?? DAY, DAY));
+-    }
+-    throw e;
+   }
+-  // Quotes stay word for word: a changed one is put back as the source has it.
+-  all = keepQuotes(all, req.text);
+-  if (all.trim() && useCache) save(pc, req, key, tooLong(all) ? NO_SHORT : all);
++  all = checked(all);
++  // "Not much shorter" is kept for a day at most, whichever model wrote it: a
++  // slow fallback's long answer must not block the article for a month.
++  if (all.trim() && useCache) {
++    if (tooLong(all)) cacheSet(key, NO_SHORT, Math.min(ttlOf(req, pc) ?? DAY, DAY));
++    else save(pc, req, key, all);
++  }
+   finish(all);
+ 
++  /**
++   * A Short version as it may be shown: no note of the model's own, quotes word
++   * for word (a changed one is put back as the source has it), and no sentence
++   * that states a quote, a speaker, or a number the source does not.
++   */
++  function checked(out: string) {
++    return keepQuotes(dropUnsupported(stripPreamble(out), source), source);
++  }
++
+   function finish(out: string) {
+     // A "Short version" that is barely shorter is not worth reading instead of the original.
+     if (tooLong(out)) return reply({ id: req.id, error: "not much shorter than the full text", code: "http", final: true });
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -159,17 +159,29 @@
+   return page;
+ }
+ 
++/** Fewest titles that can move a list away from its page's language. */
++const LIST_SAMPLE = 4;
++/** Share of titles, each read alone, that must be clearly in another language for the list to be in it. */
++const LIST_OTHER = 0.8;
++
+ /**
+- * The language a list's lines are written in: the page's, unless its titles,
+- * read together, are clearly in another one (a site that marks Spanish pages
+- * lang="en"): a reliable detection backed by that language's common words or
+- * script, as for one entry. One language for the whole list, never per title.
+- * "" when neither the page's language nor the titles' is known.
++ * The language a list's lines are written in: the page's, unless nearly all
++ * its titles are clearly in another one (a site that marks Spanish pages
++ * lang="en"): read together, and each alone, a reliable detection backed by
++ * that language's common words or script, as for one entry. A few titles, or
++ * a mixed list (English songs on a Spanish YouTube page), keep the page's
++ * language. One language for the whole list, never per title. "" when neither
++ * the page's language nor the titles' is known.
+  */
+ export async function listLang(titles: string[], pageLang: string, detect: (t: string) => Promise<Detection | null>): Promise<string> {
++  const page = base(pageLang);
+   const text = titles.join("\n");
+-  if (!text.trim()) return base(pageLang);
+-  return entryLang(text, pageLang, detect);
++  if (!text.trim()) return page;
++  const all = await entryLang(text, pageLang, detect);
++  if (!page || !all || all === page) return all;
++  if (titles.length < LIST_SAMPLE) return page;
++  const each = await Promise.all(titles.map((t) => entryLang(t, pageLang, detect)));
++  return each.filter((l) => l === all).length >= titles.length * LIST_OTHER ? all : page;
+ }
+ 
+ // ---------- quotes ----------
+@@ -231,8 +243,9 @@
+  * never presents its own words as someone's. Another quote on the same topic
+  * (another speaker's, often) is never swapped in: the source quote must share
+  * most of the model's distinctive words, agree on "not", and clearly beat
+- * every other source quote. Short quotes (a name, a title, a scare quote)
+- * stay as they are.
++ * every other source quote. A short quote (a name, a title, a scare quote)
++ * stays only when the source has its words as they are: a word or two the
++ * source never says ("fraudulentas" for "fraude") loses its marks.
+  */
+ export function keepQuotes(out: string, source: string): string {
+   const mine = quotesIn(out);
+@@ -250,7 +263,12 @@
+   for (const q of mine) {
+     const w = qwords(q.inner);
+     const small = SPACELESS.test(q.inner) ? w.join("").length < 4 : w.length < 3;
+-    if (small || !WHOLE_LINKS.test(q.inner) || verbatim(q.inner, words, tight)) continue;
++    if (!WHOLE_LINKS.test(q.inner) || verbatim(q.inner, words, tight)) continue;
++    if (small) {
++      res += out.slice(last, q.at) + q.inner.trim();
++      last = q.at + q.len;
++      continue;
++    }
+     const want = ctokens(q.inner);
+     const neg = NEGATION.test(q.inner);
+     let best = { text: "", n: -1 };
+@@ -278,6 +296,198 @@
+   return res + out.slice(last);
+ }
+ 
++// ---------- facts the source does not state ----------
++
++/** Number words a source may use for a number a rewrite writes in digits ("dos muertos", "2 muertos"). */
++const NUMBER_WORDS = new Map<string, string>();
++for (const list of [
++  "zero one two three four five six seven eight nine ten eleven twelve",
++  "cero uno dos tres cuatro cinco seis siete ocho nueve diez once doce",
++  "zero um dois três quatro cinco seis sete oito nove dez onze doze",
++  "zéro un deux trois quatre cinq six sept huit neuf dix onze douze",
++  "null eins zwei drei vier fünf sechs sieben acht neun zehn elf zwölf",
++  "zero uno due tre quattro cinque sei sette otto nove dieci undici dodici",
++  "zeroth first second third fourth fifth sixth seventh eighth ninth tenth",
++  "_ primero segundo tercero cuarto quinto sexto séptimo octavo noveno décimo",
++  "_ primera segunda tercera cuarta quinta sexta séptima octava novena décima",
++])
++  list.split(" ").forEach((w, i) => w !== "_" && NUMBER_WORDS.set(w, String(i)));
++for (const [w, n] of Object.entries({ un: "1", una: "1", uma: "1", une: "1", ein: "1", eine: "1", duas: "2", primer: "1", tercer: "3", dozen: "12", docena: "12", veinte: "20", twenty: "20", treinta: "30", thirty: "30", cien: "100", hundred: "100", mil: "1000", thousand: "1000" }))
++  NUMBER_WORDS.set(w, n);
++
++/** Numbers in a text, without separators and leading zeros ("1,204", "1.204" and "1204" are one). Placeholders and link ids are not numbers of the text. */
++function numbersOf(s: string): string[] {
++  const text = unlink(s.replace(/\[\[\s*B\d+\s*\]\]/g, " "));
++  return (text.match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replace(/[.,]/g, "").replace(/^0+(?=\d)/, "")).filter((n) => n !== "0");
++}
++
++/** The numbers a source states, in digits or (small ones) in words. */
++function sourceNumbers(source: string): Set<string> {
++  const out = new Set(numbersOf(source));
++  for (const w of source.toLowerCase().match(/\p{L}+/gu) ?? []) {
++    const n = NUMBER_WORDS.get(w);
++    if (n) out.add(n);
++  }
++  return out;
++}
++
++/** Capitalized words that may name a speaker. */
++const NAMEISH = /(?<![\p{L}\p{N}])\p{Lu}[\p{L}'’-]*\p{L}/gu;
++/** Capitalized words that open a sentence without naming anyone. */
++const STARTERS = new Set("según segun tras para ante desde durante after before during while when despite according said says dijo dice afirma aseguró asegura sostuvo explicó".split(" "));
++const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
++
++/**
++ * Whether the person a rewrite gives a quote to is named near that quote in
++ * the source: the name closest to the quote in the rewrite's sentence. True
++ * when the rewrite names no one there, or the quote cannot be placed.
++ */
++function speakerNear(out: string, q: { at: number; len: number; inner: string }, source: string): boolean {
++  if (SPACELESS.test(q.inner)) return true;
++  const qw = qwords(q.inner).slice(0, 4);
++  if (!qw.length) return true;
++  const src = source.normalize("NFKC");
++  const found = new RegExp(qw.map(escapeRe).join("[^\\p{L}\\p{N}]+"), "iu").exec(src);
++  if (!found) return true;
++  const window = src.slice(Math.max(0, found.index - 300), found.index + found[0].length + 300);
++  // The rewrite's sentence around the quote.
++  const start = Math.max(0, out.slice(0, q.at).search(/[^.!?。！？]*$/));
++  const endRel = out.slice(q.at + q.len).search(/[.!?。！？](?:\s|$)/);
++  const end = endRel < 0 ? out.length : q.at + q.len + endRel;
++  let best = "";
++  let dist = Infinity;
++  for (const m of out.slice(start, end).matchAll(NAMEISH)) {
++    const at = start + m.index!;
++    if (at >= q.at && at < q.at + q.len) continue;
++    const w = m[0];
++    if (COMMON.has(w.toLowerCase()) || STARTERS.has(w.toLowerCase()) || w.length < 3) continue;
++    const d = at < q.at ? q.at - (at + w.length) : at - (q.at + q.len);
++    if (d < dist) [best, dist] = [w, d];
++  }
++  if (!best) return true;
++  return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(best)}(?![\\p{L}\\p{N}])`, "iu").test(window);
++}
++
++/**
++ * What a rewrite states that its source does not: "quote" (words in quotation
++ * marks the source does not have, even after keepQuotes), "speaker" (a quote
++ * given to someone the source does not name near it), "number" (a number the
++ * source does not state), or "" when it states none of these.
++ */
++export function unsupported(raw: string, source: string): string {
++  const fixed = keepQuotes(raw, source);
++  const quotes = quotesIn(fixed);
++  if (quotes.length < quotesIn(raw).length) return "quote";
++  for (const q of quotes) if (!speakerNear(fixed, q, source)) return "speaker";
++  const have = sourceNumbers(source);
++  if (numbersOf(fixed).some((n) => !have.has(n))) return "number";
++  return "";
++}
++
++/** Words a "." follows inside a sentence: titles before a name ("Mr. Lopez", "Dr. Ruiz"), or before a number ("No. 10"). */
++const NO_END = new Set(
++  "Mr Mrs Ms Mx Dr Dra Drs Prof Profa St Sr Sra Srta Sres Jr Gen Gov Sen Rep Lt Col Capt Sgt Cmdr Adm Rev Hon Pres Supt Mt Ft Mme Mlle Mgr Hr Lic Ing Av Avda Ud Uds Vd Vds Dña vs cf approx aprox vgl bzw ca No no Nos Nr nr núm Núm pág págs pp Fig fig Vol vol Art art Ch ch Sec sec Jan Feb Aug Sep Sept Oct Nov Dec ene abr ago dic".split(" "),
++);
++
++/** A line split into sentences, never inside a link's words, nor after an initial or an abbreviation. */
++function sentencesOf(line: string): string[] {
++  const out: string[] = [];
++  let depth = 0;
++  let start = 0;
++  for (let i = 0; i < line.length; i++) {
++    const c = line[i];
++    if (c === "[") depth++;
++    else if (c === "]") depth = Math.max(0, depth - 1);
++    else if (!depth && /[.!?。！？]/.test(c)) {
++      let j = i + 1;
++      while (j < line.length && /[”’"»)]/.test(line[j])) j++;
++      if (j < line.length && !/\s/.test(line[j]) && !/[。！？]/.test(c)) continue;
++      if (c === "." && j === i + 1) {
++        const w = /\p{L}+$/u.exec(line.slice(start, i))?.[0] ?? "";
++        if (w.length === 1 || NO_END.has(w)) continue;
++      }
++      out.push(line.slice(start, j).trim());
++      start = j;
++      i = j - 1;
++    }
++  }
++  out.push(line.slice(start).trim());
++  return out.filter(Boolean);
++}
++
++/**
++ * A Short version without the sentences that state a quote, a speaker, or a
++ * number its source does not (see unsupported). Headings and [[B…]] lines stay;
++ * a list item keeps its marker; a line left with no sentence goes.
++ */
++export function dropUnsupported(md: string, source: string): string {
++  const lines: string[] = [];
++  for (const line of md.split("\n")) {
++    if (/^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line) || !line.trim()) {
++      lines.push(line);
++      continue;
++    }
++    const mark = /^\s*(?:[-*•>]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
++    const all = sentencesOf(line.slice(mark.length));
++    const kept = all.filter((s) => !unsupported(s, source));
++    if (kept.length === all.length) lines.push(line);
++    else if (kept.length) lines.push(mark + kept.join(" "));
++  }
++  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
++}
++
++/** A paragraph in which the model talks about its task instead of the page: "El texto fuente contiene…", "Here is the shorter version". */
++const PREAMBLE =
++  /texto (?:fuente|de origen)|(?:the )?source text|versi[oó]n (?:solicitada|pedida)|requested (?:version|rewrite|length)|\[\[B[…*.]|\bmantendré\b|\bI(?:'ll| will) (?:keep|rewrite|shorten)\b|^\s*(?:here is|here's|aquí (?:está|tienes|va)) (?:the|a|an|la|el|una?) /iu;
++
++/** A Short version without a note of the model's own before or after the text. */
++export function stripPreamble(md: string): string {
++  const paras = md.split(/\n\s*\n/);
++  const meta = (p: string | undefined) => !!p && !/^\s*(?:#|\[\[\s*B\d+\s*\]\]\s*$)/.test(p) && PREAMBLE.test(p);
++  while (paras.length > 1 && meta(paras[0])) paras.shift();
++  while (paras.length > 1 && meta(paras[paras.length - 1])) paras.pop();
++  return paras.join("\n\n");
++}
++
++// ---------- cache keys ----------
++
++/**
++ * A short part that ticks: a clock time, "12h ago", "hace 3 horas", a view,
++ * comment, or reading-time count. It changes between visits and says nothing
++ * about what the text is.
++ */
++const TICK =
++  /\d{1,2}(?::|h)\d{2}(?!\d)|(?<!\p{L})(?:ago|just now|geleden|temu|назад)(?!\p{L})|(?<!\p{L})hace\s+(?:\d|un[oa]?s?\s|pocos?\s)|\d+\s*['’]?\s*(?:s|secs?|seconds?|m|mins?|minutes?|h|hrs?|hours?|d|days?|segundos?|minutos?|horas?|d[ií]as?|secondes?|heures?|jours?|sekunden|minuten|stunden|tage|secondi|minuti|ore|giorni)(?!\p{L})|\d[\d.,]*\s*[kmb]?\s+(?:\p{L}+\s+){0,2}(?:views?|viewers?|watching|likes?|comments?|shares?|reads?|vistas?|visitas?|viendo|reproducciones|visualizaciones|comentarios?|vues|commentaires?|aufrufe|kommentare|visualizzazioni|commenti)(?!\p{L})/iu;
++
++const fewWords = (s: string, n: number) => (s.match(/[\p{L}\p{N}]+/gu) ?? []).length <= n;
++
++/** An entry's context for its cache key: without the parts that tick ("12h ago", "1,2 M views"), so a revisit finds the same line. */
++export function stableContext(c: string): string {
++  return c
++    .split(" · ")
++    .filter((p) => !(fewWords(p, 6) && TICK.test(p)))
++    .join(" · ");
++}
++
++/**
++ * An article's text for its cache key: without short lines that carry no
++ * prose or tick (a share button's "Compartir", a comment count, "12' minutos
++ * de lectura"), so a revisit of the same article finds its Short version.
++ * Headings, placeholders, and lines with links stay: the saved text refers to them by number.
++ */
++export function stableText(text: string): string {
++  return text
++    .split("\n")
++    .filter((line) => {
++      const l = line.trim();
++      if (!l) return false;
++      if (/^#|\[\[\s*B\d+\s*\]\]|\]\(\s*#?L\d+\s*\)/.test(l)) return true;
++      if (fewWords(l, 2)) return false;
++      return !(fewWords(l, 8) && TICK.test(l));
++    })
++    .join("\n");
++}
++
+ // ---------- token estimates ----------
+ 
+ /**
+@@ -388,6 +598,7 @@
+     String.raw`\bwithout\s+(?:saying|giving|revealing|stating|specifying|explaining|disclosing|answering|providing|an answer|the answer)\b`,
+     String.raw`\b(?:remains?|remained|left|stays?|still|is|are|was|were|goes|went)\s+(?:largely\s+|still\s+)?(?:unanswered|unknown|unclear|unexplained|unresolved|unstated|unspecified|undisclosed|unsaid|a mystery|an open question)\b`,
+     String.raw`\b(?:no|not an?)\s+(?:answer|verdict|conclusion)\b|\bnot\s+(?:given|stated|revealed|specified|disclosed)\b`,
++    String.raw`\b(?:withholds?|withheld|withholding|holds?\s+back|held\s+back|keeps?\s+back)\b`,
+     // Spanish
+     String.raw`\bno\s+(?:se\s+)?(?:indica|dice|sabe|aclara|precisa|especifica|revela|detalla|explica|informa|menciona|conoce|responde)\b`,
+     String.raw`\bno\s+(?:da|ofrece)\s+(?:la\s+|una\s+)?respuesta\b|\bno\s+(?:está|queda)\s+claro\b|\bse\s+desconoce\b|\bincógnita\b`,
+@@ -417,5 +628,9 @@
+  * its teaser holds back.
+  */
+ export function claimsNoAnswer(line: string, source: string): boolean {
+-  return count(NO_ANSWER, line) > count(NO_ANSWER, source) + count(ABSENCE, source);
++  // A word of absence in the source covers a line that uses it too ("unknown"
++  // for "unknown"); one about something else ("refuse" to tip) covers nothing.
++  const low = line.toLowerCase();
++  const covered = (source.match(ABSENCE) ?? []).filter((w) => low.includes(w.toLowerCase())).length;
++  return count(NO_ANSWER, line) > count(NO_ANSWER, source) + covered;
+ }
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -4,7 +4,7 @@
+ // not found, the generic extractor takes over.
+ 
+ import type { Action, Block, Field, Item, Page } from "../model";
+-import { refOf } from "../registry";
++import { elOf, refOf } from "../registry";
+ import { absUrl, accName, clean, textIn, visible } from "../dom";
+ import { Out, extractGeneric, newCtx, proseArticle, toAction, toField, walk } from "../extract/generic";
+ import { setLang, t } from "../i18n";
+@@ -289,13 +289,38 @@
+   return vis(qa("div[role=dialog]")).filter((d) => q("div[aria-label='Message Body'], input[name=subjectbox]", d));
+ }
+ 
++/** Gmail's "Exit full screen", shown only while the compose window is maximized. */
++const COMPOSE_MAXIMIZED =
++  "[data-tooltip^='Exit full screen'], [aria-label^='Exit full screen'], [data-tooltip^='Salir de pantalla completa'], [aria-label^='Salir de pantalla completa']";
++
++/** A layer that dims the page behind the compose window: a huge shadow, or a see-through cover over the viewport. */
++function composeBackdrop(box: Element): boolean {
++  const spread = /(?:^|\s)-?[\d.]+px -?[\d.]+px [\d.]+px ([\d.]+)px/.exec(getComputedStyle(box).boxShadow);
++  if (spread && Number(spread[1]) >= 100) return true;
++  const cover = (e: Element) => {
++    const r = e.getBoundingClientRect();
++    if (r.width < innerWidth * 0.9 || r.height < innerHeight * 0.9) return false;
++    const s = getComputedStyle(e);
++    if (s.position !== "fixed" && s.position !== "absolute") return false;
++    const a = /rgba\([^)]*,\s*([\d.]+)\)/.exec(s.backgroundColor);
++    return (!!a && Number(a[1]) > 0 && Number(a[1]) < 1) || (s.backdropFilter !== "none" && !!s.backdropFilter);
++  };
++  // The box's wrapper, or a layer beside the box or one of its wrappers.
++  for (let a: Element | null = box; a && a !== document.body; a = a.parentElement) {
++    if (a !== box && cover(a)) return true;
++    for (const s of Array.from(a.parentElement?.children ?? [])) if (s !== a && cover(s)) return true;
++  }
++  return false;
++}
++
+ /**
+- * A compose window floating beside the inbox (small, no backdrop) is not a modal: the inbox
+- * stays usable next to the draft. A maximized one covers the page.
++ * A compose window floating beside the inbox (no backdrop, not maximized) is not a modal: the
++ * inbox stays usable next to the draft, at any width or zoom. One with no close of its own is
++ * never a modal either: Escape or Sift's Close would hide the draft only in Sift.
+  */
+ function floatingCompose(box: Element): boolean {
+-  const r = box.getBoundingClientRect();
+-  return r.width * r.height < innerWidth * innerHeight * 0.5;
++  if (!vis(qa(COMPOSE_CLOSE, box)).length) return true;
++  return box.getAttribute("aria-modal") !== "true" && !vis(qa(COMPOSE_MAXIMIZED, box)).length && !composeBackdrop(box);
+ }
+ 
+ /** A floating compose window as a form in the page view, under its title, with the window's own close when it has one. */
+@@ -329,6 +354,10 @@
+       if (!page) {
+         const g = extractGeneric();
+         g.source = "gmail-generic";
++        // The generic pass takes a floating compose for a modal; it shows once, as the form below.
++        const de = elOf(g.dialog?.ref);
++        const box = de?.closest("div[role=dialog]") ?? de?.querySelector("div[role=dialog]");
++        if (box && gmail.dropDialog?.(box)) g.dialog = undefined;
+         page = g;
+       }
+       // Floating drafts come first in the page view, as they float over every view on the page.
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -63,6 +63,15 @@
+  */
+ let guideTries = 0;
+ let guideBusy = false;
++/**
++ * A YouTube popup is open (a sign-in prompt, a menu): to it, a click on the guide button is a click outside, and it closes (F721).
++ * Not one the reader already closed in Sift that the page still shows.
++ */
++const popupOpen = () => {
++  const d = store.page?.dialog;
++  if (d && store.dismissed.has(d.key)) return false;
++  return qa<HTMLElement>("ytd-popup-container tp-yt-iron-dropdown, ytd-popup-container tp-yt-paper-dialog").some((e) => e.checkVisibility());
++};
+ function renderGuide() {
+   if (guideBusy || guideTries >= 2 || store.mode !== "sift") return;
+   const btn = q<HTMLElement>("ytd-masthead #guide-button button, ytd-masthead #guide-button");
+@@ -73,11 +82,13 @@
+   const state = () => `${q("tp-yt-app-drawer#guide")?.hasAttribute("opened")}|${q("ytd-app")?.hasAttribute("guide-persistent-and-visible")}`;
+   // Once the page has settled and is idle, so the first view is not slowed down.
+   const later = (fn: () => void) => setTimeout(() => requestIdleCallback(fn, { timeout: 2000 }), 4000);
+-  later(() => {
++  later(function open() {
+     if (store.mode !== "sift" || drawn() || !btn.isConnected) {
+       guideBusy = false;
+       return;
+     }
++    // Not while the reader has a popup open: try again once it is closed.
++    if (popupOpen()) return later(open);
+     const before = state();
+     btn.click();
+     // Once drawn, close it again; a click while the drawer still slides open is ignored, so check a few times.
+@@ -85,8 +96,10 @@
+     const iv = setInterval(() => {
+       if (!drawn() && ++n < 20) return;
+       clearInterval(iv);
+-      const restore = (left: number) =>
+-        setTimeout(() => {
++      const restore = (left: number): void =>
++        void setTimeout(() => {
++          // Not while the reader has a popup open (the drawer stays open behind Sift until then).
++          if (state() !== before && popupOpen() && btn.isConnected) return restore(left);
+           if (state() !== before) btn.click();
+           if (left > 0) restore(left - 1);
+           else guideBusy = false;
+@@ -344,6 +357,13 @@
+         const n = shorts.length;
+         shortsIn(child, seen, shorts);
+         if (shorts.length > n) shelf ||= shelfTitle(child);
++        // A shelf of videos ("New to you", "Top music videos in your region"): its videos join the feed where the shelf stands.
++        for (const ri of qa("ytd-rich-item-renderer", child)) {
++          const lock = q("yt-lockup-view-model", ri);
++          if (!lock || isAd(ri)) continue;
++          const it = fromLockup(lock);
++          if (it && !items.some((x) => x.href === it.href)) items.push(it);
++        }
+       }
+     }
+   }
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -805,7 +805,7 @@
+ 
+ /** Share controls: "Share", "Share on Facebook", "Tweet", "Copy link". Not "Post Your Answer" or "Email us". */
+ export const SHARE_LABEL =
+-  /^((share|compartir|partager|teilen|condividi|compartilhar)( (this|it|on|en|via|por|article|story|page|link|post|nota)\b.{0,30})?|tweet|pin it|copy link|copiar (el )?enlace|whatsapp|facebook|twitter|x|linkedin|telegram|reddit|pinterest)$/i;
++  /^((share|compartir|partager|teilen|condividi|compartilhar)( (this|it|on|en|via|por|article|story|page|link|post|nota|whatsapp|facebook|twitter|x|linkedin|telegram|email|e-mail|correo)\b.{0,30})?|tweet|pin it|copy link|copiar (el )?enlace|whatsapp|facebook|twitter|x|linkedin|telegram|reddit|pinterest)$/i;
+ /** Labels that share only in a share bar or with a share link; elsewhere they post a comment, write to someone, or print a ticket. */
+ export const SHARE_MAYBE = /^(post|email|e-mail|correo|print|imprimir)$/i;
+ 
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -42,6 +42,8 @@
+ const DISMISS = /^(ok|okay|got it|entendido|aceptar|accept|dismiss|close|cerrar|no,? thanks|no gracias|×|✕)$/i;
+ const COMMENTS_TOKEN = /(^|[\s_-])(comments?|comentarios|disqus|discussion)($|[\s_-])/i;
+ const LOGO_TOKEN = /logo|icon|avatar|sprite|badge|emoji|spinner|loader|placeholder|pixel|tracking|1x1|spacer|blank\.gif/i;
++/** A story's furniture said in words, alone in its box: its end, a "Continue Reading" over the text shown in full, a call to follow the site. */
++const STRAY_LABEL = /^(end of (the )?(article|story)|continue reading|follow us( on [\p{L}\s]{1,30})?)$/iu;
+ const NOISE_TEXT =
+   /\b(cookies?|consent|we use cookies|usamos cookies|utilizamos cookies|newsletter|subscribe to our|suscr[ií]bete|bolet[ií]n|allow notifications|notificaciones|ad ?blocker|bloqueador de anuncios|accept all|aceptar todo)\b/i;
+ /** Phrases that only a promo says: a newsletter, the app, following the site, a subscription. */
+@@ -84,7 +86,7 @@
+     .replace(/\d{1,2}(\s+de)?\s+[\p{L}.]+(\s+de)?\s+\d{4}|[\p{L}.]+\s+\d{1,2},?\s+\d{4}|\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{2}-\d{2}/giu, "")
+     .replace(/\d{1,2}:\d{2}(\s?[ap]\.?m\.?)?(\s?hs?\.?)?|\b[A-Z]{2,4}T\b/g, "")
+     .replace(/(hace\s+)?\d+\s+(seconds?|segundos?|minutes?|minutos?|mins?|hours?|horas?|hrs?|days?|d[ií]as?|weeks?|semanas?|months?|meses|years?|años?)\b(\s+ago)?/giu, "")
+-    .replace(/\d+\s+(min(utos?)?\.?|minutes?)(\s+(de lectura|read|reading))?|(tiempo de )?lectura:?|updated:?|actualizado:?|published:?|publicado:?|\b(on|el|at|a las|de lectura|read)\b/gi, "")
++    .replace(/\d+\s*['’′]?\s*(min(utos?)?\.?|minutes?)(\s+(de lectura|read|reading))?|(tiempo de )?lectura:?|updated:?|actualizado:?|published:?|publicado:?|\b(on|el|at|a las|de lectura|read)\b/gi, "")
+     // Reading time in minutes drawn as "6'" (La Nación on a narrow screen).
+     .replace(/(^|\s)\d{1,3}\s?['’′](?=\s|$)/g, " ");
+   return !/[\p{L}\p{N}]/u.test(rest);
+@@ -144,6 +146,8 @@
+   inDialog?: boolean;
+   /** Sift shows its own author and date line, so the site's byline is skipped. */
+   hasByline?: boolean;
++  /** The author's name in Sift's byline, said once there. */
++  byName?: string;
+   /** Sift's byline shows the date, so the site's date line is skipped. */
+   hasDate?: boolean;
+   /** Treat every <nav> as content (pages that are mostly navigation, like portals). */
+@@ -156,6 +160,8 @@
+   searchEl?: Element;
+   /** Headings and positioned parts the walk showed, so a popup never repeats them. */
+   visited?: WeakSet<Element>;
++  /** Small fixed bars with text the walk dropped (Google's account bar): on screen, so never a popup an action opened. */
++  bars?: WeakSet<Element>;
+   /** The cards shown, by link, so the same story is shown once. */
+   cards?: Map<string, Item[]>;
+   /** Elements shown as portals, so one player never gets two. */
+@@ -438,6 +444,8 @@
+   // A form around the whole page (ASP.NET) is not a form the footer belongs to.
+   while (p && p.localName === "form" && pageWide(p)) p = p.parentElement?.closest(sel);
+   if (!p) return true;
++  // A comment's meta (WordPress's footer.comment-meta: its author and date) is the comment's, not a story's footer.
++  if (COMMENTS_TOKEN.test(tokens(el)) || p.matches(".comment, .comment-body, [role=comment]") || !!p.closest("li.comment")) return false;
+   // A story's own footer (tags, share bar) stays out unless it holds a form.
+   if (/^(article|section|aside)$/.test(p.localName) || p.getAttribute("role") === "article")
+     return !el.querySelector(ctx.inArticle ? "input:not([type=hidden]), select, textarea" : CONTROL_SEL);
+@@ -860,7 +868,7 @@
+   // An avatar that links where the name beside it links ("@trusktr's profile", then "trusktr") is that link again.
+   if (href && pictureTwin(el)) return false;
+   // A carousel's dots ("Page 1", "Page 2") only move the slides.
+-  if (!href && /^(page|slide|item) \d+$/i.test(label) && el.closest("[class*=carousel], [class*=slick], [class*=swiper], [class*=slider], [class*=glide]")) return false;
++  if (!href && /^((page|slide|item) )?\d+$/i.test(label) && el.closest("[class*=carousel], [class*=slick], [class*=swiper], [class*=slider], [class*=glide]")) return false;
+   if (href && /^mailto:\?|sharer|share\?|intent\/tweet|pinterest\.com\/pin\/create|news\.google\.com|google\.com\/preferences\/source|profile\.google\.com\/cp\/|trust-?project/i.test(href)) return false;
+   return true;
+ }
+@@ -1378,6 +1386,33 @@
+ const PROMO_PATH_TAIL = /[-_](sign-?up|subscribe|newsletters?|register|app|download|join|membership|free-?trial|offers?)$/i;
+ 
+ /**
++ * A sweepstakes banner (Booking's "No purchase necessary… $5,000 Cruise Giveaway… Enter here"): a small box
++ * with a heading and a link and no fields, that says the contest's legal line or links to its entry page.
++ * It sells, and its heading is never the page's (F858).
++ */
++function sweepstakes(el: Element): boolean {
++  const n = tlen(el);
++  if (n < 20 || n > 500 || el.localName === "p" || !el.querySelector(HEADING_SEL) || !el.querySelector("a[href]") || el.querySelector("input, select, textarea")) return false;
++  if (/\bno purchase necessary\b|\bsin obligaci[oó]n de compra\b/i.test(el.textContent ?? "")) return true;
++  return Array.from(el.querySelectorAll<HTMLAnchorElement>("a[href]")).some((a) => {
++    try {
++      return new URL(a.href).pathname.split("/").some((seg) => /^(sweepstakes?|giveaways?|sorteos?)(\.\w+)?$/i.test(seg));
++    } catch {
++      return false;
++    }
++  });
++}
++
++/** A heading inside a sweepstakes banner. */
++function inSweepstakes(h: Element): boolean {
++  for (let a: Element | null = h; a && a !== document.body; a = a.parentElement) {
++    if (tlen(a) > 500) return false;
++    if (sweepstakes(a)) return true;
++  }
++  return false;
++}
++
++/**
+  * A link to a sign-up, subscription or app page. A story's slug repeats its
+  * headline ("thousands-sign-up-for-free-bread-classes"), so a promo word
+  * inside a long slug says nothing, and neither does another site's address.
+@@ -1617,6 +1652,24 @@
+     label: name || t("interactive"), tool: true, maxWidth: w < 480 && w < innerWidth * 0.6 ? Math.round(w) : undefined,
+   };
+ }
++/**
++ * An interactive chart or map of data: a big SVG of many shapes with its own
++ * select or buttons, and no prose or title of the story around it.
++ */
++function dataWidget(el: Element): boolean {
++  if (SKIP.has(el.localName) || /^(svg|img|figure|a|button|p|li|table|ul|ol|form|select)$/.test(el.localName) || tlen(el) > 4000) return false;
++  if (!el.querySelector("select, button, [role=button]") || el.querySelector("h1, h2, article, video, iframe")) return false;
++  const r = el.getBoundingClientRect();
++  if (r.width < 300 || r.height < 250 || r.height > innerHeight * 2.5) return false;
++  // Prose in it, in <p>s or as runs of text between <br>s (TOI's story box), makes it the story, not a widget.
++  const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
++  for (let n = tw.nextNode(); n; n = tw.nextNode()) if ((n.nodeValue?.length ?? 0) > 150 && !SKIP.has(n.parentElement?.localName ?? "") && clean(n.nodeValue).length > 150) return false;
++  return Array.from(el.querySelectorAll("svg")).some((s) => {
++    const q = s.getBoundingClientRect();
++    return q.width >= 250 && q.height >= 200 && s.querySelectorAll("path, polygon").length >= 20;
++  });
++}
++
+ /** A working surface's width on the page, before Sift showed it in its own box. */
+ const ownWidth = new WeakMap<Element, number>();
+ 
+@@ -1864,6 +1917,9 @@
+       required: el.required || undefined, readOnly: el.readOnly || undefined,
+       min: el.min || undefined, max: el.max || undefined, step: el.step || undefined,
+       autocomplete: el.autocomplete || undefined, accept: el.accept || undefined, multiple: el.multiple || undefined,
++      maxLength: el.maxLength >= 0 ? el.maxLength : undefined, minLength: el.minLength > 0 ? el.minLength : undefined, pattern: el.pattern || undefined,
++      combo: /^(text|search|email|url|tel)$/.test(kind) && (el.getAttribute("role") === "combobox" || el.parentElement?.getAttribute("role") === "combobox" || !!el.list || /^(list|both)$/.test(el.getAttribute("aria-autocomplete") ?? ""))
++        ? el.getAttribute("aria-autocomplete") || "none" : undefined,
+       // An unlabeled box is named by its form, when that says what it does (weather.gov's "getForecast").
+       label: base.label || clean(el.placeholder) || drawnPlaceholder(el) || humanName(el.name) || (kind === "text" && el.form ? humanName(el.form.getAttribute("name") || el.form.id) : ""),
+     };
+@@ -1872,7 +1928,10 @@
+     // An unlabeled box in a form is named by what its button does ("add comment").
+     const go = !base.label && el.form ? Array.from(el.form.querySelectorAll("input[type=submit], button:not([type=button])")).find((b) => visible(b)) : null;
+     const label = base.label || drawnPlaceholder(el) || (go ? clean((go as HTMLInputElement).value) || textIn(go) : "") || humanName(el.name);
+-    return { ...base, label, kind: "textarea", value: el.value, name: el.name || undefined, placeholder: el.placeholder || undefined, required: el.required || undefined, readOnly: el.readOnly || undefined };
++    return {
++      ...base, label, kind: "textarea", value: el.value, name: el.name || undefined, placeholder: el.placeholder || undefined, required: el.required || undefined, readOnly: el.readOnly || undefined,
++      maxLength: el.maxLength >= 0 ? el.maxLength : undefined, minLength: el.minLength > 0 ? el.minLength : undefined,
++    };
+   }
+   if (el instanceof HTMLSelectElement) {
+     const options = Array.from(el.options).map((o) => ({ value: o.value, label: clean(o.label || o.text), selected: o.selected, disabled: o.disabled || undefined }));
+@@ -2370,6 +2429,8 @@
+   if (simple > members.length * 0.7) return null;
+   // Rows with their own fields (cart lines with a quantity) are walked so the fields stay usable.
+   if (withFields >= members.length * 0.5) return null;
++  // Rows that each hold a post's text (Stack Overflow's answers) are posts read in full, not story cards (F855).
++  if (!ctx.inComments && members.filter((k) => postBodyOf(k)).length >= members.length * 0.5) return null;
+   // Members that hold several headlines are groups of cards: look deeper. A few
+   // entries with sub-pages of their own (a search result's sections) are still entries.
+   let heads = 0;
+@@ -2542,10 +2603,17 @@
+   if (!n || n > (first.closest("a[href]") || first.querySelector("a[href]") ? 8 : 3)) return first;
+   const hrefOfH = (h: Element) => ((h.closest("a[href]") ?? h.querySelector("a[href]")) as HTMLAnchorElement | null)?.href;
+   const fh = hrefOfH(first);
+-  const hs = Array.from(el.querySelectorAll("h1,h2,h3,h4,h5,h6,[role=heading]")).slice(1, 5);
++  // A nested entry (a reply under a comment, with its own author heading) is not part of this card: its
++  // author never names the card, and its links never count.
++  const own = (x: Element) => {
++    for (let a = x.parentElement; a && a !== el; a = a.parentElement)
++      if (a.matches("li, article, [role=listitem], [role=article], [role=comment]") && !a.contains(first)) return false;
++    return true;
++  };
++  const hs = Array.from(el.querySelectorAll("h1,h2,h3,h4,h5,h6,[role=heading]")).slice(1, 5).filter(own);
+   if (!hs.length) return first;
+   const count = new Map<string, number>();
+-  for (const a of Array.from(el.querySelectorAll("a[href]")) as HTMLAnchorElement[]) count.set(a.href, (count.get(a.href) ?? 0) + 1);
++  for (const a of Array.from(el.querySelectorAll("a[href]")) as HTMLAnchorElement[]) if (own(a)) count.set(a.href, (count.get(a.href) ?? 0) + 1);
+   const fc = fh ? count.get(fh) ?? 0 : 0;
+   const level = (h: Element) => (/^h[1-6]$/.test(h.localName) ? +h.localName[1] : +(h.getAttribute("aria-level") ?? 2) || 2);
+   // A linked label ranks below the headline it sits over; a later, smaller heading ("12 comments" under a story) is not the name.
+@@ -2559,7 +2627,9 @@
+   if (ctx.drop?.(el)) return null;
+   const allText = textIn(el);
+   if (!allText) return null;
+-  const heading = kickerHeading(el, el.querySelector("h1,h2,h3,h4,h5,h6,[role=heading]"));
++  // A comment is named by its own author; only a story card has a kicker over its headline.
++  const h0 = el.querySelector("h1,h2,h3,h4,h5,h6,[role=heading]");
++  const heading = ctx.inComments ? h0 : kickerHeading(el, h0);
+   // A comment's own text (GitHub's markdown body) is read in full, with its paragraphs and code, not as a snippet.
+   const bodyEl = ctx.inComments ? postBodyOf(el) : null;
+   const links = (el.localName === "a" ? [el] : Array.from(el.querySelectorAll("a[href]"))).filter(
+@@ -2582,7 +2652,10 @@
+       return !!li && li !== el && el.contains(li);
+     };
+     const own = named.filter((a) => !sub(a));
+-    main = (own.length ? own : named).sort((a, b) => textIn(b).length - textIn(a).length)[0];
++    // The source after a headline ("(https://example.com/post)", a bare address) never outranks the headline (F857).
++    const pool = own.length ? own : named;
++    const worded = pool.filter((a) => !/^\(.*\)$|^(https?:\/\/|www\.)\S+$/i.test(textIn(a)));
++    main = (worded.length ? worded : pool).sort((a, b) => textIn(b).length - textIn(a).length)[0];
+     // A short row whose one link is its name, before its size and its menu ("Notes.txt 2 KB ⋮"), opens with that link.
+     if (!main && !heading && !ctx.inComments && allText.length <= 120) {
+       const plain = links.filter((a) => !actionLabel(textIn(a) || accName(a)) && !voteLink(a));
+@@ -3105,15 +3178,35 @@
+       if (up && (up === root || root.contains(up))) scores.set(up, (scores.get(up) ?? 0) + s);
+     }
+   }
+-  const ranked: [Element, number][] = [];
+-  for (const [el, s] of scores) {
+-    if (s < 8) continue;
+-    const links = Array.from(el.querySelectorAll("a")).reduce((n, a) => n + clean(a.textContent).length, 0);
+-    const len = clean(el.textContent).length || 1;
+-    const adj = s * (1 - Math.min(links / len, 0.9));
+-    if (adj >= 8) ranked.push([el, adj]);
++  const rank = () => {
++    const ranked: [Element, number][] = [];
++    for (const [el, s] of scores) {
++      if (s < 8) continue;
++      const links = Array.from(el.querySelectorAll("a")).reduce((n, a) => n + clean(a.textContent).length, 0);
++      const len = clean(el.textContent).length || 1;
++      const adj = s * (1 - Math.min(links / len, 0.9));
++      if (adj >= 8) ranked.push([el, adj]);
++    }
++    return ranked.sort((a, b) => b[1] - a[1]);
++  };
++  let ranked = rank();
++  // No story in <p>s: one set as runs of text between <br>s in a box (TOI's div.ihgno, F832).
++  // Each long run is a paragraph of that box.
++  if (!ranked.length) {
++    const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
++    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
++      const parent = n.parentElement;
++      if (!parent || !/^(div|section|article|td)$/.test(parent.localName) || (n.nodeValue?.length ?? 0) < 80) continue;
++      const tx = clean(n.nodeValue);
++      if (tx.length < 80 || !/[.!?。]["'”’)]?$/.test(tx)) continue;
++      if (outsideProse(parent, "nav,footer,aside,[role=navigation],[role=complementary],form") || inNoise(parent)) continue;
++      const s = 1 + Math.min(tx.length / 100, 3) + (tx.match(/[,，、]/g)?.length ?? 0) * 0.3;
++      scores.set(parent, (scores.get(parent) ?? 0) + s);
++      const gp = parent.parentElement;
++      if (gp) scores.set(gp, (scores.get(gp) ?? 0) + s / 2);
++    }
++    ranked = rank();
+   }
+-  ranked.sort((a, b) => b[1] - a[1]);
+   // A list of results or a thread is not one story; one answer or result in it is not either.
+   let best: Element | null = ranked.find(([el]) => !postGroup(el) && !inPostGroup(el) && !resultList(el) && !inResultList(el))?.[0] ?? null;
+   if (!best) return null;
+@@ -3183,11 +3276,21 @@
+     const ks = kids(parent);
+     // Rows of one kind, each with its own buttons (a place and its Favorite), keep their buttons apart.
+     const rows = controlRows(ks);
++    // A panel drawn to the right of a map follows it (F874; see walkNodes).
++    let after: Map<Element, Element[]> | null = null;
+     for (const el of ks) {
+       if (el === skip) continue;
++      const map = mapBefore(el);
++      if (map) {
++        (after ??= new Map()).set(map, [...(after.get(map) ?? []), el]);
++        continue;
++      }
+       if (rows) out.flush();
+       visit(el, out, ctx);
++      for (const p of after?.get(el) ?? []) visit(p, out, ctx);
++      after?.delete(el);
+     }
++    for (const ps of after?.values() ?? []) for (const p of ps) visit(p, out, ctx);
+     if (rows) out.flush();
+     return;
+   }
+@@ -3215,6 +3318,8 @@
+     if (run.length) textRun(run, parent, first, out, ctx);
+     run = [];
+   };
++  // Panels the page draws to the right of the map after them (F874), by the map's box.
++  let after: Map<Element, Element[]> | null = null;
+   for (let i = 0; i < nodes.length; i++) {
+     const n = nodes[i];
+     if (named?.has(n)) continue;
+@@ -3226,6 +3331,14 @@
+     if (n.nodeType !== 1) continue;
+     const e = n as Element;
+     if (e === skip || SKIP.has(e.localName)) continue;
++    // A panel the page draws to the right of its map (OpenStreetMap's "Map Layers") comes after
++    // the map, as one reads them: a choice in it then shows on the map just above it (F874).
++    const map = mapBefore(e);
++    if (map) {
++      flush();
++      (after ??= new Map()).set(map, [...(after.get(map) ?? []), e]);
++      continue;
++    }
+     const smallImg = (e.localName !== "img" && e.localName !== "picture") || !hasBigImage(e);
+     if (e.localName === "br" || (smallImg && isInlineish(e) && !isControl(e) && !hasControl(e))) {
+       if (!run.length) first = i;
+@@ -3241,8 +3354,41 @@
+     flush();
+     if (unlabeled) named = new Set(labelNodes(e));
+     visit(e, out, ctx);
++    for (const p of after?.get(e) ?? []) visit(p, out, ctx);
++    after?.delete(e);
+   }
+   flush();
++  // A map passed over: its panels still show.
++  for (const ps of after?.values() ?? []) for (const p of ps) visit(p, out, ctx);
++}
++
++/** The maps on the page, found once per pass. */
++let mapsAt = -1;
++let maps: Element[] = [];
++/** The later sibling holding a map that `el`, a narrow panel of controls, is drawn to the right of (F874). */
++function mapBefore(el: Element): Element | null {
++  if (mapsAt !== passNo()) {
++    mapsAt = passNo();
++    maps = Array.from(document.querySelectorAll(".leaflet-container, .maplibregl-map, .mapboxgl-map, .ol-viewport, gmp-map"));
++  }
++  const p = el.parentElement;
++  if (!maps.length || !p || document.dir === "rtl") return null;
++  for (const m of maps) {
++    if (!p.contains(m) || el.contains(m) || !(el.compareDocumentPosition(m) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
++    const r = el.getBoundingClientRect();
++    if (r.width < 120 || r.width > innerWidth * 0.4 || r.height < 100) return null;
++    let s: Element = m;
++    while (s.parentElement && s.parentElement !== p) s = s.parentElement;
++    // A map Sift already shows sits in Sift's box (and the page closes the gap it left): its own width
++    // was measured before, and the page's flex order (OpenStreetMap's map-ui: order 1) says which comes first.
++    const mr = m.getBoundingClientRect();
++    const lifted = m.hasAttribute("data-sift-portal");
++    const drawnAfter = /flex|grid/.test(getComputedStyle(p).display) && +getComputedStyle(el).order > +getComputedStyle(s).order;
++    const beside = drawnAfter || (lifted ? r.left >= innerWidth * 0.5 : r.left >= mr.right - 4 && r.top < mr.bottom - 40 && r.bottom > mr.top + 40);
++    if (!beside || (lifted ? ownWidth.get(m) ?? 0 : mr.width) < r.width * 1.5 || !el.querySelector("input, button, [role=button]")) continue;
++    return s;
++  }
++  return null;
+ }
+ 
+ /**
+@@ -3405,13 +3551,28 @@
+   }
+ }
+ 
++/** The code lines a file view draws for the eye (aria-hidden), while it has no accessible copy of them yet. */
++function drawnCode(el: Element): string {
++  const lines = el.querySelector(".react-code-lines");
++  if (!lines || !visible(lines)) return "";
++  for (let a = el.parentElement, i = 0; a && i < 6; a = a.parentElement, i++) if (a.querySelector("textarea[inputmode=none]")) return "";
++  const rows = Array.from(lines.querySelectorAll(".react-file-line, [id^=LC]"));
++  return rows.map((r) => (r.textContent ?? "").replace(/\n$/, "")).join("\n").replace(/\s+$/, "");
++}
++
+ function visitEl(el: Element, out: Out, ctx: Ctx) {
+   if (ctx.count > BUDGET) return budgetCut(out, ctx);
+   const tag = el.localName;
+   if (SKIP.has(tag) || ctx.used.has(el)) return;
+   // Inside a player shown as a portal, through its shadow roots (its controls are the portal's).
+   if (ctx.portals?.length && el.getRootNode() !== document && ctx.portals.some((p) => holds(p, el))) return;
+-  if (el.getAttribute("aria-hidden") === "true" && !el.querySelector("video") && !ctx.shownHidden) return;
++  if (el.getAttribute("aria-hidden") === "true" && !el.querySelector("video") && !ctx.shownHidden) {
++    // GitHub's file view draws its code for the eye (aria-hidden) about a second before it mounts
++    // the screen reader's copy (a read-only text box, read in controlInto): until then the drawn lines are the code (F872).
++    const code = drawnCode(el);
++    if (code) out.push({ t: "pre", key: "pre:" + refOf(el), text: code });
++    return;
++  }
+   // A tooltip only describes the control under focus or the pointer (a map's "Layers" button).
+   if (el.getAttribute("role") === "tooltip") return;
+   if (!visible(el)) return;
+@@ -3419,7 +3580,23 @@
+   if (++ctx.count > BUDGET) return budgetCut(out, ctx);
+   if (tag === "slot") return walk(el, out, ctx);
+   if (isAd(el) || ctx.drop?.(el)) return;
++  if (!ctx.inArticle && sweepstakes(el)) return;
+   if (el.matches(WIKI_CHROME)) return;
++  // A breadcrumb told only by its schema (TOI's ul itemtype BreadcrumbList), and the site's furniture
++  // around a story said in words: "End of Article", "Continue Reading" over a text shown in full,
++  // a label left from a dropped box ("Trending" over its slider) (F832).
++  if (/schema\.org\/BreadcrumbList$/i.test(el.getAttribute("itemtype") ?? "")) return;
++  if (!ctx.inDialog && tlen(el) < 40 && !el.matches("a[href], button, [role=button], h1") && !el.querySelector("a[href], button, [role=button], input, select, textarea, img, svg, video, h1")) {
++    const said = textIn(el);
++    if (STRAY_LABEL.test(said)) return;
++    const next = el.nextElementSibling;
++    if (said && el.parentElement?.childElementCount === 2 && !el.previousElementSibling && next && NOISE_TOKEN.test(tokens(next)) && !COMMENTS_TOKEN.test(tokens(next)) && !next.querySelector("main, [role=main], h1") && !(ctx.articleEl && next.contains(ctx.articleEl))) return;
++  }
++  // A promo set as a lone tracked link inside the story (TOI's "Take the AIQ test", utm_campaign=aiq_test).
++  if (ctx.inArticle && tlen(el) < 200 && !el.matches("a, p")) {
++    const ls = el.querySelectorAll("a[href]");
++    if (ls.length === 1 && tlen(ls[0]) >= tlen(el) - 2 && /[?&]utm_campaign=/i.test(ls[0].getAttribute("href") ?? "")) return;
++  }
+   // Inside a story only: on a portal (www.wikipedia.org) the languages are the content.
+   if (ctx.inArticle && /lang/i.test(tokens(el)) && languageBar(el)) return languagesInto(el, out, ctx);
+   if (isDialog(el) && !ctx.inDialog) return;
+@@ -3448,6 +3625,26 @@
+       return;
+     }
+   }
++  // A results map or chart in a story (La Nación's svelte div.ln-root: an SVG map of 54 states, a select
++  // and two buttons) is one thing, shown as it is: its labels and values apart say nothing (F828).
++  if (ctx.inArticle && !ctx.inDialog && dataWidget(el)) {
++    // The widget itself, not the layout boxes around it.
++    let w = el;
++    for (let i = 0; i < 6; i++) {
++      const ks = Array.from(w.children).filter((c) => !SKIP.has(c.localName) && visible(c));
++      if (ks.length !== 1 || !dataWidget(ks[0])) break;
++      w = ks[0];
++    }
++    const b = surfaceBlock(w, "", ctx);
++    if (b?.t === "portal") {
++      b.tool = undefined;
++      // It reflows at Sift's width: as tall as what it holds there, not scaled down to the page's shape.
++      const wr = w.getBoundingClientRect();
++      b.ratio = Math.min(Math.max(wr.height, w.scrollHeight) / Math.max(1, wr.width), 1.6);
++      out.push(b);
++      return;
++    }
++  }
+   if ((tag === "nav" || el.getAttribute("role") === "navigation") && !isChrome(el, ctx)) return navInto(el, out, ctx);
+   // A page header that holds the page's title (its h1 and standfirst outside <main>):
+   // the title and what follows it stay, the site's logo and menu before it go.
+@@ -3507,6 +3704,10 @@
+   const tk = tokens(el);
+   // (After a dek, too: The Guardian's "Tom Phillips in São Paulo and Tiago Rogero in Brasília" follows its standfirst.)
+   if (ctx.hasByline && BYLINE_TOKEN.test(tk) && tlen(el) < 300 && bylineZone(el, ctx, 2)) return;
++  // The author's name alone over the story, already said in Sift's byline (La Nación's long-form "Guido Bovone" link, F827).
++  if (ctx.byName && tlen(el) < 80 && !heading(el) && norm(textIn(el)) === norm(ctx.byName) && bylineZone(el, ctx, 2)) return;
++  // A count over the story ("108" on La Nación's comments button): a number is not an action to offer (F827).
++  if (ctx.hasByline && el.matches("button, [role=button]") && /^\d[\d.,]*\s*[kKmM]?$/.test(textIn(el)) && bylineZone(el, ctx, 2)) return;
+   // Sift shows the date in its own byline; the site's date and reading-time line goes.
+   // A player whose only text is its length ("1:18", BBC's uncaptioned lead video) is not a date line.
+   if (ctx.hasDate && tlen(el) < 120 && !heading(el) && bylineZone(el, ctx, 3) && dateLine(textIn(el)) && !el.querySelector("figure, video, audio, iframe")) return;
+@@ -3594,8 +3795,12 @@
+         bulkBar(el) ||
+         // So is the bar of a search panel whose results replaced the page (Infobae's queryly: its box, "Búsqueda Avanzada", its close).
+         (!!ctx.searchEl && el.contains(ctx.searchEl) && Array.from(el.querySelectorAll("label")).some((l) => checkboxToggle(l) && CLOSE_NAME.test(accName(l))));
+-      if (!keep && r.width * r.height < ctx.vw * ctx.vh * 0.4) return;
+-      if (NOISE_TEXT.test(textPrefix(el, 400))) return;
++      // Dropped, but on screen (a live region is not: the toasts it shows come and go).
++      const bar = () => {
++        if (cs.position === "fixed" && r.width >= 80 && r.height >= 24 && tlen(el) >= 2 && !el.matches(LIVE_SEL) && !el.querySelector(LIVE_SEL)) ctx.bars?.add(el);
++      };
++      if (!keep && r.width * r.height < ctx.vw * ctx.vh * 0.4) return bar();
++      if (NOISE_TEXT.test(textPrefix(el, 400))) return bar();
+     }
+     // Positioned parts the page shows are never offered again as popups; ones it
+     // dropped (a fixed popup the user just opened) still can be.
+@@ -5405,7 +5610,7 @@
+   let a: Element | null = img;
+   for (let i = 0; a && i < 4; i++, a = a.parentElement) {
+     const next = a.nextElementSibling;
+-    if (next && /caption|credit|leyenda|epigrafe/i.test(tokens(next)) && tlen(next) < 600 && visible(next)) return next;
++    if (next && /caption|cptn|credit|leyenda|epigrafe/i.test(tokens(next)) && tlen(next) < 600 && visible(next)) return next;
+     if (a !== img && a !== stop && tlen(a) > 120) break;
+     if (!a.parentElement || a.parentElement === document.body) break;
+   }
+@@ -5416,8 +5621,18 @@
+   const summary = el.querySelector(":scope > summary");
+   // A dateline ("Mon 26 Oct 2026 15.51 GMT" over "Last modified on …", The Guardian) is part of the byline,
+   // never a section: gone when Sift's byline shows the date, else a small line.
++  // Only when nothing else is inside: a body of its own ("Release 2.10", "Tuesday, October 27, 2026" over the
++  // meeting's decisions) is a section. A weekday may lead, and "15.51" is a time only next to a date or a zone.
+   const st = summary ? textIn(summary) : "";
+-  if (st && dateLine(st.replace(/^\p{L}{2,9}\.?,?\s+/u, "").replace(/\b(\d{1,2})\.(\d{2})\b/g, "$1:$2"))) {
++  const dl = (s: string) => {
++    const t = s.replace(/^(last\s+)?(modified|updated|edited|actualizado|modificado)(\s+(on|el))?:?\s*/i, "")
++      .replace(/^(mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\.?,?\s+/iu, "");
++    return dateLine(/\b(19|20)\d{2}\b/.test(t) ? t.replace(/\b(\d{1,2})\.(\d{2})\b/g, "$1:$2") : t.replace(/\b(\d{1,2})\.(\d{2})(?=\s*([ap]\.?m\b|[A-Z]{2,4}T\b))/g, "$1:$2"));
++  };
++  let rest = "";
++  for (const c of Array.from(el.childNodes)) if (c !== summary) rest += " " + (c.textContent ?? "");
++  rest = rest.replace(/\s+/g, " ").trim();
++  if (st && dl(st) && (!rest || dl(rest)) && !el.querySelector(":scope > :not(summary) :is(a[href], img, video, iframe, input, button), :scope > :is(a[href], img, video, iframe, input, button)")) {
+     if (!ctx.hasDate) out.push({ t: "p", key: "p:" + refOf(el), content: [st], small: true });
+     return;
+   }
+@@ -5475,7 +5690,7 @@
+   const vis = cands.filter((i) => visible(i)).sort((a, b) => +(a.getAttribute("tabindex") === "-1") - +(b.getAttribute("tabindex") === "-1"));
+   // A hidden box in the header still searches once its toggle opens it; not one hidden while the
+   // panel around it shows other fields in its place (Google Maps' directions).
+-  const pick = vis.find((i) => i.closest(SEARCH_PLACE)) ?? vis[0] ?? cands.find((i) => i.closest("header,[role=banner],[role=search]") && !fieldsInstead(i)) ?? lookupBox();
++  const pick = vis.find((i) => i.closest(SEARCH_PLACE)) ?? vis[0] ?? cands.find((i) => (i.closest("header,[role=banner],[role=search]") || !!searchToggle(i)) && !fieldsInstead(i)) ?? lookupBox();
+   if (!pick) return undefined;
+   const f = toField(pick);
+   if (!f) return undefined;
+@@ -5529,6 +5744,24 @@
+   return undefined;
+ }
+ 
++/**
++ * The icon beside a hidden search box that opens it, outside the page's text
++ * (TOI's span data-newga "NavBar-Search-Click" in a header built from plain
++ * divs): the box is the site's search though no header tag holds it (F823).
++ */
++function searchToggle(box: Element): Element | undefined {
++  if (box.closest("main, [role=main], article, footer, aside, [role=dialog], dialog")) return undefined;
++  const form = (box as HTMLInputElement).form ?? box;
++  for (let a = form.parentElement, i = 0; a && a !== document.body && i < 3; a = a.parentElement, i++) {
++    for (const el of Array.from(a.querySelectorAll("span, div, i, a, button, [role=button]"))) {
++      if (el.contains(box) || el.closest("form") || textIn(el) || !visible(el)) continue;
++      const hint = Array.from(el.attributes).filter((at) => /^(id|class|title|aria-label|data-[\w-]+)$/.test(at.name)).map((at) => at.value).join(" ");
++      if (/search|buscar|busca/i.test(hint) && (el.matches("a, button, [role=button]") || /click/i.test(hint) || getComputedStyle(el).cursor === "pointer")) return el;
++    }
++  }
++  return undefined;
++}
++
+ /** Text fields shown in a hidden search box's place, in the panel around it. */
+ function fieldsInstead(box: Element): boolean {
+   let a = box.parentElement;
+@@ -5652,7 +5885,8 @@
+   const roots = Array.from(document.querySelectorAll("header, [role=banner], nav")).filter((n) => !n.closest("footer,article"));
+   // A site header built from plain boxes (Infobae's div#siteheader.site-header) at the top of the page.
+   for (const n of Array.from(document.querySelectorAll("div[id*=header i], div[class*=header i], div[class*=masthead i]")).slice(0, 200)) {
+-    if (roots.some((r) => r.contains(n)) || !CHROME_TOKEN.test(tokens(n)) || n.closest("main, [role=main], article, footer")) continue;
++    // TOI's div.header-container counts too (F823).
++    if (roots.some((r) => r.contains(n)) || !(CHROME_TOKEN.test(tokens(n)) || /(^|\s)(site-?)?header-?(container|wrapper|wrap)(\s|$)/i.test(tokens(n))) || n.closest("main, [role=main], article, footer")) continue;
+     // At the top of the page, or pinned at the top of the window when the page is scrolled.
+     const r = n.getBoundingClientRect();
+     if (r.height > 0 && Math.min(r.top + scrollY, r.top) < 300) roots.push(n);
+@@ -5660,7 +5894,9 @@
+   const out: Action[] = [];
+   const seen = new Set<string>();
+   for (const r of roots) {
+-    for (const el of Array.from(r.querySelectorAll("a[href],button"))) {
++    for (const el of Array.from(r.querySelectorAll("a[href],button,span,div"))) {
++      // A plain span a script makes clickable ("Sign In" on TOI, no role or link): one with no boxes inside, that says it signs in (F823).
++      if ((el.localName === "span" || el.localName === "div") && (el.firstElementChild || !TOP_LABEL.test(el.textContent ?? "") || (el.textContent ?? "").length > 30 || el.closest("a[href],button,[role=button]") || (getComputedStyle(el).cursor !== "pointer" && !/(^|[\s_-])(log-?in|sign-?in)($|[\s_-])/i.test(tokens(el))))) continue;
+       if (!visible(el)) continue;
+       // What it says decides ("Fork" that leads to a login page is not "Sign in"); an icon goes by its name and address.
+       const vis = textIn(el);
+@@ -5716,6 +5952,12 @@
+ /** The positioned parts the page view showed in the last generic extraction, and in the one before the last action. */
+ let lastShown = new WeakSet<Element>();
+ let armShown = new WeakSet<Element>();
++/** The small fixed bars the walk dropped, in the last extraction and in the one before the last action. */
++let lastBars = new WeakSet<Element>();
++let armBars = new WeakSet<Element>();
++/** The page view before the last action, and the elements that hold what it showed (worked out when first asked). */
++let armView: { visited?: WeakSet<Element>; blocks?: Block[]; dialog: Element | null } = { dialog: null };
++let armHolds: WeakSet<Element> | null = null;
+ /** The popup found last time, which stays one while the user acts inside it. */
+ let shownPop: Element | null = null;
+ /** The last popup found that holds a field to fill in. */
+@@ -5739,6 +5981,9 @@
+     armFirst = recent[0];
+     armUrl = location.href;
+     armShown = lastShown;
++    armBars = lastBars;
++    armView = shownPrev;
++    armHolds = null;
+   } else if (recent.length && location.href !== armUrl) return null;
+   const touched = new Set(recent);
+   // A part that appeared itself (added, or shown by its own class or style) beats a
+@@ -5794,6 +6039,9 @@
+     // A part the page view showed before the action is page layout that changed around it (Google Maps'
+     // directions box, when a route is chosen below it), not something the action opened.
+     if (armShown.has(root) && root !== shownPop) continue;
++    // So is a box that was on screen before it (Google's account bar, a filter chip bar whose chips
++    // the page view showed), though the page changes inside it as it settles (F870).
++    if ((armBars.has(root) || shownAtArm(root)) && root !== shownPop) continue;
+     if (best && best.contains(root)) continue;
+     const f = fresh(root);
+     if (!best || root.contains(best) || (f && !bestFresh) || (f === bestFresh && tlen(root) > tlen(best))) {
+@@ -5877,6 +6125,12 @@
+   // The whole page shown again (Infobae's app, once its search panel closes) opened no bar in it (F645).
+   const page = (m: Element) => bar && !!m.querySelector("main, [role=main], [data-sift-role=main], h1, article");
+   if (!fresh) for (const m of touched) if (m !== document.body && m !== document.documentElement && m !== root && m.contains(root) && !page(m)) { fresh = true; break; }
++  // A part of the site's header that only changed inside (Fox's clock, swapped every few seconds
++  // in its logo box), with nothing to use in what changed, is the header ticking, not a popup (F831).
++  if (!fresh && root.closest("header, [role=banner]")) {
++    const ctl = "a[href], button, [role=button], input, select, textarea, [role=menuitem], [role=option]";
++    if (!Array.from(touched).some((m) => root.contains(m) && (m.matches(ctl) || !!m.querySelector(ctl)))) return false;
++  }
+   return fresh || (!bar && !panel && area < vw * vh * 0.35);
+ }
+ 
+@@ -6014,6 +6268,23 @@
+   return holdsShown.has(el);
+ }
+ 
++/** The page view from before the user's last action showed something in this part (not as its dialog). */
++function shownAtArm(el: Element): boolean {
++  const d = armView.dialog;
++  if (d && (d === el || d.contains(el) || el.contains(d))) return false;
++  if (!armHolds) {
++    armHolds = new WeakSet();
++    const refs = new Set<string>();
++    const collect = (x: unknown) => {
++      if (Array.isArray(x)) for (const v of x) collect(v);
++      else if (x && typeof x === "object") for (const [k, v] of Object.entries(x)) k === "ref" && typeof v === "string" ? refs.add(v) : typeof v === "object" && collect(v);
++    };
++    collect(armView.blocks ?? []);
++    for (const r of refs) for (let a = elOf(r); a && a !== document.body && !armHolds.has(a); a = a.parentElement) armHolds.add(a);
++  }
++  return armHolds.has(el);
++}
++
+ /** `blocks`: the page view's blocks, when the page is the generic extractor's. */
+ export function findDialog(ctx: Ctx, blocks?: Block[]): Dialog | undefined {
+   shownPrev = shownLast;
+@@ -6050,7 +6321,16 @@
+   }
+   // A consent platform's box without a dialog role counts too, on a page that shows nothing until it is answered.
+   const cmp = new Set<Element>();
+-  if (ctx.bare) {
++  // Or on a readable page, once the reader pressed Play on a video the page holds back until it is answered (F826).
++  const asked = consentAsked && !ctx.bare;
++  if (asked) {
++    // The wall found (Sourcepoint's box may carry the dialog role itself): its frame's title says what it is.
++    const up = consentWallUp();
++    if (up && !all.some((d) => d !== up && (d.contains(up) || up.contains(d)))) {
++      cmp.add(up);
++      if (!all.includes(up)) all.push(up);
++    }
++  } else if (ctx.bare) {
+     for (const w of Array.from(document.body.querySelectorAll(CMP_SEL))) {
+       let p = w.parentElement;
+       while (p && p !== document.body && !p.matches(CMP_SEL)) p = p.parentElement;
+@@ -6059,18 +6339,18 @@
+       all.push(w);
+     }
+   }
+-  const cands = all.filter((d) => visible(d) && !d.closest("sift-root") && !ctx.drop?.(d) && (textIn(d).length > 0 || !!d.querySelector("input, textarea") || (layers.includes(d) && !!d.querySelector("img, video"))));
++  const cands = all.filter((d) => visible(d) && !d.closest("sift-root") && !ctx.drop?.(d) && (textIn(d).length > 0 || !!d.querySelector("input, textarea") || (layers.includes(d) && !!d.querySelector("img, video")) || (cmp.has(d) && !!d.querySelector("iframe"))));
+   let recent: Element[] | undefined;
+   for (let i = cands.length - 1; i >= 0; i--) {
+     const d = cands[i];
+     const r = d.getBoundingClientRect();
+     if (r.width < 120 || r.height < 60) continue;
+-    const text = textIn(d);
++    const text = cmp.has(d) ? cmpText(d) : textIn(d);
+     // Cookie and newsletter prompts the page put up on its own are noise; a sign-in form,
+     // or a dialog the user's last action opened (the newsletter form behind "Subscribe"), is not.
+     // A consent wall over a page that shows nothing until it is answered is the way in: it stays, with its own choices.
+-    const wall = !!ctx.bare && consentWall(d, text);
+-    if (cmp.has(d) && (!wall || !d.querySelector("button, [role=button], a[href]"))) continue;
++    const wall = (!!ctx.bare || asked) && consentWall(d, text);
++    if (cmp.has(d) && (!wall || !d.querySelector("button, [role=button], a[href], iframe"))) continue;
+     if (NOISE_TEXT.test(text.slice(0, 600)) && !wall && !d.querySelector("input[type=password]") && !(recent ??= recentNodes(true)).some((n) => openedWith(n, d))) continue;
+     // So is a sign-in, discount or app promo with its own way out and nothing to fill in (Booking's "Sign in, save money"):
+     // the page works without answering it.
+@@ -6087,11 +6367,13 @@
+     const blocks = cutNote(sub.done(), dctx);
+     if (!blocks.length) continue;
+     if (wall) rejectFirst(blocks);
++    // Asked for by Play: it says why it shows (F826).
++    if (wall && asked) blocks.unshift({ t: "p", key: "consent-why:" + refOf(d), content: [t("consentFirst")] });
+     const titleEl = d.querySelector("h1,h2,h3,[role=heading]");
+     const title =
+       clean(d.getAttribute("aria-label")) || (d.getAttribute("aria-labelledby") ? accName(d) : "") || (titleEl ? textIn(titleEl) : "") ||
+-      // A consent box without a heading is named by its first short line ("Your privacy choices").
+-      (wall && firstLine(d).length <= 80 ? firstLine(d) : "");
++      // A consent box without a heading is named by its first short line ("Your privacy choices"), or by its frame's title.
++      (wall && firstLine(d).length <= 80 ? firstLine(d) : "") || (wall ? clean(d.querySelector("iframe")?.title) : "");
+     // The page's description of an alert (aria-describedby): the warning or the consequence, said with its name.
+     const root = d.getRootNode() as Document | ShadowRoot;
+     const desc = (d.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean).map((id) => root.getElementById?.(id)).filter((e): e is HTMLElement => !!e).map((e) => textIn(e)).join(" ");
+@@ -6101,7 +6383,8 @@
+       title: title.slice(0, 120),
+       blocks,
+       close: closeEl ? toAction(closeEl, accName(closeEl)) : undefined,
+-      blocking: !closeEl && (wall || blocksPage(d)) ? true : undefined,
++      // (One the reader asked for on a readable page can be put away unanswered.)
++      blocking: !closeEl && !(wall && asked) && (wall || blocksPage(d)) ? true : undefined,
+       role: d.getAttribute("role") === "alertdialog" ? "alertdialog" : undefined,
+       desc: desc.slice(0, 400) || undefined,
+     };
+@@ -6195,6 +6478,30 @@
+ 
+ /** Boxes that consent platforms put up, with or without a dialog role (OneTrust, Didomi, Quantcast, TrustArc). */
+ const CMP_SEL = "[id*=consent i], [class*=consent i], [id*=cookie i], [class*=cookie i], [id^=onetrust], [id^=didomi], [class*=qc-cmp], [id*=truste], [class*=truste]";
++/** Sourcepoint's message box: only a frame (the Guardian's "It's your choice"). */
++const CMP_FRAME_SEL = "[id^=sp_message_container]";
++/** A consent box's words, or its frame's title when the words are inside the frame. */
++const cmpText = (w: Element) => textIn(w) || Array.from(w.querySelectorAll("iframe")).map((f) => f.title).join(" ");
++
++/**
++ * The reader pressed Play on a video the page holds back until its consent wall is answered
++ * (the Guardian's YouTube players behind Sourcepoint's wall, F826): Sift shows that wall then,
++ * reject first, and says why. Never by itself: a page that reads without an answer needs none.
++ */
++let consentAsked = false;
++export function askConsent(on: boolean) {
++  consentAsked = on;
++}
++
++/** A consent prompt over most of the window, which the page shows over its content (a cookie wall). */
++export function consentWallUp(): Element | null {
++  for (const w of Array.from(document.body.querySelectorAll(`${CMP_SEL}, ${CMP_FRAME_SEL}`))) {
++    if (w.closest("sift-root") || getComputedStyle(w).position !== "fixed" || !visible(w)) continue;
++    const r = w.getBoundingClientRect();
++    if (r.width * r.height >= innerWidth * innerHeight * 0.5 && consentWall(w, cmpText(w))) return w;
++  }
++  return null;
++}
+ 
+ const CONSENT_TEXT = /\bcookies?\b|consent|privacy|privacidad|personal data|datos personales|partners|socios|accept all|aceptar todo/i;
+ /** The choice that shares the least: reject, or necessary cookies only. */
+@@ -6264,13 +6571,41 @@
+   }
+ }
+ 
++/** The datePublished of the page's article in its JSON-LD (an Article, NewsArticle or BlogPosting). */
++function ldDate(): string {
++  const find = (o: unknown, d = 0): string => {
++    if (!o || typeof o !== "object" || d > 4) return "";
++    if (Array.isArray(o)) {
++      for (const x of o) {
++        const v = find(x, d + 1);
++        if (v) return v;
++      }
++      return "";
++    }
++    const r = o as Record<string, unknown>;
++    const type = String(r["@type"] ?? "");
++    if (/(Article|BlogPosting)$/.test(type) && typeof r.datePublished === "string") return r.datePublished;
++    return find(r["@graph"], d + 1);
++  };
++  for (const s of Array.from(document.querySelectorAll('script[type="application/ld+json"]')).slice(0, 12)) {
++    if (!/datePublished/.test(s.textContent ?? "")) continue;
++    try {
++      const v = find(JSON.parse(s.textContent ?? ""));
++      if (v) return v;
++    } catch {}
++  }
++  return "";
++}
++
+ /** "By Name · 24 Oct 2026" for articles, from page metadata and the visible byline. */
+-export function byline(articleEl: Element | null): string {
++export function byline(articleEl: Element | null, h1: Element | null = null): string {
+   const meta = (sel: string) => clean(document.querySelector(sel)?.getAttribute("content"));
+   let author = meta('meta[name="author"]') || meta('meta[property="article:author"]');
+   if (/^https?:/.test(author)) author = "";
+   if (!author) {
+-    const scope = articleEl?.parentElement?.parentElement ?? document;
++    let scope: Element | Document = articleEl?.parentElement?.parentElement ?? document;
++    // The title and its byline in a box beside the text's (TOI: div.inl71 beside div.bBzri, F832).
++    for (let i = 0; h1 && scope instanceof Element && !scope.contains(h1) && scope.parentElement && scope.parentElement !== document.body && i < 6; i++) scope = scope.parentElement;
+     const sel =
+       '[rel=author], .byline a[href*="autor"], .byline a[href*="author"], a.author, .author-name, [itemprop=author] [itemprop=name], [data-testid*=byline] [data-testid*=name], [data-component=byline-block] span, .byline__name, .author__name';
+     const a = scope.querySelector(sel);
+@@ -6306,6 +6641,8 @@
+     const tEl = (articleEl ?? document).querySelector("time[datetime]") ?? document.querySelector("header time[datetime], article time[datetime]");
+     when = tEl?.getAttribute("datetime") ?? "";
+   }
++  // The story's own structured data (TOI has no meta date and no <time>, F832).
++  if (!when) when = ldDate();
+   let date = "";
+   if (when) {
+     const d = new Date(when);
+@@ -6374,6 +6711,8 @@
+   lastPop = keep;
+   heldPop = held;
+   if (!pop) return null;
++  // A part of a page modal dialog (MDN's compat settings, in shadow roots): the user answers it directly, on top of Sift.
++  for (let n: Element | null = pop.el; n; n = n.parentElement ?? ((n.getRootNode() as ShadowRoot).host ?? null)) if (n.matches(":modal")) return null;
+   const said = textIn(pop.el).slice(0, 200);
+   const ref = refOf(pop.el);
+   if (!pop.actionable) return said ? { text: said, said, actions: [], ref } : null;
+@@ -6426,7 +6765,7 @@
+  * headline inside a story card or a heading inside an answer or comment.
+  */
+ export function titleH1(articleEl: Element | null = null): Element | null {
+-  const h1s = Array.from(document.querySelectorAll("h1")).filter((h) => visible(h) && textIn(h).length > 3 && !h.closest("sift-root"));
++  const h1s = Array.from(document.querySelectorAll("h1")).filter((h) => visible(h) && textIn(h).length > 3 && !h.closest("sift-root") && !inSweepstakes(h));
+   if (!h1s.length) return null;
+   const ref = new Set(norm(docTitle(siteName())).split(" ").filter((w) => w.length > 2));
+   let best: Element | null = null;
+@@ -6612,6 +6951,29 @@
+   return { before, after };
+ }
+ 
++/**
++ * The bar took a lookup box from the page's content (weather.gov's location form): what is left of its
++ * box (a help link, "Your local forecast office is …") and the small boxes of links on its row (a news
++ * ticker) are the site's tools, not the page's data, so they are read after it (F636).
++ */
++function lookupLeftovers(root: Element, ctx: Ctx): Element[] {
++  const form = ctx.searchEl?.closest("form");
++  if (!form || !root.contains(form) || form === root || form.closest("header, nav, [role=banner], [role=navigation], [role=search]")) return [];
++  const fields = (e: Element) => Array.from(e.querySelectorAll("input:not([type=hidden]), select, textarea")).filter((f) => visible(f) && f.getAttribute("type") !== "submit" && f.getAttribute("type") !== "button");
++  let box: Element = form;
++  while (box.parentElement && box.parentElement !== root && tlen(box.parentElement) <= 300 && fields(box.parentElement).length === 1) box = box.parentElement;
++  const top = box.getBoundingClientRect().top;
++  if (!box.parentElement || fields(box).length !== 1 || top + scrollY > 400 || (ctx.titleEl && box.contains(ctx.titleEl))) return [];
++  const out = tlen(box) > 0 ? [box] : [];
++  for (const s of Array.from(box.parentElement.children)) {
++    if (s === box || !visible(s) || SKIP.has(s.localName) || Math.abs(s.getBoundingClientRect().top - top) > 40) continue;
++    const n = tlen(s);
++    const linked = Array.from(s.querySelectorAll("a[href]")).reduce((m, a) => m + textIn(a).length, 0);
++    if (n && n <= 300 && linked && textIn(s).length - linked <= 30 && !fields(s).length && !s.querySelector("h1") && !(ctx.titleEl && s.contains(ctx.titleEl))) out.push(s);
++  }
++  return out;
++}
++
+ function ancestorsOf(el: Element): Element[] {
+   const out: Element[] = [];
+   for (let n: Element | null = el; n; n = n.parentElement) out.push(n);
+@@ -6894,6 +7256,11 @@
+   const h = blocks[j - 1];
+   if (i - j < 5 || !h || h.t !== "h" || h.level !== 1) return;
+   const run = blocks.slice(j, i);
++  // Only a file view's toolbar: a row of controls or links, or a commit, size or line count. A how-to's short
++  // steps before its script ("First, log in as root.") stay in the open.
++  const ps = run.filter((b) => b.t === "p").map((b) => textOf((b as { content: Inline[] }).content).trim());
++  if (ps.filter((s) => /[.!?:]$/.test(s) && s.split(/\s+/).length >= 3).length >= 3) return;
++  if (!run.some((b) => b.t === "actions" || b.t === "ul") && !ps.some((s) => /\b[0-9a-f]{7,40}\b|\b\d[\d,]*\s+lines\b|\b\d+(\.\d+)?\s?(B|KB|MB|bytes)\b/i.test(s))) return;
+   blocks.splice(j, i - j, { t: "section", key: "tools:" + run[0].key, title: t("details"), blocks: run, collapsed: true });
+ }
+ 
+@@ -6951,7 +7318,7 @@
+ }
+ 
+ export function extractGeneric(): Page {
+-  const ctx = newCtx({ visited: new WeakSet() });
++  const ctx = newCtx({ visited: new WeakSet(), bars: new WeakSet() });
+   const search = findSearch(ctx);
+   const top = findTop();
+   // A menu entry that repeats a top-bar action ("Sign in") is said once, in the bar.
+@@ -6968,11 +7335,15 @@
+   ctx.articleEl = findArticle(root);
+   const h1 = titleH1(ctx.articleEl);
+   ctx.titleEl = h1;
+-  const by = ctx.articleEl ? byline(ctx.articleEl) : "";
++  const by = ctx.articleEl ? byline(ctx.articleEl, h1) : "";
+   ctx.hasByline = !!by && /\p{L}{2,}.*·/u.test(by);
++  if (ctx.hasByline) ctx.byName = by.split(" · ")[0];
+   ctx.hasDate = /\d/.test(by);
+   const scope = ctx.articleEl ? articleScope(root, ctx.articleEl, h1) : root;
+   const beside = besideMain(root, ctx);
++  const late = scope === root ? lookupLeftovers(root, ctx) : [];
++  for (const e of late) ctx.used.add(e);
++  beside.after.push(...late);
+   let blocks = walkPage(ctx, root, scope, beside);
+   // Pages that are mostly navigation (portals, language pickers): keep their navs
+   // as content. Lists, tables, forms and players are content already.
+@@ -6980,9 +7351,10 @@
+     // A fresh pass: only the search box and its button stay taken, so players found in pass one come back.
+     const used = new WeakSet<Element>();
+     if (ctx.searchEl) used.add(ctx.searchEl);
++    for (const e of late) used.add(e);
+     const sb = elOf(search?.submit);
+     if (sb) used.add(sb);
+-    const again = walkPage({ ...newCtx(), articleEl: ctx.articleEl, used, keepAllNav: true, visited: ctx.visited, searchEl: ctx.searchEl, hasByline: ctx.hasByline, hasDate: ctx.hasDate, titleEl: h1 }, root, scope, beside);
++    const again = walkPage({ ...newCtx(), articleEl: ctx.articleEl, used, keepAllNav: true, visited: ctx.visited, searchEl: ctx.searchEl, hasByline: ctx.hasByline, byName: ctx.byName, hasDate: ctx.hasDate, titleEl: h1 }, root, scope, beside);
+     if (blocksText(again).length > blocksText(blocks).length) blocks = again;
+   }
+   const title = h1 ? headingText(h1).slice(0, 200) : pageTitle();
+@@ -7001,6 +7373,7 @@
+   const dialog = findDialog(ctx, blocks);
+   // Popups are told from page layout by what the page view showed before the user's action (see findPopup).
+   if (ctx.visited) lastShown = ctx.visited;
++  lastBars = ctx.bars ?? new WeakSet();
+   return {
+     url: location.href,
+     title,
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -71,6 +71,7 @@
+   unread: "Unread",
+   enterToUseFrame: "Press Enter to use it, Tab to leave.",
+   suggestions: "Suggestions",
++  nSuggestions: "{n} suggestions",
+   audio: "Audio",
+   moreRows: "{n} more rows on the original page.",
+   selectAll: "Select all",
+@@ -94,6 +95,7 @@
+   previous: "Previous",
+   firstPage: "First page",
+   lastPage: "Last page",
++  consentFirst: "The site asks for a cookie choice before it plays this video.",
+ };
+ 
+ type Strings = typeof en;
+@@ -171,6 +173,7 @@
+   unread: "No leído",
+   enterToUseFrame: "Pulsá Enter para usarla y Tab para salir.",
+   suggestions: "Sugerencias",
++  nSuggestions: "{n} sugerencias",
+   audio: "Audio",
+   moreRows: "{n} filas más en la página original.",
+   selectAll: "Seleccionar todo",
+@@ -194,6 +197,7 @@
+   previous: "Anterior",
+   firstPage: "Primera página",
+   lastPage: "Última página",
++  consentFirst: "El sitio pide elegir sobre las cookies antes de reproducir este video.",
+ };
+ 
+ const pt: Table = {
+@@ -450,6 +454,7 @@
+   unread: "غير مقروء",
+   enterToUseFrame: "اضغط Enter لاستخدامها، وTab للخروج.",
+   suggestions: "اقتراحات",
++  nSuggestions: "{n} اقتراحات",
+   audio: "صوت",
+   moreRows: "صفوف أخرى في الصفحة الأصلية: {n}.",
+   selectAll: "تحديد الكل",
+@@ -473,6 +478,7 @@
+   previous: "السابق",
+   firstPage: "الصفحة الأولى",
+   lastPage: "الصفحة الأخيرة",
++  consentFirst: "يطلب الموقع اختيارك بشأن ملفات تعريف الارتباط قبل تشغيل هذا الفيديو.",
+ };
+ 
+ // Sift's main controls in other common languages; the rest stays English.
+@@ -872,8 +878,8 @@
+  * Arabic's dual); the plain string is the form for every other count.
+  */
+ const plurals: Record<string, Partial<Record<keyof Strings, Record<string, string>>>> = {
+-  en: { newItems: { one: "{n} new item" }, nComments: { one: "{n} comment" }, votes: { one: "{n} vote" }, nLikes: { one: "{n} like" }, moreRows: { one: "{n} more row on the original page." } },
+-  es: { newItems: { one: "{n} elemento nuevo" }, nComments: { one: "{n} comentario" }, votes: { one: "{n} voto" }, moreRows: { one: "{n} fila más en la página original." } },
++  en: { nSuggestions: { one: "{n} suggestion" }, newItems: { one: "{n} new item" }, nComments: { one: "{n} comment" }, votes: { one: "{n} vote" }, nLikes: { one: "{n} like" }, moreRows: { one: "{n} more row on the original page." } },
++  es: { nSuggestions: { one: "{n} sugerencia" }, newItems: { one: "{n} elemento nuevo" }, nComments: { one: "{n} comentario" }, votes: { one: "{n} voto" }, moreRows: { one: "{n} fila más en la página original." } },
+   ar: { newItems: { one: "عنصر جديد واحد", two: "عنصران جديدان", few: "{n} عناصر جديدة", many: "{n} عنصرًا جديدًا" } },
+   nl: { newItems: { one: "{n} nieuw item" } },
+ };
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -24,7 +24,7 @@
+ import { processAi, resetAi, setAiReady } from "./ai";
+ import { setLang, t } from "./i18n";
+ import { armRecent, noteMutations, clearRecent, noteEntered } from "./recent";
+-import { findToast } from "./extract/generic";
++import { askConsent, consentWallUp, findToast } from "./extract/generic";
+ 
+ const MODE_KEY = "sift:mode";
+ const isHtml = document.contentType === "text/html" && document.documentElement?.localName === "html";
+@@ -80,6 +80,17 @@
+   return blocks.some((b) => (b.t === "note" && (b.tone === "warn" || b.tone === "error")) || ((b.t === "section" || b.t === "article") && hasWarning(b.blocks)));
+ }
+ 
++/** The original elements of the social posts' fallback quotes in `blocks` (X's blockquote before its widget loads). */
++function embedQuotes(blocks: Block[], out: Element[] = []): Element[] {
++  for (const b of blocks) {
++    if (b.t === "quote" && b.embed) {
++      const el = elOf(b.key.slice(2).split(":")[0]);
++      if (el) out.push(el);
++    } else if (b.t === "section" || b.t === "article") embedQuotes(b.blocks, out);
++  }
++  return out;
++}
++
+ function findBlock(blocks: Block[], key: string): boolean {
+   return blocks.some((b) => b.key === key || ((b.t === "section" || b.t === "article") && findBlock(b.blocks, key)));
+ }
+@@ -296,8 +307,13 @@
+   function carry(spot: Spot, el: HTMLElement) {
+     if (spot.value === null || (el.localName !== "input" && el.localName !== "textarea")) return;
+     const f = el as HTMLInputElement;
++    // Only into the same page field, or the one the page put in its place: a control
++    // that only shares its label (the next item's Quantity) gets focus, never the text (F851).
++    const ref = el.dataset.ref;
++    const now = spot.ref && ref !== spot.ref ? liveField(spot.ref, false) : null;
++    const same = ref === (spot.ref ?? undefined) || (!!now && elOf(ref) === now);
+     // Only text typed since the last action: after Send, the page may clear the field on purpose.
+-    if (f.value !== spot.value && lastTyped(spot.el) > store.actAt) {
++    if (same && f.value !== spot.value && lastTyped(spot.el) > store.actAt) {
+       f.value = spot.value;
+       // The field's own handler sends it to the page, as typing would.
+       f.dispatchEvent(new Event("input", { bubbles: true }));
+@@ -753,6 +769,9 @@
+             const sheet = path[0].querySelector<HTMLElement>(":scope > .sheet");
+             if (sheet && !sheet.contains(shadow.activeElement)) sheet.focus({ preventScroll: true });
+           }
++          // A press on the bar search's button keeps focus in its field, so the search goes as Enter's does
++          // (F856: Discourse closes its results when its field blurs).
++          else if (type === "mousedown" && path[0] instanceof Element && path[0].closest("form.search button[type=submit]") && shadow.activeElement?.closest("form.search") === path[0].closest("form.search")) e.preventDefault();
+           else if (type === "focusin") onSiftFocus(e as FocusEvent, path);
+           else if (type === "focusout") onSiftBlur(e as FocusEvent);
+         }
+@@ -872,6 +891,7 @@
+     const tg = e.composedPath()[0] as HTMLElement;
+     noteReading(e.key);
+     if (e.key === "Tab") {
++      tabAt = Date.now();
+       // Controls the site adds to a player or map never become tab stops after Sift's own.
+       hidePortalStops();
+       wrapTab(e, tg);
+@@ -962,21 +982,27 @@
+     step();
+   }
+ 
+-  /** Escape for a page suggestion list shown under Sift's `field`: the page field gets it; Sift hides the list once the page did. */
++  /**
++   * Escape for a page suggestion list shown under Sift's `field`: the page field gets it first, and
++   * Sift's list closes. A page that keeps its list (Wikipedia's portal closes it only through the
++   * browser's own Escape, which Sift's field holds back) gets it back once the user types again.
++   */
++  let escapedList: { key: string; ref: string | undefined } | null = null;
+   function escapeList(key: string, listRef: string | undefined, field: HTMLElement, pf: Element) {
+     flushEdits();
+     proxy.key(pf, "Escape");
+     if (!field.matches(":focus")) field.focus();
+-    const hidden = () => {
++    const hidden = (force: boolean) => {
+       const list = elOf(listRef);
+-      if (list && list.checkVisibility()) return;
+-      if (store.dismissed.has(key)) return;
++      const kept = !!list && list.checkVisibility();
++      if ((kept && !force) || store.dismissed.has(key)) return;
+       store.dismissed.add(key);
+       dismissedRefs.set(key, listRef);
++      if (kept) escapedList = { key, ref: field.dataset.ref };
+       changed();
+     };
+-    hidden();
+-    setTimeout(hidden, 0);
++    hidden(false);
++    setTimeout(() => hidden(true), 0);
+     setTimeout(() => schedule(0), 60);
+   }
+ 
+@@ -1447,23 +1473,35 @@
+   let loadStart = performance.now();
+   /** When the user last acted through Sift (a click, a check, a submit): the page's answer may come late. */
+   let actedAt = -Infinity;
++  /** When the user last typed in a Sift field: the page's text answer to it (a "65 characters left" counter) is no clock (F802). */
++  let typedAt = -Infinity;
+   /** Sift shows the page's content for this address (not a loading line), or the page has had its time to load. */
+-  const contentShown = () =>
+-    (!!store.page && store.page.blocks.length > 0 && !thinView(store.page.blocks) && !store.page.partial && store.page.url === location.href) || performance.now() - loadStart > 10000;
+-  /** Only a title and a line (a results page before its results come in, F728): the content is still to come. */
+-  const thinView = (bs: Block[]) => bs.length <= 3 && bs.every((b) => b.t === "h" || b.t === "p" || b.t === "note") && blocksText(bs).length < 200;
++  const contentShown = (minor = false) =>
++    (!!store.page && store.page.blocks.length > 0 && !thinView(store.page.blocks) && !store.page.partial && store.page.url === location.href) ||
++    // A slow or busy machine can take far more than 10 s to fill a page's frame: while Sift shows only
++    // that frame, the page's changes (not a ticking clock) are read promptly for a minute (F873).
++    performance.now() - loadStart > (!minor && store.page && !store.page.partial && thinView(store.page.blocks) ? 60000 : 10000);
++  /**
++   * Only a title and a line (a results page before its results come in, F728), or only the
++   * frame's headings and a few links (weather.com before its forecast, F873): the content is still to come.
++   */
++  const thinView = (bs: Block[]) =>
++    blocksText(bs).length < 200 &&
++    bs.every((b) => b.t === "h" || b.t === "p" || b.t === "note" || (bs.length > 3 && (b.t === "ul" || b.t === "actions")));
+ 
+   /**
+    * Extract again: now (`delay` 0: navigation, after an action), after
+    * `delay`, or, for a change in the page, soon enough to keep up but at a
+    * cost the page can afford. `minor`: only text or style changed (a clock).
+    */
+-  const schedule = (delay?: number, minor = false) => {
++  const schedule = (delay?: number, minor = false, grew = false) => {
+     if (store.mode !== "sift") return;
+     let d: number;
+     let idle = false;
+     if (delay !== undefined) d = delay;
+-    else if (!contentShown() || performance.now() - loadStart < 3000) {
++    // `grew`: the page added a lot of new text in its first half minute (its forecast, its code):
++    // on a slow machine that is its content still coming in, not a routine update (F873).
++    else if (!contentShown(minor) || performance.now() - loadStart < 3000 || (grew && performance.now() - loadStart < 30000)) {
+       // While the page loads (until its content shows, and its first seconds,
+       // when a map or a player appears), keep up with it: right after
+       // the change (a loading page has no idle moment, and its next long task
+@@ -1481,9 +1519,16 @@
+       if (lastDur > 80) d = Math.max(d, lastDur * 9);
+       // Text that keeps changing (a clock, a counter) is no reason to hurry;
+       // the page's answer to the user's action (a cart count, "Added") is.
+-      if (minor && performance.now() - actedAt > 5000) d = Math.max(d, 2500);
++      if (minor && performance.now() - Math.max(actedAt, typedAt) > 5000) d = Math.max(d, 2500);
++      // The page's answer to a key just typed (a counter, a live hint) follows it closely (F802), on a
++      // page cheap to read again, while looks still find changes (not a clock Sift does not show).
++      if (performance.now() - typedAt < 2000 && same < 3 && lastDur < 60) d = Math.min(d, Math.max(60, lastDur * 4));
+       d = Math.min(d, 8000);
+     }
++    // The page held its main thread past the time the coming run was due (a slow machine building the
++    // page in long tasks): the change that ends such a task is read now, as the page shows it, not after
++    // one more wait for a timer and an idle moment (F873).
++    if (pending && pendingDue < performance.now() - 50 && performance.now() - loadStart < 30000) return run();
+     const due = performance.now() + d;
+     if (pending) {
+       if (due >= pendingDue) return;
+@@ -1588,11 +1633,57 @@
+       alertsSeen.set(el, text);
+       if (quiet || out || !text || text === was || text === lastToast || /cookie|consent|newsletter|subscribe/i.test(text)) continue;
+       if (!el.matches("[role=alert], [aria-live=assertive]") && (!(answer || aboutField(el)) || text.length > 200)) continue;
+-      out = text.slice(0, 300);
++      out = liveText(el as HTMLElement).slice(0, 300);
+     }
+     return out;
+   }
+ 
++  /**
++   * A live region's text as a screen reader reads it: each control in it by its own name, set
++   * apart from the next ("9:00, 9:30"), where innerText glues buttons with nothing between them ("9:009:30").
++   */
++  function liveText(el: HTMLElement): string {
++    const CTRL = "button, a[href], input[type=button], input[type=submit], input[type=reset], [role=button], [role=link], [role=tab], [role=option], [role=menuitem], [role=checkbox], [role=radio], [role=switch]";
++    const plain = (e: HTMLElement) => (e.innerText ?? "").replace(/\s+/g, " ");
++    if (!el.querySelector(CTRL)) return plain(el).trim();
++    let out = "";
++    // The last thing written was a control: the next control is a new item of the same list.
++    let ctrl = false;
++    const walk = (n: HTMLElement) => {
++      for (let c = n.firstChild; c; c = c.nextSibling) {
++        if (c.nodeType === 3) {
++          const s = c.nodeValue ?? "";
++          out += s;
++          if (s.trim()) ctrl = false;
++          continue;
++        }
++        if (c.nodeType !== 1) continue;
++        const e = c as HTMLElement;
++        const cs = getComputedStyle(e);
++        if (cs.display === "none" || (cs.display !== "contents" && !e.checkVisibility())) continue;
++        // Blocks are apart from what is around them; inline runs are not ("Hel<b>lo</b>").
++        const gap = cs.display.startsWith("inline") || cs.display === "contents" ? "" : " ";
++        if (e.matches(CTRL)) {
++          const name = clean(e.getAttribute("aria-label")) || clean(e.innerText) || accName(e);
++          if (!name) continue;
++          out += (ctrl ? ", " : " ") + name + " ";
++          ctrl = true;
++        } else if (e.querySelector(CTRL)) {
++          out += gap;
++          walk(e);
++          out += gap;
++        } else {
++          const t = plain(e);
++          if (!t.trim()) continue;
++          out += gap + t + gap;
++          ctrl = false;
++        }
++      }
++    };
++    walk(el);
++    return out.replace(/\s+/g, " ").replace(/ ,/g, ",").trim();
++  }
++
+   /** The page's notice with a button (a toast's Undo) that Sift shows. */
+   let toastEl: Element | null = null;
+   function updateToast() {
+@@ -1649,6 +1740,79 @@
+   }
+ 
+   /**
++   * Social posts the site renders only once they scroll into its own view (La Nación loads X's
++   * widget when the article body shows, F830): Sift never scrolls the hidden original, so their
++   * fallback quotes would stay quotes, without the post's video. Once the page settles, the
++   * original is scrolled to each such post in turn, until its widget replaces it (or 3 s), and
++   * then back where it was. The X Post then shows through its portal. Once per post.
++   */
++  const wokenEmbeds = new WeakSet<Element>();
++  let wakeTimer = 0;
++  let waking = false;
++  function wakeEmbeds(page: Page) {
++    if (waking || wakeTimer || store.mode !== "sift") return;
++    if (!embedQuotes(page.blocks).some((el) => !wokenEmbeds.has(el))) return;
++    wakeTimer = window.setTimeout(async () => {
++      wakeTimer = 0;
++      const url = location.href;
++      const els = embedQuotes(store.page?.blocks ?? []).filter((el) => !wokenEmbeds.has(el)).slice(0, 8);
++      // Its widget took its place, put a frame in it or beside it, or hid it.
++      const done = (el: Element) => !el.isConnected || !visible(el) || !!el.querySelector("iframe") || el.previousElementSibling?.localName === "iframe" || !!el.previousElementSibling?.querySelector("iframe");
++      const live = () => store.mode === "sift" && location.href === url;
++      if (!els.length || !live()) return;
++      waking = true;
++      const se = document.scrollingElement ?? document.documentElement;
++      const top = se.scrollTop;
++      const left = se.scrollLeft;
++      try {
++        for (const el of els) {
++          wokenEmbeds.add(el);
++          if (done(el) || !live()) continue;
++          el.scrollIntoView({ block: "center", behavior: "instant" });
++          for (let t = 0; t < 3000 && !done(el) && live(); t += 250) await new Promise((r) => setTimeout(r, 250));
++        }
++      } finally {
++        se.scrollTo({ top, left, behavior: "instant" });
++        waking = false;
++      }
++    }, 1500);
++  }
++
++  /** The key of the consent wall Sift showed because the reader pressed Play (see playFacade). */
++  let consentKey = "";
++  /**
++   * Play on a player that has not loaded its video (a poster with a big Play button). A player the
++   * site builds only once it scrolls into view (the Guardian's YouTube islands, deferuntil=visible)
++   * is first brought into the hidden original's view, so its own Play has a handler. A video the
++   * page holds back until its consent wall is answered shows that wall, reject first, and Sift says
++   * why (F826): the reader answers it, never Sift.
++   */
++  function playFacade(portal: Element | null, start: HTMLElement) {
++    // Where the player sits in the page: a lifted portal is fixed in the top layer.
++    const spot = portal?.parentElement ?? start;
++    const r = spot.getBoundingClientRect();
++    const away = r.bottom < 0 || r.top > innerHeight;
++    if (away) spot.scrollIntoView({ block: "center", behavior: "instant" });
++    const loaded = () => !start.isConnected || !start.checkVisibility() || !!portal?.querySelector("iframe, video[src], video source");
++    window.setTimeout(() => {
++      if (store.mode !== "sift") return;
++      proxy.click(start);
++      window.setTimeout(() => {
++        const wall = store.mode === "sift" && !loaded() ? consentWallUp() : null;
++        if (!wall) return;
++        askConsent(true);
++        // Asked again after the reader put it away: it shows again.
++        for (const [k, ref] of dismissedRefs) if (elOf(ref) === wall) {
++          store.dismissed.delete(k);
++          dismissedRefs.delete(k);
++        }
++        consentKey = "dlg:" + refOf(wall);
++        schedule(0);
++      }, 2500);
++    }, away ? 800 : 0);
++  }
++
++  /**
+    * An original the user works in (typing in MDN's "Try it" editor) never leaves the view under
+    * them: when the new extraction misses it while focus is in it, its last block stays in the same
+    * place, so the portal is neither dropped nor made again.
+@@ -1727,17 +1891,19 @@
+   function fieldList(): Page["dialog"] {
+     let a = shadow.activeElement as HTMLElement | null;
+     // Focus is in the list itself (ArrowDown went there): it is still the field's.
+-    if (a?.closest(".sheet.suggest")) a = suggestAnchor();
++    const inList = !!a?.closest(".sheet.suggest");
++    if (inList) a = suggestAnchor();
+     const text = !!a && (a.localName === "textarea" || (a.localName === "input" && /^(text|search|email|url|tel)$/.test((a as HTMLInputElement).type)));
+     // The page may have put a new field in its place (Wikipedia's typeahead): that one's list.
+-    const pf = text ? liveField(a!.dataset.ref) : null;
++    // Only reading it: the text goes to the page from the user's own keys (F850).
++    const pf = text ? liveField(a!.dataset.ref, false) : null;
+     if (!pf) return undefined;
+     // Not after a search or an action from it, until the user is back at the field: the
+     // page may think its field still has focus (its blur() reaches no real focus). A search
+     // box whose results come in under it, the address unchanged (Discourse's Enter), still
+-    // shows them while the user is in it.
++    // shows them while the user is in it, or in them (arrowing through the results).
+     if (lastTouched(a!) < store.actAt) {
+-      const panel = a === shadow.activeElement && location.href === typedUrl ? fieldPanel(pf) : null;
++      const panel = (inList || a === shadow.activeElement) && location.href === typedUrl ? fieldPanel(pf) : null;
+       return panel ? panelList(panel) : undefined;
+     }
+     const ids = ["aria-controls", "aria-owns"].flatMap((n) => (pf.getAttribute(n) ?? "").split(/\s+/)).filter(Boolean);
+@@ -1998,6 +2164,7 @@
+     const navigated = navPending;
+     store.page = page;
+     refreshModals();
++    wakeEmbeds(page);
+     // The same page element found again as another kind of popup (a dropdown that ignored
+     // Escape, now seen as an open list box) stays dismissed.
+     const pd = page.dialog;
+@@ -2158,6 +2325,9 @@
+     // A thread that writes the post in view into its address as it is scrolled (Discourse's
+     // ".../143208/5"), right after Sift scrolled it along with the reader, is still the same page.
+     if (kinds.length && kinds.every((k) => k === "replace") && Date.now() - lastStep < 4000) return false;
++    // A shown map that writes its view into the address's hash as it moves or changes layer
++    // (OpenStreetMap's "#map=16/37.79/-122.39&layers=C") is still the same page: the reader stays at the map (F874).
++    if (kinds.length && kinds.every((k) => k === "replace") && prev.split("#")[0] === u.split("#")[0] && document.querySelector(".leaflet-container[data-sift-portal], .maplibregl-map[data-sift-portal], .mapboxgl-map[data-sift-portal], gmp-map[data-sift-portal]")) return false;
+     // A new page inside a single-page app. A section kept across its pages (a playlist) stays open or closed.
+     const kept: [string, unknown][] = [];
+     const keep = (bs: Block[]) => {
+@@ -2254,7 +2424,14 @@
+       if (!listTimer) listTimer = window.setTimeout(() => refreshList(minor), 50);
+       return;
+     }
+-    schedule(undefined, minor);
++    let grew = 0;
++    if (!minor && performance.now() - loadStart < 30000)
++      for (const n of added) {
++        if (q.some((el) => deepContains(el, n))) continue;
++        grew += (n.textContent ?? "").length;
++        if (grew >= 400) break;
++      }
++    schedule(undefined, minor, grew >= 400);
+   });
+   let listTimer = 0;
+   /**
+@@ -2319,6 +2496,8 @@
+   let lastStep = 0;
+   /** When the reader last scrolled Sift (wheel, touch, a press, a scrolling key), and where Sift's view was. */
+   let userScrollAt = 0;
++  /** When the reader last moved focus with Tab: a focus move scrolls Sift's view too, but never loads more. */
++  let tabAt = 0;
+   let lastTop = 0;
+   let stepTimer = 0;
+   host.addEventListener(
+@@ -2336,6 +2515,9 @@
+       const mine = Date.now() - userScrollAt < 1000;
+       if (!store.page || Date.now() - lastStep < 1500 || (mine && stepWith(near, Math.sign(moved)))) return;
+       if (!near || Date.now() - lastNudge < 1500) return;
++      // Tabbing through a list's last entries must reach what follows it, not keep it growing (F820):
++      // more loads once the reader scrolls (wheel, touch, a scrolling key, the scrollbar) after Tab.
++      if (tabAt > userScrollAt) return;
+       // A list in an open section counts too (a watch page's comments).
+       if (!shownItems(store.page.blocks)) return;
+       // A thread that unloads its posts loads more as it is scrolled (stepWith), never by a jump to its end.
+@@ -2623,24 +2805,56 @@
+   let typedUrl = "";
+   /** The page field Sift entered last, and its selection before that. */
+   let entrySel: { el: Element; sel: [number, number] | null; at: number } | null = null;
++  /** The page fields of `f`'s kind: same tag, name and type. */
++  const kindOf = (f: HTMLInputElement) =>
++    (Array.from(document.getElementsByName(f.name)) as HTMLInputElement[]).filter((c) => c.localName === f.localName && c.type === f.type && !c.closest("sift-root"));
++  /**
++   * Where a page field Sift stands for sat, taken while it is there: in each of its
++   * containers, how many fields of its kind and its rank among them; its form's id;
++   * and the fields of its kind there were then.
++   */
++  const places = new WeakMap<Element, { anc: Element[]; n: number[]; at: number[]; form: string; seen: WeakSet<Element> }>();
++  function notePlace(f: HTMLInputElement) {
++    const all = kindOf(f);
++    const anc: Element[] = [];
++    const n: number[] = [];
++    const at: number[] = [];
++    for (let a = f.parentElement; a; a = a.parentElement) {
++      const box = a;
++      const inside = all.filter((c) => box.contains(c));
++      anc.push(box);
++      n.push(inside.length);
++      at.push(inside.indexOf(f));
++    }
++    places.set(f, { anc, n, at, form: f.form?.id ?? "", seen: new WeakSet(all) });
++  }
+   /**
+    * The page field `ref` names, or the one the page put in its place: Wikipedia swaps
+    * its search box for its typeahead's on first focus, and the keys typed meanwhile
+-   * must reach the new one. Same kind, name and form, and the only one shown. It gets
+-   * focus if the old one had it, and (`sync`) the text Sift's field holds.
++   * must reach the new one. It gets focus if the old one had it, and (`sync`) the
++   * text Sift's field holds. Only a clear swap in place (F850): the nearest of the old
++   * field's containers still there is its parent or held no other field of its kind,
++   * holds as many as before, and at its rank a new one (not there before), shown, in
++   * a form of the same id. Never a field that was there all along because it has the
++   * same name (the next cart row's quantity, when the page removed this row): Sift's
++   * field goes with the repaint.
+    */
+   function liveField(ref: string | undefined, sync = true): Element | null {
+     const el = elOf(ref);
+-    if (el || !ref) return el;
++    if (el || !ref) {
++      if (plainField(el) && el.name) notePlace(el);
++      return el;
++    }
+     const old = formerOf(ref);
+     if (!old || old.isConnected || !plainField(old) || !old.name) return null;
+-    // Its form, if it went with it (a field taken out alone has none any more).
+-    const form = old.form?.id ?? old.closest("form")?.id;
+-    const like = Array.from(document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(old.localName)).filter(
+-      (c) => c.name === old.name && c.type === old.type && (form === undefined || (c.form?.id ?? "") === form) && !c.closest("sift-root") && c.checkVisibility(),
+-    );
+-    if (like.length !== 1) return null;
+-    const now = like[0];
++    const place = places.get(old);
++    const i = place ? place.anc.findIndex((a) => a.isConnected) : -1;
++    if (!place || i < 0) return null;
++    // Its row: the container still there held only it, or is its own parent (the same spot in it).
++    if (place.n[i] !== 1 && i > 0) return null;
++    const like = kindOf(old).filter((c) => place.anc[i].contains(c));
++    const now = like[place.at[i]];
++    if (like.length !== place.n[i] || !now || place.seen.has(now) || (now.form?.id ?? "") !== place.form || !now.checkVisibility()) return null;
+     adopt(ref, now);
+     if (pageFocus === old) {
+       pageFocus = now;
+@@ -2918,6 +3132,7 @@
+ 
+   Object.assign(H, {
+     toggle,
++    say: (text: string) => say(text),
+     act(ref, href) {
+       const wrote = flushEdits();
+       const el = elOf(ref);
+@@ -2964,10 +3179,19 @@
+       if (!(el instanceof HTMLInputElement) && el.getAttribute("role") === "slider") return slideTo(el, value);
+       if ((el as HTMLElement).isContentEditable) pendingEdits.set(ref, value);
+       else proxy.setValue(el, value);
++      typedAt = performance.now();
+       typedUrl = location.href;
+-      // A field with a suggestion list (or a search box, which may show one): Sift shows the list once
++      // Its list Escape closed while the page kept it: what the page shows now for the new text shows again.
++      if (escapedList?.ref === ref) {
++        store.dismissed.delete(escapedList.key);
++        dismissedRefs.delete(escapedList.key);
++        escapedList = null;
++        changed();
++      }
++      // A field with a suggestion list (or a search box the page shows one under): Sift shows the list once
+       // the user pauses, not at the next routine look, which on a long page (a Wikipedia article) is seconds away.
+-      const listed = el.matches("[aria-controls], [aria-owns], [list], [role=combobox]") || el.matches(proxy.SEARCH_FIELD);
++      // A plain search box with no list (Python docs' Quick search) costs no extra looks.
++      const listed = el.matches("[aria-controls], [aria-owns], [list], [role=combobox]") || (el.matches(proxy.SEARCH_FIELD) && (!!suggestAnchor() || !!fieldPanel(el)));
+       if (listed) {
+         clearTimeout(typedRun);
+         typedRun = window.setTimeout(() => schedule(0), 300);
+@@ -3079,13 +3303,14 @@
+       const btn = (r?: string) => elOf(r);
+       switch (op) {
+         case "play":
+-          if (btn(info.play)) proxy.click(btn(info.play)!);
++          // A player's own Play before it loaded its video (a facade) starts it as playFacade does.
++          if (btn(info.play)) portal && !(v && (v.currentSrc || v.readyState > 0)) ? playFacade(portal, btn(info.play) as HTMLElement) : proxy.click(btn(info.play)!);
+           else if (v && (v.currentSrc || v.readyState > 0)) v.paused ? v.play().catch(() => {}) : v.pause();
+           else {
+             // The player has not loaded its video yet (a poster with a big Play
+             // button): start it the way a user would, with its own control.
+             const start = playControl(portal);
+-            if (start) proxy.click(start);
++            if (start) playFacade(portal, start);
+             else v?.play().catch(() => {});
+           }
+           break;
+@@ -3112,6 +3337,7 @@
+       changed();
+     },
+     closeDialog(key, closeRef, dialogRef) {
++      if (key === consentKey) askConsent(false);
+       if (store.dismissed.has(key)) return;
+       // A page modal with no close of its own (a consent wall, an age gate) stays until the page
+       // removes it: Escape goes to the page, which decides, and Sift never hides only its copy.
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -68,6 +68,12 @@
+   step?: string;
+   autocomplete?: string;
+   accept?: string;
++  /** The page field's own limits (maxlength, minlength, pattern): Sift's field keeps them, as typing there would. */
++  maxLength?: number;
++  minLength?: number;
++  pattern?: string;
++  /** The page field is a combobox (role=combobox, a datalist): its aria-autocomplete, or "none" (F804). */
++  combo?: string;
+   /** Ref of a button that submits this field when there is no <form>. */
+   submit?: string;
+   /** A slider's value as words ("12 pt"). */
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -80,6 +80,10 @@
+   if (!set) return;
+   if (!asOfChange.has(el)) asOfChange.set(el, (el as HTMLInputElement).value);
+   const was = (el as HTMLInputElement).value;
++  // Typing stops at the field's maxlength (a value set from code does not): no longer value reaches the page than typing gives (F801).
++  const max = (el as HTMLInputElement).maxLength;
++  if (max >= 0 && value.length > max && value.length > was.length && (el instanceof HTMLTextAreaElement || /^(text|search|url|tel|email|password)$/.test((el as HTMLInputElement).type)))
++    value = value.slice(0, Math.max(max, was.length));
+   set(value);
+   el.dispatchEvent(new InputEvent("input", { bubbles: true, composed: true, inputType: "insertText", data: value }));
+   // Live search that runs on keyup (queryly on Infobae) hears the key that typed it.
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -24,6 +24,17 @@
+   return out;
+ }
+ 
++/**
++ * A host's light-DOM child shown, through its slot, inside an exempted element:
++ * a modal dialog in a shadow root (MDN's compat settings) has its Cancel and
++ * Save there. Follows the flat tree, slot to slot.
++ */
++function slottedIntoExempt(c: Element, ex: Set<Element>): boolean {
++  if (!c.assignedSlot) return false;
++  for (let n: Element | null = c; n; n = n.assignedSlot ?? parentOf(n)) if (ex.has(n)) return true;
++  return false;
++}
++
+ function desired(): Set<Element> {
+   const want = new Set<Element>();
+   const body = document.body;
+@@ -44,7 +55,7 @@
+   while (stack.length) {
+     const n = stack.pop()!;
+     for (const c of childrenOf(n)) {
+-      if (ex.has(c)) continue;
++      if (ex.has(c) || slottedIntoExempt(c, ex)) continue;
+       if (path.has(c)) stack.push(c);
+       else if (c.localName !== "script" && c.localName !== "style") want.add(c);
+     }
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -12,7 +12,7 @@
+   a: string;
+   href?: string;
+   ref?: string;
+-  /** The page's words around the link in its sentence ("To book an appointment, … ."): a Short version may put the link on those. */
++  /** The page's words around the link in its clause ("To book an appointment, … ."): a Short version may put the link on those. */
+   near?: string;
+ }
+ 
+@@ -160,8 +160,12 @@
+   around.forEach((l, k) => {
+     if (typeof l === "string") return;
+     const text = (from: number, to: number) => around.slice(from, to).map((s) => (typeof s === "string" ? s : " ")).join("");
+-    const before = text(0, k).split(SENTENCE_END).pop()!.split(/\s+/).slice(-12).join(" ");
+-    const after = text(k + 1, around.length).split(SENTENCE_END)[0].split(/\s+/).slice(0, 12).join(" ");
++    // Only the link's own clause: the words of another one ("…, and to update
++    // your preferences, sign in") name what another action does.
++    let before = text(0, k).split(SENTENCE_END).pop()!.split(CLAUSE_BEFORE).pop()!;
++    if (JOINED.test(before)) before = "";
++    before = before.split(/\s+/).slice(-12).join(" ");
++    const after = text(k + 1, around.length).split(SENTENCE_END)[0].split(CLAUSE_AFTER)[0].split(/\s+/).slice(0, 12).join(" ");
+     const near = (before + " " + after).trim();
+     if (near) l.near = near;
+   });
+@@ -171,6 +175,15 @@
+ 
+ const SENTENCE_END = /[.!?。！？](?=\s|$)/;
+ 
++/** Words that join two clauses ("and", "or", "but"), in a few languages. */
++const JOIN = "and|or|but|then|y|o|u|e|pero|ou|mas|et|mais|puis|und|oder|aber|dann|ed|ma|oppure|и|или|но|а";
++/** Where the clause a link sits in starts: after ";" or ":", or ", and" / ", or". */
++const CLAUSE_BEFORE = new RegExp(`[;:；：]|[,，]\\s*(?:${JOIN})(?![\\p{L}\\p{N}])`, "iu");
++/** The link starts a clause of its own: the text before it ends with "and" or "or". */
++const JOINED = new RegExp(`(?<![\\p{L}\\p{N}])(?:${JOIN})\\s*$`, "iu");
++/** Where the clause a link sits in ends. */
++const CLAUSE_AFTER = new RegExp(`[,;:，；：]|(?<![\\p{L}\\p{N}])(?:${JOIN})(?![\\p{L}\\p{N}])`, "iu");
++
+ const normWords = (s: string) => (s.toLowerCase().match(/\p{L}+/gu) ?? []).join(" ");
+ /** Words and numbers: a paragraph whose count or date changed is a changed paragraph. */
+ const normText = (s: string) => (s.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).join(" ");
+@@ -362,6 +375,42 @@
+   return n >= Math.max(4, Math.min(a.length, b.length) - 2);
+ }
+ 
++/** Longer words that say nothing about what a link does ("your", "this"): never enough on their own. */
++const WEAK = new Set(
++  "your yours this that these those with from here there their them they have will what when where which about into more also only just some other page link click para este esta estos estas como desde sobre aquí nuestro nuestra nuestros nuestras pour avec dans votre cette ihre diese dieser hier это этот здесь".split(" "),
++);
++
++/**
++ * Actions a link's words can name, by how their words start, in a few
++ * languages. Words that name one never carry a link that does another
++ * ("update your preferences" on an unsubscribe link, "cancel your
++ * subscription" on a subscribe link).
++ */
++const ACTIONS: [string, RegExp][] = (
++  [
++    ["unsubscribe", "unsubscri|unfollow|opt out|desuscri|darse de baja|dar de baja|date de baja|désabonn|désinscri|abbestell|abmeld|disiscri|отпис"],
++    ["subscribe", "subscri|sign up|signup|regist|join(?!t)|suscri|inscri|abonn|iscriv|подпис|регистр|зарегистр"],
++    ["login", "sign in|signin|log in|login|iniciar sesi|inicia sesi|se connect|connectez|connexion|einlogg|anmeld|войт|вход"],
++    ["logout", "sign out|signout|log out|logout|cerrar sesi|cierra sesi|déconnex|se déconnect|déconnectez|auslogg|выйт|выход"],
++    ["cancel", "cancel|anul|annul|stornier|kündig|отмен"],
++    ["confirm", "confirm|bestätig|подтверд"],
++    ["delete", "delet|remov|erase|borr(?:ar|a|á|e|es|en)(?!\\p{L})|elimin|supprim|lösch|entfern|удал"],
++    ["download", "download|descarg|téléch|herunterl|скача"],
++    ["upload", "upload|hochlad"],
++    ["change", "updat|chang|edit(?:s|ed|ing)?(?!\\p{L})|modif|actualiz|cambi|änder|aktualis|измен|обнов"],
++    ["buy", "buy|purchas|checkout|pay(?:s|ing)?(?!\\p{L})|compr(?:ar|a|á|e|en|ó|o)(?!\\p{L})|pag(?:ar|a|á|ue|uen)(?!\\p{L})|achet|kauf|bezahl|купи|оплат"],
++    ["add", "add(?:s|ed|ing)?(?!\\p{L})|añad|agreg|ajout|hinzufüg"],
++    ["accept", "accept|acept|akzept|agree"],
++    ["decline", "declin|reject|refus|rechaz|ablehn|отклон"],
++  ] as [string, string][]
++).map(([a, s]) => [a, new RegExp(`(?<![\\p{L}\\p{N}])(?:${s})`, "u")]);
++
++/** The actions some words name (see ACTIONS). */
++const actionsOf = (s: string) => {
++  const t = normText(s);
++  return new Set(ACTIONS.filter(([, re]) => re.test(t)).map(([a]) => a));
++};
++
+ /** Whether the words a Short version puts on a link say what the page's own words for it say: the same, or a longer word (or its stem) or two words in common. */
+ function sameWords(words: string, a: string): boolean {
+   const x = normText(mdPlain(words));
+@@ -370,11 +419,12 @@
+   const have = tokens(a);
+   let both = 0;
+   for (const w of want) {
++    const strong = w.length >= 4 && !WEAK.has(w);
+     if (!have.has(w)) {
+-      if (w.length >= 4) for (const h of have) if (stemOf(w, h)) return true;
++      if (strong) for (const h of have) if (stemOf(w, h)) return true;
+       continue;
+     }
+-    if (w.length >= 4) return true;
++    if (strong) return true;
+     both++;
+   }
+   return both >= 2 || (both > 0 && both === want.size);
+@@ -387,7 +437,7 @@
+  * their longer words are there, as they are or inflected.
+  */
+ function nearWords(words: string, have: string[]): boolean {
+-  const want = [...tokens(normText(mdPlain(words)))].filter((w) => w.length >= 4);
++  const want = [...tokens(normText(mdPlain(words)))].filter((w) => w.length >= 4 && !WEAK.has(w));
+   if (!want.length) return false;
+   const found = want.filter((w) => have.some((h) => h === w || stemOf(w, h))).length;
+   return found * 2 >= want.length;
+@@ -454,7 +504,18 @@
+   return { test, about };
+ }
+ 
+-/** A line split into sentences, never inside a link's words. */
++/** Words a "." follows inside a sentence: titles before a name ("Mr. Lopez", "Dr. Ruiz"). */
++const TITLES = new Set(
++  "Mr Mrs Ms Mx Dr Dra Drs Prof Profa St Sr Sra Srta Sres Jr Gen Gov Sen Rep Lt Col Capt Sgt Cmdr Adm Rev Hon Pres Supt Mt Ft Mme Mlle Mgr Hr Lic Ing Av Avda Ud Uds Vd Vds Dña vs cf approx aprox vgl bzw ca".split(" "),
++);
++/** And words a "." follows before a number: "No. 10", "Sept. 11", "pág. 4". */
++const BEFORE_NUMBER = new Set("No no Nos Nr nr núm Núm pág págs pp Fig fig Vol vol Art art Ch ch Sec sec Jan Feb Aug Sep Sept Oct Nov Dec ene abr ago dic".split(" "));
++
++/**
++ * A line split into sentences, never inside a link's words, nor after an
++ * abbreviation: initials and "U.S.", a title before a name ("Mr."), or "No."
++ * before a number. Dropping one sentence then never leaves "U.S." behind.
++ */
+ function sentences(line: string): string[] {
+   const out: string[] = [];
+   let depth = 0;
+@@ -467,6 +528,10 @@
+       let j = i + 1;
+       while (j < line.length && /[”’"»)]/.test(line[j])) j++;
+       if (j < line.length && !/\s/.test(line[j]) && !/[。！？]/.test(c)) continue;
++      if (c === "." && j === i + 1) {
++        const w = /\p{L}+$/u.exec(line.slice(start, i))?.[0] ?? "";
++        if (w.length === 1 || TITLES.has(w) || (BEFORE_NUMBER.has(w) && /^\s+\d/.test(line.slice(j)))) continue;
++      }
+       out.push(line.slice(start, j).trim());
+       start = j;
+       i = j - 1;
+@@ -482,7 +547,10 @@
+   for (const line of md.split("\n")) {
+     const mark = /^\s*(?:[-*•>]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
+     const all = sentences(line.slice(mark.length));
+-    const kept = all.filter((s) => !drop(s));
++    const gone = all.map(drop);
++    // A one-word piece just before a dropped sentence opened it (an abbreviation): it goes too.
++    for (let k = 1; k < all.length; k++) if (gone[k] && !gone[k - 1] && !/\s/.test(all[k - 1]) && tokens(mdPlain(all[k - 1])).size < 2) gone[k - 1] = true;
++    const kept = all.filter((_, k) => !gone[k]);
+     if (kept.length === all.length) lines.push(line);
+     else if (kept.length) lines.push(mark + kept.join(" "));
+   }
+@@ -565,9 +633,11 @@
+         // whole sentence in bold (a warning, a link) is no heading: its text
+         // stays, as a paragraph of its own. So does a bold line of five words
+         // or more, or with a comma or colon inside ("Do not pay the fee twice").
++        // A made-up "##" line is held to the same rules ("## Warning: do not pay
++        // twice"), except that five words alone do not make it a sentence.
+         const at = headingAt(h[1]);
+         const said = h[1].trim();
+-        const sentence = !atx && (wordCount(said) >= 5 || /[,;:，；：、]./.test(said));
++        const sentence = (!atx && wordCount(said) >= 5) || /[,;:，；：、]./.test(said);
+         if (at < 0 && (/\]\(\s*#?L\d+\s*\)/.test(h[1]) || /[.!。！]$/.test(said) || sentence)) {
+           flush();
+           md.push(h[1].trim());
+@@ -576,8 +646,8 @@
+         }
+         flush();
+         if (at >= 0) place(at);
+-        else if (!atx) {
+-          // A short bold line ("Do not pay twice") may be a warning, not a heading: decided below.
++        else {
++          // A short bold or "##" line ("Do not pay twice") may be a warning, not a heading: decided below.
+           const g = { md: said };
+           segs.push(g);
+           guesses.add(g);
+@@ -621,13 +691,25 @@
+       return score >= 0.2 ? best : -1;
+     };
+     const covered = new Set<number>();
+-    for (const s of segs) if ("md" in s && !guesses.has(s)) for (const line of s.md.split("\n")) for (const x of sentences(line)) covered.add(about(x));
++    const told = new Set<string>();
++    for (const s of segs) {
++      if (!("md" in s) || guesses.has(s)) continue;
++      for (const line of s.md.split("\n")) for (const x of sentences(line)) covered.add(about(x));
++      for (const w of tokens(mdPlain(s.md))) told.add(w);
++    }
++    // Or it states a fact of its paragraph that nothing else does: two of the
++    // paragraph's rarer words no other kept text has ("Refunds take sixty days").
++    const rare = Math.max(2, src.units.filter((u) => u.kind === "p").length / 4);
+     for (let k = 0; k < segs.length; k++) {
+       const s = segs[k];
+       if (!guesses.has(s) || !("md" in s)) continue;
+       const i = about(s.md);
+-      if (i >= 0 && !covered.has(i)) covered.add(i);
+-      else segs.splice(k--, 1);
++      const own = i >= 0 ? tokens(src.units[i].plain) : null;
++      const news = own ? [...tokens(mdPlain(s.md))].filter((w) => own.has(w) && !told.has(w) && (at.get(w)?.length ?? 0) <= rare) : [];
++      if (i >= 0 && (!covered.has(i) || news.length >= 2)) {
++        covered.add(i);
++        for (const w of tokens(mdPlain(s.md))) told.add(w);
++      } else segs.splice(k--, 1);
+     }
+   }
+ 
+@@ -772,7 +854,7 @@
+   const links = meta.links.map((_, i) => linkNow(meta, src, i)!);
+   // A link id the model put on other words than the page's would do what its
+   // words do not say: those words stay without the link, which is listed below.
+-  // Words from the link's own sentence are fine too, unless they are another
++  // Words from the link's own clause are fine too, unless they are another
+   // link's words or fit another link's sentence as well (two links in one sentence).
+   const kept = new Set<number>();
+   const rejected = new Set<number>();
+@@ -783,6 +865,14 @@
+     return ts;
+   };
+   const fits = (words: string, i: number, l: Link) => {
++    // Words that name another action than the link's own words (or, for "click
++    // here", its own clause) do: never on this link, however alike their words.
++    const says = actionsOf(mdPlain(words));
++    if (says.size) {
++      const own = actionsOf(l.a);
++      const does = own.size ? own : actionsOf(meta.links[i]?.near ?? "");
++      if (does.size && [...says].some((x) => !does.has(x))) return false;
++    }
+     if (sameWords(words, l.a)) return true;
+     if (!nearWords(words, near(i))) return false;
+     const to = l.href ?? l.a;
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -183,6 +183,9 @@
+   return ref;
+ }
+ 
++/** A combobox on the page is one here: its list is Sift's suggestion sheet (markSuggest sets aria-expanded and aria-controls, F804). */
++const comboProps = (f: Field): any => (f.combo ? { role: "combobox", "aria-expanded": "false", "aria-autocomplete": f.combo !== "none" ? f.combo : undefined } : {});
++
+ function TextField({ f, formRef }: { f: Field; formRef?: string }) {
+   const ref = useMirror(f);
+   useEffect(() => {
+@@ -203,6 +206,9 @@
+     disabled: f.disabled,
+     readOnly: f.readOnly,
+     autoComplete: f.autocomplete,
++    // The page field's limits hold here too: typing stops at its maxlength, as on the original (F801).
++    maxLength: f.maxLength,
++    minLength: f.minLength,
+     onInput: (e: Event) => {
+       noteTyping(e);
+       H.input(f.ref, (e.currentTarget as HTMLInputElement).value);
+@@ -213,6 +219,7 @@
+     "aria-invalid": f.invalid || undefined,
+     "aria-describedby": [f.error && "err-" + f.key, f.desc && "desc-" + f.key].filter(Boolean).join(" ") || undefined,
+   };
++  const combo = comboProps(f);
+   return (
+     <>
+       <label class="field">
+@@ -220,7 +227,7 @@
+         {f.kind === "textarea" || f.kind === "editable" ? (
+           <textarea {...common} />
+         ) : (
+-          <input {...common} type={f.kind as any} name={f.name} min={f.min} max={f.max} step={f.step} aria-valuetext={f.valueText} />
++          <input {...common} {...combo} type={f.kind as any} name={f.name} min={f.min} max={f.max} step={f.step} pattern={f.pattern} aria-valuetext={f.valueText} />
+         )}
+       </label>
+       {f.error && <span class="sr" id={"err-" + f.key}>{f.error}</span>}
+@@ -734,7 +741,8 @@
+     }
+     case "facts":
+       return (
+-        <dl class="facts">
++        // Several short readings ("Humidity 67%", "Wind Speed 5 MPH") sit two to a row on a wide screen (F636).
++        <dl class={b.rows.length >= 4 && b.rows.every((r) => r.k.length <= 20 && textOf(r.v).length <= 30) ? "facts short" : "facts"}>
+           {b.rows.map((r, i) => (
+             <Fragment key={i}>
+               <dt>{r.k}</dt>
+@@ -803,6 +811,7 @@
+           H.input(f.ref, (e.currentTarget as HTMLInputElement).value);
+         }}
+         {...fieldEvents(f.ref)}
++        {...comboProps(f)}
+       />
+       <button type="submit" class="btn primary">{f.submitLabel || t("search")}</button>
+     </form>
+@@ -908,6 +917,58 @@
+   return anchor.el?.isConnected ? anchor.el : null;
+ }
+ 
++/**
++ * A popup found by layout that opened while the user was in a page-view field they had just
++ * entered, with no action since: it is not what they asked for, so it takes neither the focus
++ * nor the keys from that field (F870). It still shows, and Tab reaches it.
++ */
++let over: { key: string; yes: boolean } = { key: "", yes: false };
++function typedOver(d: Dialog): boolean {
++  if (over.key !== d.key) {
++    const f = typingField();
++    const at = f ? lastTouched(f) : 0;
++    over = { key: d.key, yes: /^pop:/.test(d.key) && !!f && !f.closest(".layer, .sheet") && !(f as HTMLInputElement).readOnly && at > store.actAt && Date.now() - at < 3000 };
++  }
++  return over.yes;
++}
++
++/** The Sift field shown as expanded with its suggestion list. */
++let expanded: HTMLElement | null = null;
++/** The suggestion list last counted aloud, and how many it had. */
++let counted = "";
++
++/**
++ * A field with suggestions says so, as the page's combobox does (F804): it is expanded and
++ * controls Sift's list, the list's choices are options, and how many there are is said
++ * politely when the list appears or their number changes.
++ */
++function markSuggest(field: HTMLElement | null, sheet: HTMLElement | null, key: string, chosen?: Set<string>) {
++  if (expanded && expanded !== field) {
++    if (expanded.getAttribute("role") === "combobox") expanded.setAttribute("aria-expanded", "false");
++    expanded.removeAttribute("aria-controls");
++    expanded.removeAttribute("aria-activedescendant");
++  }
++  expanded = field;
++  if (!field || !sheet) {
++    counted = "";
++    return;
++  }
++  if (field.getAttribute("role") === "combobox") field.setAttribute("aria-expanded", "true");
++  field.setAttribute("aria-controls", sheet.id);
++  if (sheet.getAttribute("role") !== "listbox") return;
++  const opts = Array.from(sheet.querySelectorAll<HTMLElement>("button, a[href]"));
++  opts.forEach((o, i) => {
++    o.setAttribute("role", "option");
++    o.id = "sift-opt-" + i;
++    // A chosen one (a skill already added) is selected, as the page's option is; an option is never "pressed".
++    o.setAttribute("aria-selected", chosen?.has(o.dataset.ref ?? "") ? "true" : "false");
++    o.removeAttribute("aria-pressed");
++  });
++  const now = key + "|" + opts.length;
++  if (now !== counted && opts.length) H.say(t("nSuggestions", { n: opts.length }));
++  counted = now;
++}
++
+ /** The Sift field the shown suggestion list belongs to, if one is shown. */
+ export function suggestAnchor(): HTMLElement | null {
+   const root = document.querySelector("sift-root")?.shadowRoot;
+@@ -921,6 +982,10 @@
+   const started = useRef<{ key: string; el: HTMLElement | null }>({ key: "", el: null });
+   useEffect(() => {
+     if (anchor.el) return;
++    if (typedOver(d)) {
++      started.current = { key: d.key, el: null };
++      return;
++    }
+     // Where the page put focus in its dialog (a session warning's "Stay signed in"), as on the original.
+     const own = d.focus ? box.current?.querySelector<HTMLElement>(`[data-ref="${CSS.escape(d.focus)}"]`) : null;
+     if (started.current.key === d.key) {
+@@ -939,6 +1004,11 @@
+     started.current = { key: d.key, el: el ?? null };
+     el?.focus();
+   }, [d.key, d.focus]);
++  // The anchored list is a combobox's list box when it holds only choices (F804).
++  const close = !!d.close && !JSON.stringify(d.blocks).includes(`"ref":"${d.close.ref}"`);
++  const choices = !!field && !close && d.blocks.length === 1 && d.blocks[0].t === "actions";
++  useEffect(() => markSuggest(field, field ? box.current : null, d.key, choices ? new Set((d.blocks[0] as Extract<Block, { t: "actions" }>).actions.filter((a) => a.pressed).map((a) => a.ref)) : undefined));
++  useEffect(() => () => markSuggest(null, null, ""), []);
+   const name = d.title || firstLine(d.blocks) || page.title;
+   if (field) {
+     const r = field.getBoundingClientRect();
+@@ -949,14 +1019,24 @@
+     return (
+       <div
+         class="sheet suggest"
+-        role="group"
++        id="sift-suggest"
++        role={choices ? "listbox" : "group"}
+         aria-label={d.title || t("suggestions")}
+         ref={box}
++        // The option the keys moved to is the field's active one (F804).
++        onFocusIn={(e) => {
++          const o = e.target as HTMLElement;
++          if (o.getAttribute("role") === "option") field.setAttribute("aria-activedescendant", o.id);
++        }}
++        onFocusOut={(e) => {
++          const to = e.relatedTarget as HTMLElement | null;
++          if (to?.getAttribute("role") !== "option" || !box.current?.contains(to)) field.removeAttribute("aria-activedescendant");
++        }}
+         style={{ ...place, left: Math.round(r.left) + "px", width: Math.round(Math.max(r.width, 240)) + "px" }}
+       >
+         <Blocks blocks={d.blocks} />
+         {/* The page's own close control, when the list has one and Sift shows it nowhere else. */}
+-        {d.close && !JSON.stringify(d.blocks).includes(`"ref":"${d.close.ref}"`) && (
++        {close && (
+           <button type="button" class="btn quiet" onClick={() => H.closeDialog(d.key, d.close?.ref, d.ref)}>{t("close")}</button>
+         )}
+       </div>
+@@ -966,7 +1046,7 @@
+   return (
+     <div class="layer" onClick={(e) => e.target === e.currentTarget && !d.blocking && H.closeDialog(d.key, d.close?.ref, d.ref)}>
+       {/* tabIndex: a click on the sheet's text keeps focus in the sheet. */}
+-      <div class="sheet" role={d.role ?? "dialog"} aria-modal="true" aria-label={name} aria-describedby={d.desc ? "sift-dialog-desc" : undefined} ref={box} tabIndex={-1}>
++      <div class="sheet" role={d.role ?? "dialog"} aria-modal={typedOver(d) ? undefined : "true"} aria-label={name} aria-describedby={d.desc ? "sift-dialog-desc" : undefined} ref={box} tabIndex={-1}>
+         <div class="sheet-head">
+           {d.title ? <h2>{d.title}</h2> : <span />}
+           {!d.blocking && <button type="button" class="btn quiet" onClick={() => H.closeDialog(d.key, d.close?.ref, d.ref)}>{t("close")}</button>}
+@@ -1041,7 +1121,7 @@
+   const dialog = page?.dialog && !store.dismissed.has(page.dialog.key) && !store.pageModal ? page.dialog : undefined;
+   // A modal sheet is open: what is behind it is out of reach, as its aria-modal says.
+   // The live region and the switch stay usable.
+-  const behind = store.menuOpen || (!!dialog && !anchorOf(dialog));
++  const behind = store.menuOpen || (!!dialog && !anchorOf(dialog) && !typedOver(dialog));
+   return (
+     <div class="sift" lang={page?.lang || undefined} dir={dirOf(page?.lang)}>
+       <button type="button" class="skip" inert={behind} onClick={(e) => (e.currentTarget.getRootNode() as ShadowRoot).getElementById("sift-main")?.focus()}>
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -36,6 +36,8 @@
+   reveal(ref: string): void;
+   /** Move keyboard focus into a shown original element (a map, an editor). */
+   enterPortal(ref: string): void;
++  /** Say `text` politely through Sift's one live region (the number of suggestions shown). */
++  say(text: string): void;
+ }
+ 
+ export const H = {} as Handlers;
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -119,6 +119,7 @@
+ .btn.danger { border-color: var(--danger); color: var(--danger); }
+ .btn.quiet { border-color: var(--line); }
+ .btn[aria-pressed=true], .btn[aria-current] { background: #111; color: #fff; }
++.btn[role=option][aria-selected=true] { background: #111; color: #fff; }
+ a.btn[aria-current] { text-decoration: none; border-color: #111; }
+ .btn:disabled, .btn[aria-disabled=true] { opacity: .45; cursor: not-allowed; }
+ .btn .badge { background: #111; color: #fff; border-radius: 1em; padding: 0 .45em; font-size: .85em; }
+@@ -139,6 +140,7 @@
+ .facts { display: grid; grid-template-columns: minmax(6em, max-content) 1fr; gap: .35em 1em; margin: .8em 0; }
+ .facts dt { font-weight: 600; color: var(--muted); }
+ .facts dd { margin: 0; }
++@media (min-width: 720px) { .facts.short { grid-template-columns: repeat(2, minmax(6em, max-content) max-content); column-gap: 1em; } .facts.short dd:nth-of-type(odd) { margin-right: 2em; } }
+ .table-wrap { overflow-x: auto; margin: .8em 0; }
+ /* Quirks-mode pages reset table text (color, weight, size) to the page's; Sift's tables follow Sift. */
+ table { border-collapse: collapse; color: inherit; font-family: inherit; font-weight: inherit; font-style: inherit; line-height: inherit; white-space: inherit; font-size: .92em; min-width: 50%; }

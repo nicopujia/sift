@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Late account bar - fixture</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  #search { position: absolute; left: 24px; top: 12px; width: 360px; }
+  #search input { width: 300px; font-size: 16px; padding: 8px; }
+  /* Google's account bar: an empty fixed box at the top right that fills in late (F870). */
+  #bar { position: fixed; top: 8px; right: 8px; width: 191px; height: 48px; display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
+  #results { position: absolute; left: 24px; top: 120px; width: 400px; }
+  #date { position: absolute; left: 520px; top: 120px; }
+  #cal { position: absolute; left: 520px; top: 160px; width: 260px; background: #fff; border: 1px solid #ccc; padding: 8px; display: none; }
+</style>
+</head>
+<body>
+<!-- F870: under load, Google Maps fills its account bar ("Google apps", "Sign in") a moment after the user
+     enters the search field. That box is not something the field opened; Sift must not show it as a sheet.
+     ?delay=<ms> sets when the bar fills after the field gets focus (default 400).
+     Control: the date field opens a calendar right under it, which Sift should still show. -->
+<form id="search" role="search" onsubmit="event.preventDefault(); document.getElementById('results').querySelector('h1').textContent = 'Results for ' + this.q.value;">
+  <input name="q" id="q" type="text" placeholder="Search Google Maps" aria-label="Search Google Maps" autocomplete="off">
+  <button type="submit">Search</button>
+</form>
+<div id="bar"></div>
+<div id="results" role="main">
+  <h1>Results</h1>
+  <p>Coffee shops near the Ferry Building. Blue Bottle, Sightglass and Philz are a short walk away.</p>
+  <ul><li><a href="#a">Blue Bottle Coffee</a> 4.6 stars</li><li><a href="#b">Sightglass Coffee</a> 4.5 stars</li><li><a href="#c">Philz Coffee</a> 4.4 stars</li></ul>
+</div>
+<div id="date"><label>Date <input id="d" type="text" placeholder="Pick a date" autocomplete="off"></label></div>
+<div id="cal"><div>October 2026</div><button type="button">27</button> <button type="button">28</button> <button type="button">29</button></div>
+<script>
+  const delay = Number(new URLSearchParams(location.search).get("delay") || 400);
+  let filled = false;
+  document.getElementById("q").addEventListener("focus", () => {
+    if (filled) return;
+    filled = true;
+    setTimeout(() => {
+      document.getElementById("bar").innerHTML = '<div id="gb" style="position:relative;display:flex;gap:8px;align-items:center"><div><a role="button" tabindex="0" href="https://www.google.com/intl/en/about/products" aria-label="Google apps" aria-expanded="false"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M6 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"></path></svg></a></div><div><a href="https://accounts.google.com/ServiceLogin" style="display:inline-block;padding:9px 23px;background:#1a73e8;color:#fff;border-radius:4px">Sign in</a></div></div>';
+    }, delay);
+  });
+  document.getElementById("d").addEventListener("focus", () => { document.getElementById("cal").style.display = "block"; });
+</script>
+</body>
+</html>

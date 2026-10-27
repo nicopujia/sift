@@ -775,7 +775,8 @@ export function absUrl(href: string | null | undefined): string | undefined {
 }
 
 export function imgSrc(img: HTMLImageElement): string {
-  const cand = img.currentSrc || img.src;
+  // An element that only says its address (AMP's amp-img before it makes its <img>) is read by its attribute.
+  const cand = img.currentSrc || img.src || (img.localName !== "img" && absUrl(img.getAttribute("src"))) || "";
   if (cand && !cand.startsWith("data:")) return cand;
   for (const a of ["data-src", "data-lazy-src", "data-original", "data-url", "data-srcset", "srcset"]) {
     const v = img.getAttribute(a);
@@ -792,8 +793,11 @@ export const AD_HOSTS =
   /doubleclick|googlesyndication|googleadservices|adservice|amazon-adsystem|adnxs|criteo|taboola|outbrain|pubmatic|rubiconproject|openx|teads|mgid|revcontent|sharethrough|smartadserver|adform|yieldmo|33across|moatads|zergnet|nativo|triplelift|media\.net|carbonads|buysellads/i;
 
 // Class/id tokens that mark ads and other page furniture.
+// A bare "adv" is short for "advanced" ("adv", "adv-search", "advOptions") as often as it marks an ad
+// (Italian sites' "card--adv", "adv-Top"): only its ad compounds ("box-adv", "adv-slot", "adv-300x250") count here,
+// and isAd() weighs the bare word (F903).
 export const AD_TOKEN =
-  /(^|[\s_-])(ads?|adv|advert|advertisement|advertising|adslot|adunit|ad-slot|ad-container|adbox|ad-wrapper|dfp|gpt-ad|sponsor|sponsored|promoted|taboola|outbrain|teads|mgid|banner-ad|publicidad|anuncio)($|[\s_-])/i;
+  /(^|[\s_-])(ads?|(box|banner)[_-]adv|adv[_-]?(box|slot|unit|banner|wrap(per)?|container|\d+(x\d+)?)|advert|advertisement|advertising|adslot|adunit|ad-slot|ad-container|adbox|ad-wrapper|dfp|gpt-ad|sponsor|sponsored|promoted|taboola|outbrain|teads|mgid|banner-ad|publicidad|anuncio)($|[\s_-])/i;
 
 // "promo-price", "share-price" and "promo-code" are content, not furniture.
 // A negated class ("no-breadcrumb", "no-share") says the box has none: it is not noise.
@@ -855,7 +859,25 @@ export function isAd(el: Element): boolean {
   const al = el.getAttribute("aria-label");
   if (al && /^(advertisement|advertising|ad|ads|publicidad|anuncio|sponsored( content)?|patrocinado)$/i.test(al.trim())) return true;
   // A player's state while its ad plays ("jw-flag-ads", "vjs-ad-playing") does not make the player an ad.
-  return AD_TOKEN.test(tokens(el).replace(/(^|\s)(jw-flag-ads[\w-]*|vjs-ad-[\w-]+)(?=\s|$)/g, " "));
+  const tk = tokens(el).replace(/(^|\s)(jw-flag-ads[\w-]*|vjs-ad-[\w-]+)(?=\s|$)/g, " ");
+  return AD_TOKEN.test(tk) || (/(^|[\s_-])adv($|[\s_-])/i.test(tk) && advAd(el));
+}
+
+/**
+ * A box marked only "adv": an ad slot holds no field or button and few words of its own (its "Pubblicità" label,
+ * the ad in a frame); an "Advanced" section or note ("adv", "adv-search", "advOptions") is content (F903).
+ */
+function advAd(el: Element): boolean {
+  if (el.matches("form, fieldset, details, summary, label, input, select, textarea, button, [role=button], [role=group], [role=spinbutton]")) return false;
+  if (el.querySelector("input:not([type=hidden]), select, textarea, summary, button, [role=button], [role=switch], [role=checkbox], [role=spinbutton]")) return false;
+  let n = 0;
+  const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  for (let t = walk.nextNode(); t; t = walk.nextNode()) {
+    if (t.parentElement?.closest("script, style, noscript, template")) continue;
+    n += (t.nodeValue ?? "").trim().length;
+    if (n >= 60) return false;
+  }
+  return true;
 }
 
 /** Short label-like elements such as "Advertisement" or "Publicidad". */
@@ -865,6 +887,41 @@ export function lang(): string {
   return (
     document.documentElement.lang ||
     document.querySelector('meta[http-equiv="content-language" i]')?.getAttribute("content") ||
-    ""
+    textLang()
   ).trim();
+}
+
+/** Common words that tell one language's headlines from another's. */
+const LANG_WORDS: Record<string, Set<string>> = {
+  en: new Set("the and of to is in that for with on are was this from you be by at".split(" ")),
+  es: new Set("el los las del y es más una un por fue pero muy también sobre al se".split(" ")),
+  pt: new Set("do da dos das não são você ao à é em uma um com mais pelo pela foi também se".split(" ")),
+  fr: new Set("le les des du et est une dans pour pas qui sur au avec ce cette".split(" ")),
+  de: new Set("der die das und ist nicht mit den dem ein eine auf für sich von zu".split(" ")),
+  it: new Set("il gli della delle che è non una per con sono del nel alla anche più".split(" ")),
+};
+let textLangFor = "";
+let textLangWas = "";
+
+/**
+ * A page that does not say its language (G1's search page has no lang) is read for it: the language whose
+ * common words its title, headings and links use most, when one clearly leads; else nothing (F931).
+ */
+function textLang(): string {
+  if (textLangFor === location.href) return textLangWas;
+  let text = document.title;
+  for (const e of Array.from(document.querySelectorAll("h1, h2, h3, p, a"))) {
+    if (text.length > 4000) break;
+    text += " " + (e.textContent ?? "");
+  }
+  const n: Record<string, number> = {};
+  for (const w of text.toLowerCase().split(/[^\p{L}]+/u)) for (const k in LANG_WORDS) if (LANG_WORDS[k].has(w)) n[k] = (n[k] ?? 0) + 1;
+  const [a, b] = Object.entries(n).sort((x, y) => y[1] - x[1]);
+  const pick = a && a[1] >= 12 && a[1] >= 1.5 * (b?.[1] ?? 0) ? a[0] : "";
+  // Too little text yet to tell: asked again on the next pass.
+  if (pick || text.length > 2000) {
+    textLangFor = location.href;
+    textLangWas = pick;
+  }
+  return pick;
 }

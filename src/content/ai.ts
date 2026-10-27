@@ -4,7 +4,7 @@
 import type { AiReply, AiRequestBody, AiTask, LineInput } from "../shared/messages";
 import { t } from "./i18n";
 import type { Block, Item, Page } from "./model";
-import { proseChanged, sameArticle, shortMeta, shortSource, type ShortMeta, type ShortSource } from "./short";
+import { proseChanged, rewritten, sameArticle, shortMeta, shortSource, type ShortMeta, type ShortSource } from "./short";
 import { changed, lineKey, store, type AiResult } from "./ui/store";
 
 let port: chrome.runtime.Port | null = null;
@@ -317,10 +317,11 @@ export function processAi(page: Page) {
     const job = keyJob.get(k);
     // Asked for this article already (waiting, done, or failed for good).
     if (job && sameArticle(job.meta, src)) {
-      // Its prose changed since (a new paragraph, a new number): ask again once
-      // it holds still. Meanwhile the old Short version shows, with the
-      // changed paragraphs in full.
-      if (job.text !== src.text && proseChanged(job.meta, src)) refresh(page, a, src);
+      // Its prose was rewritten since (a fourth or more of it): ask again once
+      // it holds still. Meanwhile, and for good after a smaller change (a new
+      // paragraph, a new number), the Short version shows with the changed
+      // paragraphs in full: it is not replaced under the reader.
+      if (job.text !== src.text && proseChanged(job.meta, src) && rewritten(job.meta, src)) refresh(page, a, src);
       else if (pending.delete(k)) clearTimeout(articleTimers.get(a.key));
       continue;
     }
@@ -366,7 +367,7 @@ function share(page: Page, a: Extract<Block, { t: "article" }>, src: ShortSource
   attach(k, best);
   // The refresh limit is per article, not per element.
   for (const key of best.keys) refreshes.set(k, Math.max(refreshes.get(k) ?? 0, refreshes.get(key) ?? 0));
-  if (best.text !== src.text && proseChanged(best.meta, src)) refresh(page, a, src);
+  if (best.text !== src.text && proseChanged(best.meta, src) && rewritten(best.meta, src)) refresh(page, a, src);
   return true;
 }
 

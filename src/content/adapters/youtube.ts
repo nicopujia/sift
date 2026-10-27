@@ -50,7 +50,11 @@ function nav(): Action[] {
     if (!label || seen.has(k) || seen.has("label:" + label)) continue;
     seen.add(k);
     seen.add("label:" + label);
-    out.push(href ? { key: "n:" + refOf(a), label, ref: refOf(a), href } : { key: "n:" + refOf(a), label, ref: refOf(a) });
+    // "Show more" and "Show less" are one entry whose label changes: the same key keeps it, and focus on it (F922).
+    const box = a.closest("#expander-item, #collapser-item") ? a.closest("ytd-guide-collapsible-entry-renderer") : null;
+    const key = box && !seen.has("n:more:" + refOf(box)) ? "n:more:" + refOf(box) : "n:" + refOf(a);
+    seen.add(key);
+    out.push(href ? { key, label, ref: refOf(a), href } : { key, label, ref: refOf(a) });
   }
   return out.length > 2 ? out : [...out, ...findNav({ used: new WeakSet() } as any).filter((a) => !seen.has(a.href ?? "") && !seen.has("label:" + a.label))];
 }
@@ -490,6 +494,8 @@ function firstLoad(): boolean {
 }
 /** The loaded video's title as the tab first gave it (YouTube resets the tab's title to "YouTube" while it starts). */
 let loadedTitle = "";
+/** The tab's title when watch() first saw this address (none on the page's first load): the page left's, until YouTube swaps it. */
+let docAt = { url: "", title: "" };
 
 /** YouTube's player with Sift's controls: play, captions and full screen through its own buttons. */
 function playerBlock(player: Element, label: string): Block {
@@ -524,6 +530,8 @@ function watch(): Page | null {
   const docTitle = clean(document.title.replace(/^\(\d+\)\s*/, "").replace(/\s*-\s*YouTube$/, ""));
   if (firstLoad() && !loadedTitle && docTitle !== "YouTube") loadedTitle = docTitle;
   const early = firstLoad() ? loadedTitle : "";
+  // After an in-place navigation the tab's title still names the page left: never this video's name (F921).
+  if (docAt.url !== location.href) docAt = { url: location.href, title: firstLoad() ? "" : docTitle };
   if (!flexy) {
     // YouTube draws its player before the rest of the watch page. Until then: that
     // player and the title in this page's own layout, so nothing jumps when the rest comes.
@@ -681,7 +689,7 @@ function watch(): Page | null {
       blocks: items.length ? [...sort, { t: "items", key: "comment-list", items }] : [{ t: "p", key: "c-loading", content: [closed || t("loading")], small: true }],
     });
   }
-  const page = base(blocks, title || (errShown ? (docTitle !== "YouTube" && docTitle) || early || "YouTube" : early));
+  const page = base(blocks, title || (errShown ? (docTitle !== "YouTube" && docTitle !== docAt.title && docTitle) || early || "YouTube" : early));
   if (!fresh && !errShown) {
     // Long after the video changed, still no title: the title sits somewhere this adapter
     // does not look, and the generic extractor shows the page instead.
