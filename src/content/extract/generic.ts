@@ -10,7 +10,7 @@ import {
   AD_HOSTS, AD_LABEL, NOISE_TOKEN, SHARE_LABEL, SHARE_MAYBE, SOCIAL_HOSTS,
   accName, clean, hasControl, hostOf, hrefOf, imgSrc, isAd, labelNodes, lang, passNo, shadowRootOf, firstLine, spaceAfter, spaceBefore, textIn, textInRaw, textLines, textPrefix, tlen, tokens, visible, visualTwin,
 } from "../dom";
-import { glyphName } from "../dom";
+import { glyphName, pictureAdds } from "../dom";
 import { t } from "../i18n";
 import { armCount, enteredField, recentNodes } from "../recent";
 import { portalElements } from "../portal";
@@ -881,7 +881,8 @@ function labelOf(el: Element): string {
     for (const w of has) if (w === want[i]) i++;
     return want.length > 0 && i === want.length && has.length > want.length;
   };
-  if ((el.hasAttribute("aria-label") || el.hasAttribute("aria-labelledby")) && !field) {
+  // A spinbutton's shown words are its value ("yyyy", "07"), not its name (F1110).
+  if ((el.hasAttribute("aria-label") || el.hasAttribute("aria-labelledby")) && !field && el.getAttribute("role") !== "spinbutton") {
     const vis = textIn(el);
     if (vis && vis !== s && /\p{L}.*\p{L}/su.test(vis)) {
       const inName = s.toLowerCase().includes(vis.toLowerCase());
@@ -1153,8 +1154,8 @@ function iconWord(img: HTMLImageElement, alt: string): boolean {
   if (alt.length > 40 || LOGO_NAME.test(alt) || /\.(png|jpe?g|gif|svg|webp)$/i.test(alt)) return false;
   const w = img.width || img.getBoundingClientRect().width, h = img.height || img.getBoundingClientRect().height;
   if (!w || !h || w > 32 || h > 32) return false;
-  const around = img.parentElement ? textIn(img.parentElement).toLowerCase() : "";
-  return !around.includes(alt.toLowerCase());
+  // Not a decorative icon ("star", "arrow") or the words beside it (F1133).
+  return pictureAdds(alt, img.parentElement ? textIn(img.parentElement) : "");
 }
 
 export function inlineOf(el: Element, ctx: Ctx | null = null, buttons = false): Inline[] {
@@ -1197,6 +1198,11 @@ export function inlineNodes(nodes: Node[], ctx: Ctx | null = null, buttons = fal
     let cited = false;
     const sep = (e: Element, t: string) => {
       if (spaceBefore(tail, t, e, prev, parent)) put(" ");
+    };
+    // A picture's words are never part of the word before them ("Yes" after "Delivery zones", two icons side by side).
+    const sepWord = (e: Element, t: string) => {
+      if (/[\p{L}\p{N}]$/u.test(tail) && /^[\p{L}\p{N}]/u.test(t)) put(" ");
+      else sep(e, t);
     };
     let i = 0;
     for (let c: Node | undefined | null = list ? list[0] : first; c; c = list ? list[++i] : c.nextSibling) {
@@ -1251,8 +1257,9 @@ export function inlineNodes(nodes: Node[], ctx: Ctx | null = null, buttons = fal
       // An icon that names itself ("Not included", "Yes" drawn as a cross or a tick) says its words (F1010).
       if (tag === "svg" && e.getAttribute("role") === "img" && e.getAttribute("aria-hidden") !== "true" && visible(e)) {
         const label = clean(e.getAttribute("aria-label")) || (e.hasAttribute("aria-labelledby") ? accName(e) : "");
-        if (label && !LOGO_NAME.test(label) && !/(^|\W)logo(\W|$)/i.test(`${e.getAttribute("class") ?? ""} ${e.getAttribute("category") ?? ""}`)) {
-          sep(e, label);
+        // A decorative icon ("star", "arrow") or the words beside it again says nothing (F1133).
+        if (label && !LOGO_NAME.test(label) && !/(^|\W)logo(\W|$)/i.test(`${e.getAttribute("class") ?? ""} ${e.getAttribute("category") ?? ""}`) && pictureAdds(label, e.parentElement ? textIn(e.parentElement) : "")) {
+          sepWord(e, label);
           put(label);
           prev = e;
         }
@@ -1306,7 +1313,8 @@ export function inlineNodes(nodes: Node[], ctx: Ctx | null = null, buttons = fal
         // Keep emoji-like inline images as their alt text, and an icon that says what it means
         // ("Not included" drawn as a cross beside a feature) unless the words beside it say it already (F1010).
         if (alt && (alt.length <= 3 || iconWord(e as HTMLImageElement, alt))) {
-          sep(e, alt);
+          if (alt.length <= 3) sep(e, alt);
+          else sepWord(e, alt);
           put(alt);
           prev = e;
         }
@@ -1693,8 +1701,20 @@ function isTextBlock(el: Element): boolean {
  * width stands for it (F1039). Its own width otherwise.
  */
 function lazyWidth(img: HTMLImageElement, r: DOMRect = img.getBoundingClientRect()): number {
-  if (r.width || img.naturalWidth || r.height < 50) return r.width;
-  if (!(img.loading === "lazy" || img.hasAttribute("srcset") || img.hasAttribute("data-src"))) return 0;
+  if (r.width || img.naturalWidth) return r.width;
+  const lazy = img.loading === "lazy" || img.hasAttribute("srcset") || img.hasAttribute("data-src");
+  if (r.height < 50) {
+    // A lazy photo not loaded yet in a box that shrinks to its content (NY Post's display:table figure,
+    // 78 px wide, F1126) has no size at all: its size attributes and the column it sits in give one.
+    const aw = Number(img.getAttribute("width")) || 0;
+    if (!lazy || r.height || aw < 160 || !Number(img.getAttribute("height")) || !img.getClientRects().length) return r.width;
+    for (let p = img.parentElement, i = 0; p && i < 4; p = p.parentElement, i++) {
+      const w = p.getBoundingClientRect().width;
+      if (w >= 160) return Math.min(w, aw);
+    }
+    return 0;
+  }
+  if (!lazy) return 0;
   return img.parentElement?.getBoundingClientRect().width ?? 0;
 }
 
@@ -1971,7 +1991,7 @@ function portalBlock(el: Element, ctx: Ctx): Block | null {
     return { t: "portal", key: "v:" + refOf(el), ref: refOf(el), ratio: r.height / Math.max(1, r.width), label, maxWidth: Math.round(r.width), tool };
   }
   if (tag === "video") {
-    if (r.width < 200 || r.height < 112) return null;
+    if (r.width < 200 || r.height < 112 || sitePlaylist(el)) return null;
     const player = playerOf(el);
     if (!claimPortal(player, ctx)) return null;
     // The player's own controls, poster, settings and overlay ("Play video") are the portal's, not page content.
@@ -1997,6 +2017,35 @@ function portalBlock(el: Element, ctx: Ctx): Block | null {
   }
   if (tag === "canvas" || tag === "embed" || tag === "object") return surfaceBlock(el, "", ctx);
   return null;
+}
+
+/** Words too common to tell what a headline is about. */
+const COMMON_WORD = /^(that|this|with|from|have|will|after|before|over|into|about|more|most|says|said|what|when|where|which|while|their|they|them|then|than|been|were|just|your|news|video|videos|watch|today|year|years|amid|last|first|back|could|would|should|other|some|only|also|here|there|para|como|sobre|tras|entre|desde|hasta|este|esta|pero|años)$/;
+function topicWords(s: string): Set<string> {
+  return new Set((s.toLowerCase().match(/[\p{L}\d][\p{L}\d'’]{3,}/gu) ?? []).map((w) => w.replace(/['’]s?$/, "")).filter((w) => w.length >= 4 && !COMMON_WORD.test(w)));
+}
+
+/**
+ * A site-wide video playlist dropped into a story (NY Post's Connatix player under "Today's Video Headlines",
+ * with "Keep Watching" and its own "Close Player", F1125): its clips are other stories, so it is noise.
+ * One whose clip title shares a word with the story's headline is the story's own video and stays.
+ */
+function sitePlaylist(el: Element): boolean {
+  const box = el.closest(".cnx-main-container");
+  if (!box) return false;
+  const head = topicWords(clean(document.querySelector("h1")?.textContent) || document.title);
+  if (!head.size) return true;
+  // The clip's title, drawn in the player's shadow roots.
+  const titles: string[] = [];
+  const look = (root: ParentNode, depth: number) => {
+    for (const e of Array.from(root.querySelectorAll("*"))) {
+      if (titles.length < 6 && (/(^|-)title$/.test(e.localName) || /(^|[\s_-])title($|[\s_-])/i.test(tokens(e)))) titles.push(clean(e.textContent));
+      const sr = depth < 3 ? shadowOf(e) : null;
+      if (sr) look(sr, depth + 1);
+    }
+  };
+  look(box, 0);
+  return !titles.some((x) => [...topicWords(x)].some((w) => head.has(w)));
 }
 
 /**
@@ -2037,7 +2086,7 @@ function facadeBlock(el: Element, ctx: Ctx): Block | null {
   const video = el.querySelector("video") ?? deepQuery(el, "video");
   if (video) {
     const vr = video.getBoundingClientRect();
-    if (vr.width < 200 || r.width * r.height > vr.width * vr.height * 2.2) return null;
+    if (vr.width < 200 || r.width * r.height > vr.width * vr.height * 2.2 || sitePlaylist(video)) return null;
   } else if (tlen(el) > 200) return null;
   const play = video ? null : playTarget(el);
   if ((!video && !play) || !claimPortal(el, ctx)) return null;
@@ -2284,6 +2333,7 @@ export function toField(el: Element): Field | null {
     return {
       ...base, kind: "spinbutton", value: attr("aria-valuenow") ?? "", min: attr("aria-valuemin"), max: attr("aria-valuemax"),
       valueText: attr("aria-valuetext") ?? (clean(textIn(el)) || undefined), readOnly: el.getAttribute("aria-readonly") === "true" || undefined,
+      shown: clean(textIn(el)) || undefined,
     };
   }
   if ((el as HTMLElement).isContentEditable || role === "textbox" || role === "searchbox") {
@@ -3884,22 +3934,79 @@ export function walk(parent: Element, out: Out, ctx: Ctx, skip?: Element | null)
  */
 function marqueeCopies(ks: Element[]): Set<Element> | null {
   if (ks.length < 2) return null;
-  let byLen: Map<number, Element[]> | null = null;
+  // Per text length: the first sibling of that length, then (once a second one shares it) the keys seen.
+  // Each sibling's key is built once, so 6000 same-length comments stay linear (F1111).
+  let byLen: Map<number, Element | Set<string>> | null = null;
   let out: Set<Element> | null = null;
   const key = (e: Element) => `${e.localName}|${(e.textContent ?? "").replace(/\s+/g, " ").trim()}|${Array.from(e.querySelectorAll("a[href]"), (a) => (a as HTMLAnchorElement).href).join(" ")}`;
   for (const k of ks) {
     const n = tlen(k);
     // Short twins ("Yes", "Reply") are separate controls; only a long run of the same words is a copy.
     if (n < 40) continue;
-    const same = (byLen ??= new Map<number, Element[]>()).get(n);
-    if (!same) {
-      byLen.set(n, [k]);
+    let seen = (byLen ??= new Map<number, Element | Set<string>>()).get(n);
+    if (!seen) {
+      byLen.set(n, k);
       continue;
     }
-    if (!k.querySelector("input, select, textarea") && same.some((o) => key(o) === key(k))) (out ??= new Set()).add(k);
-    else same.push(k);
+    if (!(seen instanceof Set)) byLen.set(n, (seen = new Set([key(seen)])));
+    const kk = key(k);
+    if (!k.querySelector("input, select, textarea") && seen.has(kk)) (out ??= new Set()).add(k);
+    else seen.add(kk);
+  }
+  return out && stripCopies(ks, out);
+}
+
+/**
+ * Of the twins marqueeCopies found, only a real repeated strip is said once (F1131): copies hidden from screen
+ * readers, drawn off screen, inside a ticker or marquee box, or a strip of short items that fills its box three
+ * or more times in a row (G1's quote ticker). Content that happens to repeat stays: a pricing cell that two plans
+ * share, a poem's refrain, and the visible twin of a hidden responsive block (its earlier twin is not shown).
+ */
+function stripCopies(ks: Element[], copies: Set<Element>): Set<Element> | null {
+  const norm = (e: Element) => `${e.localName}|${(e.textContent ?? "").replace(/\s+/g, " ").trim()}`;
+  const keys = ks.map(norm);
+  const first = new Map<string, Element>();
+  const count = new Map<string, number>();
+  keys.forEach((k, i) => {
+    if (!first.has(k)) first.set(k, ks[i]);
+    count.set(k, (count.get(k) ?? 0) + 1);
+  });
+  // The whole box is one strip repeated: siblings i and i - p always match.
+  const m = Math.max(...count.values());
+  const p = ks.length / m;
+  let run = m >= 3 && Number.isInteger(p) && keys.every((k, i) => i < p || k === keys[i - p]);
+  if (run) {
+    // A ticker's strip is short items ("Dólar", "R$ 5,40", "8,2%"), never a sentence.
+    const parts: number[] = [];
+    for (const u of ks.slice(0, p)) {
+      const w = document.createTreeWalker(u, NodeFilter.SHOW_TEXT);
+      for (let n = w.nextNode(); n; n = w.nextNode()) {
+        const s = (n.nodeValue ?? "").trim().length;
+        if (s) parts.push(s);
+      }
+    }
+    run = parts.length >= 3 && parts.every((s) => s < 40);
+  }
+  const box = (e: Element) => {
+    for (let c: Element | null = e, i = 0; c && i < 4; c = c.parentElement, i++) if (/marquee|ticker/i.test(c.getAttribute("class") ?? "")) return true;
+    return false;
+  };
+  const offscreen = (e: Element) => {
+    const r = e.getBoundingClientRect();
+    return r.width > 0 && (r.left >= innerWidth || r.right <= 0);
+  };
+  let out: Set<Element> | null = null;
+  for (const c of copies) {
+    const o = first.get(norm(c));
+    if (!o || o === c || !visible(o)) continue;
+    if (run || c.getAttribute("aria-hidden") === "true" || box(c) || offscreen(c)) (out ??= new Set()).add(c);
   }
   return out;
+}
+
+/** A box that holds only the site's logo: a picture link and no words (MoinMoin's div#logo, F1046). */
+function logoBox(el: Element): boolean {
+  return el.localName === "div" && /^logo$/i.test(el.id) && !tlen(el) && el.querySelectorAll("a[href]").length === 1 && !!el.querySelector("a[href] img");
 }
 
 /** Sibling rows of one kind (2 to 50), each with a button and another button or link of its own, and no field to fill. */
@@ -4209,6 +4316,7 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
   if (++ctx.count > BUDGET) return budgetCut(out, ctx);
   if (tag === "slot") return walk(el, out, ctx);
   if (isAd(el) || ctx.drop?.(el)) return;
+  if (el.classList.contains("cnx-main-container") && sitePlaylist(el)) return;
   // A link through Google's ad click redirect is an ad, labeled or not (Maps' tour ad under "Sponsored · By …": F961).
   if (tag === "a" && AD_CLICK.test(el.getAttribute("href") ?? "")) return;
   if (!ctx.inArticle && sweepstakes(el)) return;
@@ -4309,9 +4417,13 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
     if (i > 0) {
       fromTitle(el, out, ctx);
       for (const k of ks.slice(0, i)) visit(k, out, ctx);
+      // The logo box set just before the header (MoinMoin's div#logo, a picture link) follows the title too.
+      const logo = el.previousElementSibling;
+      if (logo && logoBox(logo)) walk(logo, out, ctx);
       return;
     }
   }
+  if (logoBox(el) && el.nextElementSibling && /^header$/i.test(el.nextElementSibling.id) && ctx.titleEl && el.nextElementSibling.contains(ctx.titleEl) && !inMain(el)) return;
   if (isChrome(el, ctx)) return;
   // A site bar outside the main region that also holds the page's title (an h1
   // in the masthead) keeps only the title.
@@ -6502,6 +6614,15 @@ export function findSearch(ctx: Ctx): Field | undefined {
     const plain = own.filter((b) => !b.matches("[role=tab], [role=option], [role=menuitem], [role=switch], [role=checkbox], [role=radio], [aria-pressed], [aria-selected]"));
     // Its id counts as a name too, so the role check comes first (Booking's tab id "calendar-searchboxdatepicker-tab-trigger").
     btn = plain.find(named) ?? plain.find((b) => (b as HTMLButtonElement).type === "submit" || b.getAttribute("type") === "image") ?? null;
+    // The form's other submit buttons search the same box another way (MoinMoin's "Titles" and "Text"):
+    // they stay beside it in the bar, in the page's order (F1101). Only those marked as submits, with words.
+    const more = btn ? plain.filter((b) => b !== btn && /^(submit|image)$/i.test(b.getAttribute("type") ?? "") && b.matches("button, input")) : [];
+    for (const b of more.slice(0, 3)) {
+      const label = b instanceof HTMLInputElement ? clean(b.value) || clean(b.alt) || accName(b) : textIn(b) || accName(b);
+      if (!label || label.length > 30 || !/\p{L}/u.test(label)) continue;
+      ctx.used.add(b);
+      (f.moreSubmits ??= []).push({ ref: refOf(b), label, before: !!(b.compareDocumentPosition(btn!) & Node.DOCUMENT_POSITION_FOLLOWING) });
+    }
   }
   // No button in the form, or no form: a nearby button that says search
   // (Google Maps keeps it outside the form). Never just any button nearby.
@@ -6673,6 +6794,17 @@ const ACCOUNT_ICON = /(^|[\s_-])(my ?account|account|avatar|profile|user)(?=$|[\
 /** A status page's "Subscribe to updates" (Statuspage): a button that opens the ways to follow it, not a paid appeal. */
 const UPDATES_LABEL = /\b(subscribe|sign up|suscr[ií]b\w*)\b.*\b(updates|alerts|notifications|actualizaciones|alertas|notificaciones)\b/i;
 
+/** Held by a box moved beside the window (fixed, absolute or translated: a closed drawer), not by a row that starts on screen. */
+function slidOut(el: Element): boolean {
+  for (let a: Element | null = el; a && a !== document.body; a = a.parentElement) {
+    const r = a.getBoundingClientRect();
+    if (r.right > 0 && r.left < innerWidth) return false;
+    const cs = getComputedStyle(a);
+    if (cs.position === "fixed" || cs.position === "absolute" || cs.transform !== "none" || cs.translate !== "none") return true;
+  }
+  return true;
+}
+
 export function findTop(): Action[] {
   const roots = Array.from(document.querySelectorAll("header, [role=banner], nav")).filter((n) => !n.closest("footer,article"));
   // A site header built from plain boxes (Infobae's div#siteheader.site-header) at the top of the page.
@@ -6700,8 +6832,9 @@ export function findTop(): Action[] {
       const updates = UPDATES_LABEL.test(label) && (el.hasAttribute("aria-haspopup") || el.matches("button, [role=button]"));
       if (!label || label.length > 50 || (!TOP_LABEL.test(probe) && !updates)) continue;
       // A closed slide-in panel sits beside the window: its copy of "Sign in" is not on screen.
+      // A header row that only runs past a narrow window (Daily Mail's 964 px masthead at 200% zoom) still offers it (F1128).
       const box = el.getBoundingClientRect();
-      if (box.left >= innerWidth || box.right <= 0) continue;
+      if ((box.left >= innerWidth || box.right <= 0) && slidOut(el)) continue;
       // "INICIAR SESION" and "Iniciar sesión" are one action.
       const k = label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
       if (seen.has(k)) continue;
@@ -7487,7 +7620,8 @@ function pageShowsDate(iso: string, dayMonth = false): "this" | "other" | "none"
     const p = n.parentElement;
     if (!p || /^(script|style|noscript|template)$/.test(p.localName) || p.closest("footer, [role=contentinfo]")) continue;
     // A date split over spans ("<span>Oct 26</span>, <span>2026</span>") reads whole in its box.
-    const box = p.parentElement && (p.parentElement.textContent?.length ?? 0) < 200 ? p.parentElement : p;
+    // (tlen is measured once per pass: the box's own text, built for every dated entry of a long list, was quadratic: F1136.)
+    const box = p.parentElement && tlen(p.parentElement) < 200 ? p.parentElement : p;
     if (re.test(s) || re.test(box.textContent ?? "")) return "this";
     if (/\b(19|20)\d\d\b/.test(s)) other = true;
   }
@@ -7675,6 +7809,16 @@ function docTitle(site: string): string {
 }
 
 /**
+ * A link to this page itself, whatever query the visit added (?utm_source=, the ?pow_referer= a wiki's
+ * bot check redirects to): same path, and every parameter the link has, the address has too (F1135).
+ */
+function thisPageLink(a: HTMLAnchorElement): boolean {
+  if (a.origin !== location.origin || a.pathname !== location.pathname) return false;
+  const here = new URLSearchParams(location.search);
+  return Array.from(new URLSearchParams(a.search)).every(([k, v]) => here.getAll(k).includes(v));
+}
+
+/**
  * The page's own title: the visible h1 that best matches the page title, not a
  * headline inside a story card or a heading inside an answer or comment.
  */
@@ -7690,7 +7834,7 @@ export function titleH1(articleEl: Element | null = null): Element | null {
   for (const h of h1s) {
     // A headline that links to another page is a story card, not this page's title.
     const a = h.closest("a[href]") ?? h.querySelector("a[href]");
-    if (a && !inPage(a) && (a as HTMLAnchorElement).href.split("#")[0] !== location.href.split("#")[0]) continue;
+    if (a && !inPage(a) && !thisPageLink(a as HTMLAnchorElement)) continue;
     const words = norm(textIn(h)).split(" ").filter((w) => w.length > 2);
     if (!words.length) continue;
     // Headlines and their short <title> versions share most of the shorter one's words.

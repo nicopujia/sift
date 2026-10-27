@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Multi submit search - Test Site</title></head>
+<body>
+<!-- F1101: a header search form with two submit buttons; the main one (it says Search) comes second. -->
+<header>
+  <a href="/fx/r11conv1b-multisubmit.html">Test Site</a>
+  <form id="sf" action="/fx/r11conv1b-multisubmit.html" method="get">
+    <input type="search" name="q" aria-label="Search the site">
+    <input type="submit" name="where" value="Images">
+    <button type="submit" name="go" value="1">Search</button>
+  </form>
+</header>
+<main>
+  <h1>Multi submit search</h1>
+  <p id="got"></p>
+  <p>This page has a search form whose first submit button searches images and whose second one, named Search, searches pages. Pressing Enter in the field uses the first one, as the browser always does.</p>
+</main>
+<script>document.getElementById("got").textContent = "Query: " + (location.search || "none");</script>
+</body>
+</html>

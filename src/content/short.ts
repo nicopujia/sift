@@ -7,6 +7,7 @@
 
 import type { Block, Inline } from "./model";
 import { textOf, wordCount } from "./model";
+import { onlyTicks } from "../shared/ticks";
 
 export interface Link {
   a: string;
@@ -196,8 +197,12 @@ const LONG = 8;
  */
 const TICK =
   /\d{1,2}(?::|h)\d{2}(?!\d)|(?<!\p{L})(?:ago|just now|geleden|temu|назад)(?!\p{L})|(?<!\p{L})hace\s+(?:\d|un[oa]?s?\s|pocos?\s)|\d+\s*(?:s|secs?|seconds?|m|mins?|minutes?|h|hrs?|hours?|segundos?|minutos?|horas?|secondes?|heures?|sekunden|minuten|stunden|secondi|minuti|ore)(?!\p{L})|\d[\d.,]*\s*[kmb]?\s+(?:\p{L}+\s+){0,2}(?:views?|viewers?|watching|likes?|comments?|shares?|reads?|vistas?|visitas?|viendo|reproducciones|visualizaciones|comentarios?|vues|commentaires?|aufrufe|kommentare|visualizzazioni|commenti)(?!\p{L})/iu;
-/** Whether a prose part counts as one whose change matters: a longer one, or a short one of a few words that does not tick. */
-const counts = (u: Unit) => u.kind === "p" && (u.words >= LONG || (normWords(u.plain).split(" ").length >= 3 && !TICK.test(u.plain)));
+/**
+ * Whether a prose part counts as one whose change matters: a longer one, or a
+ * short one that says more than a time or a count ("Doors open at 19:30.",
+ * "Pool: closed"; not "Updated 10:32", "5 min ago").
+ */
+const counts = (u: Unit) => u.kind === "p" && (u.words >= LONG || !onlyTicks(u.plain, TICK));
 
 function hash(s: string): number {
   let h = 0x811c9dc5;

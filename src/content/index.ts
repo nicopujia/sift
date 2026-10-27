@@ -381,7 +381,11 @@ function boot() {
     if (spot?.inSheet && opener) {
       const o = opener;
       if (tryFocus(o.el, true)) return;
-      const same = Array.from(shadow.querySelectorAll<HTMLElement>(FOCUSABLE)).find((c) => c.localName === o.tag && labelOf(c) === o.label && !c.closest(".layer") && c.getClientRects().length > 0);
+      // Re-rendered: the control for the same page element first (a combobox whose label now shows the pick, F1112), else one with the same label.
+      const ref = o.el.dataset.ref;
+      const outside = Array.from(shadow.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((c) => c.localName === o.tag && !c.closest(".layer, .suggest") && c.getClientRects().length > 0);
+      const byRef = ref ? outside.filter((c) => c.dataset.ref === ref) : [];
+      const same = byRef.find((c) => labelOf(c) === o.label) ?? byRef[0] ?? outside.find((c) => labelOf(c) === o.label);
       if (tryFocus(same, true)) return;
     }
     if (spot && spot.list >= 0) {
@@ -975,10 +979,21 @@ function boot() {
     // A digit typed in a segment the page edits itself (React Aria's date and time fields) reaches it as
     // the browser sends it after an uncancelled keydown: beforeinput, then input if not cancelled (F1041).
     const typed = /^[0-9]$/.test(e.key) && (el as HTMLElement).isContentEditable;
-    proxy.key(el, e.key, typed ? () => {
-      const init = { inputType: "insertText", data: e.key, bubbles: true, cancelable: true, composed: true };
-      if (el.dispatchEvent(new InputEvent("beforeinput", init))) el.dispatchEvent(new InputEvent("input", { ...init, cancelable: false }));
-    } : undefined);
+    // The page moves on to the next segment once one is filled (12, then the day), or on ArrowRight: during
+    // the key the page-world helper names the segment as the active element and lets the page's focus
+    // manager find the next one, whose focus() Sift then follows to its copy (F1103).
+    const seg = el.getAttribute("role") === "spinbutton";
+    store.actAt = Date.now();
+    if (seg) el.dispatchEvent(new CustomEvent("sift-enter", { bubbles: true, composed: true, detail: "key" }));
+    try {
+      proxy.key(el, e.key, typed ? () => {
+        const init = { inputType: "insertText", data: e.key, bubbles: true, cancelable: true, composed: true };
+        if (el.dispatchEvent(new InputEvent("beforeinput", init))) el.dispatchEvent(new InputEvent("input", { ...init, cancelable: false }));
+      } : undefined);
+    } finally {
+      // On the document: the page may have replaced the segment meanwhile.
+      if (seg) document.dispatchEvent(new CustomEvent("sift-leave", { detail: "key" }));
+    }
     store.actAt = Date.now();
     keyAct(el, tg);
     return true;
@@ -2590,6 +2605,8 @@ function boot() {
       if (m.type === "attributes") {
         const n = m.attributeName ?? "";
         if (n.startsWith("data-sift") || n === "inert" || n === "popover" || n === "role") continue;
+        // A name or id written again with the same value changed nothing.
+        if ((n === "aria-label" || n === "aria-labelledby" || n === "id") && m.oldValue === (tgt as Element).getAttribute(n)) continue;
       }
       if (q.some((el) => deepContains(el, tgt))) {
         inQuiet = true;
@@ -2663,7 +2680,8 @@ function boot() {
     attributes: true,
     // To tell a real change from a page writing the same value again (see noteMutations).
     attributeOldValue: true,
-    attributeFilter: ["class", "hidden", "open", "aria-hidden", "aria-expanded", "aria-selected", "aria-checked", "aria-pressed", "aria-disabled", "disabled", "value", "src", "href", "style", "inert"],
+    // Names a page sets after it mounts (React Aria points a date segment's aria-labelledby at its own id a moment later, F1110).
+    attributeFilter: ["class", "hidden", "open", "aria-hidden", "aria-expanded", "aria-selected", "aria-checked", "aria-pressed", "aria-disabled", "disabled", "value", "src", "href", "style", "inert", "aria-labelledby", "aria-label", "id"],
   };
   mo.observe(document, moOpts);
   observeRoot = (r) => mo.observe(r, moOpts);
@@ -3407,16 +3425,11 @@ function boot() {
           if (blurPending && commitsField(el, blurPending)) proxy.change(blurPending);
           if (el.localName === "a") followSeek();
           // A click the page's consent wall swallowed shows that wall, and why (F1034).
-          // The clicked path, and what the page adds to <body> during the click, are out of `inert`
-          // while it runs: a Copy button selects a text field it appends and copies with execCommand
-          // (clipboard.js, copy-to-clipboard). Focus the page took meanwhile comes back to Sift, which
-          // then follows it as it follows a focus the page could not move (its menu's first item) (F1040).
-          const back = proxy.deepActive();
-          const swallowed = clickSwallowed(el, () => withoutShield(() => proxy.click(el), el));
-          const now = document.activeElement;
-          const took = now && now !== host && now !== document.body && now !== document.documentElement ? proxy.deepActive() : null;
-          if (back && shadow.contains(back) && shadow.activeElement !== back) back.focus({ preventScroll: true });
-          if (took?.isConnected) took.dispatchEvent(new CustomEvent("sift-focus", { bubbles: true, composed: true }));
+          // The page stays inert during the click: a focus() it makes then (a menu's first item, a name
+          // turned editable, a popup's button) fails and Sift follows it, without blurring what the page
+          // focused, which closes menus and ends edits (F1102). A Copy button that copies with execCommand
+          // still copies: the page-world helper gives the copy the text the page selected (F1040).
+          const swallowed = clickSwallowed(el, () => proxy.click(el));
           const wall = swallowed && store.mode === "sift" ? consentWallUp() : null;
           if (wall) showConsent(wall, "click");
           flushBlur();

@@ -342,7 +342,7 @@ function FieldView({ f, formRef, group }: { f: Field; formRef?: string; group: s
             aria-invalid={f.invalid || undefined}
             {...fieldEvents(f.ref)}
           >
-            {f.valueText || f.value}
+            {f.shown || f.valueText || f.value}
           </span>
         </div>
       );
@@ -876,7 +876,18 @@ export function BlockView({ b }: { b: Block }) {
     case "pre":
       return <pre>{b.text}</pre>;
     case "img": {
-      const img = <img class="content" src={b.img.src} alt={b.img.alt} loading="lazy" decoding="async" style={b.img.w ? { width: Math.min(b.img.w, 800) + "px" } : undefined} />;
+      // A tall photo (a portrait crop, not a long chart) is at most about the window's height, in its own shape (F1129).
+      // The photo the page served decides (La Nación's narrow layout serves a portrait crop of a wide hero).
+      const { w, h } = b.img;
+      const wide = w ? Math.min(w, 800) + "px" : "";
+      const tall = (r: number) => r > 1 && r <= 2.2;
+      const img = (
+        <img
+          class="content" src={b.img.src} alt={b.img.alt} loading="lazy" decoding="async"
+          style={w ? { width: h && tall(h / w) ? `min(${wide}, ${((80 * w) / h).toFixed(2)}vh)` : wide } : undefined}
+          onLoad={(e) => e.currentTarget.classList.toggle("tall", tall(e.currentTarget.naturalHeight / Math.max(1, e.currentTarget.naturalWidth)))}
+        />
+      );
       return (
         <figure>
           {b.href ? <A href={b.href} refId={b.ref} label={b.img.alt || b.caption || t("openImage")}>{img}</A> : img}
@@ -944,7 +955,10 @@ function SearchBox({ f }: { f: Field }) {
         {...fieldEvents(f.ref)}
         {...comboProps(f)}
       />
-      <button type="submit" class="btn primary">{f.submitLabel || t("search")}</button>
+      {f.moreSubmits?.filter((b) => b.before).map((b) => <button key={b.ref} type="button" class="btn" data-ref={b.ref} onClick={() => H.act(b.ref)}>{b.label}</button>)}
+      {/* After another submit on the page, this one is not what Enter presses: it is pressed itself. */}
+      <button type="submit" class="btn primary" onClick={f.moreSubmits?.some((b) => b.before) && f.submit ? (e) => { e.preventDefault(); H.act(f.submit); } : undefined}>{f.submitLabel || t("search")}</button>
+      {f.moreSubmits?.filter((b) => !b.before).map((b) => <button key={b.ref} type="button" class="btn" data-ref={b.ref} onClick={() => H.act(b.ref)}>{b.label}</button>)}
     </form>
   );
 }
@@ -1106,6 +1120,16 @@ export function suggestAnchor(): HTMLElement | null {
   return root?.querySelector(".sheet.suggest") && anchor.el?.isConnected ? anchor.el : null;
 }
 
+/** The Sift control the user last pressed outside a sheet, and when: what a sheet that then opens is about (F1127). */
+const pressed = { label: "", at: -Infinity };
+function notePress(e: MouseEvent) {
+  const a = (e.target as HTMLElement | null)?.closest?.("button, a, summary, [role=button]") as HTMLElement | null;
+  if (!a || a.closest(".layer, .sheet")) return;
+  const lab = (a.getAttribute("aria-label") || a.innerText || "").trim();
+  pressed.label = lab.length <= 60 ? lab : "";
+  pressed.at = performance.now();
+}
+
 function DialogView({ page }: { page: Page }) {
   const d = page.dialog!;
   const box = useRef<HTMLDivElement>(null);
@@ -1140,7 +1164,11 @@ function DialogView({ page }: { page: Page }) {
   const choices = !!field && !close && d.blocks.length === 1 && d.blocks[0].t === "actions";
   useEffect(() => markSuggest(field, field ? box.current : null, d.key, choices ? new Set((d.blocks[0] as Extract<Block, { t: "actions" }>).actions.filter((a) => a.pressed).map((a) => a.ref)) : undefined));
   useEffect(() => () => markSuggest(null, null, ""), []);
-  const name = d.title || firstLine(d.blocks) || page.title;
+  // A sheet with no name of its own is named by the Sift control the user pressed to open it (BBC's
+  // search drawer: "Search"), never by the page's title (F1127). Read once per sheet, before focus moves in.
+  const opener = useRef({ key: "", label: "" });
+  if (opener.current.key !== d.key) opener.current = { key: d.key, label: performance.now() - pressed.at < 5000 ? pressed.label : "" };
+  const name = d.title || firstLine(d.blocks) || opener.current.label || page.title;
   if (field) {
     const r = field.getBoundingClientRect();
     const top = Math.round(r.bottom + 4);
@@ -1254,7 +1282,7 @@ export function App() {
   // The live region and the switch stay usable.
   const behind = store.menuOpen || (!!dialog && !anchorOf(dialog) && !typedOver(dialog));
   return (
-    <div class="sift" lang={page?.lang || undefined} dir={dirOf(page?.lang)}>
+    <div class="sift" lang={page?.lang || undefined} dir={dirOf(page?.lang)} onClickCapture={notePress}>
       <button type="button" class="skip" inert={behind} onClick={(e) => (e.currentTarget.getRootNode() as ShadowRoot).getElementById("sift-main")?.focus()}>
         {t("skip")}
       </button>
@@ -1298,11 +1326,33 @@ export function App() {
   );
 }
 
+/**
+ * A lead photo above the title that would push the title below the first screen (La Nación's portrait crop
+ * at 200% zoom, F1129) goes after the title and its byline and standfirst: the title comes first.
+ */
+function titleFirst(blocks: Block[], h1: Block): Block[] {
+  const at = blocks.indexOf(h1);
+  const pic = blocks.slice(0, at).find((b): b is Extract<Block, { t: "img" }> => b.t === "img");
+  if (!pic?.img.w || !pic.img.h) return blocks;
+  // As drawn: the column's width, at most 80% of the window's height (img.content in BlockView).
+  const drawn = Math.min((Math.min(800, pic.img.w, innerWidth - 32) * pic.img.h) / pic.img.w, innerHeight * 0.8);
+  if (drawn <= innerHeight - 220) return blocks;
+  let end = at + 1;
+  while (end < blocks.length && end - at <= 3) {
+    const b = blocks[end];
+    if (b.t !== "actions" && !(b.t === "p" && textOf(b.content).length <= 300)) break;
+    end++;
+  }
+  const out = blocks.filter((b) => b !== pic);
+  out.splice(end - 1, 0, pic);
+  return out;
+}
+
 /** The page's blocks, with its own first h1 (if any) rendered as Sift's h1. */
 function FirstH1Blocks({ blocks, h1 }: { blocks: Block[]; h1?: Extract<Block, { t: "h" }> }) {
   return (
     <>
-      {blocks.map((b) =>
+      {(h1 ? titleFirst(blocks, h1) : blocks).map((b) =>
         b === h1 ? <h1 key={b.key}>{h1.href ? <A href={h1.href} refId={h1.ref}>{h1.text}</A> : h1.text}</h1> : <BlockView key={b.key} b={b} />,
       )}
     </>

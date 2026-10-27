@@ -6,7 +6,7 @@ import type { AiReply, AiRequest, LineInput, ModelCfg, RuntimeMsg, Settings } fr
 import { mergeSettings } from "../shared/messages";
 import { cacheClear, cacheGet, cacheSet } from "./cache";
 import { bump, flushStats } from "./stats";
-import { addsLink, addsSpeaker, claimsNoAnswer, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, movesKicker, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, swapsPerson, unquoted, unsupported } from "./text";
+import { addsLink, addsSpeaker, claimsNoAnswer, dropRepeats, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, movesKicker, proseLang, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, swapsPerson, swapsRole, unquoted, unsupported } from "./text";
 
 // ---------- settings ----------
 
@@ -529,7 +529,9 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
     if (hit === KEEP_TITLE) continue;
     // A saved line passes the same checks as a new one (it may have been saved
     // before they existed, or for an older context); one that fails keeps the title.
-    const shown = hit && (hit === it.t ? hit : scriptFits(hit, langs[i] ? langScript(langs[i]) : scriptOf(it.t), it.t) && vetLine(hit, it, mode));
+    // Its language too, not only its script: an Indonesian line saved for a Spanish page (F1122).
+    const vetted = hit && hit !== it.t ? vetLine(hit, it, mode) : null;
+    const shown = hit && (hit === it.t ? hit : vetted && (await lineFits(vetted, langs[i], it.t)) && vetted);
     if (shown) reply({ id: req.id, item: it.id, text: shown });
     else if (!hit) misses.push({ it, key: keys[i], lang: langs[i] });
   }
@@ -707,6 +709,8 @@ function vetLine(raw: string, it: LineInput, mode: string): string | null {
   if (mode !== "gist" && (claimsNoAnswer(text, src) || addsSpeaker(text, src) || addsLink(text, src) || quoteAsFact(text, it.t))) return null;
   // A group or an ally given to the wrong person, or a kicker's quote set beside another noun (F1036).
   if (mode !== "gist" && (swapsPerson(text, src) || movesKicker(text, it.t) || movesKicker(text, it.c ?? ""))) return null;
+  // The victim made the suspect, the winner the loser (F1124).
+  if (mode !== "gist" && swapsRole(text, src)) return null;
   if (mode === "news" ? META.test(text) : wrapsTitle(text, it.t)) return null;
   return text;
 }
@@ -750,10 +754,11 @@ function langName(lang: string): string {
 }
 
 /**
- * The language a Short version is written in: the page's, unless its text is
- * clearly in another one (a Spanish page marked "en"). "" when neither is known.
+ * The language a Short version is written in: the one its text is in, which
+ * is the page's unless the text is clearly in another one (a Spanish or a
+ * Polish page marked "en"). "" when it is not known: no language is named.
  */
-const condenseLang = (req: { lang: string; text: string }) => entryLang(proseText(req.text).slice(0, 6000), req.lang, detect);
+const condenseLang = (req: { lang: string; text: string }) => proseLang(proseText(req.text).slice(0, 6000), req.lang, detect);
 
 /**
  * A Short version in the language asked for (F1035): written in its script,
@@ -848,11 +853,15 @@ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: 
         2000,
       );
       // A note of the model's own about its task ("El texto fuente contiene…") is not part of the text.
-      all = all.slice(0, from) + stripPreamble(all.slice(from));
+      all = all.slice(0, from) + stripPreamble(all.slice(from), part);
       const got = all.slice(from);
       // A rewrite in another language (an English one of a Portuguese article) is asked for once more, told so; never shown or saved.
       if (!(await condenseFits(got, want))) {
-        if (again) return reply({ id: req.id, error: "the Short version came back in another language", code: "http", final: true });
+        if (again) {
+          // Remembered for a day, as other final failures are: a revisit does not pay twice again (F1118).
+          if (useCache) cacheSet(key, NO_SHORT, Math.min(ttlOf(req, pc) ?? DAY, DAY));
+          return reply({ id: req.id, error: "the Short version came back in another language", code: "http", final: true });
+        }
         note = ` A first rewrite was not in ${langName(want)}. Write only in ${langName(want)}, the language of the text. Never translate.`;
         continue;
       }
@@ -882,8 +891,9 @@ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: 
    * that states a quote, a speaker, or a number the source does not.
    */
   function checked(out: string) {
-    // The input's "Title:" field echoed as a line is no part of the text.
-    return keepQuotes(dropUnsupported(stripPreamble(dropTitleLine(out, req.title, req.text)), source), source);
+    // The input's "Title:" field echoed as a line is no part of the text. Nor is a sentence it says twice (F1100).
+    // Numbers are checked in the text's language: "" (not known) checks none (F1115).
+    return dropRepeats(keepQuotes(dropUnsupported(stripPreamble(dropTitleLine(out, req.title, req.text), req.text), source, want), source));
   }
 
   /** `from`: the text the Short version was made from. */

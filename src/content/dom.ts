@@ -522,6 +522,18 @@ function pictureWords(svg: Element): string {
 const ICON_WORD = /\b(icons?|logo|arrow|chevron|caret|close|search|menu|share|star|heart|like|comments?|play|pause|info|external|download|clock|calendar|location|pin|eye|view|user|bookmark|cart|bell|check|plus|minus)\b/;
 
 /**
+ * A picture's name is read with the words beside it only when it adds meaning ("Not included", "Yes"
+ * drawn as a cross or a tick, F1010): never a decorative icon's name ("star", "arrow", "chevron down")
+ * or words the text says already (a "Red" swatch beside "Red") (F1132, F1133). A mark that alone says
+ * a state ("check", "plus") still counts.
+ */
+export function pictureAdds(name: string, said: string): boolean {
+  const n = name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  if (!n || (!/\d/.test(n) && n.split(" ").length <= 3 && ICON_WORD.test(n) && !/^(check|check ?mark|tick|cross|plus|minus)$/.test(n))) return false;
+  return !` ${said.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ")} `.includes(` ${n} `);
+}
+
+/**
  * With no hidden twin, an icon that alone says a short cell's state is read by
  * its title (weather.com's hourly strip: "15:00", a sun titled "Sunny", "66°").
  */
@@ -619,7 +631,9 @@ function idrefText(el: Element, attr: string): string {
       .split(/\s+/)
       .map((id) => el.ownerDocument.getElementById(id))
       .filter(Boolean)
-      .map((n) => (n as HTMLElement).innerText || n!.textContent)
+      // A referenced node's own aria-label is its name, as in the accessible-name rules: a date segment
+      // labelled by itself and the field reads "month, Reservation date", not "mm Reservation date" (F1110).
+      .map((n) => n!.getAttribute("aria-label")?.trim() || (n as HTMLElement).innerText || n!.textContent)
       .join(" "),
   );
 }
@@ -680,7 +694,15 @@ export function accName(el: Element): string {
 function labelWords(l: Element): string {
   const t = textIn(l);
   if (!t || !l.querySelector("[role=img][aria-label], img[alt]:not([alt=''])")) return t;
-  return contentName(l, true) || t;
+  // Only pictures that add meaning: not a product photo (an img bigger than an icon) or a swatch named by the words beside it (F1132).
+  const adds = (pic: Element, name: string) => {
+    if (pic instanceof HTMLImageElement) {
+      const w = pic.width || pic.getBoundingClientRect().width, h = pic.height || pic.getBoundingClientRect().height;
+      if (!w || !h || w > 32 || h > 32) return false;
+    }
+    return pictureAdds(name, t);
+  };
+  return contentName(l, true, adds) || t;
 }
 
 /** What an element without words says through its tooltip or picture (a label holding only an icon). */
@@ -700,7 +722,7 @@ function pictureName(el: Element): string {
  * pictures that name themselves (role=img with a label, an img's alt), without
  * the parts hidden from screen readers.
  */
-function contentName(el: Element, apart = false): string {
+function contentName(el: Element, apart = false, keep?: (pic: Element, name: string) => boolean): string {
   const parts: string[] = [];
   const go = (n: Element) => {
     for (let c = n.firstChild; c; c = c.nextSibling) {
@@ -713,8 +735,9 @@ function contentName(el: Element, apart = false): string {
       if (e.getAttribute("aria-hidden") === "true" || !visible(e)) continue;
       if (e.getAttribute("role") === "img" || e.localName === "img") {
         const name = clean(e.getAttribute("aria-label")) || clean((e as HTMLImageElement).alt);
-        if (name) parts.push(" ", name, " ");
-        else if (e.localName !== "img") go(e);
+        if (name) {
+          if (!keep || keep(e, name)) parts.push(" ", name, " ");
+        } else if (e.localName !== "img") go(e);
         continue;
       }
       if (NO_TEXT.has(e.localName)) continue;

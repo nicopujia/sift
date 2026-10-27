@@ -1,0 +1,1217 @@
+{
+ "confirmed": [
+  {
+   "source": "T1-youtube",
+   "title": "Playlist watch at 600 px and at 200% zoom: no Previous or Next in Sift, and Shift+N does nothing (remaining part of F1000)",
+   "severity": "medium",
+   "where": "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL2MI040U_GXobmpXtTwBF7oHBGT5BETSD at a 600 px window or 640x450@2x",
+   "evidence": "At 600 px and at 640x450@2x, Sift's bar is 'Pause|Back 10s|Ahead 10s|Mute|Captions|Full screen'. The original's .ytp-prev-button and .ytp-next-button are display:none at that player size. With focus on Back 10s, Shift+N leaves v=dQw4w9WgXcQ (t 73.6 -> 77.7). On the original at 600 px (Sift off, click on the video title, Shift+N), the URL becomes watch?v=yPYZpwSpKmA&list=\u2026&index=2. At 1000 and 1280 px, Sift shows 'Replay/Previous' and 'Next video', and Shift+N works. Zoom users can reach the next item only through the playlist section. Shots: /home/nico/projects/sift-test-1/research/shots/r11t1-plwatch-600.png, /home/nico/projects/sift-test-1/research/shots/r11t1-plwatch-200.png",
+   "repro": "cd /home/nico/projects/sift-test-1; SIFT_PORT=9461 SIFT_TAB=T1-youtube W=600 KEYS='Shift+N' GAP=4000 FOCUS='Back 10s' bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r11/keys.ts 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL2MI040U_GXobmpXtTwBF7oHBGT5BETSD'. The bar has no Previous/Next, and v stays dQw4w9WgXcQ. Original: SIFT_PORT=9461 SIFT_TAB=T1-youtube bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r11/origshiftn.ts prints index=2.",
+   "regression": false,
+   "suspectedCause": "The adapter sets media.prev/next, and app.tsx draws them, only when the player's own buttons exist and are shown (elOf). onKey for Shift+N/P also needs media.next/prev. When YouTube hides them in a small player, both go away. The playlist panel's next item (or the original's keyboard shortcut) could be used instead.",
+   "verdict": "Reproduced, three runs. On the playlist watch page at 600 px (twice) and at 640x450@2x (once), Sift's bar was 'Pause|Back 10s|Ahead 10s|Mute|Captions|Full screen|Position in video'. YouTube had hidden .ytp-prev-button and .ytp-next-button inline (style 'display: none;', player not in ytp-small-mode). With focus on Back 10s, Shift+N left v=dQw4w9WgXcQ in place (t 13.9 -> 18.9) both times. The original at 600 px (Sift off with trusted Alt+Shift+S, click on the title, Shift+N) went to v=yPYZpwSpKmA&index=2. At 1280 px, Sift's bar had 'Previous|Next video', and Shift+N went to index=2. The code matches the claim: youtube.ts playerBlock sets prev/next through vis(), which drops buttons whose computed display is none, and app.tsx onKey acts on Shift+N only when media.next is set. One nuance: at 600 px the original shows no Previous or Next buttons either. So the gap against the original is the Shift+N/Shift+P keys, plus F1000's policy, which asks for Previous and Next in Sift's bar on any playlist. Sift's playlist section ('RickAstley - Greatest Hits \u00b7 1 / 10') still reaches the next item. This is the same defect as F1000's remaining part.",
+   "fix": "src/content/adapters/youtube.ts playerBlock: when the URL has a list, keep .ytp-prev-button and .ytp-next-button even when YouTube hides them inline at small sizes. Use q(sel, player) without the computed-display check, as the captions button already does. Or fall back to the playlist panel's next and previous ytd-playlist-panel-video-renderer. Check that proxy.click on the hidden button (index.ts H.media 'next'/'prev') still advances the playlist; if not, replay Shift+N or Shift+P to #movie_player."
+  },
+  {
+   "source": "T1-youtube",
+   "title": "Playlist page: Sift's Menu has 3 entries (Home, Shorts, You); the original's menu button opens 11",
+   "severity": "medium",
+   "where": "https://www.youtube.com/playlist?list=PL2MI040U_GXobmpXtTwBF7oHBGT5BETSD (Menu)",
+   "evidence": "On a fresh load (15 s wait), I opened Sift's Menu twice. Both times it was 'Close | Home | Shorts | You'. The original's guide button on the same page opens 'Home | Shorts | Subscriptions | You | History | Music | Live | Gaming | Show more | YouTube Kids | Report history'. On home and watch, Sift's Menu matches the original's full guide. So on the playlist page, Subscriptions, History, Music, Live, Gaming, YouTube Kids and Report history cannot be reached. After the original's drawer had been opened once, Sift's Menu became a long list in a different order ('Home | You | History | Sign in | Music | \u2026 | About | Press | Copyright | \u2026 | Shorts'). It still had no Subscriptions or Show more. Shots: /home/nico/projects/sift-test-1/research/shots/r11t1-playlist-menu-fresh.png, /home/nico/projects/sift-test-1/research/shots/r11t1-orig-guide-playlist.png",
+   "repro": "cd /home/nico/projects/sift-test-1; SIFT_PORT=9461 SIFT_TAB=T1-youtube bun scripts/act.ts 'goto:https://www.youtube.com/playlist?list=PL2MI040U_GXobmpXtTwBF7oHBGT5BETSD' wait:15000 click:Menu wait:2000 \"eval:[...document.querySelector('sift-root').shadowRoot.querySelector('[role=dialog]').querySelectorAll('a,button')].map(e=>(e.getAttribute('aria-label')||e.innerText).trim()).join(' | ')\" prints 'Close | Home | Shorts | You'. Original: SIFT_PORT=9461 SIFT_TAB=T1-youtube bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r11/origguide.ts 'https://www.youtube.com/playlist?list=PL2MI040U_GXobmpXtTwBF7oHBGT5BETSD' lists 11 entries.",
+   "regression": false,
+   "suspectedCause": "/playlist still falls back to the generic extractor (the F1061 fix added only Settings). The generic extractor builds the Menu from the visible mini-guide (ytd-mini-guide-renderer). The adapter's own guide menu, used on home and watch, is not used here.",
+   "verdict": "Reproduced twice on fresh loads (15 s and 20 s waits). Sift's Menu dialog on /playlist?list=PL2MI040U_GXobmpXtTwBF7oHBGT5BETSD was 'Close | Home | Shorts | You'. The original's visible mini-guide on the same load had Home, Shorts, Subscriptions and You, so Sift drops Subscriptions even from that. With Sift off, a trusted click on YouTube's guide button opened 11 entries: Home, Shorts, Subscriptions, You, History, Music, Live, Gaming, Show more, YouTube Kids, Report history. On the home page right after, Sift's Menu was the full list: 'Home | Shorts | Subscriptions | You | History | Music | Live | Gaming | Show more | YouTube Kids | Report history'. The code agrees: youtube.extract returns null for /playlist, so the generic extractor builds the menu. youtube.fallback adds only Settings (top()) and the settings dialog, not the adapter's nav()/renderGuide(). Not in any rejected.md (round 5 rejected a different playlist-page report). Shot: /home/nico/projects/sift-test-1/research/shots/skep-playlist-menu.png",
+   "fix": "src/content/adapters/youtube.ts fallback(p): also set p.nav from the adapter's nav() when it returns entries. nav() calls renderGuide(), so the full guide gets drawn. Then pages the adapter does not read (playlist, channel) get the same Menu as home and watch."
+  },
+  {
+   "source": "T1-youtube",
+   "title": "Spanish home: an Indonesian title gets an Indonesian one-line description instead of a Spanish one",
+   "severity": "medium",
+   "where": "https://www.youtube.com/?persist_hl=1&hl=es (home list one-liners)",
+   "evidence": "lang es-ES/es-ES. The entry by 'Boram Tube Stories' (11:07, 410 M views) shows 'Koleksi video Boram tentang hari-hari yang menyenangkan'. Its title is 'Koleksi video hari-hari menyenangkan Boram!'. The line is a rewrite in Indonesian, with no lang attribute. The other 22 lines in the batch are Spanish ('Cinco preguntas que no debes responder\u2026' for a Persian title, 'Eggdog de vacaciones'). The same video on the English home gets 'Video collection of Boram's fun days'. It showed in 2 Spanish loads (the second from the cache). The cache was empty at the start (the worker was reinstalled), so the current build (PROMPT_VERSION 12) made the line. Shot: /home/nico/projects/sift-test-1/research/shots/r11t1-es-home-indonesian-line.png",
+   "repro": "cd /home/nico/projects/sift-test-1; SIFT_PORT=9461 SIFT_TAB=T1-youtube W=60 bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r11/lines.ts 'https://www.youtube.com/?persist_hl=1&hl=es'. Look for a Latin-script line in a language other than Spanish (here 'Koleksi video Boram tentang hari-hari yang menyenangkan'). The feed is personalized, so the entry may differ. Reset with ?persist_hl=1&hl=en.",
+   "regression": false,
+   "suspectedCause": "lineFits passes a same-script line when entryLang cannot reliably tell Indonesian from the page language, and then falls back to 'es'. A cached hit is checked again only with scriptFits and vetLine, not for language. A check that the line's language differs from the page's while matching the title's language could catch this.",
+   "verdict": "Confirmed by the stored line and by running Sift's own check. I could not put it on screen myself: in two Spanish home loads (lang es-ES/es-ES, 23 entries), the personalized feed had no Boram entry, and all lines were Spanish. But Sift's IndexedDB cache in this profile holds the value 'Koleksi video Boram tentang hari-hari yang menyenangkan', written 2026-10-27T05:27Z. The English line 'Video collection of Boram's fun days' is a separate entry. In the service worker, chrome.i18n.detectLanguage on that line returns isReliable true, id 100%. I ran src/background/text.ts with that detection: scriptFits(line, latin, title) is true, and entryLang(line, 'es', det, output=true) returns 'es'. So lineFits passes it. Indonesian has no FUNCTION_WORDS list, so entryLang falls back to the page's language. A German line with a reliable 'de' detection is caught (returns 'de'). So any reliably detected Latin-script language without a word list passes. Cached hits get only scriptFits and vetLine, so the line shows again on revisits. The reporter's shot matches.",
+   "fix": "src/background/text.ts entryLang: in output mode, when the detection is reliable, names a Latin-script language other than the page's, and that language has no FUNCTION_WORDS list, return the detected language instead of the page's (or add word lists such as id, tr, pl). Also in src/background/index.ts, check cached hits with lineFits (language), not only scriptFits and vetLine."
+  },
+  {
+   "source": "T1-youtube",
+   "title": "Watch comments stop at 400 threads in Sift while the original keeps loading (880)",
+   "severity": "medium",
+   "where": "https://www.youtube.com/watch?v=dQw4w9WgXcQ (Comments)",
+   "evidence": "wheelc2.ts opens Comments and wheels fast (25 x 2500 px bursts). Sift/original top-level threads went 140/140, 260/260, 400/400, 400/580, 400/760. After 10 s it was 400/760. Then End x3 gave 400/780, 400/800, 400/820, and 3 slow wheel steps gave 400/840, 400/860, 400/880. Sift's view sits at its end (65507 of 66407, client height 900), with no note or button after the last comment. Each scroll still makes the hidden original load more (it shows a continuation spinner), but Sift never shows them. The cause is in src/content/adapters/youtube.ts commentList(): .slice(0, 400), with the comment 'scrolling to the end of Sift loads more', which no longer holds past 400. That code is older than this round, so this is not a regression. Shot: /home/nico/projects/sift-test-1/research/shots/r11t1-comments-cap.png",
+   "repro": "cd /home/nico/projects/sift-test-1; SIFT_PORT=9461 SIFT_TAB=T1-youtube STEPS=5 bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t1r11/wheelc2.ts prints 'sift 400 orig 880' at the end.",
+   "regression": false,
+   "suspectedCause": "src/content/adapters/youtube.ts commentList() caps at .slice(0, 400), while index.ts keeps loading more on the original. Either raise or window the cap, or stop asking for more and say the list is cut there.",
+   "verdict": "Reproduced with my own script (opened Comments, then End plus wheel steps on Sift's view, 30 steps). Sift and original threads went 20/20, 80/80, 140/140, 260/260, 400/440, then Sift stayed at 400 while the original reached 1204, where YouTube's continuation ended. Sift's view sat at its end (65507/65507) for steps 7 to 30. Nothing came after the last comment ('Thanks for recommending <3') except Sift's switch, with no note or button. Each step still made the hidden original load another batch. The code agrees: youtube.ts commentList() does .slice(0, 400) under the comment 'scrolling to the end of Sift loads more', and loadMore() keeps scrolling the comments continuation into view. On this video, about two thirds of what the original offers cannot be reached, with no sign of it. This is silent loss of content, not polish, though only readers who scroll past 400 threads hit it. Shot: /home/nico/projects/sift-test-1/research/shots/skep-comments-end.png",
+   "fix": "src/content/adapters/youtube.ts commentList(): remove or raise the 400 cap (window it if rendering cost is the concern). Or, once the cap is reached, make loadMore() stop asking for more comments, and add a note at the end of Comments saying the list stops there, with a way to the original."
+  },
+  {
+   "source": "T2-news",
+   "title": "Mirror home headline line turns the murder victim into the charged murder suspect",
+   "severity": "high",
+   "regression": true,
+   "where": "https://www.mirror.co.uk/ (home headline lines; works.md line 58 said the rewritten home lines were faithful)",
+   "evidence": "Sift line: 'A man who died after being found in a wheelie bin is named as a murder suspect, who has been charged'. Original card: 'Man who died after being found in wheelie bin named as murder suspect charged'. Article lead: 'A man who died after being found seriously injured inside a wheelie bin in Plymouth has been named, as a 36-year-old suspect is charged with his murder. Mohamed Abotaka \u2026 accused of the murder of Ali Barzai.' So the line says the dead man is the charged suspect. That is the opposite of the story. The other 21 rewritten Mirror lines I read are faithful.",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://www.mirror.co.uk/ wait:30000 'eval:[...document.querySelector(\"sift-root\").shadowRoot.querySelectorAll(\"a\")].filter(a=>/wheelie bin/.test(a.innerText)).map(a=>a.innerText+\" | \"+a.href)'  then open https://www.mirror.co.uk/news/uk-news/man-who-died-after-being-37807551 and read the first paragraph. The line is cached, so it comes back on every visit.",
+   "suspectedCause": "The source headline packs two clauses with no punctuation ('\u2026named | murder suspect charged'). The news-line rewrite reads it as 'named as murder suspect'. vetLine does not check the line against the card's standfirst or the article's lead, which would settle who was charged.",
+   "verdict": "Reproduced on two loads. The Sift line reads 'A man who died after being found in a wheelie bin is named as a murder suspect, who has been charged'. The original card reads 'Man who died after being found in wheelie bin named as murder suspect charged', with no standfirst. The article lead says the dead man, Ali Barzai, was named and a 36-year-old, Mohamed Abotaka, is charged with his murder. So the rewrite takes the wrong reading of an ambiguous headline and states it as fact, which reverses who is the victim and who is the suspect. It is also longer than the headline it replaces. I count this as high severity. Calling it a regression is doubtful: this headline is new and was not among the 23 lines that works.md checked.",
+   "fix": "In src/background/index.ts, the news path in vetLine (around line 703) should keep the title, not the rewrite, when the line has as many words as the headline or more. NEWS_SYSTEM (around line 93) should also say that a headline already short, or ambiguous about who did what, is kept as written rather than resolved."
+  },
+  {
+   "source": "T2-news",
+   "title": "NY Post article opens with an unrelated autoplaying 'Today's Video Headlines' video",
+   "severity": "medium",
+   "regression": false,
+   "where": "https://nypost.com/2026/10/26/tech/microsoft-announces-buyouts-for-60k-employees-quarter-of-workforce-as-part-of-ai-transformation/",
+   "evidence": "The Sift outline shows these between the byline and the Short version: '[PORTAL] Interactive area from the original page: Connatix video player', 'Today's Video Headlines', 'Keep Watching', '[button] Close Player'. The player shows a clip about a Florida A&M shooting, which has nothing to do with the Microsoft story. It autoplays muted inside Sift's view (currentTime 22.5 s, then 25.5 s 3 s later). It pushes the Short version below the first screen. It is the site's own video-playlist widget, not the article's content. The spec says video stays only when it is content. Shot: /home/nico/projects/sift-test-2/research/shots/r11t2-nypost-art.png",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://nypost.com/2026/10/26/tech/microsoft-announces-buyouts-for-60k-employees-quarter-of-workforce-as-part-of-ai-transformation/ wait:15000 outline 'eval:[...document.querySelectorAll(\"video\")].map(v=>[v.currentTime.toFixed(1),v.paused,v.muted])' wait:3000 'eval:[...document.querySelectorAll(\"video\")].map(v=>[v.currentTime.toFixed(1),v.paused])'",
+   "suspectedCause": "A Connatix (cnx) player is kept as a portal like an article video. Nothing tells a site-wide 'video headlines' playlist apart from the story's own video.",
+   "verdict": "Reproduced on three loads. Every time, the Sift view has the Connatix 'Today's Video Headlines' player between the byline and the Short version, with 'Keep Watching' and 'Close Player'. In one of the three loads it autoplayed muted inside Sift's view (13.0 s, then 28.0 s). In the other two it stayed paused at 0.0. The clip I saw was about JD Vance at a rally, not Microsoft, so it is a rotating site-wide playlist and not the story's video. At 1280x813 it pushed the Short version below the first screen. The original has the same cnx-main-container inside ARTICLE after the byline, but by the spec this is noise, not content.",
+   "fix": "In src/content/extract/generic.ts, in the video/portal keep path (the playerOf and lead-video logic around line 7945), skip players that are site playlists or outstream players: a Connatix cnx-* container, or a player whose own text is 'Today's Video Headlines' or 'Keep Watching', or which has its own 'Close Player' button."
+  },
+  {
+   "source": "T2-news",
+   "title": "NY Post Short version drops the second article photo and shows its caption as body text",
+   "severity": "medium",
+   "regression": false,
+   "where": "https://nypost.com/2026/10/26/tech/microsoft-announces-buyouts-for-60k-employees-quarter-of-workforce-as-part-of-ai-transformation/",
+   "evidence": "The original has two content photos, 'Microsoft office' and 'Microsoft data center' (both 734 px, loaded). The Short version shows only the first one. After the last Short paragraph it shows 'p: An aerial view of agricultural land acquired by Microsoft in Middenmeer \u2026 Anadolu via Getty Images' as a paragraph with no picture. 'Show full text' has both images ([\"Microsoft office\",\"Microsoft data center\"]).",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:<url above> wait:50000 'eval:(()=>{const R=document.querySelector(\"sift-root\").shadowRoot;return [[...R.querySelectorAll(\"main img\")].map(i=>i.alt),[...R.querySelectorAll(\"main p\")].map(p=>p.innerText).filter(t=>/aerial view/.test(t))]})()'  \u2192 [[\"Microsoft office\"],[\"An aerial view\u2026\"]]",
+   "suspectedCause": "When the Short version is built, the photo slot after the paragraphs is not placed again, but its caption text is kept as a paragraph.",
+   "verdict": "Reproduced on two fresh loads with the browser cache off. The 'Microsoft data center' photo is missing, and its caption 'An aerial view of agricultural land\u2026 Anadolu via Getty Images' shows as a plain paragraph. Wheel-scrolling Sift's view until the caption is on screen (top 112) does not load it. One detail of the claim is wrong: on a fresh load, 'Show full text' is also missing the photo and also shows the caption as a paragraph, so the Short version is not the cause. Both images show in both modes only after the original's lazy image has loaded some other way, from an earlier scroll or a cached copy. The original img has loading=lazy, srcset only, an aspect-ratio style and no width attribute, inside a display:table figure that is 78 px wide. Its box is 0x0, so contentImage drops it.",
+   "fix": "In src/content/extract/generic.ts, change lazyWidth/contentImage (around lines 1694-1720). When a lazy or srcset img has a 0x0 box, take its width from the px value in its sizes attribute or from the first ancestor wider than minW, past the shrink-wrapped figure, and take its height from the aspect-ratio style. When a figure's image is dropped, drop its figcaption too instead of emitting it as a paragraph."
+  },
+  {
+   "source": "T2-news",
+   "title": "BBC Search dialog is named after the page H1, so a screen reader announces the wrong dialog",
+   "severity": "medium",
+   "regression": false,
+   "where": "https://www.bbc.com/news and BBC articles (the Search button in Sift's header)",
+   "evidence": "After 'Search', Sift's sheet has aria-label 'Breaking news, video and the latest top stories from the U.S. and around the world' on the home page. On https://www.bbc.com/news/articles/cq398p1wd1evo it is labelled with the article title, 'Anthropic warns of 'catastrophic risk' to humankind ahead of blockbuster share listing'. The dialog holds the 'Site search' field and the nav links. The search itself works (/search?q=Starlink). Menu dialogs are named 'Menu' correctly. Shot: /home/nico/projects/sift-test-2/research/shots/r11t2-bbc-search.png",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:https://www.bbc.com/news wait:8000 click:Search wait:1500 'eval:[...document.querySelector(\"sift-root\").shadowRoot.querySelectorAll(\"[role=dialog]\")].map(d=>d.getAttribute(\"aria-label\"))'",
+   "suspectedCause": "The BBC search drawer has no name of its own, and the sheet-naming fallback takes the nearest or first heading (the page H1) instead of the opener's label ('Search').",
+   "verdict": "Reproduced on two pages. After Search on bbc.com/news, Sift's dialog has aria-label 'Breaking news, video and the latest top stories from the U.S. and around the world'. On the article cq398p1wd1evo it is the article H1, 'Anthropic warns of 'catastrophic risk'\u2026'. The dialog holds Close, Site search, Search and the nav links. The original BBC drawer has no dialog role or name, so Sift falls back to page.title. A screen reader announces the article title when the user opens Search.",
+   "fix": "In src/content/ui/app.tsx line 1143 (const name = d.title || firstLine(d.blocks) || page.title), use the label of the Sift opener the user pressed, or the dialog's search field label, before page.title. Or set title from the opener in generic.ts where the drawer dialog is built, the way line 7239 does for aria-haspopup panels."
+  },
+  {
+   "source": "T2-news",
+   "title": "At 200% zoom the Daily Mail article and video pages lose their Login link",
+   "severity": "medium",
+   "regression": false,
+   "where": "http://127.0.0.1:8799/dailymail-article and http://127.0.0.1:8799/dailymail-article-video at 640x450, scale 2",
+   "evidence": "At 200% zoom, Sift's header has only 'Enter your search' and 'Search', and no a/button anywhere in Sift matches /log ?in/ (0). At 1280 px the same page has '[link] Login' (78 px, href \u2026/registration/login.html). The original at the same 640 px width shows a 'Login' link (71 px wide, top 3). The Daily Mail home keeps Login at 200%. Shots: /home/nico/projects/sift-test-2/research/shots/r11t2-z200-11.png, /home/nico/projects/sift-test-2/research/shots/r11t2-z200-12.png",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r11t2/drive.ts vp:640x450@2 goto:http://127.0.0.1:8799/dailymail-article wait:9000 'eval:[...document.querySelector(\"sift-root\").shadowRoot.querySelectorAll(\"a,button\")].filter(e=>/log ?in/i.test(e.innerText)).length' press:Alt+Shift+S wait:2000 'eval:[...document.querySelectorAll(\"a\")].filter(a=>/^Login$/.test(a.innerText.trim())).map(a=>a.getBoundingClientRect().width|0)' press:Alt+Shift+S vp:1280x900   \u2192 0 in Sift, [71] in the original",
+   "suspectedCause": "At a narrow width, the article header's Login sits in a row Sift treats as navigation clutter, or it is dropped when the header is merged, while the home header keeps it.",
+   "verdict": "Reproduced on the dailymail-article and dailymail-article-video snapshots at 640x450@2. When the page loads at that size, Sift shows no Login link. At 1280 it shows 'Login' (78 px), and it keeps it if the page loads at 1280 and is then resized to 640. In the original at 640, the Login link is in a 964 px fixed-width desktop header at x=884, top 3, past the 640 px window, so the original needs a horizontal scroll to reach it. Sift's top-actions code skips any account link whose box starts at or beyond innerWidth, a rule meant for closed slide-in panels, so it drops a link that is only off-screen because the header overflows. I could not check the live site: dailymail.com returned Access Denied, and I did not try to get around it.",
+   "fix": "In src/content/extract/generic.ts top actions (around line 6703: if (box.left >= innerWidth || box.right <= 0) continue), skip only when the element is in an off-canvas panel (a transformed or translated ancestor, or one with aria-hidden or a closed state). Do not skip when it sits in a header row that starts on screen and overflows the window, for example when its left is under document.documentElement.scrollWidth and its header row's left is at or after 0."
+  },
+  {
+   "source": "T2-news",
+   "title": "At 200% zoom La Naci\u00f3n long-form article buries the title under two screens of portrait photo",
+   "severity": "medium",
+   "regression": false,
+   "where": "https://www.lanacion.com.ar/el-mundo/las-claves-del-balotaje-en-brasil-los-votos-decisivos-los-desafios-para-el-lula-4-y-el-rechazo-de-nid26102026/ at 640x450, scale 2",
+   "evidence": "At 200%, Sift's first element is the lead photo, served as a 768x1100 portrait crop and drawn 604x865 CSS px. The H1 starts at 988 px, on the third 450 px screen. The original at the same size shows the title on the first screen, over the hero (H1 top 147). At 1280 px Sift's H1 is at 484, so only zoomed readers are hit. Shots: /home/nico/projects/sift-test-2/research/shots/r11t2-z200-9.png (Sift), /home/nico/projects/sift-test-2/research/shots/r11t2-ln-orig-z200.png (original)",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r11t2/drive.ts vp:640x450@2 goto:<url above> wait:12000 'eval:(()=>{const R=document.querySelector(\"sift-root\").shadowRoot;const i=R.querySelector(\"img\").getBoundingClientRect();return [i.width|0,i.height|0,R.querySelector(\"h1\").getBoundingClientRect().top|0]})()' press:Alt+Shift+S wait:2000 'eval:document.querySelector(\"h1\").getBoundingClientRect().top|0' press:Alt+Shift+S vp:1280x900",
+   "suspectedCause": "The hero image is kept above the H1 with the <picture> source the narrow layout picks (a portrait crop), and with no height cap. The original overlays the title on that hero.",
+   "verdict": "Reproduced at 640x450@2. Sift's first item is the lead photo, a 768x1100 portrait crop drawn at 604x865 CSS px from top 105. The H1 is at 988, on the third screen. The original at the same size shows the title over the hero on the first screen (H1 top 147). img.content in styles.ts has max-width:100% and height:auto, with no height cap.",
+   "fix": "In src/content/ui/styles.ts line 75 (img.content), cap the height, for example max-height: 70vh with width:auto or object-fit: contain. Or, in generic.ts where the hero is placed above the H1, place a lead image taller than the viewport after the H1 and byline."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "marqueeCopies is quadratic: a page with many siblings of equal text length freezes the tab for minutes (core-budget fixture: over 180 s, was 2.6 s)",
+   "severity": "high",
+   "where": "src/content/extract/generic.ts:3899 (marqueeCopies, called from walk at 3861)",
+   "evidence": "Harness (the same extract() the extension runs) on http://127.0.0.1:8799/fx/core-budget.html: the round 11 bundle hits puppeteer's 180 s Runtime.callFunctionOn timeout. The pre-round-10 bundle takes 2617/2151 ms. The same round 11 bundle with marqueeCopies stubbed to return null takes 3333/2592 ms. Real extension (port 9468) on fx/core-budget.html: the tab did not answer for about 7 minutes (act.ts evals with 90 s and 60 s timeouts both timed out; it answered at 05:25:51). Scratch fixtures with 3000 sibling divs, each with different text of the same length (40 characters or more): log lines took 45035/33033 ms (r10m 336/313). One link per row took 53138/56070 ms (r10m 1061/894). core-buttons3000, core-nav3000, core-buttonsli3000 and int-big are unchanged within noise.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r11 && bun run.ts r11.js,r10m.js http://127.0.0.1:8799/fx/core-budget.html 1 --quiet ; bun run.ts r11.js,r10m.js,r11nomq.js $PWD/fx/log3000.html 1 --quiet --as http://127.0.0.1:8799/fx/zz-log3000.html",
+   "regression": true,
+   "suspectedCause": "For each sibling whose tlen matches an earlier sibling, `same.some((o) => key(o) === key(k))` rebuilds both keys (the whole subtree's textContent plus every link href) for every earlier same-length sibling. That is O(m\u00b2) key builds for m same-length siblings, and BUDGET does not limit it because it runs on all children before any visit. A Set of keys per length would make it linear.",
+   "verdict": "Confirmed, high. I built my own harness bundle from the current src (byte-identical to the reporter's r11.js), plus a baseline from sift-r10-base and a copy with marqueeCopies stubbed to return null. On fx/core-budget.html the current bundle took 94,924 ms. The baseline took 3,564 ms and the stub 2,991 ms. In the real extension (port 9468, tab skeptic-budget), the tab ignored every eval from 05:46:11 until 05:51:08, about 5 minutes. My own fixture has 2000 sibling divs with different text of the same length. Current 8,456 ms, baseline 204 ms, stub 201 ms. A 400-paragraph article whose paragraph lengths fall into a few values also paid 500-700 ms for marqueeCopies alone (current 796/771/1101 ms, stub 298/119/116 ms). The code matches the stated cause: same.some(o => key(o) === key(k)) rebuilds both keys for every earlier same-length sibling, and it runs on all kids before any budget check.",
+   "fix": "src/content/extract/generic.ts marqueeCopies: compute each key once and keep a Map<number, Set<string>> per length, so the check is linear. Also skip it when ks.length is large, since a marquee strip has few items, or limit it to ticker or marquee containers (see N1)."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "marqueeCopies drops real content: a visible block whose text and links equal an earlier sibling's, including a hidden responsive twin, so the content vanishes; pricing cells and repeated stanzas also go",
+   "severity": "high",
+   "where": "src/content/extract/generic.ts:3885-3903 (marqueeCopies; kids() and tlen() include hidden children)",
+   "evidence": "(1) Responsive twin: a 'mobile-only' div (display:none at desktop width) followed by an identical 'desktop-only' div. Round 11 shows neither, so the sale paragraph and its 'Shop city bikes' link are gone. r10m shows it. The real extension's main text is only 'Spring sale / Opening hours / Monday to Saturday\u2026'. (2) Live pricing comparisons, compared on separate page loads with marqueeCopies stubbed out. notion.com/pricing: the Offline row's 'Recents and Favorites auto-download for offline use.' shows 2 times instead of 3 (once per paid plan), so one plan looks as if it lacks it. vercel.com/pricing: the Enterprise cell '150 overrides / month included \u00b7 then $250 for unlimited overrides' is dropped because it equals Pro's. (3) A poem whose refrain is its own <p> three times shows the refrain once. (4) Project fixture fx/r9int-nextart.html: the article falls from 1593 to 137 words, 15 of 16 paragraphs dropped (r9int13-nextart-wide: 4751 words to a stub). The snapshots (YouTube, Daily Mail, Infobae, Amazon) and the Amazon fixtures are unchanged by it.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r11 && bun run.ts r11.js,r10m.js $PWD/fx/twins.html 1 --as http://127.0.0.1:8799/fx/zz-twins.html ; bun run.ts r11.js,r11nomq.js https://www.notion.com/pricing 1 --wait 4000 | grep -c 'Recents and Favorites' ; bun run.ts r11.js,r10m.js $PWD/fx/poem.html 1 --as http://127.0.0.1:8799/fx/zz-poem.html",
+   "regression": true,
+   "suspectedCause": "It treats any later sibling with the same tag, text (40 characters or more) and link hrefs as a marquee copy, whether the earlier one is hidden or not and whether or not they sit next to each other. A marquee copy should at least need a visible earlier twin, and probably a run of copies of the whole strip (several siblings repeating in order) or a scrolling or animated container.",
+   "verdict": "Confirmed, high. On the twins fixture (a display:none mobile div, then the same desktop div), the current bundle drops the sale paragraph and its 'Shop city bikes' link. Main is only 'Spring sale / Opening hours / Monday to Saturday'. The baseline and the stubbed bundle keep it. The real extension (fixture served locally) shows the same loss: 'Spring sale\\nOpening hours\\n\\nMonday to Saturday, 9:00 to 18:00.' Poem fixture: the refrain shows once instead of three times (214 words to 158). Live notion.com/pricing: the original's Offline row has three visible cells 'Recents and Favorites auto-download for offline use.' (checked in the DOM). The current bundle shows it 1 time in my run (the claim said 2). The stub shows 3, so paid plans look as if they lack it. Project fixtures r9int-nextart and r9int13-nextart-wide drop to 137 and 159 words (stub: 1593 and 4751). Those use synthetic repeated filler, so I give them little weight. The cause is as stated: kids() includes hidden children, and any later same-tag sibling with the same text (40+ characters) and hrefs counts as a copy.",
+   "fix": "src/content/extract/generic.ts marqueeCopies: count a sibling as a copy only if its earlier twin is visible. Require a repeated run (the whole strip repeating in order, at least 2 siblings per copy) inside a ticker-like container (overflow hidden with a CSS animation or transform, or a marquee/ticker class), never single cells or paragraphs."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "Field labels now include every picture's alt, doubling names: color swatches read 'Red Red', extras read 'Photo of a gift box Gift wrap ($3)'",
+   "severity": "medium",
+   "where": "src/content/dom.ts:680-684 (labelWords, used by accName at 641, 647, 651)",
+   "evidence": "A form with radios <label><input type=radio><img width=24 alt=\"Red\"> Red</label> and checkboxes <label><input type=checkbox><img width=80 alt=\"Photo of a gift box\"> Gift wrap ($3)</label>. Round 11 field labels: 'Red Red', 'Blue Blue', 'Photo of a gift box Gift wrap ($3)', 'Photo of a greeting card Greeting card ($2)'. r10m: 'Red', 'Blue', 'Gift wrap ($3)', 'Greeting card ($2)'. The real extension shows the same doubled label text.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r11 && bun run.ts r11.js,r10m.js $PWD/fx/labels.html 1 --as http://127.0.0.1:8799/fx/zz-labels.html",
+   "regression": true,
+   "suspectedCause": "labelWords switches to contentName(l, true) whenever the label holds any img[alt] or [role=img][aria-label], so every alt is added. F1010 needs only icon-sized pictures whose alt the visible words do not already say. generic.ts iconWord has that size and 'already said' test, but labelWords does not.",
+   "verdict": "Confirmed, medium (low end). On the labels fixture, the current bundle's field labels are 'Red Red', 'Blue Blue', 'Photo of a gift box Gift wrap ($3)' and 'Photo of a greeting card Greeting card ($2)'. The baseline gives 'Red', 'Blue', 'Gift wrap ($3)' and 'Greeting card ($2)'. The real extension's labels read the same doubled text. Cause: dom.ts labelWords() switches to contentName(l, true) whenever the label holds any img[alt], so every alt is added, including big photos and alts the visible words already say. Product option swatches with an image plus text are common in stores, so every option is read twice.",
+   "fix": "src/content/dom.ts labelWords: add a picture's name only when the picture is icon-sized (32 px or less) and the label's visible text does not already include its alt. That is the same test as generic.ts iconWord, so share one helper."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "Decorative icon alts now show in text: star ratings read 'starstarstarstar', and 'Read the full review arrow'",
+   "severity": "medium",
+   "where": "src/content/extract/generic.ts:1152-1159 (iconWord) used at 1308; the svg role=img path at 1252 has the same gap",
+   "evidence": "Article paragraphs 'Our rating: <img alt=star 16x16>\u00d74 (4 out of 5)' and '<a>Read the full review</a> <img alt=arrow 12x12>'. Round 11 gives 'Our rating: starstarstarstar (4 out of 5)' (glued, no spaces) and '... Read the full review arrow'. r10m gives 'Our rating: (4 out of 5)' and no 'arrow'. The real extension shows the same words. The text also goes to the Short version input.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r11 && bun run.ts r11.js,r10m.js $PWD/fx/icons.html 1 --as http://127.0.0.1:8799/fx/zz-icons.html",
+   "regression": true,
+   "suspectedCause": "iconWord accepts any alt of 40 characters or less on an image 32 px or smaller unless it is a logo word. dom.ts already has ICON_WORD (dom.ts:521: arrow, chevron, star, check, external, \u2026) for this purpose, but the new rule does not use it, and repeated icons get no separator.",
+   "verdict": "Confirmed, medium. On the icons fixture, the current bundle gives 'Our rating: starstarstarstar (4 out of 5)' and '... Read the full review arrow'. The baseline gives 'Our rating: (4 out of 5)' and no 'arrow'. The real extension's main text shows the same words. iconWord() (generic.ts:1152) accepts any alt of 40 characters or less on an image of 32 px or less unless LOGO_NAME matches. It does not use dom.ts ICON_WORD (which lists star and arrow). Repeated icons are glued with no space. This garbage is visible in article text and is also sent to the Short version.",
+   "fix": "src/content/extract/generic.ts iconWord (and the svg role=img branch near line 1252): reject alts that match dom.ts ICON_WORD (export it). Collapse a run of the same icon alt into one count ('4 stars') or drop it, and make sure sep() puts a space between adjacent icon words."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "MoinMoin wikis: the search box moves to Sift's bar with 'Titles', and its second button 'Text' sits alone at the bottom of the page",
+   "severity": "medium",
+   "where": "src/content/extract/generic.ts:6469 (SEARCH_PLACE now includes #header) with findSearch keeping only one button (6504)",
+   "evidence": "Real extension on wiki.debian.org/SourcesList: the bar has the search field and 'Titles'. The 'Text' button (full-text search) is inside main at y=10135 of a 10446 px page, after the article, with nothing near it saying what it searches. The harness on live /Backports shows 'actions: Text' after the last section. Before round 10 the form stayed in the content with both buttons ('form: fields=[text:Search:] actions=[Titles; Text]').",
+   "repro": "SIFT_PORT=9468 SIFT_TAB=R1-extractor bun scripts/act.ts goto:https://wiki.debian.org/SourcesList wait:7000 'eval:(()=>{const r=document.querySelector(\"sift-root\").shadowRoot;const b=[...r.querySelectorAll(\"button\")].find(b=>b.innerText.trim()===\"Text\");return [b.closest(\"main\")?\"main\":\"bar\", Math.round(b.getBoundingClientRect().top+scrollY), r.querySelector(\"main\").scrollHeight]})()'",
+   "regression": true,
+   "suspectedCause": "findSearch takes the form's named button ('Titles', id titlesearch) as the submit and marks only it used. The form's other submit buttons are left for the walker, which puts them where the header's leftovers go. Either keep every submit button of the search form with the box (as alternatives), or drop the others when the box moves to the bar.",
+   "verdict": "Confirmed, medium. Real extension on wiki.debian.org/SourcesList: 'Titles' is in Sift's bar (y=9), and 'Text' is a lone button inside main at y=10084 of a 10394 px main. On /Backports it is at y=3724 of 4035, right after the article's last word 'unstable', with no label saying it is full-text search. The harness on live SourcesList shows the same thing: 'search: Search:' with 'actions: Text' near the end. The baseline kept 'form: fields=[text:Search:] actions=[Titles; Text]' in the content. Cause: findSearch picks one button (the named or submit one) and adds only it to ctx.used, so the form's other submit button goes to the walker.",
+   "fix": "src/content/extract/generic.ts findSearch: when the box moves to the bar, also add the form's other visible submit buttons to ctx.used. Better, keep them as extra submit choices on the search field (for example f.alt = [refOf(b)]) so full-text search stays next to the box."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "Page title h1 that links to the page itself is skipped when the URL has a query string, and a later section h1 sharing one word becomes the H1",
+   "severity": "medium",
+   "where": "src/content/extract/generic.ts:7693 (story-card skip compares full hrefs including ?query) and 7704 (score loop returns before the bySeg rule at 7716)",
+   "evidence": "Real extension on https://wiki.debian.org/Backports?utm_source=mastodon: main H1 'Using backports', a section h1 half way down. The page's title 'Backports' (h1#locationline > a[href=/Backports]) is an H2. The first visit to any Debian wiki page lands on ?pow_referer= (proof-of-work redirect), with the same result. Without a query, the H1 is right. The harness agrees; r10m gave 'External links'.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r11 && bun run.ts r11.js 'https://wiki.debian.org/Backports?utm_source=x' 1 --wait 3000 | grep 'h1:'",
+   "regression": false,
+   "suspectedCause": "`a.href.split('#')[0] !== location.href.split('#')[0]` treats /Backports and /Backports?utm_source=x as different pages, so the real title h1 counts as a story card. With a one-word <title> part, any h1 containing that word scores 1.0 and wins before bySeg is tried. Compare origin and pathname only, or try bySeg before accepting a one-word match.",
+   "verdict": "Confirmed, medium, not a regression. Real extension on https://wiki.debian.org/Backports?utm_source=mastodon: main starts with H1 'Using backports' (a section h1 moved to the top), then Debian, Login and the rest, and 'Backports' is an H2. On plain https://wiki.debian.org/Backports the H1 is 'Backports'. The headless harness lands on ?pow_referer= on a first visit, and the current bundle gives title 'Using backports' there. The baseline gave 'External links', which is wrong too. The code is as stated: titleH1 skips an h1 whose link's href without #hash differs from location.href without #hash, query included. 'Using backports' then scores 1.0 against the one-word title and wins before the bySeg rule. This also hits any site whose title h1 links to its own permalink when the URL has utm or other query parameters.",
+   "fix": "src/content/extract/generic.ts titleH1: compare the link's origin and pathname with location's (ignore search and hash) in the story-card skip. Optionally check bySeg before accepting a score loop winner that is not the first plain h1."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "F1047's date check walks the whole page on every article with a meta date and rebuilds a parent's full text per dated text node: 3-5x slower extraction on long reference lists",
+   "severity": "medium",
+   "where": "src/content/extract/generic.ts:7546 (now calls pageShowsDate on every meta date) and 7490 (p.parentElement.textContent for each text node with a year)",
+   "evidence": "Scratch article with meta article:published_time 2021-03-15 (not shown on the page), 30 paragraphs and a 3000-entry <ol> of references, each with a year in the li's own text. Round 11 took 1692/1224/1211 ms. The same bundle with the line 7546 check disabled took 453/252/221 ms, and r10m 518/308/194 ms. This repeats on every re-extraction pass.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r11 && bun run.ts r11.js,r11nodate.js,r10m.js $PWD/fx/refs3000.html 3 --quiet --as http://127.0.0.1:8799/fx/zz-refs3000.html",
+   "regression": true,
+   "suspectedCause": "For each text node with a year, `p.parentElement.textContent?.length < 200` builds the parent's whole text. For li or p children of one big list or article body, that is quadratic. Check the parent's size with tlen() (memoized) or childElementCount first, and stop the walk at the article when one is known.",
+   "verdict": "Confirmed but narrow. I would rate it low-to-medium. Reporter's refs3000 fixture: current 1813/1382/1394 ms, current with the line 7546 check off 367/198/271 ms, baseline 311/158/239 ms. My own 1500-comment page with a meta date and years in each li's own text: current 573/328/295 ms, check off 220/125/95 ms. A realistic long article (400 paragraphs, 500 references, meta date not shown) showed no clear cost from the check (marqueeCopies off: 298/119/116 ms; both off: 190/88/139 ms; within noise). The quadratic box test (p.parentElement.textContent) already existed in the JSON-LD path. The regression is that byline() now runs pageShowsDate on every meta date, so pages with more than about 1500 year-bearing entries directly under one parent pay a second or more on every extraction pass.",
+   "fix": "src/content/extract/generic.ts pageShowsDate: before building p.parentElement.textContent, check a cheap bound (childElementCount or childNodes.length small, or a memoized tlen). Optionally stop the walk at the article element when one is known."
+  },
+  {
+   "source": "R1-extractor",
+   "title": "Short version can begin with the echoed instruction 'The text is in English. Write in English.'; nothing strips it",
+   "severity": "medium",
+   "where": "src/background/index.ts:839 (new language line in the condense prompt); src/background/text.ts:868-878 (stripPreamble) via checked() at index.ts:887",
+   "evidence": "Real extension (port 9468, PROMPT_VERSION 12, fresh cache) on fx/core-budget.html: the shown Short version starts with the paragraph 'The text is in English. Write in English.' and then a model note. A bun run of stripPreamble on 'The text is in English. Write in English.\\n\\n<real summary>' and on the Spanish 'El texto est\u00e1 en espa\u00f1ol. Escribe en espa\u00f1ol.\\n\\n\u2026' returns both unchanged. Seen once, on a fixture whose text is placeholder. How often the model echoes it on real articles is not measured, to avoid AI cost.",
+   "repro": "cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad && bun strip.ts",
+   "regression": true,
+   "suspectedCause": "ai15 added 'The text is in X. Write in X.' to the user message. checked() removes an echoed 'Title:' line (dropTitleLine) but has no rule for an echoed language line, and NOTE_* patterns do not match it.",
+   "verdict": "Confirmed, medium-low. How often it happens is unmeasured. The real extension's Short version on fx/core-budget.html begins 'The text is in English. Write in English.' and then a model note. The profile is shared with the reporter, so this was probably the reporter's cached result, not a fresh model call. I ran the full cleaning chain the extension uses: keepQuotes(dropUnsupported(stripPreamble(dropTitleLine(...)))). On an English output that starts with the echoed line, as its own paragraph or as its own line, and on the Spanish one, the line survives every time. The line is new this round (background/index.ts:839; absent in sift-r10-base). The only sighting is on a placeholder fixture.",
+   "fix": "src/background/index.ts checked() (next to dropTitleLine): drop a leading line or paragraph that matches the injected language instruction exactly (`The text is in ${langName(want)}. Write in ${langName(want)}.`). Or move the language instruction into the system prompt so it cannot be echoed as content."
+  }
+ ],
+ "rejected": [
+  {
+   "source": "T2-news",
+   "title": "Daily Mail video article puts the video and its caption above the headline",
+   "severity": "medium",
+   "regression": false,
+   "where": "http://127.0.0.1:8799/dailymail-article-video",
+   "evidence": "Sift's order is 'p: Council meeting erupts into chaos\u2026', then '[PORTAL] Video', the media buttons, and then the H1. The H1 is at 712 px at 1280x900, and at 611 px at 200% zoom (below the first screen). In the original the H1 comes first in both DOM order and layout (H1 at top 9, video at 515). This order has been the same since round 7 (research/shots/r7t2-dm-video.txt). Shots: /home/nico/projects/sift-test-2/research/shots/r11t2-dm-video.png, /home/nico/projects/sift-test-2/research/shots/r11t2-dm-video-orig.png",
+   "repro": "SIFT_PORT=9462 SIFT_TAB=T2-news bun scripts/act.ts goto:http://127.0.0.1:8799/dailymail-article-video wait:8000 outline 'eval:document.querySelector(\"sift-root\").shadowRoot.querySelector(\"h1\").getBoundingClientRect().top|0' press:Alt+Shift+S wait:2000 'eval:[document.querySelector(\"h1\").getBoundingClientRect().top|0,[...document.querySelectorAll(\"video\")].map(v=>v.getBoundingClientRect().top|0)]' press:Alt+Shift+S",
+   "suspectedCause": "A lead video is hoisted to the top of the view, above the article header, instead of keeping its place after the title and byline.",
+   "verdict": "Not a deviation from the original. The claim's 'H1 at top 9' is the section label H1 'News', not the article title. In the original snapshot, the article H1 'Wild moment New Jersey mayor\u2026' is at top 1159 and comes after the video in DOM order. The video is at 515, with its caption 'Council meeting erupts into chaos\u2026' just above it at 503. So the original also puts the caption and the lead video above the headline, and Sift keeps that order."
+  }
+ ],
+ "stillOpen": [
+  {
+   "id": "F1000",
+   "status": "partly",
+   "evidence": "Fixed at 1280 px. The playlist watch bar is now 'Pause | Back 10s | Ahead 10s | Replay | Next video | Mute | Captions | Full screen | Position in video', and Replay becomes 'Previous video' after the restart, as the original's labels do. With focus on Back 10s (keys.ts): k paused at 12.0 and resumed at 13.5; j went to 4.9; l went to 16.4; m muted and unmuted; c turned YouTube CC false then true; f entered and left full screen; 0 went to 1.9; 5 went to 108.3; Shift+N went to v=yPYZpwSpKmA&index=2. With focus on the portal (#movie_player), k, l and m work. Typing 'kjlmcf' in Search reached both fields (value 'kjlmcf'), and the video was not touched. A click on Replay went from 22.0 to 1.5, and a click on Next video loaded index=2. NOT fixed at narrow widths: at 600 px, and at 200% zoom (640 CSS px), the bar is only 'Pause|Back 10s|Ahead 10s|Mute|Captions|Full screen'. The original hides .ytp-prev/.ytp-next at that size (display none). With focus on Back 10s, Shift+N does nothing in Sift (still dQw4w9WgXcQ, t 73.6 -> 77.7). The original at 600 px (Sift off, click on the title, Shift+N) goes to yPYZpwSpKmA&index=2 (scratchpad t1r11/origshiftn.ts). At 1000 px the buttons are back. Shots: /home/nico/projects/sift-test-1/research/shots/r11t1-pl-bar.png, /home/nico/projects/sift-test-1/research/shots/r11t1-plwatch-600.png, /home/nico/projects/sift-test-1/research/shots/r11t1-plwatch-200.png",
+   "src": "T1-youtube",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, as reported. At 1280 px, Sift's playlist bar shows 'Previous' and 'Next video', and Shift+N with focus on Back 10s loads v=yPYZpwSpKmA&index=2 (I saw it once). At 600 px and at 640x450@2x, the bar has no Previous or Next, and Shift+N does nothing (two runs at 600, one at 200% zoom). The original at 600 px goes to index=2 on Shift+N. The cause is playerBlock's visibility check on YouTube's inline-hidden prev and next buttons. I did not re-test k, j, l, m, c, f or 0-9.",
+    "fix": "Same as N0: in youtube.ts playerBlock, do not drop the playlist's prev and next buttons when YouTube hides them inline at small player sizes (or use the playlist panel's items), so the bar and Shift+N/Shift+P keep working at narrow widths and zoom."
+   }
+  },
+  {
+   "id": "F1046",
+   "status": "partly",
+   "evidence": "On plain URLs it works. Real extension on wiki.debian.org/SourcesList, /Backports and /DebianTesting (after the wiki's proof-of-work cookie is set) gives the right H1, puts the search box in Sift's bar and moves Login/Info/Attachments after the H1. Two cases still fail. (1) With any query string, the page h1 is skipped. The first visit is redirected to ?pow_referer=, and links can carry ?utm_source=. Real extension on https://wiki.debian.org/Backports?utm_source=mastodon: main h1 'Using backports' (a section half way down), and 'Backports' is an H2. The harness agrees (r10m: 'External links'). See the titleH1 finding. (2) MoinMoin's second search button 'Text' is now a lone button at the end of main (see the search finding). The 'Debian' logo link still comes before the H1. The ext15 fixture r10ext15-moinmoin still gives title 'External links' from 127.0.0.1, because the new host rule needs the real wiki.debian.org hostname, so this fix cannot be checked on that fixture.",
+   "src": "R1-extractor",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, as reported. Plain URLs in the real extension: the H1 is 'SourcesList' on /SourcesList and 'Backports' on /Backports. Search is in the bar, and Login, Info, Attachments and More Actions come after the H1. The 'Debian' link still comes before the H1. Still failing: (1) Any query-string URL, including the ?pow_referer= every first visit lands on. /Backports?utm_source=mastodon gives H1 'Using backports' with 'Backports' as an H2 (see N5). (2) The 'Text' full-text search button sits alone at the end of main (see N4). The fixture r10ext15-moinmoin.html from 127.0.0.1 still gives title 'External links', as the reporter said.",
+    "fix": "See N5 (titleH1: compare origin and pathname only) and N4 (findSearch: consume or keep the form's other submit buttons with the box)."
+   }
+  }
+ ],
+ "recheck": {
+  "F1000": {
+   "id": "F1000",
+   "status": "partly",
+   "evidence": "Fixed at 1280 px. The playlist watch bar is now 'Pause | Back 10s | Ahead 10s | Replay | Next video | Mute | Captions | Full screen | Position in video', and Replay becomes 'Previous video' after the restart, as the original's labels do. With focus on Back 10s (keys.ts): k paused at 12.0 and resumed at 13.5; j went to 4.9; l went to 16.4; m muted and unmuted; c turned YouTube CC false then true; f entered and left full screen; 0 went to 1.9; 5 went to 108.3; Shift+N went to v=yPYZpwSpKmA&index=2. With focus on the portal (#movie_player), k, l and m work. Typing 'kjlmcf' in Search reached both fields (value 'kjlmcf'), and the video was not touched. A click on Replay went from 22.0 to 1.5, and a click on Next video loaded index=2. NOT fixed at narrow widths: at 600 px, and at 200% zoom (640 CSS px), the bar is only 'Pause|Back 10s|Ahead 10s|Mute|Captions|Full screen'. The original hides .ytp-prev/.ytp-next at that size (display none). With focus on Back 10s, Shift+N does nothing in Sift (still dQw4w9WgXcQ, t 73.6 -> 77.7). The original at 600 px (Sift off, click on the title, Shift+N) goes to yPYZpwSpKmA&index=2 (scratchpad t1r11/origshiftn.ts). At 1000 px the buttons are back. Shots: /home/nico/projects/sift-test-1/research/shots/r11t1-pl-bar.png, /home/nico/projects/sift-test-1/research/shots/r11t1-plwatch-600.png, /home/nico/projects/sift-test-1/research/shots/r11t1-plwatch-200.png",
+   "src": "T1-youtube",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, as reported. At 1280 px, Sift's playlist bar shows 'Previous' and 'Next video', and Shift+N with focus on Back 10s loads v=yPYZpwSpKmA&index=2 (I saw it once). At 600 px and at 640x450@2x, the bar has no Previous or Next, and Shift+N does nothing (two runs at 600, one at 200% zoom). The original at 600 px goes to index=2 on Shift+N. The cause is playerBlock's visibility check on YouTube's inline-hidden prev and next buttons. I did not re-test k, j, l, m, c, f or 0-9.",
+    "fix": "Same as N0: in youtube.ts playerBlock, do not drop the playlist's prev and next buttons when YouTube hides them inline at small player sizes (or use the playlist panel's items), so the bar and Shift+N/Shift+P keep working at narrow widths and zoom."
+   }
+  },
+  "F1060": {
+   "id": "F1060",
+   "status": "fixed",
+   "evidence": "The repro wheelfast.ts (K=25 DY=2500 GAP=5000 STEPS=3) gave 21->93->189->261, 21->93->189->238 and 21->93->165->237 in 3 of 3 runs, always 10 behind the original (Shorts are folded). At moderate speed (10 x 300 px every 1.3 s), Sift reached 233 against the original's 243, which is its feed end (no ytd-continuation-item-renderer left). End x3 on home gave 21->45->69->93. Each PageDown moves the view by about 9 entries and keeps loading (117->141). Shot: /home/nico/projects/sift-test-1/research/shots/r11t1-home-after-wheel.png",
+   "src": "T1-youtube"
+  },
+  "F1061": {
+   "id": "F1061",
+   "status": "fixed",
+   "evidence": "The repro now prints 'Search | Menu | Sign in | Settings || orig:  | Settings | Sign in'. Settings opens a dialog with focus on Close: 'Your data in YouTube, Appearance: Light, Display language: English, Restricted Mode: Off, Location: United States, Keyboard shortcuts, Settings, Help, Send feedback'. Appearance opens 'Setting applies to this browser only, Dark theme, Light theme'. Escape returns focus to Settings. Shots: /home/nico/projects/sift-test-1/research/shots/r11t1-playlist-page.png, /home/nico/projects/sift-test-1/research/shots/r11t1-playlist-settings-appearance.png. (The playlist page Menu is still incomplete; see the separate finding.)",
+   "src": "T1-youtube"
+  },
+  "F1062": {
+   "id": "F1062",
+   "status": "fixed",
+   "evidence": "The check now rejects the reported line: scriptFits('Vector \u062f\u0631 \u0628\u0631\u0627\u0628\u0631 Thanos', latin, 'Vector VS Thanos') returns false (true without the source argument), and 'Vector contra Thanos' for es still passes (scratchpad t1r11/sf.ts). On the screen, I scanned the English home (lang en/en) after 2 minutes at 213 entries (t1r11/lines.ts). No line in Arabic, CJK or Cyrillic script sat under a Latin-only title. Foreign titles either got English lines ('News commentary on Xi Jinping\u2026' for a Chinese title, 'A Japanese-language collection of 100 popular Western songs\u2026') or kept their own title, marked lang='fa'. The original video was not in the feed, so I could not repeat the exact case.",
+   "src": "T1-youtube"
+  },
+  "F1001": {
+   "id": "F1001",
+   "status": "fixed",
+   "evidence": "https://g1.globo.com/economia/ now shows H1 'Economia', the currency ticker once (Moedas \u2026 Ibovespa 176.608 pts \u00b7 -13,88%, the same values as the original), then the headline feed and 'Mostrar mais conte\u00fados'. Sift has 29 main links. The original has 27 visible headline links (text over 25 chars), and all 27 are in Sift (0 missing). Shot: /home/nico/projects/sift-test-2/research/shots/r11t2-g1-economia.png",
+   "src": "T2-news"
+  },
+  "F1034": {
+   "id": "F1034",
+   "status": "fixed",
+   "evidence": "On the Mirror home, a real click on 'Storms Boelo and Austen\u2026' left the URL at https://www.mirror.co.uk/. It opened an aria-modal Sift 'Privacy' dialog that says 'The site asks for a cookie choice before it responds to clicks. Choose, then try again.' The dialog has the site's own More Options / Reject and Pay / I Accept buttons and Close. Escape returns focus to the headline. I did not accept the wall. On the article, 'User Avatar\u2026' opens the site's sign-in sheet (email field and Continue). 'View 3 Images' (the old 'Open image') opens the site's gallery over Sift (SlideViewerDialog open=true, '1 of 3'), the same as on the original. Shots: /home/nico/projects/sift-test-2/research/shots/r11t2-mirror-click.png, /home/nico/projects/sift-test-2/research/shots/r11t2-mirror-gallery2.png, /home/nico/projects/sift-test-2/research/shots/r11t2-mirror-orig-gallery.png",
+   "src": "T2-news"
+  },
+  "F1035": {
+   "id": "F1035",
+   "status": "fixed",
+   "evidence": "The worker reinstall wiped the cache, so the text was made fresh. The G1 Trump article (html lang pt-BR, Sift view pt-BR) now has a Portuguese Short version: 'Trump disse, sem apresentar provas, que a elei\u00e7\u00e3o brasileira \u201cpareceu fraudada\u201d, mas afirmou que gosta de Lula.', 'Celso Amorim \u2026 chamou Trump de mal informado\u2026', '35 mil pessoas votaram ap\u00f3s as 17h'. I checked the Amorim/Meta claim against the source quote. Shot: /home/nico/projects/sift-test-2/research/shots/r11t2-g1-trump.png",
+   "src": "T2-news"
+  },
+  "F1036": {
+   "id": "F1036",
+   "status": "fixed",
+   "evidence": "La Naci\u00f3n home lines are now 'Los amigos de Milei. Tras la derrota de Bolsonaro, las elecciones que ponen a prueba al club de sus aliados' and '\u201cHubo un grav\u00edsimo error\u201d: Diego Guelar analiz\u00f3 el triunfo de Lula, el \u201ccambio de reglas\u201d, la relaci\u00f3n con Milei y un posible indulto a Bolsonaro'. The kicker quote stays at the head as Guelar's own words. I read all 114 home pairs (102 rewritten) and found no misattribution: /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r11t2/ln-home-pairs.txt",
+   "src": "T2-news"
+  },
+  "F1037": {
+   "id": "F1037",
+   "status": "fixed",
+   "evidence": "The 'El giro pol\u00edtico de los gobiernos sudamericanos' graphic is now one portal (role=img, 756x777). It shows both maps with the country names drawn. Its label lists every country, for example '2006: Argentina: Izquierda \u2026 2026: Argentina: Derecha \u2026'. It shows in the Short version and in 'Ver texto completo'. Shot: /home/nico/projects/sift-test-2/research/shots/r11t2-ln-giro-sift.png",
+   "src": "T2-news"
+  },
+  "F1038": {
+   "id": "F1038",
+   "status": "fixed",
+   "evidence": "Mirror Lula article: the Sift main text has no 'READ MORE', 'HMRC' or 'Jamie Oliver' in the Short version or the full text (eval gave [false,[],3]).",
+   "src": "T2-news"
+  },
+  "F1039": {
+   "id": "F1039",
+   "status": "fixed",
+   "evidence": "Mirror Lula article: Sift now has 3 photos, each loaded (naturalWidth 1200, about 604 px wide), each with its caption as a figcaption. The second and third photos are no longer text links. Shot: /home/nico/projects/sift-test-2/research/shots/r11t2-mirror-art.png",
+   "src": "T2-news"
+  },
+  "F1030": {
+   "id": "F1030",
+   "status": "fixed",
+   "evidence": "Harness (bundle of current src/content/extract, /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r11/r11.js) on the offline Lobsters replay (r10/dl/lob.html served as lobste.rs/s/olnqh2/...): the comment block is plain 'items' with no oneliner. Each comment is titled by its author ('chrismorgan', 'icefox'), links to the user page, and has its full text as body. The first comment's closing sentence 'very easy to cause trouble with them' is present. The pre-round-10 bundle (r10m.js) still gives 'items [oneliner] ai=news' with 197-character titles linking to /login. Live lobste.rs gives the same in the harness. Real extension (port 9468) on live lobste.rs: 17 li.item.post, closing sentence present, first title 'chrismorgan'.",
+   "src": "R1-extractor"
+  },
+  "F1031": {
+   "id": "F1031",
+   "status": "fixed",
+   "evidence": "Harness on fx/r10rev-checkout-frame.html: H1, Shipping address, form, 'Order summary' h2, order table, 'Payment', then the card portal. That is the page's order, the same as p9m.js. fx/r10rev-cafe-map.html: form, 'Opening hours' h2, hours table, address, map. Real extension (localhost:8799, port 9468) shows the same order on both pages.",
+   "src": "R1-extractor"
+  },
+  "F1033": {
+   "id": "F1033",
+   "status": "fixed",
+   "evidence": "Harness on live theverge.com: 0 'Copy link' actions (r10m.js: 17). The quick-post entries keep their title links and text. F904's dialog case (fx/r9ctrl12-copy.html) still shows 'Copy link | Done'.",
+   "src": "R1-extractor"
+  },
+  "F1046": {
+   "id": "F1046",
+   "status": "partly",
+   "evidence": "On plain URLs it works. Real extension on wiki.debian.org/SourcesList, /Backports and /DebianTesting (after the wiki's proof-of-work cookie is set) gives the right H1, puts the search box in Sift's bar and moves Login/Info/Attachments after the H1. Two cases still fail. (1) With any query string, the page h1 is skipped. The first visit is redirected to ?pow_referer=, and links can carry ?utm_source=. Real extension on https://wiki.debian.org/Backports?utm_source=mastodon: main h1 'Using backports' (a section half way down), and 'Backports' is an H2. The harness agrees (r10m: 'External links'). See the titleH1 finding. (2) MoinMoin's second search button 'Text' is now a lone button at the end of main (see the search finding). The 'Debian' logo link still comes before the H1. The ext15 fixture r10ext15-moinmoin still gives title 'External links' from 127.0.0.1, because the new host rule needs the real wiki.debian.org hostname, so this fix cannot be checked on that fixture.",
+   "src": "R1-extractor",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, as reported. Plain URLs in the real extension: the H1 is 'SourcesList' on /SourcesList and 'Backports' on /Backports. Search is in the bar, and Login, Info, Attachments and More Actions come after the H1. The 'Debian' link still comes before the H1. Still failing: (1) Any query-string URL, including the ?pow_referer= every first visit lands on. /Backports?utm_source=mastodon gives H1 'Using backports' with 'Backports' as an H2 (see N5). (2) The 'Text' full-text search button sits alone at the end of main (see N4). The fixture r10ext15-moinmoin.html from 127.0.0.1 still gives title 'External links', as the reporter said.",
+    "fix": "See N5 (titleH1: compare origin and pathname only) and N4 (findSearch: consume or keep the form's other submit buttons with the box)."
+   }
+  },
+  "F1047": {
+   "id": "F1047",
+   "status": "fixed",
+   "evidence": "Harness on live argentina.gob.ar/servicio/tramitar-el-pasaporte: H1 'Tramitar el Pasaporte' is followed by the lead paragraph, with no '15 mar 2021' line. r10m.js still shows 'p(small): 15 mar 2021'. Cost side effect: see the pageShowsDate finding.",
+   "src": "R1-extractor"
+  },
+  "F1032": {
+   "id": "F1032",
+   "status": "fixed",
+   "evidence": "Harness on fx/r10rev-nl-nolang.html gives lang=nl and on fx/r10rev-ca-nolang.html gives lang=ca (r10m: en and es). Real pages with html lang and the content-language meta stripped (--as replay): nos.nl gives nl, ara.cat and vilaweb.cat give ca, spiegel.de gives de (r10m: ''), repubblica.it gives it, and bbc.com/news gives en. Pages that keep their lang, read by langOfText: clarin es, g1 pt, lefigaro fr, aftonbladet sv, digi24 ro, corriere it. Misses return '' and never a wrong language.",
+   "src": "R1-extractor"
+  }
+ },
+ "works": [
+  "T1-youtube: Bot check note: during this session YouTube showed 'Sign in to confirm you're not a bot' (also on the original) for every video except dQw4w9WgXcQ: playlist items 2+, Mix items, Up next targets, 9bZkp7q19f0, jNQXAC9IVRw, kJQP7kiw5Fk. Sift shows that notice as the original does. I did not get around it, so playback of other videos and of Shorts could not be tested. Navigation to those pages was tested.",
+  "T1-youtube: works.md line 46/F820 (round 10 line 3) holds: Up next End loads 20->40->60->80, in step with the original (40/60/80).",
+  "T1-youtube: works.md 50 holds: Pause 15.8->17.5 paused (label Play), Ahead 10s ->27.5, Back 10s ->17.5, Mute/Unmute, Captions mirrors YouTube CC true->false->true->false, and a click on the picture pauses (label Play).",
+  "T1-youtube: works.md 51 holds: 'Position in video' click at 50% ->106 ('1:46 / 3:33'), ArrowRight 107, ArrowLeft 106, PageUp 127, End 213, Home 0, with focus kept on the slider.",
+  "T1-youtube: works.md 52 holds: full screen by click and by focus+Enter; f exits, and focus is back on Full screen within 1 s. After the exit, the portal is aligned with the player (262,-51,756,425 both).",
+  "T1-youtube: works.md 54 holds: 14 suggestions for 'never gonna'; ArrowDown x2 + Enter searched 'never gonna give you up rick astley'; a click on 'rick astley together forever vhs' searched it.",
+  "T1-youtube: works.md 55 holds: chips All->Videos->All are pressed in step with the original (Videos 40/40). Filters opens 'Search filters' with Relevance pressed and focus on Close. 'This week' gives sp=EgIIAw%253D%253D, with 7 results in Sift and 7 in the original. The channel row (@RickAstleyYT \u00b7 4.55M subscribers, Subscribe) and the Mix rows are kept.",
+  "T1-youtube: works.md 56 holds: Up next hrefs match 20/20 (19 with list=). A middle-click on the Up next Mix opened a new tab and left this tab unchanged.",
+  "T1-youtube: works.md 57 holds: from search into dQw4w9WgXcQ in place, the portal is at 95 from the first poll (330 ms), the H1 is at 645 by 3624 ms, and only the real title is announced (3903 ms).",
+  "T1-youtube: works.md 58 holds: '719 replies' 10/10; Show more replies 13/13, then Sift caught up to 63; End loads top-level threads 20->40->80 in step with the original. Sort by keyboard: Enter opens the 'Sort comments' modal with focus on Close; Newest re-sorts (same first comment as the original); focus returns to Sort comments; Top restores the order.",
+  "T1-youtube: works.md 59 holds: 14/14 comment links (@mentions, 1:07, 1:12) with the same hrefs as the original. A click on 1:07 seeks 35.7->69.5 and scrolls the portal from -1020 to 73.",
+  "T1-youtube: works.md 60 holds: signed-out Like, Dislike, Save and Subscribe open their aria-modal dialogs with focus on Close, with text matching the original's popups. Escape returns focus to the opener.",
+  "T1-youtube: works.md 61 holds: Description has 2393 characters and 16 links. Transcript has 24 lines against the original's 24. A click on 0:43 seeks to 44.3. Enter on 1:00 seeks to 61.0. Close returns focus to Show transcript.",
+  "T1-youtube: works.md 62 holds: watch Menu is a modal with focus on Close and the same entries as the original's guide drawer (Home \u2026 Report history). Show more adds Playables and Memberships, Shift+Tab wraps to Report history, and Escape returns focus to Menu.",
+  "T1-youtube: works.md 63 holds: Settings sub-pages Appearance, Display language, Restricted Mode, 'Choose your location' and Keyboard shortcuts work by mouse on watch and by keyboard on home. Their text matches the original's popup. Back returns to Settings, and Escape or Close returns focus to Settings.",
+  "T1-youtube: works.md 64 holds: playlist '1 / 10'. Loop cycles Loop playlist -> Loop video -> Turn off loop, and Shuffle toggles, both the same as the original. Picking item 3 gives '3 / 10' with the section open. Picking the 2nd Mix item keeps the Mix section open, with Now playing at index 1.",
+  "T1-youtube: works.md 65/66 hold: Mix watch Tab order is Skip to content, Search, Search, Menu, Sign in, Settings, Pause, Back 10s, Ahead 10s, Replay, Next video, Mute, Captions, Full screen, Position in video, Rick Astley, Subscribe, Like, Dislike, Save, Mix, Description, Up next, Comments, Sift. Landmarks are header, form[search], main, div[status]. Headings are h1 and h2 Mix/Description/Up next/Comments. With every section open: 215 visible controls, 0 unnamed.",
+  "T1-youtube: works.md 67 holds: the Spanish watch UI is fully Spanish (Ir al contenido, Buscar, Men\u00fa, Configuraci\u00f3n, Pausar, Atr\u00e1s 10 s, Adelante 10 s, Silenciar, Subt\u00edtulos, Pantalla completa, Posici\u00f3n en el v\u00eddeo, Suscribirse, Me gusta, Guardar, Descripci\u00f3n, A continuaci\u00f3n, comentarios), lang=es-ES. Spanish search shows Todo \u2026 Filtros, and 'Filtros de b\u00fasqueda' has Relevancia pressed. Spanish home shows Inicio and Temas, with Spanish one-liners. Spanish search's 40 one-liners and Up next's 20 are all Spanish (an invisible-character title becomes 'T\u00edtulo no disponible').",
+  "T1-youtube: works.md 69 holds for what can be tested: Shorts comments 20/20 threads in Sift and the original; Escape keeps focus on 'View N comments'; Next video navigates (5vxm-EdWg_Q -> P3Tw4ETt8yE); Like and Subscribe open their sign-in dialogs with focus on Close. Playback was blocked by the bot check.",
+  "T1-youtube: works.md 70 holds: a single portal sits exactly over #movie_player at 600 (18,95,564,317), 400 (18,140,364,205) and 640x450@2x (18,148,604,339). No horizontal overflow at 400 px or 200% on watch, home, search, the playlist page, playlist watch or a Short. The video plays at 200% (15.8 -> 18.8).",
+  "T1-youtube: works.md 71 holds: Sift's field is ready at 1808 ms, and 'abc' typed by 3272 ms reaches both fields, with focus kept through 19 s. Skip to content focuses main#sift-main. Alt+Shift+S switches to the original and back, with the video playing (17.5 -> 19.6 -> 21.8).",
+  "T1-youtube: works.md 72 holds: keyboard-only watch walk (kb.ts). Pause/Play, Back 10s, Ahead 10s, Mute/Unmute, Captions, Full screen + f, slider ArrowRight/PageUp, Subscribe, Like and Save prompts with Escape, Description, Show transcript, transcript 0:43 Enter (seek to 44.1), Up next, Comments, and Sort comments -> Newest all work. Focus stayed in view at every step.",
+  "T1-youtube: works.md 68 holds: home chips (in the collapsed 'Topics' section): Music gives 27/27 with the same first ids as the original (dQw4w9WgXcQ, oTryVjF9U88, OiZlXOAOLLw), and All gives 21/31 (Shorts are folded), with pressed states matching the original.",
+  "T1-youtube: axe-core: 0 violations on watch, Mix watch, playlist watch, search, home, the playlist page, a Short, the Spanish watch and Spanish search, and on the Mix page with Mix, Description, Transcript, Up next, Comments and replies all open.",
+  "T1-youtube: 200% keyboard: 24 Tabs on watch never left focus outside the viewport or under the Sift switch. More actions (Enter) opens a dialog with Save and Report. Save opens the sign-in prompt, and Escape returns to More actions.",
+  "T1-youtube: Playlist page: '...more' opens a Description dialog (focus on Close; Escape returns to ...more). 'Save playlist' opens 'Want to save this playlist?' (the original also flips its button to 'Remove from Library', and Sift mirrors it). 'by Rick Astley' goes to /@RickAstleyYT.",
+  "T1-youtube: Fast wheel on search keeps loading in step with the original: 60->95->188->198 against 56->87->179->188.",
+  "T1-youtube: The media bar's time display is aria-live=off. The only live region is div.sr[role=status].",
+  "T1-youtube: Up next to another video, then browser Back: the URL changes at once. Sift and the original both show the old title until about 2.8 s, then the new page (here the bot-check notice). Back returns to dQw4w9WgXcQ with the portal at 95 and the video playing (1.7 -> 6.8).",
+  "T1-youtube: F1000 keys never fire while typing: 'kjlmcf' typed into Search stays in both fields, and pause, mute, captions and full screen are unchanged.",
+  "T2-news: works.md line 48 holds. Guardian home: 119 long Sift links, all matching an original anchor, 0 duplicate hrefs, 55 rewritten lines faithful (the 'Massachusetts' and 'John Anderson' additions come from the cards' own kickers). 'Democracy always\u2026' opens /world/2026/oct/26/brazil-lula-vow-democracy-always-election-win. Menu is an aria-modal 'Menu' dialog with focus on Close, and Escape returns to Menu. Sign in goes to profile.theguardian.com with an Email field. Search sends the Google site search q=Starlink&as_sitesearch=www.theguardian.com, which hit Google's captcha; I stopped there.",
+  "T2-news: works.md line 49 holds: Guardian video Play shows 'The Guardian consent message \u2013 The site asks for a cookie choice before it plays this video' with Yes, I accept / No, thank you / Manage cookies. Focus goes to Close, and Escape returns to Play.",
+  "T2-news: works.md line 50 holds. BBC home: 36 of 36 original story links are present at 1280 and at 600 px, 0 missing. Repeats match the original's own 'Most read' repeats. 'Anthropic warns\u2026' opens cq398p1wd1evo. The Menu dialog and Escape work. The Search field with Enter goes to /search?q=Starlink. Sign In goes to account.bbc.com (username field).",
+  "T2-news: works.md line 51 holds. BBC Anthropic and Lula articles: H1, 'authors \u00b7 date', SHORT VERSION with Show full text, photos with captions, and Short versions at 0.58 and 0.45 of the words with no new numbers ($1.8 trillion, $16.3bn, $80.7bn, Nasdaq ANT, 'irresponsibly large', visas and Pix all match the source). Enter on the toggle switches text and keeps focus. No overflow at 600 px. The BBC video page plays the preroll (0:12/0:15), then the video (0:02 to 0:05), and Pause holds at 0:05.",
+  "T2-news: works.md line 52 holds. Infobae home: 95 dated URLs, of which only the 3 trend quicklinks (Rusia, Siluro, Contaminaci\u00f3n del aire) are missing. The headline click opens the right story. The Men\u00fa dialog has focus on Cerrar, and Escape returns. Search shows 'Mostrando 27554 resultados para Lula' live, and Enter goes to /buscador/?query=Lula (66 links). Cerrar leaves no stray dialog. INICIAR SESION opens 'Iniciar sesi\u00f3n' with focus in the email input (label 'Email *'), and Escape returns. At 200% it opens through Cuenta.",
+  "T2-news: works.md lines 53 and 54 hold. Infobae article: Puntos clave shows 3 points. Escuchar, then Reproducir audio plays 5.3/58 s, and Pausar audio pauses at 5.5 s. The Trump article video plays 7.6/32 s, and Pausar pauses at 7.8 s. Enter toggles Ver texto completo / Ver versi\u00f3n corta with focus kept. I read 101 Infobae home pairs, all faithful and in Spanish.",
+  "T2-news: works.md line 55 holds. La Naci\u00f3n search for 'Milei' gives 45896 resultados, the same as the original. 'Econom\u00eda (9093)' gives 9093, the same as the original. INICIAR SESI\u00d3N goes to login.lanacion.com.ar with Email * and 'Buscar con DNI'. The home headline 'Proh\u00edben salir del pa\u00eds a Flavio Bolsonaro\u2026' opens the right story. All 114 long home links have an original anchor.",
+  "T2-news: works.md line 56 holds. La Naci\u00f3n Claves: the results map is one portal, the header is clean (author \u00b7 date, standfirst, Escuchar/Guardar/Resumen), and both videos play through Sift (4.8/86 s, then paused at 5.3; 5.1/44 s, then paused at 9.1).",
+  "T2-news: works.md line 57 holds. Daily Mail snapshots: the home outline is 395 lines with the same structure as round 10. The article has 6 loaded photos (634 px), '+6 View gallery' once, and a Short version at 0.54 that is faithful (2.68%, $111.74, the three-day pounding, Epic Fury, Araghchi). The video snapshot has its Short version (0.36), '266 comments' and no Share, and plays 6.4/63 s, then pauses at 6.9. Search sends GET https://www.dailymail.com/home/search.html?query=Meghan&channel=ushome&page=1.",
+  "T2-news: works.md line 58 partly holds. The Mirror home is a clean headline list with section headings. Menu is aria-modal with focus on Close, and Escape returns. The article opens with H1, author, date, a Short version and its photos. One home line is now wrong (see findings).",
+  "T2-news: works.md line 59 holds. La Naci\u00f3n Juli\u00e1n \u00c1lvarez article has 4 'X Post' portals (F830). The TOI article has its byline 'Vivek Dubey \u00b7 Oct 26, 2026' and lead photo with caption (F832). The F381 fixture keeps all 7 story cards and drops the 4 CTAs. The Guardian F1 live blog's lead photo and 3 in-post photos load on scroll (620x496, 465x326, 465x310, 465x310). BBC live page cq1j38x0n4zrt is a clean timeline with the Summary text and 21 images. Fox search Load More goes from 11 to 17, the same as the original (17), with no stray dialog. The Fox article has no number-only buttons or all-caps promos. Clar\u00edn home 'Solo suscriptores' appears 4 times (original 4). The Clar\u00edn article Short version is Spanish at 0.47.",
+  "T2-news: works.md line 60 holds: the Guardian Lula Short version is 0.49 of the words (646/1331) with no new numbers, and the Musk 'math doesn't add up' line and the Kast/Fujimori line match the source.",
+  "T2-news: New site, the New York Post: home opens as a clean list with section headings. 126 rewritten lines checked against their cards are faithful ($79M/$125M, $26.7M with 2 elevators down, $5.9M, rainbow Rolex). The headline click opens the right article. Menu is an aria-modal dialog with focus on Close, and Escape returns. Search goes to /search/Starlink/?se=ny. Log In opens the site's login form (I did not submit it). Escape does not close that form, but it does not on the original either. Close modal closes it and returns focus to Log In. The article Short version is 0.47 and faithful.",
+  "T2-news: Speed: firstpaint.ts put Sift's first content at the same poll as the original's on 12 of 14 target pages. Sift was earlier on La Naci\u00f3n search (median 935 vs 1499 ms) and NY Post home (5745 vs 6122 ms).",
+  "T2-news: axe-core: 0 violations on all 14 target pages (Guardian \u00d72, BBC \u00d73, Infobae \u00d72, La Naci\u00f3n \u00d72, Daily Mail \u00d73, NY Post \u00d72).",
+  "T2-news: Keyboard: tabwalk (25 Tabs) never stops on a hidden original control on any target page. The only 'PAGE <body>' stop is the document wrap after the Sift switch, before 'Skip to content' comes round again."
+ ],
+ "polish": [
+  "T1-youtube: Playlist watch bar: Previous and Next are worded unevenly. English shows 'Previous' next to 'Next video'; Spanish shows 'Anterior' next to 'Siguiente video', and es-ES YouTube writes 'v\u00eddeo'.",
+  "T1-youtube: Playlist page (/playlist?list=PL2MI040U_GXobmpXtTwBF7oHBGT5BETSD) is still the generic view: no one-line descriptions, durations as '3 minutes, 34 seconds', and the channel shown as a button 'by Rick Astley'.",
+  "T1-youtube: English home: 7 of 213 foreign titles (4 Persian, 1 Korean, 1 Chinese, '4Chan lleva 20 a\u00f1os\u2026') stay untranslated after 2 minutes. They are marked with lang, while other foreign titles in the same list got English lines.",
+  "T1-youtube: Shorts: after Next video, a click on Previous video does nothing in Sift and on the original alike. But Sift's Previous video button then disappears, while the original's stays visible and enabled (/shorts/5vxm-EdWg_Q -> Next -> Previous).",
+  "T1-youtube: At 200% (640x450@2x) the Sift switch covers the bottom right of the video portal (/home/nico/projects/sift-test-1/research/shots/r11t1-watch-200.png).",
+  "T1-youtube: Home meta for one entry runs together without separators: 'Football 9D 6.9K 9h ago \u00b7 1:54'.",
+  "T2-news: Mirror home privacy dialog (F1034): focus lands on the first link 'Reach and across our entities' instead of Close.",
+  "T2-news: Mirror article: after Escape closes the site's gallery, focus is lost (activeElement null) instead of returning to 'View 3 Images'. 'View 3 Images' also repeats under each of the three photos.",
+  "T2-news: Mirror article sign-in sheet: the 'Close' button wraps letter by letter ('Cl / os / e'), see research/shots/r11t2-mirror-gallery.png.",
+  "T2-news: Guardian home: the Israel live-blog card repeats its headline as a second button-styled link to the same href, which is an extra tab stop (research/shots/r11t2-guardian-home-israel.png).",
+  "T2-news: Guardian article 'More on this story': 'Move carousel backwards/forwards' buttons stay, though every item is already listed.",
+  "T2-news: Guardian article related line: 'A journalist who predicted Brazil\u2019s future called Bolso fascist\u2026' is stronger than the source's quote '\u2018Bolso shows all signs of fascism\u2019'.",
+  "T2-news: BBC articles: the lead image alt starts with 'Getty Images', and its figcaption is only 'Getty Images'.",
+  "T2-news: BBC Lula article tab order: the tag links (Luiz Inacio Lula da Silva, Brazil, Donald Trump, United States) come before the in-text link 'US president called a \"witch-hunt\"'.",
+  "T2-news: Infobae Bolsonaro/PL article: the second Valdemar Costa Neto photo (mid-article in the original, y\u22482900) sits right after the lead photo at the top.",
+  "T2-news: Infobae search field keeps the site's English aria-label 'Search' on a Spanish page.",
+  "T2-news: Infobae home video items drop their duration ('59 Seg', '1:06 Min').",
+  "T2-news: La Naci\u00f3n home lines: some put a section word and a colon in front ('Seguridad: tres hombres\u2026', 'Descanso: Pablo Ferrero\u2026'), and 'Estos empresarios argentinos apostaron por el RIGI' starts with a dangling 'Estos'.",
+  "T2-news: La Naci\u00f3n Claves Short version: stray one-link lines ('su mayor salto desde 1999.', 'el primer freno al giro a la derecha', 'Colombia').",
+  "T2-news: Daily Mail video snapshot: empty H2 sections at the end ('Comments', 'TOP STORIES', 'DON'T MISS').",
+  "T2-news: NY Post article: 'Post a comment.' is both a button and a link, and an 'AdChoices' link sits under the article.",
+  "T2-news: NY Post home: the 'Food for thought' card shows its headline as plain text and makes its summary the link.",
+  "T2-news: Clar\u00edn Trump article: the Short version ends with the author bio 'Periodista, corresponsal en Estados Unidos. plugones@clarin.com'.",
+  "T2-news: Fox France article (regression spot): an 'Interactive area \u2026 MVPD Picker' (TV-provider picker) portal sits where the 'Police in Paris fire water cannons' video was.",
+  "R1-extractor: dom.ts:945-952 textLang skips text inside any element with its own lang, even the main content that declares the page language (MoinMoin's div#content lang=en), so wiki.debian.org pages now get lang '' (was 'en').",
+  "R1-extractor: generic.ts:2818 nestedLinkCard names the entry by its longest text fragment: a headline with inline markup ('Lula vence <b>no segundo turno</b> com 50,9%\u2026') becomes the title 'com 50,9% dos votos v\u00e1lidos', with the rest in meta (scratch fixture nested.html; no live G1 case found in headless).",
+  "R1-extractor: Lobsters comments: the upvote arrow becomes an action named only by its count ('31', '~') on every comment (toItem button loop).",
+  "R1-extractor: The Verge home (pre-existing): meta parts glued without separators: 'Emma Roth and Jay Peters193', 'Richard LawlerOct 26'.",
+  "R1-extractor: wiki.debian.org/SourcesList: the 'Debian' logo link still comes before the H1 in main.",
+  "R1-extractor: fx/r10ext15-moinmoin.html cannot check F1046's title fix when served from 127.0.0.1 (the host-word rule needs wiki.debian.org), so it still reports 'External links'.",
+  "R1-extractor: Harness note for other reviewers: r10m.js prints item metaInline links and the current entry.ts does not, so outline diffs like '[News ->/sections/news/]' vs 'News' between those bundles are harness artifacts, not regressions."
+ ],
+ "done": [
+  {
+   "src": "T1-youtube",
+   "page": "YouTube home",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts 3 runs (original first grid item vs Sift): 2983/2983, 5744/5744, 3810/3810 ms. Medians 3810 vs 3810, the same poll. Spanish home: 2604 vs 2604."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube home",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Topics chips Music and All re-filter the same as the original (27/27; first ids match). Fast and moderate wheel, End and PageDown load to the feed end (233 vs 243, no continuation left). Menu shows 11 entries plus Show more, matching the original. Settings sub-pages work by keyboard. Search suggestions work."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube home",
+   "check": "language",
+   "pass": false,
+   "evidence": "English: lang en/en, 0 mixed-script lines in 213; 7 foreign titles kept as they are, marked with lang. Spanish (hl=es): lang es-ES/es-ES with Spanish labels and 22 of 23 lines in Spanish, but one line is Indonesian ('Koleksi video Boram tentang hari-hari yang menyenangkan'); see the finding."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube home",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Focus starts on main. Settings is reached by Tab, Enter opens it with focus on Close, Appearance and Back work by Enter, and Close returns focus to Settings. Each PageDown scrolls about 9 entries and loads more."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube home",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations on English home. Landmarks and headings are H1 Home, H2 Topics and Shorts."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube home",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2x and 400 px: Sift's scroll width 640/640 and 400/400, 0 elements wider than the viewport."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube search",
+   "check": "speed",
+   "pass": true,
+   "evidence": "Original first ytd-video-renderer vs Sift: 2535/1634, 2196/1292, 2013/1229 ms. Medians 2196 vs 1292."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube search",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Suggestions: 14 for 'never gonna', picked by keys and by click. Chips Videos/All match the original's pressed state and counts. Filters -> This week: 7 results in Sift and 7 in the original, same sp. Fast wheel keeps loading (198 vs 188)."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube search",
+   "check": "language",
+   "pass": true,
+   "evidence": "English: lang en, English lines. Spanish: lang es-ES, UI Todo/Filtros/'Filtros de b\u00fasqueda'/Relevancia, and all 40 lines in Spanish."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube search",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations (English and Spanish)."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube search",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2x and 400 px: no horizontal overflow (640/640, 400/400)."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube watch (dQw4w9WgXcQ)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "Title: original 4372/10854/6808 ms vs Sift 1884/1852/2798 ms, medians 6808 vs 1884. Player: same poll in 3 of 3 runs (median 2338 vs 2338)."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube watch (dQw4w9WgXcQ)",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Play/pause, Back/Ahead 10s, mute, captions (mirrors YouTube CC), full screen and back, seek slider click and keys, Like/Dislike/Save/Subscribe prompts, Description, transcript seek, Up next navigation and browser Back, replies, Show more replies, comment links and timestamps, sort Newest/Top, Settings and Menu: each has the same effect as on the original. Comments stop at 400 threads (see the finding)."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube watch (dQw4w9WgXcQ)",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "kb.ts walk through every media control, slider, prompts with Escape, Description, transcript Enter, Up next, Comments and Sort -> Newest, with focus in view at every step. Letter keys k/j/l/m/c/f/0-9 work from the bar."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube watch (dQw4w9WgXcQ)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations, also with all sections and replies open. 215 controls, 0 unnamed. The time display is aria-live=off. On navigation from search, only the title is announced."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube watch (dQw4w9WgXcQ)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "The portal matches the player at 600/400/640@2x. No overflow. Plays at 200% (15.8 -> 18.8). 24 Tabs with no focus out of view or under the switch. More actions -> Save -> Escape works."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube watch (dQw4w9WgXcQ)",
+   "check": "language",
+   "pass": true,
+   "evidence": "English lang en. Spanish hl=es: every control label is Spanish (Ir al contenido \u2026 Pantalla completa, Posici\u00f3n en el v\u00eddeo), lang es-ES, and all 20 Up next lines are Spanish."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube playlist watch (PL2MI040U_GXobmpXtTwBF7oHBGT5BETSD) and Mix",
+   "check": "speed",
+   "pass": true,
+   "evidence": "Playlist watch title: original 3961/3965/3687 ms vs Sift 1903/1726/1785, medians 3961 vs 1785. Mix title: 4193/4651/4596 vs 1690/2140/2202, medians 4596 vs 2140."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube playlist watch (PL2MI040U_GXobmpXtTwBF7oHBGT5BETSD) and Mix",
+   "check": "actions",
+   "pass": true,
+   "evidence": "At 1280 px: '1 / 10'; Loop cycles and Shuffle match the original; pick item 3 -> '3 / 10'; Next video / Shift+N -> index=2; Replay restarts (22.0 -> 1.5); Mix pick keeps the section open with Now playing at index 1."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube playlist watch (PL2MI040U_GXobmpXtTwBF7oHBGT5BETSD) and Mix",
+   "check": "zoom",
+   "pass": false,
+   "evidence": "At 600 px and 640x450@2x, there is no Previous/Next in the bar and Shift+N does nothing, while the original's Shift+N goes to index=2 (F1000 partly fixed). No overflow, and the portal is aligned (18,148,564,317)."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube playlist watch (PL2MI040U_GXobmpXtTwBF7oHBGT5BETSD) and Mix",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "The Tab order includes Replay and Next video between Ahead 10s and Mute, with no stops in the hidden original. axe 0 violations."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube playlist page",
+   "check": "speed",
+   "pass": true,
+   "evidence": "Original first yt-lockup-view-model vs Sift: 2374/975, 1983/936, 2162/990 ms. Medians 2162 vs 975."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube playlist page",
+   "check": "actions",
+   "pass": false,
+   "evidence": "Settings is now in the header (F1061 fixed). ...more, Save playlist, Play all and the channel link match the original. But Menu has 3 entries against the original's 11 (see the finding)."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube playlist page",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations. At 400 px: no overflow."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube Shorts (/shorts/5vxm-EdWg_Q)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "Original yt-shorts-video-title-view-model vs Sift: 2949/2488, 2447/1962, 2591/2125 ms. Medians 2591 vs 2125."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube Shorts (/shorts/5vxm-EdWg_Q)",
+   "check": "actions",
+   "pass": true,
+   "evidence": "View comments shows 20/20 threads; Like and Subscribe prompts work, with Escape back to the opener; Next video navigates. Playback could not be tested: the original video element has no src (bot check)."
+  },
+  {
+   "src": "T1-youtube",
+   "page": "YouTube Shorts (/shorts/5vxm-EdWg_Q)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations. At 400 px: no overflow."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home https://www.theguardian.com/international",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint (main a[href*='/2026/']) 3 runs: original 5684/3601/1308 ms, Sift 5684/3601/1308 ms. Median 3601 vs 3601, the same poll."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Headline click opens the right article. Menu dialog opens with focus on Close, and Escape returns. Sign in goes to profile.theguardian.com (Email). Search gives the same Google site search as the original (captcha, stopped)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home",
+   "check": "content",
+   "pass": true,
+   "evidence": "119 long links, all with an original anchor, 0 duplicates. 55 rewrites read, faithful."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk: 25 of 25 stops in Sift, order Skip, search, Search, Menu, Sign in, headlines."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe: 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 at scale 2: page scrollWidth 640, 0 elements wider than the viewport. Header Search, Menu and Sign in visible. Switch 98x42 'Sift view'."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian home",
+   "check": "language",
+   "pass": true,
+   "evidence": "English page, English UI and lines."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian article (Lula 'Democracy always')",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint h1: original 843/743/735, Sift 843/743/735. Median 743 vs 743."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian article (Lula 'Democracy always')",
+   "check": "content",
+   "pass": true,
+   "evidence": "H1, 'Tom Phillips and Tiago Rogero \u00b7 Oct 26, 2026', SHORT VERSION at 0.49 (646/1331 words), no new numbers. 3 photos, 2 chart portals, 2 video portals. Facts match the source."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian article (Lula 'Democracy always')",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Play shows the consent explanation with the site's own buttons, and Escape returns to Play. Show full text toggles. Sign in and search work as on the home page."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian article (Lula 'Democracy always')",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk 25 of 25 in Sift: header, Show full text, links, chart portal."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian article (Lula 'Democracy always')",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Guardian article (Lula 'Democracy always')",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "200%: scrollWidth 640, 0 wide elements, header controls visible."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC home https://www.bbc.com/news",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint [data-testid=card-headline]: original 1196/571/801, Sift the same. Median 801 vs 801."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC home",
+   "check": "content",
+   "pass": true,
+   "evidence": "36 of 36 original story links present at 1280 and at 600 px, 0 missing. 600 px has no overflow (scrollWidth 600)."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC home",
+   "check": "actions",
+   "pass": true,
+   "evidence": "'Anthropic warns\u2026' opens the right article. Menu dialog works with Escape. Search goes to /search?q=Starlink. Sign In goes to account.bbc.com."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC home",
+   "check": "screen reader",
+   "pass": false,
+   "evidence": "axe 0 violations, but the Search dialog's accessible name is the page H1 (see findings)."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC home",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk 25 of 25 in Sift: Skip, Menu, Search, Sign In, headlines."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC home",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "200%: scrollWidth 640, 0 wide elements. Menu, Search and Sign In visible."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article cq398p1wd1evo (Anthropic), 1280 and 600 px",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint h1: original 1262/599/784, Sift the same. Median 784 vs 784."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article cq398p1wd1evo (Anthropic), 1280 and 600 px",
+   "check": "content",
+   "pass": true,
+   "evidence": "H1, 'Rachel Clun and Liv McMahon \u00b7 26 Oct 2026', Short version 0.58 (454/777), no new numbers, photo. No overflow at 600 px."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article cq398p1wd1evo (Anthropic), 1280 and 600 px",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Enter on Show full text gives 'Show short version' (5416 chars) and back (3547 chars) with focus kept. tabwalk 24 in Sift plus the document wrap."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article cq398p1wd1evo (Anthropic), 1280 and 600 px",
+   "check": "screen reader",
+   "pass": false,
+   "evidence": "axe 0 violations, but the Search dialog is named with the article title."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article cq398p1wd1evo (Anthropic), 1280 and 600 px",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "200%: scrollWidth 640, 0 wide elements."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article cq62yg6rggj0o (Lula), 1280 and 600 px",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint h1: original 800/369/355, Sift the same. Median 369 vs 369."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article cq62yg6rggj0o (Lula), 1280 and 600 px",
+   "check": "content",
+   "pass": true,
+   "evidence": "At 600 px: H1, 'Ione Wells \u00b7 27 Oct 2026', Short version 0.45, no new numbers (visas, Pix, Meta claims match), photo. 0 overflow at 600 px and at 1280."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article cq62yg6rggj0o (Lula), 1280 and 600 px",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC article cq62yg6rggj0o (Lula), 1280 and 600 px",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "200%: scrollWidth 640, 0 wide elements."
+  },
+  {
+   "src": "T2-news",
+   "page": "BBC video page /news/videos/c64g1wy4mdwmo",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Preroll 0:12/0:15, then the video 0:02 to 0:05. Pause holds at 0:05 (label changes to Play)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae home https://www.infobae.com/america/",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint a[href*='/2026/10/']: original 2393/1166/1341, Sift the same. Median 1341 vs 1341."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae home",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Headline opens the right story. Men\u00fa works. Live search shows 27554 results, and Enter goes to /buscador/?query=Lula. INICIAR SESION opens a dialog with focus in Email (not submitted), also at 200% through Cuenta."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae home",
+   "check": "language",
+   "pass": true,
+   "evidence": "html lang es, Sift lang es. Spanish UI and lines (101 pairs read)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae home",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk 25 of 25 in Sift."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae home",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae home",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "200%: scrollWidth 625, 0 wide elements. Men\u00fa, Buscar and Cuenta visible. Switch 'Vista Sift' 98x42."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (PL reconoce victoria de Lula)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint h1: original 1467/703/860, Sift the same. Median 860 vs 860."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (PL reconoce victoria de Lula)",
+   "check": "content",
+   "pass": true,
+   "evidence": "H1, date, standfirst, Spanish Short version 0.50, facts match. 3 photos (one out of place, see polish). Puntos clave shows 3 points."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (PL reconoce victoria de Lula)",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Audio 5.3/58 s, then paused at 5.5. Enter toggle keeps focus. The Trump article video plays 7.6 s and pauses at 7.8 s."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (PL reconoce victoria de Lula)",
+   "check": "language",
+   "pass": true,
+   "evidence": "Sift lang es. Labels: Ir al contenido, Men\u00fa, Buscar en todo el sitio, Ver texto completo, Escuchar, Puntos clave, Resumen, Vista Sift."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (PL reconoce victoria de Lula)",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk 24 in Sift plus the document wrap."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (PL reconoce victoria de Lula)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Infobae article (PL reconoce victoria de Lula)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "200%: scrollWidth 625, 0 wide elements."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n search /buscador/?query=Milei",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint a[href*='-nid']: original 4415/1430/1499, Sift 2635/935/759. Median Sift 935 vs original 1499."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n search /buscador/?query=Milei",
+   "check": "actions",
+   "pass": true,
+   "evidence": "45896 resultados in both. Filtros > 'Econom\u00eda (9093)' gives 9093, the same as the original."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n search /buscador/?query=Milei",
+   "check": "language",
+   "pass": true,
+   "evidence": "Sift lang es. 24 rewritten result titles in Spanish, faithful."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n search /buscador/?query=Milei",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk 25 of 25 in Sift (search, Men\u00fa, INICIAR SESI\u00d3N, Filtros, RELEVANCIA, results)."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n search /buscador/?query=Milei",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n search /buscador/?query=Milei",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "200%: scrollWidth 640, 0 wide elements, H1 at 96."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Las claves del balotaje)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint h1: original 6399/3793/2637, Sift the same. Median 3793 vs 3793."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Las claves del balotaje)",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Video 1 plays 4.8/86 s and pauses at 5.3. Video 2 plays 5.1/44 s and pauses at 9.1. Men\u00fa dialog has focus on Cerrar, and Escape returns. Map and charts are portals."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Las claves del balotaje)",
+   "check": "content",
+   "pass": true,
+   "evidence": "H1, 'Guido Bovone \u00b7 26 oct 2026', Short version 0.57, numbers match the source (2025, 121/513, 28 of 81, 82%)."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Las claves del balotaje)",
+   "check": "language",
+   "pass": true,
+   "evidence": "Sift lang es. UI: Ir al contenido, Buscar, Men\u00fa, Escuchar, Guardar, Resumen, Ver texto completo, Reproducir, Pausar, Atr\u00e1s 10 s, Adelante 10 s, Silenciar, Pantalla completa, \u00c1rea interactiva\u2026"
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Las claves del balotaje)",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk 25 of 25 in Sift."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Las claves del balotaje)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "La Naci\u00f3n article with video (Las claves del balotaje)",
+   "check": "zoom",
+   "pass": false,
+   "evidence": "No overflow (scrollWidth 640), but the H1 starts at 988 px under a 604x865 portrait photo. The original shows the title at 147 (see findings)."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail home snapshot",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint: original 2276/2089/1644, Sift the same. Median 2089 vs 2089."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail home snapshot",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Search sends GET dailymail.com/home/search.html?query=Meghan&channel=ushome&page=1. The live site is blocked from this machine."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail home snapshot",
+   "check": "content",
+   "pass": true,
+   "evidence": "395-line outline. 207 rewrites, spot-checked against the snapshot (Tabatha Kerr '10 years on', '$600k'), faithful."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail home snapshot",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk 25 of 25 in Sift."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail home snapshot",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail home snapshot",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "200%: scrollWidth 640, search and Login visible."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail article snapshot",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint h1: original 2046/1581/1859, Sift the same. Median 1859 vs 1859."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail article snapshot",
+   "check": "content",
+   "pass": true,
+   "evidence": "H1, 'Stephen M. Lepore \u00b7 Oct 24, 2026', Short version 0.54, 6 photos, '+6 View gallery' once."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail article snapshot",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk 24 in Sift plus the document wrap."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail article snapshot",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail article snapshot",
+   "check": "zoom",
+   "pass": false,
+   "evidence": "No overflow, but Login is gone at 200% (0 in Sift, 71 px wide in the original); see findings."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail video snapshot",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint h1: original 3071/1872/1779, Sift the same. Median 1872 vs 1872."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail video snapshot",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Play goes to 6.4/63 s, and Pause stops at 6.9 s."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail video snapshot",
+   "check": "content",
+   "pass": false,
+   "evidence": "Short version 0.36 and '266 comments', but the video is placed above the H1 (H1 at 712 px); see findings."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail video snapshot",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "Daily Mail video snapshot",
+   "check": "zoom",
+   "pass": false,
+   "evidence": "No overflow, but Login is missing at 200% and the H1 is at 611 px."
+  },
+  {
+   "src": "T2-news",
+   "page": "NY Post home (new site; Sky News showed 'Access Denied' and CNN served a 182-byte 'Unknown Error' page, so they could not be tested)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint a[href*='/2026/10/']: original 7210/5049/6122, Sift 5745/5049/6122. Median 5745 vs 6122."
+  },
+  {
+   "src": "T2-news",
+   "page": "NY Post home",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Headline opens the right article. Menu dialog opens with focus on Close, and Escape returns. Search goes to /search/Starlink/?se=ny. Log In opens the login form (not submitted)."
+  },
+  {
+   "src": "T2-news",
+   "page": "NY Post home",
+   "check": "content",
+   "pass": true,
+   "evidence": "185 long links, all with an original anchor. 126 rewrites checked against the card texts, faithful."
+  },
+  {
+   "src": "T2-news",
+   "page": "NY Post home",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk 25 of 25 in Sift."
+  },
+  {
+   "src": "T2-news",
+   "page": "NY Post home",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "NY Post home",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "200%: scrollWidth 640, Search, Menu and Log In visible."
+  },
+  {
+   "src": "T2-news",
+   "page": "NY Post article (Microsoft buyouts)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint h1: original 5102/1920/1381, Sift the same. Median 1920 vs 1920."
+  },
+  {
+   "src": "T2-news",
+   "page": "NY Post article (Microsoft buyouts)",
+   "check": "content",
+   "pass": false,
+   "evidence": "Short version 0.47 and faithful, but an unrelated autoplaying video sits at the top and the second photo is lost (see findings)."
+  },
+  {
+   "src": "T2-news",
+   "page": "NY Post article (Microsoft buyouts)",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk 24 in Sift plus the document wrap."
+  },
+  {
+   "src": "T2-news",
+   "page": "NY Post article (Microsoft buyouts)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 violations."
+  },
+  {
+   "src": "T2-news",
+   "page": "NY Post article (Microsoft buyouts)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "200%: scrollWidth 640, H1 at 135."
+  }
+ ]
+}

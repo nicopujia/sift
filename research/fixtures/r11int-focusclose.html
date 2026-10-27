@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Widgets that focus on click and close on blur</title>
+<style>
+body { font: 16px sans-serif; margin: 0; }
+main { max-width: 760px; margin: 0 auto; padding: 16px; }
+[role=menu] { border: 1px solid #999; padding: 4px; list-style: none; margin: 4px 0; }
+[role=menu] li { padding: 4px; }
+</style>
+</head>
+<body>
+<header><a href="/fx/r11int-focusclose.html">Fixture home</a></header>
+<main>
+<h1>Focus on click, close on blur</h1>
+<p>Each control below moves focus during its click, as many vanilla widgets do, and closes again when that focus leaves.</p>
+
+<section>
+<h2>Account menu</h2>
+<div class="dd">
+<button id="acct" type="button" aria-haspopup="menu" aria-expanded="false">Account</button>
+<ul role="menu" id="acctmenu" hidden>
+<li role="menuitem" tabindex="-1"><a href="#profile">Your profile</a></li>
+<li role="menuitem" tabindex="-1"><a href="#settings">Settings</a></li>
+<li role="menuitem" tabindex="-1"><a href="#signout">Sign out</a></li>
+</ul>
+</div>
+</section>
+
+<section>
+<h2>List name</h2>
+<p>Click the name to rename the list.</p>
+<div id="name" role="button" tabindex="0" aria-label="Rename list: Groceries">Groceries</div>
+</section>
+
+<section>
+<h2>People</h2>
+<button id="invite" type="button">Invite people</button>
+</section>
+
+<section>
+<h2>Danger zone</h2>
+<button id="del" type="button">Delete list</button>
+<button id="arch" type="button">Archive list</button>
+<dialog id="archdlg" aria-labelledby="archt"><h3 id="archt">Archive this list?</h3><p>You can bring it back later.</p><button type="button" id="archno">Keep it</button> <button type="button" id="archyes">Archive</button></dialog>
+</section>
+
+<p id="log">log:</p>
+</main>
+<script>
+window.__log = [];
+const log = (s) => { window.__log.push(s); document.getElementById("log").textContent = "log: " + window.__log.join(" | "); };
+
+// 1. A dropdown that focuses its button on click (Safari does not), and closes when the button loses focus
+// to anything but the menu.
+const acct = document.getElementById("acct"), menu = document.getElementById("acctmenu");
+const setOpen = (o) => { menu.hidden = !o; acct.setAttribute("aria-expanded", String(o)); log(o ? "menu open" : "menu closed"); };
+acct.addEventListener("click", () => { acct.focus(); setOpen(menu.hidden); });
+acct.addEventListener("blur", () => setTimeout(() => { if (!menu.contains(document.activeElement) && document.activeElement !== acct && !menu.hidden) setOpen(false); }, 150));
+
+// 2. Click to rename in place: the name becomes editable and takes focus; leaving it ends the edit.
+const name = document.getElementById("name");
+name.addEventListener("click", () => {
+  if (name.isContentEditable) return;
+  name.contentEditable = "true";
+  name.removeAttribute("role");
+  name.focus();
+  log("editing");
+});
+name.addEventListener("blur", () => {
+  if (!name.isContentEditable) return;
+  name.contentEditable = "false";
+  name.setAttribute("role", "button");
+  log("edit ended: " + name.textContent);
+});
+
+// 3. A share popup appended to <body> on click, focused, and closed when focus leaves it.
+document.getElementById("invite").addEventListener("click", () => {
+  if (document.getElementById("sharebox")) return;
+  const box = document.createElement("div");
+  box.id = "sharebox";
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-label", "Invite people");
+  box.style.cssText = "position:fixed;top:30%;left:30%;background:#fff;border:2px solid #333;padding:16px;z-index:5";
+  box.innerHTML = '<p>Send this invite link to the people you want in the list.</p><button type="button" id="copyurl">Copy invite link</button> <button type="button" id="closeshare">Close</button>';
+  document.body.append(box);
+  box.querySelector("#copyurl").focus();
+  log("share open");
+  box.addEventListener("focusout", (e) => { if (!box.contains(e.relatedTarget)) setTimeout(() => { if (!box.contains(document.activeElement) && box.isConnected) { box.remove(); log("share closed"); } }, 150); });
+  box.querySelector("#closeshare").addEventListener("click", () => { box.remove(); log("share closed by button"); });
+});
+
+// 4. A confirm dialog built on click and opened as a modal (the browser focuses its first button).
+document.getElementById("del").addEventListener("click", () => {
+  const d = document.createElement("dialog");
+  d.setAttribute("aria-labelledby", "delt");
+  d.innerHTML = '<h3 id="delt">Delete this list?</h3><p>This cannot be undone.</p><button type="button" id="delno">Cancel</button> <button type="button" id="delyes">Delete</button>';
+  document.body.append(d);
+  d.querySelector("#delno").addEventListener("click", () => { d.close(); d.remove(); log("delete cancelled"); });
+  d.querySelector("#delyes").addEventListener("click", () => { d.close(); d.remove(); log("deleted"); });
+  d.showModal();
+  log("delete dialog open, focus " + document.activeElement.id);
+});
+// 5. The same with a dialog already in the page.
+const ad = document.getElementById("archdlg");
+document.getElementById("arch").addEventListener("click", () => { ad.showModal(); log("archive dialog open, focus " + document.activeElement.id); });
+document.getElementById("archno").addEventListener("click", () => { ad.close(); log("archive kept"); });
+document.getElementById("archyes").addEventListener("click", () => { ad.close(); log("archived"); });
+</script>
+</body>
+</html>

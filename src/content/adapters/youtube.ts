@@ -510,7 +510,13 @@ function playerBlock(player: Element, label: string): Block {
   const captions = cc && cc.style.display !== "none" && cc.getAttribute("aria-disabled") !== "true" ? refOf(cc) : undefined;
   const ratio = video && video.videoWidth ? video.videoHeight / video.videoWidth : 9 / 16;
   // On a playlist or Mix, its own Previous and Next (on the first video, Previous replays it once it has started).
+  // YouTube hides both inline in a small player (a narrow window, zoom), but they still work: kept, so Sift's
+  // bar and Shift+N and Shift+P reach them at every size (F1120).
   const list = new URL(location.href).searchParams.has("list");
+  const step = (sel: string) => {
+    const b = q(sel, player);
+    return b && b.getAttribute("aria-disabled") !== "true" ? refOf(b) : undefined;
+  };
   return {
     t: "portal",
     key: "player",
@@ -519,7 +525,7 @@ function playerBlock(player: Element, label: string): Block {
     label,
     media: {
       video: video ? refOf(video) : undefined, play: vis(".ytp-play-button"), captions, fullscreen: vis(".ytp-fullscreen-button"),
-      prev: list ? vis(".ytp-prev-button") : undefined, next: list ? vis(".ytp-next-button") : undefined,
+      prev: list ? step(".ytp-prev-button") : undefined, next: list ? step(".ytp-next-button") : undefined,
     },
   };
 }
@@ -811,13 +817,44 @@ function panelTitle(target: string): string {
 
 const COMMENT_SEL = "ytd-comment-view-model, ytd-comment-renderer";
 
+/**
+ * Each top-level thread's item as last read, until anything inside it changes (its text, likes, replies
+ * opened or hidden). Sift reads the page again on every change, and with 1000+ threads loaded, reading
+ * each one again would hold the page for seconds (F1123).
+ */
+let threadItems = new WeakMap<Element, Item | null>();
+let threadRoot: Element | null = null;
+let threadWatch: MutationObserver | null = null;
+function threadsChanged(muts: MutationRecord[]) {
+  for (const m of muts) {
+    // The outermost thread around the change.
+    let el: Element | null = m.target instanceof Element ? m.target : m.target.parentElement;
+    let th: Element | null = null;
+    while ((el = el?.closest("ytd-comment-thread-renderer") ?? null)) {
+      th = el;
+      el = el.parentElement;
+    }
+    if (th) threadItems.delete(th);
+  }
+}
+
 /** The visible top-level comment threads, each with its visible replies nested under it. */
 function commentList(root: Element): Item[] {
+  if (threadRoot !== root) {
+    threadWatch?.disconnect();
+    threadItems = new WeakMap();
+    threadRoot = root;
+    threadWatch = new MutationObserver(threadsChanged);
+    threadWatch.observe(root, { subtree: true, childList: true, attributes: true, characterData: true });
+  } else threadsChanged(threadWatch!.takeRecords());
+  const read = (th: Element) => {
+    if (!threadItems.has(th)) threadItems.set(th, commentItem(th, 0));
+    return threadItems.get(th);
+  };
   return qa("ytd-comment-thread-renderer", root)
     .filter((th) => !th.parentElement?.closest("ytd-comment-thread-renderer") && visible(th))
-    // Enough for a long read; scrolling to the end of Sift loads more.
-    .slice(0, 400)
-    .map((th) => commentItem(th, 0))
+    // All of them, as long as the original keeps loading: scrolling to the end of Sift loads more (F1123).
+    .map(read)
     .filter(Boolean) as Item[];
 }
 
@@ -1106,6 +1143,10 @@ function vis1(els: Element[]): Element | null {
   return els.find((e) => visible(e)) ?? null;
 }
 
+/** The page parts whose changes are noise (the player, tooltips), as last read: see `quiet`. */
+let quietAt = -Infinity;
+let quietEls: Element[] = [];
+
 const POPUP_HOST = "ytd-popup-container, tp-yt-paper-dialog, tp-yt-iron-dropdown, dialog, [role=dialog], [role=alertdialog], [aria-modal=true]";
 
 export const youtube: Adapter = {
@@ -1134,8 +1175,22 @@ export const youtube: Adapter = {
     const add = top().filter((a) => !have.has(a.ref) && !have.has(a.label.toLowerCase()));
     if (add.length) p.top = [...(p.top ?? []), ...add];
     p.dialog = settingsMenu() ?? p.dialog;
+    // And the same Menu: YouTube's whole guide, as on home and watch, not just the mini guide (F1121).
+    // A page without the guide (an embed, the consent page) keeps the generic one.
+    const n = q("ytd-guide-renderer, ytd-mini-guide-renderer") ? nav() : [];
+    if (n.length) p.nav = n;
   },
-  quiet: () => qa("#movie_player, ytd-miniplayer, #video-preview, tp-yt-paper-tooltip"),
+  quiet: () => {
+    // Sift asks on every change in the page. With 1000+ comments loaded (200,000 elements), a query over the
+    // whole page each time, and each change checked against two tooltips per comment, held it for seconds
+    // (F1123): read again at most once a second, without the comments' tooltips (never hovered under Sift).
+    const now = performance.now();
+    if (now - quietAt < 1000 && quietEls.every((e) => e.isConnected)) return quietEls;
+    quietAt = now;
+    const comments = q("ytd-comments");
+    quietEls = qa("#movie_player, ytd-miniplayer, #video-preview, tp-yt-paper-tooltip").filter((e) => e.localName !== "tp-yt-paper-tooltip" || !comments?.contains(e));
+    return quietEls;
+  },
   // YouTube opens its popups in a few known hosts. Fixed or absolute page parts (the masthead,
   // a shelf's "Show more") are not popups, and the bot check (role=dialog) is already a note.
   dropDialog: (el) => !!el.closest("#error-screen, yt-player-interstitial-renderer") || !el.closest(POPUP_HOST),

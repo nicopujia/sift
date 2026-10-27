@@ -1,0 +1,90 @@
+url: https://g1.globo.com/
+first sift content: 2391 ms
+logs:
+[pageerror] Error: Uncaught (in promise) unauthorized
+[pageerror] TypeError: Cannot read properties of null (reading 'querySelectorAll')
+https://s.glbimg.com/bs/delivery/show/ba2023-c37298c0e253f622882ee1126d2cdba4.js:28:1669
+[error] [bastian] ERROR TypeError: Failed to fetch (recomendacao.globo.com)
+[error] [[Show-Regua] - GeolocationHandler] Erro na geolocalização: Error: Dados inválidos
+[warn] [Player API] could not load a/b experiment: Error
+--- outline (107 lines) ---
+[button] Ir para o conteúdo
+  [input:search]  BUSCAR
+  [button] Pesquisar
+[button] Menu
+[button] Entrar com Conta Globo
+H1 G1
+    [link] PL, partido de Flávio Bolsonaro, reconhece vitória de Lula, mas cobra esclarecimentos
+    [link] Flávio Bolsonaro diz que vai pedir cassação da chapa de Lula
+    [link] Lula x Flávio: veja como foi a votação na sua urna
+    p: Mapa do g1 🗳️
+    [link] Veja os votos por local nas 5.570 cidades; BUSQUE seu estado
+    [link] Mapa de apuração Presidente
+p: Diferença de votos
+[PORTAL] Área interativa da página original. Pressione Enter para usar e Escape para voltar.
+[button] Abrir mapa de apuração por estado
+[button] Como ler o mapa?
+p: 0 a 5 p.p 5 a 20 p.p acima de 20 p.p
+p: Quanto mais escuro, maior a vantagem do 1º colocado
+[button] Pontos percentuais
+[button] Número de votos
+[button] Brasil
+[button] Região
+p: Brasil
+p: 100,00 %
+p: Lula · 13 · PT
+p: 51,79 % · 64.256.232 votos
+p: Flavio Bolsonaro · 22 · PL
+p: 48,21 % · 59.826.041 votos
+p: Apuração atualizada em 23:26 de 25/10/2026 (horário de Brasília)
+p: Mapa atualizado em 23:26:38 de 25/10/2026 (horário de Brasília)
+    [link] Ver mapa completo
+p: Confira também a apuração para governador
+    [link] Ver mapa de governador
+    [link] Economia
+      [link] Ibovespa
+      [link] -13.88%
+      [link] 176.608 pts
+      [link] 13h
+      [link] 14h
+      [link] 15h
+      [link] 16h
+      [link] 17h
+H2 Mais Lidas
+    [link] Eleições 2026: acompanhe a apuração em todo o Brasil no 2º turno
+    [link] Eleições 2026: como consultar meu local de votação para o segundo turno?
+    [link] Eleições 2026: quais estados já elegeram governador e onde haverá segundo turno?
+    [link] Eleições 2026: posso votar no segundo turno se faltei no primeiro?
+    [link] Eleições 2026: Guia do Eleitor
+    [link] 🎧 Ouça no g1
+      [link] A virada histórica de Lula: presidente do Brasil pela quarta vez
+    [link] Governistas querem aproveitar atual Congresso para avançar pautas ainda em 2026
+      [link] Lula se reúne com chanceler, assessores, Motta e Alcolumbre
+    [link] Presidente mais velho da história, Lula completa 81 anos nesta terça
+    p: Dois dias após reeleição · Há 2 horas Política
+    [link] Moraes manda Flávio Bolsonaro entregar passaporte e o proíbe de deixar o país
+      [link] Ações contra Flávio podem seguir no STF apesar de perda do foro
+    [link] De escanteado a 'general' de Lula: quem é André Janones, protagonista da campanha
+    p: Há 2 horas Eleições 2026
+    [link] Às vésperas da COP31, metas climáticas preveem corte de só 6% nas emissões até 2035
+    p: Aumento da temperatura · Para limitar o aquecimento a 1,5°C, redução necessária seria de 60%. · Há 2 horas Meio Ambiente
+    [link] Dia do Servidor Público é ponto facultativo; veja onde haverá folga
+    p: Nesta quarta · Há 3 horas Trabalho e Carreira
+    [link] Lula iguala ex-presidente dos EUA e bate recorde de vitórias eleitorais
+      [link] Sem provas, Trump diz que eleição no Brasil 'pareceu fraudada'
+      [link] Alckmin rebate fala de Trump sobre eleição no Brasil: ‘Totalmente equivocada’
+    [link] Milei é o único presidente da América do Sul a não reconhecer vitória de Lula
+      [link] Esquerda x direita: veja MAPA da América do Sul após reeleição de Lula
+      [link] Líderes da direita na América Latina reconhecem resultado e parabenizam Lula
+    [link] Mais de 90% dos eleitores foram às urnas em 12 municípios; veja quais
+p: Há 1 hora Eleições 2026
+p: Votação no exterior
+    [link] Lula teve mais de 95% dos votos em dois países; veja quais
+p: Há 38 minutos Mundo
+p: Especialista explica
+    [link] Amazonas 'crava' vencedor da eleição presidencial desde 1989
+p: Há 3 horas Eleições 2026 no Amazonas
+    [link] Ônibus retidos na eleição em Salvador: veja o que ainda falta esclarecer
+    p: Secretário Municipal de Mobilidade dará entrevista ao Jornal da Manhã desta terça-feira (27).
+    p: Dia de votação · Há 1 hora Eleições 2026 na Bahia
+    [link] Casos de assédio eleitoral no trabalho disparam em outubro; veja como denunciar

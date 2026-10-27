@@ -40,9 +40,16 @@ if (!(window as any).__siftMain) {
   // with suggestions and focus is in Sift, activeElement names that field, as
   // on the original.
   let entered: Element | null = null;
+  // Sift's key on a page segment (detail "key", F1103): only for that key, and the field entered before comes back.
+  let keying = false;
+  let enteredBefore: Element | null = null;
   document.addEventListener(
     "sift-enter",
     (e) => {
+      if ((e as CustomEvent).detail === "key") {
+        if (!keying) enteredBefore = entered;
+        keying = true;
+      }
       entered = e.composedPath()[0] as Element;
       e.stopImmediatePropagation();
     },
@@ -51,11 +58,30 @@ if (!(window as any).__siftMain) {
   document.addEventListener(
     "sift-leave",
     (e) => {
-      if (e.composedPath()[0] === entered) entered = null;
+      if ((e as CustomEvent).detail === "key") {
+        if (keying) entered = enteredBefore;
+        keying = false;
+        enteredBefore = null;
+      } else if (e.composedPath()[0] === entered) entered = null;
       e.stopImmediatePropagation();
     },
     true,
   );
+  // A date field's segments (React Aria) move on to the next segment with a focus manager that skips
+  // inert elements, and the page is inert while Sift is shown. While Sift's key reaches a segment,
+  // Sift's own `inert` reads false to the page, so it finds the next one; its focus() there still
+  // fails (the page stays inert) and Sift follows it to its copy of that segment (F1103).
+  const inertD = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "inert");
+  if (inertD?.get) {
+    const getInert = inertD.get;
+    Object.defineProperty(HTMLElement.prototype, "inert", {
+      ...inertD,
+      get(this: HTMLElement) {
+        const v = getInert.call(this);
+        return v && keying && this.hasAttribute("data-sift-inert") ? false : v;
+      },
+    });
+  }
   const active = Object.getOwnPropertyDescriptor(Document.prototype, "activeElement");
   if (active?.get) {
     const get = active.get;
@@ -74,6 +100,71 @@ if (!(window as any).__siftMain) {
         return n;
       },
     });
+  }
+
+  // A Copy button that copies with execCommand (clipboard.js, copy-to-clipboard) selects a field or a
+  // span it appends to <body> and calls execCommand("copy"). While Sift is shown <body> is inert: the
+  // field cannot take focus and an inert selection copies as nothing, while the page says "Link copied".
+  // Sift keeps the page inert during its clicks (a page focus() then must fail, F1102), so the copy
+  // gets the text the page selected, as the browser copies it on the original (F1040).
+  const inertAt = (n: Node | null | undefined): boolean => {
+    for (let e: Element | null = n instanceof Element ? n : (n?.parentElement ?? null); e; e = e.parentElement ?? ((e.getRootNode() as ShadowRoot).host ?? null))
+      if (e.hasAttribute("data-sift-inert")) return true;
+    return false;
+  };
+  let selField: HTMLInputElement | HTMLTextAreaElement | null = null;
+  for (const fproto of [HTMLInputElement.prototype, HTMLTextAreaElement.prototype] as any[])
+    for (const name of ["select", "setSelectionRange"]) {
+      const orig = fproto[name];
+      if (typeof orig !== "function") continue;
+      fproto[name] = function (this: HTMLInputElement | HTMLTextAreaElement, ...args: unknown[]) {
+        const r = orig.apply(this, args);
+        // Only the copy that follows in the same task.
+        const f = (selField = this);
+        setTimeout(() => selField === f && (selField = null));
+        return r;
+      };
+    }
+  const copied = (): string => {
+    const f = selField;
+    // Never a password: the browser copies none.
+    if (f?.isConnected && inertAt(f) && (f as HTMLInputElement).type !== "password") {
+      try {
+        return f.value.slice(f.selectionStart ?? 0, f.selectionEnd ?? 0);
+      } catch {
+        return "";
+      }
+    }
+    const sel = getSelection();
+    if (!sel?.rangeCount || String(sel) || !inertAt(sel.getRangeAt(0).commonAncestorContainer)) return "";
+    let text = "";
+    for (let i = 0; i < sel.rangeCount; i++) text += sel.getRangeAt(i).toString();
+    return text;
+  };
+  const exec = (Document.prototype as any).execCommand;
+  if (typeof exec === "function") {
+    (Document.prototype as any).execCommand = function (this: Document, ...args: unknown[]) {
+      let text = "";
+      try {
+        if (String(args[0]).toLowerCase() === "copy" && siftShown()) text = copied();
+      } catch {
+        /* never break the page's own call */
+      }
+      if (!text) return exec.apply(this, args);
+      // First in line: the page's own copy listeners can still change or cancel it.
+      const fill = (e: Event) => {
+        const d = (e as ClipboardEvent).clipboardData;
+        if (!d) return;
+        d.setData("text/plain", text);
+        e.preventDefault();
+      };
+      addEventListener("copy", fill, true);
+      try {
+        return exec.apply(this, args);
+      } finally {
+        removeEventListener("copy", fill, true);
+      }
+    };
   }
 
   // A popover opened inside a shadow root sends no toggle event to the

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Riverside Bikes - Plans and news</title>
+<style>
+  body { font-family: sans-serif; margin: 0 auto; max-width: 900px; padding: 16px; }
+  @media (min-width: 768px) { .mobile-only { display: none; } }
+  @media (max-width: 767px) { .desktop-only { display: none; } }
+  .marquee { overflow: hidden; white-space: nowrap; }
+  .marquee__track { display: inline-flex; gap: 32px; animation: slide 30s linear infinite; }
+  @keyframes slide { to { transform: translateX(-50%); } }
+  .strip { overflow: hidden; white-space: nowrap; display: flex; }
+  .strip > div { flex: none; display: flex; gap: 12px; padding: 4px 12px; }
+  .belt { overflow: hidden; position: relative; height: 40px; }
+  .belt > div { position: absolute; top: 0; white-space: nowrap; }
+  .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+</style>
+</head>
+<body>
+<!-- F1131: only a real repeated strip is said once. Expected in Sift:
+     the testimonial marquee (class "marquee", aria-hidden twin) once; the quote strip with no class (short items, three times in a row) once;
+     the belt copy drawn off screen once; the sale paragraph (a hidden mobile twin, then the visible desktop one) once;
+     the pricing row's shared cell three times; the poem's refrain three times. -->
+<main>
+<h1>Plans and news</h1>
+
+<h2>What riders say</h2>
+<div class="marquee">
+  <div class="marquee__track"><span>"The best bike shop in town, they fixed my gears in an hour." Ana</span><span>"Friendly people and fair prices for every repair." Ben</span></div>
+  <div class="marquee__track" aria-hidden="true"><span>"The best bike shop in town, they fixed my gears in an hour." Ana</span><span>"Friendly people and fair prices for every repair." Ben</span></div>
+</div>
+
+<h2>Parts prices today</h2>
+<div class="strip">
+  <div><span>Chain</span><span>$19.99</span><span>Tyre</span><span>$34.50</span><span>Brake pads</span><span>$12.00</span><span>Bell</span><span>$8.25</span></div>
+  <div><span>Chain</span><span>$19.99</span><span>Tyre</span><span>$34.50</span><span>Brake pads</span><span>$12.00</span><span>Bell</span><span>$8.25</span></div>
+  <div><span>Chain</span><span>$19.99</span><span>Tyre</span><span>$34.50</span><span>Brake pads</span><span>$12.00</span><span>Bell</span><span>$8.25</span></div>
+</div>
+
+<h2>Store news</h2>
+<div class="belt">
+  <div style="left: 0">New: the riverside store now opens on Sundays from 10:00.</div>
+  <div style="left: 2000px">New: the riverside store now opens on Sundays from 10:00.</div>
+</div>
+
+<h2>Spring sale</h2>
+<div class="hero">
+  <div class="mobile-only"><p>All city bikes are 20% off until Sunday, and every bike comes with a free first service. <a href="/sale/city-bikes">Shop city bikes</a></p></div>
+  <div class="desktop-only"><p>All city bikes are 20% off until Sunday, and every bike comes with a free first service. <a href="/sale/city-bikes">Shop city bikes</a></p></div>
+</div>
+
+<h2>Service plans</h2>
+<div class="row"><div>Plan</div><div>Basic</div><div>Plus</div><div>Pro</div><div>Team</div></div>
+<div class="row"><div>Offline</div><div>-</div><div>Recents and favorites download for offline use.</div><div>Recents and favorites download for offline use.</div><div>Recents and favorites download for offline use.</div></div>
+
+<h2>The rider's song</h2>
+<article>
+<p>The chain is oiled before the light, the road is wet and running far,<br>and every turn remembers where the hands that steered it are.</p>
+<p>Ride on, ride on, the river sings, the bridge is waiting by the shore,<br>ride on, ride on, the morning brings the road we have not ridden before.</p>
+<p>My father rode this road at six, his tyres were thin, his coat was too,<br>he left the bike for me to fix and left the road for me to do.</p>
+<p>Ride on, ride on, the river sings, the bridge is waiting by the shore,<br>ride on, ride on, the morning brings the road we have not ridden before.</p>
+<p>And now the bike is mine to mend, the road is long, the hills are high,<br>I learn the road has no real end, I learn to let the years go by.</p>
+<p>Ride on, ride on, the river sings, the bridge is waiting by the shore,<br>ride on, ride on, the morning brings the road we have not ridden before.</p>
+</article>
+</main>
+</body>
+</html>

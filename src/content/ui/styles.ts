@@ -73,6 +73,7 @@ blockquote { margin: .8em 0; padding: .2em 0; padding-inline-start: 1em; border-
 pre { background: var(--soft); padding: .8em 1em; border-radius: .4em; overflow: auto; font-size: .85em; line-height: 1.45; white-space: pre-wrap; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; background: var(--soft); padding: .05em .3em; border-radius: .25em; }
 img.content { display: block; max-width: 100%; height: auto; border-radius: .4em; margin: .8em 0 .3em; }
+img.content.tall { max-height: 80vh; object-fit: contain; }
 figure { margin: 1em 0; }
 figcaption { font-size: .88em; color: var(--muted); }
 hr { border: 0; border-top: 1px solid var(--line); margin: 1.5em 0; }

@@ -1,6 +1,8 @@
 // Text helpers for model calls: which language to ask for per list entry, a
 // token estimate that works across scripts, and splitting long text in parts.
 
+import { onlyTicks } from "../shared/ticks";
+
 export interface Detection {
   isReliable: boolean;
   languages: { language: string; percentage: number }[];
@@ -132,6 +134,7 @@ export async function entryLang(text: string, pageLang: string, detect: (t: stri
   let found = "";
   let pct = 0;
   const r = await detect(lower).catch(() => null);
+  const reliable = !!r?.isReliable;
   if (r) {
     const best = [...r.languages].sort((a, b) => b.percentage - a.percentage)[0];
     if (best?.language && best.language !== "und" && (r.isReliable || (output && best.percentage >= 50))) [found, pct] = [base(best.language), best.percentage];
@@ -148,8 +151,15 @@ export async function entryLang(text: string, pageLang: string, detect: (t: stri
   if (!found) return page;
   const words = lower.match(/\p{L}+/gu) ?? [];
   const theirs = FUNCTION_WORDS[found];
-  if (!theirs || words.length < 3) return page;
   const ours = FUNCTION_WORDS[page] ?? new Set<string>();
+  // A written line reliably in a language of the page's script that has no word
+  // list (Indonesian, Malay, Tagalog on a Spanish page) is in that language,
+  // unless it uses two of the page's common words: Chrome calls a few English
+  // or Spanish lines "reliably" Danish or Esperanto (F1122). Not for a page
+  // without a word list, nor for a sibling of the page's language.
+  if (!theirs && output && reliable && words.length >= 3 && FUNCTION_WORDS[page] && scriptOfLang(found) === script && !SIBLINGS.some((g) => g.includes(found) && g.includes(page)))
+    return new Set(words.filter((w) => ours.has(w))).size >= 2 ? page : found;
+  if (!theirs || words.length < 3) return page;
   const uniq = new Set(words);
   let them = 0;
   let us = 0;
@@ -162,6 +172,35 @@ export async function entryLang(text: string, pageLang: string, detect: (t: stri
   if (them >= 2 && them > us) return found;
   void pct;
   return page;
+}
+
+/**
+ * Languages a detection mixes up with each other: Serbian in Latin letters
+ * reads as Bosnian, Malay as Indonesian. The last pair only with the page's.
+ */
+const SIBLINGS = [["sr", "hr", "bs", "sh", "cnr"], ["no", "nb", "nn", "da"], ["ms", "id"], ["gl", "pt"]];
+
+/**
+ * The language an article's text is in, to write its Short version in (F1114):
+ * as for one entry (see entryLang), but a long text that a reliable detection
+ * reads as another language is in that one, word list or not (a Polish
+ * article on a page marked lang="en"). When the detection may have mixed it up
+ * with a close one (Serbian and Bosnian), "": no language is named, and the
+ * model keeps the text's own.
+ */
+export async function proseLang(text: string, pageLang: string, detect: (t: string) => Promise<Detection | null>): Promise<string> {
+  const want = await entryLang(text, pageLang, detect);
+  const r = await detect(text.toLowerCase()).catch(() => null);
+  const best = r?.isReliable ? [...r.languages].sort((a, b) => b.percentage - a.percentage)[0] : undefined;
+  const found = best?.language && best.language !== "und" ? base(best.language) : "";
+  const lang = found || want;
+  // Serbian in Latin letters: asked for in "Serbian", it would be checked as Cyrillic.
+  const script = scriptOf(text);
+  if (!lang || (script && langScript(lang) !== script)) return "";
+  const page = base(pageLang);
+  if (lang === page) return lang;
+  const group = SIBLINGS.find((g) => g.includes(lang));
+  return group && (group.includes(page) || group !== SIBLINGS[SIBLINGS.length - 1]) ? "" : lang;
 }
 
 /** Fewest titles that can move a list away from its page's language. */
@@ -706,16 +745,43 @@ function speakerNear(out: string, q: { at: number; len: number; inner: string },
   const sEnd = sEndRel < 0 ? src.length : found.index + found[0].length + sEndRel;
   const theirs = speakerOf(src.slice(sStart, sEnd), found.index - sStart, found.index + found[0].length - sStart);
   if (theirs.some((t) => !ROLES.has(t.toLowerCase()))) return named.some((w) => theirs.some((t) => same(w, t)));
-  // A pronoun ("she said"): the person must be named before it in its section
-  // (since the heading before it), at any distance, or near it after.
+  // A pronoun ("she said"): the nearest person named before it in its
+  // paragraph, so no one else may be named after that person and before the
+  // quote (F1117). A paragraph that names no one: the person must be named
+  // before it in its section (since the heading before it), at any distance,
+  // or near it after.
   const after = found.index + found[0].length + 300;
   if (saidByPronoun(src.slice(sStart, sEnd), found.index - sStart, found.index + found[0].length - sStart)) {
+    // Up to the quote's opening mark, without quoted words: they name no one who speaks.
+    const para = sentencesOf(unquoted(src.slice(src.lastIndexOf("\n", found.index) + 1, found.index).replace(/[“"«„「『][^“”"«»„「」『』]*$/u, "")));
+    let at = -1;
+    para.forEach((t, i) => named.some((w) => wordIn(w, t)) && (at = i));
+    if (para.slice(at + 1).some(namesPerson)) return false;
+    if (at >= 0) return true;
     const head = src.slice(0, found.index).search(/(?:^|\n)#{1,6}\s[^\n]*\n(?![\s\S]*\n#{1,6}\s)/);
     return named.some((w) => wordIn(w, src.slice(Math.max(0, head), after)));
   }
   // A quote on its own: the person must be named near it.
   const window = src.slice(Math.max(0, found.index - 300), after);
   return named.some((w) => wordIn(w, window));
+}
+
+/** Words before a place, not a person: "in New York", "desde Buenos Aires". */
+const PLACE_BEFORE = new Set("in at from to into across near of en de desde hacia para por em do da à au aux dans vers aus nach bei von zu nel dal".split(" "));
+
+/**
+ * Whether a sentence names a person: a role after "the", "a" or a possessive
+ * ("The plant's director", "el ministro"), or a name of two or more
+ * capitalized words not after "in", "from" (a place: "in New York").
+ */
+function namesPerson(s: string): boolean {
+  for (const m of s.matchAll(/(?<![\p{L}\p{N}])(?:the|a|an|its|his|her|their|el|la|los|las|un|una|su|sus|o|os|um|uma|le|les|der|die|il|lo)\s+(?:[\p{L}'’-]+\s+)?(\p{L}+)/giu)) if (ROLES.has(m[1].toLowerCase())) return true;
+  for (const m of s.matchAll(/(?<![\p{L}\p{N}])\p{Lu}[\p{L}'’-]+(?:\s+\p{Lu}[\p{L}'’-]+)+/gu)) {
+    if (speakerWords(m[0]).length < 2) continue;
+    const before = /(\p{L}+)\s*$/u.exec(s.slice(0, m.index))?.[1]?.toLowerCase();
+    if (!before || !PLACE_BEFORE.has(before)) return true;
+  }
+  return false;
 }
 
 /** A verb that says someone spoke words, in the past: "said", "dijo". */
@@ -744,16 +810,24 @@ export function addsSpeaker(line: string, source: string): boolean {
 const STARTERS = new Set("según segun tras para ante desde durante after before during while when despite according said says dijo dice afirma aseguró asegura sostuvo explicó".split(" "));
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/** The languages whose number words NUMBER_WORDS knows. */
+const NUMBER_LANGS = new Set(["en", "es", "pt", "fr", "de", "it"]);
+
 /**
  * What a rewrite states that its source does not, once keepQuotes has put its
  * quotes right: "speaker" (a quote given to someone the source does not tie
  * to it, see speakerNear), "number" (a number in digits the source does not
  * state in any form), or "" when it states neither. Quotation marks keepQuotes
  * had to remove are not a fact: the words stay, as the rewrite's own.
+ * `lang`: the language of the source, when known. In one whose number words
+ * Sift does not know, numbers are not checked: a sentence is never dropped
+ * only because its source spells a number out.
  */
-export function unsupported(raw: string, source: string): string {
+export function unsupported(raw: string, source: string, lang?: string): string {
   const fixed = keepQuotes(raw, source);
   for (const q of quotesIn(fixed)) if (!speakerNear(fixed, q, source)) return "speaker";
+  // A number the source may spell out in words Sift does not know ("dwudziestu" for 20) is not one it lacks (F1115).
+  if (lang !== undefined && !NUMBER_LANGS.has(base(lang))) return "";
   const have = sourceNumbers(source);
   if (numbersOf(fixed).some((vals) => !vals.some((v) => have.has(v)))) return "number";
   return "";
@@ -821,7 +895,7 @@ function warningOf(s: string, source: string, used: Set<string>): string | null 
  * the source says it (see warningOf). Headings and [[B…]] lines stay; a list item keeps its
  * marker; a line left with no sentence goes.
  */
-export function dropUnsupported(md: string, source: string): string {
+export function dropUnsupported(md: string, source: string, lang?: string): string {
   const lines: string[] = [];
   const used = new Set<string>();
   for (const line of md.split("\n")) {
@@ -833,8 +907,75 @@ export function dropUnsupported(md: string, source: string): string {
     const all = sentencesOf(line.slice(mark.length));
     // A warning whose only fault is a number in another form ("in 24 hours"
     // for "in a day") stays, in the source's own words.
-    const kept = all.map((s) => (unsupported(s, source) === "number" && WARNING.test(s) ? warningOf(s, source, used) ?? s : s)).filter((s) => !unsupported(s, source));
+    const kept = all.map((s) => (unsupported(s, source, lang) === "number" && WARNING.test(s) ? warningOf(s, source, used) ?? s : s)).filter((s) => !unsupported(s, source, lang));
     if (kept.length === all.length && kept.every((s, i) => s === all[i])) lines.push(line);
+    else if (kept.length) lines.push(mark + kept.join(" "));
+  }
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/** Words in which two sentences differ (in order, as an edit distance on words); Infinity past `max`. */
+function wordEdits(a: string[], b: string[], max: number): number {
+  if (Math.abs(a.length - b.length) > max) return Infinity;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let low = i;
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      low = Math.min(low, cur[j]);
+    }
+    if (low > max) return Infinity;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+/**
+ * A Short version that never says the same thing twice (F1100): a sentence of
+ * four words or more that repeats an earlier one, word for word or all but a
+ * word or two in ten (never a "not", never a number), goes, and so does a
+ * paragraph left empty. A list item is held only against the items of its own
+ * list: two lists (two recipes) may well share one ("200 g de harina").
+ */
+export function dropRepeats(md: string): string {
+  type Said = { words: string[]; set: Set<string>; key: string; nums: string };
+  const prose: Said[] = [];
+  let list: Said[] = [];
+  const seen = new Set<string>();
+  const nearOf = (s: Said, earlier: Said[]) =>
+    s.words.length >= 6 &&
+    earlier.some((o) => {
+      if (o.nums !== s.nums || o.words.length < 6) return false;
+      const max = Math.floor(Math.max(o.words.length, s.words.length) / 10) || 1;
+      // Each word one has and the other lacks takes an edit: most pairs stop here.
+      const only = s.words.filter((w) => !o.set.has(w));
+      if (only.length > max || wordEdits(o.words, s.words, max) > max) return false;
+      // "is safe" and "is not safe" are no repeat.
+      return ![...only, ...o.words.filter((w) => !s.set.has(w))].some((w) => NEGATION.test(w));
+    });
+  const lines: string[] = [];
+  for (const line of md.split("\n")) {
+    const mark = /^\s*(?:[-*•]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
+    if (!mark) list = [];
+    if (/^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line) || !line.trim()) {
+      lines.push(line);
+      continue;
+    }
+    const all = sentencesOf(line.slice(mark.length));
+    const kept = all.filter((sentence) => {
+      const words = qwords(sentence.replace(/\*\*|__/g, ""));
+      // A placeholder's block is put back by the page, wherever its sentence went: never dropped here.
+      if (words.length < 4 || /\[\[\s*B\d+\s*\]\]/.test(sentence)) return true;
+      const s: Said = { words, set: new Set(words), key: words.join(" "), nums: words.filter((w) => /\d/.test(w)).sort().join(" ") };
+      const earlier = mark ? list : prose;
+      const again = mark ? list.some((o) => o.key === s.key) : seen.has(s.key);
+      if (again || nearOf(s, earlier)) return false;
+      earlier.push(s);
+      if (!mark) seen.add(s.key);
+      return true;
+    });
+    if (kept.length === all.length) lines.push(line);
     else if (kept.length) lines.push(mark + kept.join(" "));
   }
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
@@ -859,14 +1000,82 @@ const NOTE_START =
  */
 const NOTE_TOPIC =
   /(?<![\p{L}\p{N}])(?:(?:shorter|short|shortened|condensed|abridged|rewritten|simplified|summari[sz]ed|requested|concise|brief)\s+(?:version|text|rewrite|summary|form)|(?:source|original|input|provided|given)\s+text|word\s+count|\(\s*~?\d+\s+words?\s*\)|(?:has|is|contains|of)\s+(?:about\s+|around\s+|roughly\s+)?\d+\s+words|placeholders?|marcadores|(?:the|these|your|las|tus)\s+instru(?:ctions|cciones)|as\s+(?:requested|asked|instructed)|(?:kept|keep|preserved|retained|removed|omitted|dropped|cut|left\s+out)\s+(?:all\s+)?(?:the\s+)?(?:links|headings|lists|quotes|markers|formatting|structure)|versi[oó]n\s+(?:corta|abreviada|resumida|condensada|reducida|más\s+corta|breve)|texto\s+(?:fuente|original|de\s+origen|resumido|condensado|abreviado|reescrito|proporcionado)|recuento\s+de\s+palabras|(?:tiene|contiene|de)\s+(?:unas\s+)?\d+\s+palabras|como\s+se\s+(?:pidió|solicitó|indicó)|(?:mantenido|conservado|eliminado|omitido|mantuvieron|conservaron|eliminaron)\s+(?:todos\s+)?(?:los\s+|las\s+)?(?:enlaces|encabezados|títulos|listas|citas))(?![\p{L}\p{N}])|\[\[B/iu;
-/** "Here is a summary", "Aquí tienes la versión…": a note that hands over the text. */
+/**
+ * "Here is a summary:", "Aquí tienes la versión corta del texto.": a note that
+ * hands over the text, and says nothing else. "This is the first version of
+ * Android that…" or "This is a summary of the council's decisions" goes on
+ * about something of the page's: an article's own paragraph (F1116).
+ */
 const NOTE_HANDOVER =
-  /^[\s(*_]*(?:here is|here's|here are|below is|below are|this is|aquí (?:está|tienes|va|van)|a continuación(?:,)?(?: se presenta| está| va| tienes)?|esta es)\s+(?:(?:a|an|the|my|your|una?|el|la|tu)\s+)?(?:\p{L}+\s+){0,2}?(?:version|summary|rewrite|versión|resumen|reescritura)(?![\p{L}\p{N}])/iu;
+  /^[\s(*_]*(?:here is|here's|here are|below is|below are|this is|aquí (?:está|tienes|va|van)|a continuación(?:,)?(?: se presenta| está| va| tienes)?|esta es)\s+(?:(?:a|an|the|my|your|una?|el|la|tu)\s+)?(?:[\p{L}-]+,?\s+){0,3}?(?:version|summary|rewrite|versión|resumen|reescritura)(?:\s+(?:of|for|de|del|para)\s+(?:(?:the|this|that|your|el|la|los|las|este|esta|tu|su)\s+)?(?:(?:source|original|provided|full|fuente|completo)\s+)?(?:text|article|page|source|original|passage|content|post|story|key points|main points|texto|artículo|página|contenido|nota|noticia|fuente|puntos clave|puntos principales)(?:\s+(?:fuente|original|completo))?)?(?:,?\s+(?:in|en|with|con)\s+(?:about\s+|around\s+|unas\s+|alrededor\s+de\s+)?\d+\s+(?:words|palabras))?[\s.:;!*_)]*$/iu;
 const NOTE_ANYWHERE = /\[\[B[…*.]|versi[oó]n (?:solicitada|pedida)|requested (?:version|rewrite|length)|^[\s(*_]*~?\d+\s+(?:words|palabras)[\s)*_.]*$/iu;
 
-/** A Short version without a note of the model's own before or after the text. */
-export function stripPreamble(md: string): string {
-  const paras = md.split(/\n\s*\n/);
+/** Language names in English, Spanish and Portuguese ("english", "inglés", "inglês"), lowercase. */
+let langNames: Set<string> | undefined;
+function isLangName(s: string): boolean {
+  if (!langNames) {
+    langNames = new Set();
+    const codes = "af am ar az be bg bn bs ca cs cy da de el en eo es et eu fa fi fil fr ga gl gu ha he hi hr hu hy id ig is it ja jv ka kk km kn ko ku ky la lb lo lt lv mg mi mk ml mn mr ms mt my nb ne nl nn no pa pl ps pt ro ru rw sd si sk sl sm sn so sq sr st su sv sw ta te tg th tk tl tr ug uk ur uz vi xh yi yo zh zu".split(" ");
+    for (const ui of ["en", "es", "pt"]) {
+      try {
+        const dn = new Intl.DisplayNames([ui], { type: "language" });
+        for (const c of codes) langNames.add((dn.of(c) ?? c).toLowerCase());
+      } catch {
+        /* no display names */
+      }
+    }
+  }
+  return langNames.has(s.toLowerCase().trim());
+}
+
+const LANG_NAME = String.raw`\p{L}+(?:[ -]\p{L}+){0,2}`;
+/** "The text is in English. Write in English.", or its Spanish or Portuguese form: the prompt's language line, echoed (F1137). */
+const LANG_PAIR = new RegExp(
+  String.raw`[*_]*\s*(?:the text is (?:written )?in|el texto est[áa] (?:escrito )?en|o texto est[áa] (?:escrito )?em|o texto [ée] em)\s+(${LANG_NAME})\s*[.:;]?\s*(?:(?:write|escribe|escriba|escribir|escreva|escreve|escrever)\s+(?:it\s+|lo\s+|o\s+)?(?:only\s+|solo\s+|sólo\s+|solamente\s+|apenas\s+|somente\s+)?(?:in|en|em)\s+(${LANG_NAME})\s*[.!]?)?\s*[*_]*`,
+  "giu",
+);
+/** One sentence of that line, alone on a line of the output: "Write in English.", "Escribe en español." */
+const LANG_ONE = new RegExp(
+  String.raw`^\s*(?:[-*>]\s+)?[*_]*\s*(?:the text is (?:written )?in|el texto est[áa] (?:escrito )?en|o texto est[áa] (?:escrito )?em|o texto [ée] em|(?:write|escribe|escriba|escreva|escreve)\s+(?:only\s+|solo\s+|sólo\s+|apenas\s+|somente\s+)?(?:in|en|em))\s+(${LANG_NAME})\s*[.!]?\s*[*_]*\s*$`,
+  "iu",
+);
+
+/**
+ * A Short version without the prompt's language line ("The text is in
+ * English. Write in English.") echoed by the model, wherever it stands: alone,
+ * as a paragraph, or before the first sentence of one (F1137). Only with a
+ * language's name, so "Write in pencil." stays.
+ */
+export function dropLangEcho(md: string, source = ""): string {
+  if (!/text|texto|writ|escri|escre/i.test(md)) return md;
+  // The page's own words ("Write in English." in an exam's rules) are no echo.
+  const flat = (t: string) => " " + (t.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).join(" ") + " ";
+  const src = flat(source);
+  const own = (t: string) => src.includes(flat(t));
+  const first = md.split("\n").findIndex((l) => l.trim());
+  const lines = md.split("\n").map((line, i) => {
+    const one = LANG_ONE.exec(line);
+    if (one && isLangName(one[1]) && !own(one[0])) return null;
+    let cut = false;
+    const l = line.replace(LANG_PAIR, (m, a: string, b?: string) => {
+      if (!isLangName(a) || (b && !isLangName(b)) || own(m)) return m;
+      // A sentence of its own: at the line's start or after one that ends.
+      // "The text is in Latin." without "Write in …" only where the output starts: it may be the page's.
+      const at = line.indexOf(m);
+      if (!b && (i !== first || at > 0)) return m;
+      if (at > 0 && !/(?:^|[.!?:]\s*|^\s*(?:[-*>]|#{1,6})\s*)$/.test(line.slice(0, at))) return m;
+      cut = true;
+      return at > 0 && /\S$/.test(line.slice(0, at)) ? " " : "";
+    });
+    return cut && !l.trim() ? null : cut ? l.replace(/^(\s*(?:[-*>]\s+|#{1,6}\s+)?)\s+/, "$1").replace(/\s+$/, "") : l;
+  });
+  const out = lines.filter((l) => l !== null).join("\n");
+  return out === md ? md : out.replace(/^\s*\n+/, "").replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "");
+}
+
+/** A Short version without a note of the model's own before or after the text (`source`: the text it was made from). */
+export function stripPreamble(md: string, source = ""): string {
+  const paras = dropLangEcho(md, source).split(/\n\s*\n/);
   const meta = (p: string | undefined) => {
     if (!p || /^\s*(?:#|\[\[\s*B\d+\s*\]\]\s*$)/.test(p)) return false;
     const own = p.replace(QUOTED, " ");
@@ -898,10 +1107,19 @@ export function stableContext(c: string): string {
 }
 
 /**
- * An article's text for its cache key: without short lines that carry no
- * prose or tick (a share button's "Compartir", a comment count, "12' minutos
- * de lectura"), so a revisit of the same article finds its Short version.
- * Headings, placeholders, and lines with links stay: the saved text refers to them by number.
+ * A line that only ticks or labels: "Updated 10:32", "5 min ago", "1,2 M
+ * views", "12' minutos de lectura", "Comentarios (12)". A line that also says
+ * something ("Doors open at 19:30.", "Pool: closed") is not one, however short.
+ */
+const ticksOnly = (line: string) => fewWords(line, 8) && onlyTicks(line, TICK);
+
+/**
+ * An article's text for its cache key: without lines that only tick or label
+ * (a comment count, "12' minutos de lectura", "Actualizado 10:32"), so a
+ * revisit of the same article finds its Short version. Any other line stays,
+ * however short ("Pool: closed", "Doors open at 20:00."): a change there is a
+ * change of the text. Headings, placeholders, and lines with links stay: the
+ * saved text refers to them by number.
  */
 export function stableText(text: string): string {
   return text
@@ -910,8 +1128,7 @@ export function stableText(text: string): string {
       const l = line.trim();
       if (!l) return false;
       if (/^#|\[\[\s*B\d+\s*\]\]|\]\(\s*#?L\d+\s*\)/.test(l)) return true;
-      if (fewWords(l, 2)) return false;
-      return !(fewWords(l, 8) && TICK.test(l));
+      return !ticksOnly(l.replace(/^(?:[-*•>]|\d+[.)])\s+/, ""));
     })
     .join("\n");
 }
@@ -1153,6 +1370,90 @@ export function swapsPerson(line: string, source: string): boolean {
   return false;
 }
 
+/** Words that give a person a role in a crime or a contest: a victim, an accused, a winner, a loser. */
+const ROLE_OF = new Map<string, string>();
+for (const [role, words] of Object.entries({
+  victim: "victim victims died dies dead killed murdered slain stabbed víctima víctimas muerto muerta murió asesinado asesinada vítima vítimas morto morta morreu assassinado assassinada",
+  accused: "suspect suspects accused charged arrested convicted jailed killer murderer sospechoso sospechosa acusado acusada imputado imputada detenido detenida arrestado arrestada condenado condenada asesino asesina suspeito suspeita preso presa assassino assassina",
+  winner: "winner winners won beat beats defeated defeats ganador ganadora ganó venció derrotó vencedor vencedora venceu derrotou",
+  loser: "loser losers lost perdedor perdedora perdió perdeu",
+}))
+  for (const w of words.split(" ")) ROLE_OF.set(w, role);
+const OPPOSITE: Record<string, string> = { victim: "accused", accused: "victim", winner: "loser", loser: "winner" };
+/** Verbs whose subject and object take opposite roles: "X killed Y", "X beat Y". */
+const ACTIVE: Record<string, [string, string]> = Object.fromEntries([
+  ..."killed murdered stabbed shot mató asesinó matou assassinou".split(" ").map((w) => [w, ["accused", "victim"]]),
+  ..."beat beats defeated defeats venció derrotó venceu derrotou".split(" ").map((w) => [w, ["winner", "loser"]]),
+]);
+const ROLE_NAME = String.raw`\p{Lu}[\p{Ll}\p{M}]+(?:[-'’]\p{Lu}[\p{Ll}\p{M}]+)?(?:\s+\p{Lu}[\p{Ll}\p{M}]+(?:[-'’]\p{Lu}[\p{Ll}\p{M}]+)?){0,2}`;
+const ROLE_LINK = String.raw`(?:\s*,)?\s+(?:(?:is|was|has been|had been|es|fue|ha sido|foi|é)\s+)?(?:(?:named|identified|revealed|confirmed|nombrado|nombrada|identificado|identificada|señalado|señalada|apontado|apontada)\s+(?:as|como)\s+)?(?:(?:a|an|the|el|la|un|una|o|um|uma)\s+)?(?:\p{Ll}+\s+)?`;
+const ROLE_WORD = `(${[...ROLE_OF.keys(), ...Object.keys(ACTIVE)].join("|")})(?![\\p{L}])`;
+const ROLE_AFTER = new RegExp(String.raw`(${ROLE_NAME})${ROLE_LINK}${ROLE_WORD}(?:\s+(?:(?:the|el|la|al|a|o)\s+)?(${ROLE_NAME}))?`, "gu");
+const ROLE_BEFORE = new RegExp(String.raw`(?<![\p{L}])(\p{L}+)\s+(${ROLE_NAME})`, "gu");
+const DEATH_OF = new RegExp(String.raw`(?<![\p{L}])(?:murder|killing|death|stabbing|asesinato|muerte|crimen|homicidio|assassinato|morte)\s+(?:of|de|do|da)\s+(${ROLE_NAME})`, "giu");
+/** Role words that are nouns: "suspect Abotaka" says who the suspect is. */
+const ROLE_NOUN = /^(?:victims?|suspects?|accused|killer|murderer|winners?|losers?|víctimas?|sospechos[oa]s?|acusad[oa]|imputad[oa]|asesin[oa]|ganador[a]?|perdedor[a]?|vítimas?|suspeit[oa]s?|vencedor[a]?|assassin[oa])$/;
+const lastName = (n: string) => n.split(/\s+/).filter(isName).pop()?.toLowerCase();
+
+/** Who a text gives a role: "Abotaka charged", "suspect Abotaka", "Abotaka killed Barzai", "the murder of Barzai". */
+function roleTies(text: string): { name: string; role: string }[] {
+  const own = text.replace(QUOTED, " ");
+  const ties: { name: string; role: string }[] = [];
+  const add = (n: string | undefined, role: string) => {
+    const name = n && lastName(n);
+    if (name) ties.push({ name, role });
+  };
+  for (const m of own.matchAll(ROLE_AFTER)) {
+    const w = m[2].toLowerCase();
+    const act = ACTIVE[w];
+    // "X killed Y": X the killer, Y the victim; "X killed in a crash": X the victim.
+    if (act && m[3] && m[0].slice(m[1].length).trim().toLowerCase().startsWith(w)) {
+      add(m[1], act[0]);
+      add(m[3], act[1]);
+    } else if (ROLE_OF.has(w) && !act && !(m[3] && ROLE_NOUN.test(w))) add(m[1], ROLE_OF.get(w)!);
+    // "X was killed", "X killed in a crash": the victim.
+    else if (act?.[0] === "accused" && !m[3]) add(m[1], "victim");
+  }
+  for (const m of own.matchAll(ROLE_BEFORE)) {
+    const w = m[1].toLowerCase();
+    const role = ROLE_OF.get(w);
+    // Only a role noun names who it is: "suspect Abotaka", not "charged Abotaka".
+    if (role && ROLE_NOUN.test(w)) add(m[2], role);
+  }
+  for (const m of own.matchAll(DEATH_OF)) add(m[1], "victim");
+  return ties;
+}
+
+/** "Suspect charged", "sospechoso detenido": the source's accused is a person of its own, who did the charged thing. */
+const SUSPECT_ACTS = /(?<![\p{L}])(?:suspect|suspects|sospechos[oa]s?|suspeit[oa]s?)\s+(?:(?:is|was|has been|es|fue|ha sido|foi|é)\s+)?(?:charged|arrested|held|detained|jailed|accused|detenid[oa]|arrestad[oa]|imputad[oa]|acusad[oa]|pres[oa])(?![\p{L}])/iu;
+/** A dead person said to be the suspect: "A man who died … is named as a murder suspect". */
+const DEAD_IS_SUSPECT = new RegExp(
+  String.raw`(?<![\p{L}])(?:died|dies|dead|killed|murdered|murió|muert[oa]|asesinad[oa]|morreu|mort[oa]|assassinad[oa])(?![\p{L}])[^.;:!?]*?(?<![\p{L}])(?:(?:is|was|has been|es|fue|ha sido|foi|é)\s+)?(?:(?:named|identified|revealed|confirmed|nombrad[oa]|identificad[oa]|señalad[oa]|apontad[oa])\s+(?:as|como)|(?:is|was|es|fue|foi|é)\s+(?:a|an|the|el|la|un|una|o|um|uma))\s+(?:(?:a|an|the|el|la|un|una|o|um|uma)\s+)?(?:\p{L}+\s+)?(?:suspect|killer|murderer|sospechos[oa]|asesin[oa]|suspeit[oa]|assassin[oa])(?![\p{L}])`,
+  "iu",
+);
+/** The same, with a verb that says so: the source itself makes the dead person the suspect. */
+const DEAD_IS_SUSPECT_STATED = new RegExp(DEAD_IS_SUSPECT.source.replace(String.raw`(?:(?:is|was|has been|es|fue|ha sido|foi|é)\s+)?`, String.raw`(?:is|was|has been|es|fue|ha sido|foi|é)\s+`), "iu");
+
+/**
+ * A one-liner that swaps people's roles (F1124): it gives a name the opposite
+ * role of the one its title and context give it (the victim becomes the
+ * suspect, the winner the loser), or it makes someone who died the suspect
+ * where the source has a suspect of its own ("Man who died … named as murder
+ * suspect charged": the dead man is named, and a suspect is charged).
+ */
+export function swapsRole(line: string, source: string): boolean {
+  const mine = roleTies(line);
+  if (mine.length) {
+    const theirs = roleTies(source);
+    for (const { name, role } of mine) {
+      const other = OPPOSITE[role];
+      if (theirs.some((t) => t.name === name && t.role === other) && !theirs.some((t) => t.name === name && t.role === role)) return true;
+    }
+  }
+  const own = line.replace(QUOTED, " ");
+  return DEAD_IS_SUSPECT.test(own) && SUSPECT_ACTS.test(source) && !DEAD_IS_SUSPECT_STATED.test(source.replace(QUOTED, " "));
+}
+
 /** Text right before a quote that sets it beside a noun, as what that noun is ("el triunfo de Lula, un “…”"). */
 const APPOSITION = /[\p{L}\p{N})]\s*[,–—]\s*(?:(?:un|una|unos|unas|el|la|los|las|lo|a|an|the|o|os|as|um|uma|le|les|une|des|il|uno|ein|eine)\s+)?$/iu;
 
@@ -1242,17 +1543,18 @@ function linksOf(text: string): Map<number, { a: string; line: string }> {
 
 /**
  * The lines of a text that say what it is, as words only: the lines its cache
- * key keeps (see stableText) of three words or more, short ones included,
- * without placeholders and link ids (they are renumbered when a block or a
- * link before them comes or goes), nor a one- or two-word link (a promotion).
+ * key keeps (see stableText), short ones included ("Pool: closed"), without
+ * placeholders and link ids (they are renumbered when a block or a link
+ * before them comes or goes), nor a one- or two-word link or heading (a
+ * promotion, a section that loads late).
  */
 function textLines(text: string): string[] {
   return stableText(text)
     .split("\n")
     .filter((l) => !/^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(l))
-    .map((l) => qwords(l))
-    .filter((w) => w.length > 2)
-    .map((w) => w.join(" "))
+    .map((l) => ({ w: qwords(l), aside: /^\s*#|\]\(\s*#?L\d+\s*\)/.test(l) }))
+    .filter(({ w, aside }) => w.length > (aside ? 2 : 0))
+    .map(({ w }) => w.join(" "))
     .sort();
 }
 

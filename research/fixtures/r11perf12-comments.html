@@ -1,0 +1,12 @@
+<!doctype html><html lang=en><head><title>Comments scale - Site</title></head><body><main><article><h1>Big story</h1>
+<p>Paragraph 0 of the story, with enough words to be real prose, and some commas, more words, and an ending.</p>
+<p>Paragraph 1 of the story, with enough words to be real prose, and some commas, more words, and an ending.</p>
+<p>Paragraph 2 of the story, with enough words to be real prose, and some commas, more words, and an ending.</p>
+</article><div id="comments" class="comments"></div><section><h2>More from us</h2><p>This section comes after the comments.</p></section></main>
+<script>
+// ?n=<count> comments, built like fx/core-budget.html (comments 1000+ share one text length).
+const n = Number(new URLSearchParams(location.search).get("n") || 1000);
+let h = "";
+for (let i = 0; i < n; i++) h += `<div class="comment"><div class="meta"><span>user${i}</span> <span>2h</span></div><div class="body"><p>Comment number ${i}, saying something about the story at some length so it counts.</p></div><div class="tools"><button>Reply</button> <button>Like</button></div></div>`;
+document.getElementById("comments").innerHTML = h;
+</script></body></html>

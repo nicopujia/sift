@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pick a shirt - Gear Blog</title>
+<style>body { font-family: sans-serif; margin: 0 auto; max-width: 800px; padding: 16px; } svg { width: 16px; height: 16px; }</style>
+</head>
+<body>
+<!-- F1132, F1133: a picture's name joins a label or text only when it adds meaning ("Not included", "Yes").
+     Expected in Sift: radio labels "Red" and "Blue" (not "Red Red"); checkboxes "Gift wrap ($3)" (no photo alt);
+     the "Express" radio keeps its "Not included Tracking" icon word; text reads "Our rating: (4 out of 5)" (no "star"),
+     "Read the full review" with no "arrow", "Gift wrap: Yes" and "Free returns Not included" keep their marks. -->
+<main>
+<h1>Pick a shirt</h1>
+<form action="#" onsubmit="event.preventDefault()">
+<fieldset><legend>Color</legend>
+<label><input type="radio" name="c" value="red"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAAIElEQVR4nGM4wcBAFUQdU0YNGjVo1KBRg0YNGjWIIgQA+yPCEE1SBoYAAAAASUVORK5CYII=" width="24" height="24" alt="Red"> Red</label>
+<label><input type="radio" name="c" value="blue"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAAHklEQVR4nGNgYDhBJTRq0KhBowaNGjRq0KhBA24QAHb2whCqO0bGAAAAAElFTkSuQmCC" width="24" height="24" alt="Blue"> Blue</label>
+</fieldset>
+<fieldset><legend>Delivery</legend>
+<label><input type="radio" name="d" value="std"> Standard <svg role="img" aria-label="Included" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="green" fill="none"/></svg> Tracking</label>
+<label><input type="radio" name="d" value="exp"> Express <svg role="img" aria-label="Not included" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="gray"/></svg> Tracking</label>
+</fieldset>
+<fieldset><legend>Add extras</legend>
+<label><input type="checkbox" name="x1"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAIAAAABc2X6AAAAeElEQVR4nO3PMRHAQBDEsOMPIHhTPYYtrBkDsO6+a7U/AAYGBgYGBs60PwAGBgYGBgbOtD8ABgYGBgYGzrQ/AAYGBgYGBs60PwAGBgYGBgbOtD8ABgYGBgYGzrQ/AAYGBgYGBs60PwAGBgYGBgbOtD8ABgYGBgZ+/Y9FptMrZSH2AAAAAElFTkSuQmCC" width="80" height="80" alt="Photo of a gift box"> Gift wrap ($3)</label>
+</fieldset>
+<button type="submit">Add to cart</button>
+</form>
+<article>
+<h2>Our review</h2>
+<p>Our rating: <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAF0lEQVR4nGP4dYKBJESa6lENoxqGlAYANX7CEDKFc3wAAAAASUVORK5CYII=" width="16" height="16" alt="star"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAF0lEQVR4nGP4dYKBJESa6lENoxqGlAYANX7CEDKFc3wAAAAASUVORK5CYII=" width="16" height="16" alt="star"><svg role="img" aria-label="star" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/></svg><svg role="img" aria-label="Star" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/></svg> (4 out of 5)</p>
+<p>The shirt is soft, keeps its shape after twenty washes and comes in two colors. <a href="#full">Read the full review</a> <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAIAAADZF8uwAAAADklEQVR4nGNgGAVDFQAAAbwAATg0HvcAAAAASUVORK5CYII=" width="12" height="12" alt="arrow"></p>
+<p>Gift wrap: <svg role="img" aria-label="Yes" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="green" fill="none"/></svg></p>
+<p>Free returns <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAF0lEQVR4nGP4dYKBJESa6lENoxqGlAYANX7CEDKFc3wAAAAASUVORK5CYII=" width="16" height="16" alt="Not included"></p>
+</article>
+</main>
+</body>
+</html>

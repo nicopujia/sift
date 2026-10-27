@@ -80,6 +80,8 @@ export interface Field {
   submit?: string;
   /** A slider's or spinbutton's value as words ("12 pt", "18:00"). */
   valueText?: string;
+  /** The words a spinbutton shows on the page ("mm", "07"), drawn in Sift's box; valueText ("Empty") is for screen readers (F1110). */
+  shown?: string;
   /** The page marks the value as wrong (aria-invalid). */
   invalid?: boolean;
   /** What the page says is wrong with it (its error message). */
@@ -88,6 +90,8 @@ export interface Field {
   desc?: string;
   /** The visible words on the page's own submit button (an Arabic page's "بحث"), shown on Sift's button. */
   submitLabel?: string;
+  /** A search form's other submit buttons (MoinMoin's "Text" beside "Titles"), kept beside it in the bar; `before`: it comes before the main one on the page (F1101). */
+  moreSubmits?: { ref: string; label: string; before?: boolean }[];
   /** Buttons in the field's own box (a password's Show button), shown right after it. */
   after?: Action[];
   /** The named group it belongs to (a fieldset's legend, a radio group's name: "Payment method"), shown as its fieldset. */

@@ -2,13 +2,13 @@
 
 Sift is a Chrome extension that opens every page as a clean, readable, usable view. One switch (Alt+Shift+S, or the Sift button) shows the original page. Install it from https://sift.pujia.ar. The README explains how it works.
 
-This file says how Sift was checked against its spec, what passed, and what is still open. Last updated 2026-10-27, after round 10.
+This file says how Sift was checked against its spec, what passed, and what is still open. Last updated 2026-10-27, after round 11.
 
 ## How it was checked
 
-- Ten rounds of testing. In each round, six testers used real sites, saved pages and hand-made test pages. Three reviewers read the code. A skeptic then tried to reproduce every reported problem. Only reproduced problems counted.
+- Eleven rounds of testing. In each round, six testers used real sites, saved pages and hand-made test pages. Three reviewers read the code. A skeptic then tried to reproduce every reported problem. Only reproduced problems counted.
 - Fixers worked in parallel copies of the code. Their changes were merged, type-checked, built and smoke-tested, then published.
-- Rounds 7 to 10 also ran the spec's "done" checks on each target page, with numbers:
+- Rounds 7 to 11 also ran the spec's "done" checks on each target page, with numbers:
   - **speed:** time to first content, Sift against the original page, 3 runs each, medians
   - **actions:** each needed action, and whether it had the same effect as on the original
   - **language:** the language of Sift's text against the page's
@@ -23,8 +23,14 @@ This file says how Sift was checked against its spec, what passed, and what is s
   | 8 | 269 | 298 |
   | 9 | 253 | 281 |
   | 10 | 291 | 316 |
+  | 11 | 342 | 357 |
 
-  On the target pages, 98 of 113 passed in round 9 and 113 of 123 in round 10. Every failure became a problem to fix, and the round 10 fixes are in the published build.
+  On the target pages, these passed:
+  - round 9: 98 of 113
+  - round 10: 113 of 123
+  - round 11: 145 of 155
+
+  Round 11 checked only the target pages and rechecks, with no new sites. Every failure became a problem to fix, and the round 11 fixes are in the published build.
 
 ## Done checks on the target pages (round 9)
 
@@ -45,7 +51,15 @@ These ran on the build before round 9's fixes. The notes say what changed afterw
 | Amazon cart (test page) | equal | Plus, minus, Delete, Save for later match | Pass | Pass |
 | Gmail (test page) | equal | Open, back, archive, delete, mark, reply, compose, send, search, Undo match | Pass | Pass |
 
-"Equal" means Sift showed its first content at the same moment as the original. In rounds 9 and 10, Sift was equal or faster on every target page. In round 10:
+"Equal" means Sift showed its first content at the same moment as the original. In rounds 9 to 11, Sift was equal or faster on every target page. In round 11 on YouTube:
+
+- Search: 2.2 s against 1.3 s.
+- Video title: 6.8 s against 1.9 s.
+- Playlist page: 2.2 s against 1.0 s.
+- Shorts: 2.6 s against 2.1 s.
+- Home: equal.
+
+In round 10:
 
 - YouTube search: 4.5 s against 2.6 s.
 - YouTube video title: 9.6 s against 3.5 s.
@@ -60,7 +74,7 @@ These ran on the build before round 9's fixes. The notes say what changed afterw
   - Checks after the model drop quotes, speakers, numbers, orders of events, swapped people and the wrong language. An invented detail of another kind can still get through.
   - The main AI models are out of OpenRouter credit, so calls fall back to a slower model. Some prompt changes were tested only on that model and on a fake model.
   - Short versions are reused across visits only when the article text is unchanged, so an article that changes costs a new call.
-- YouTube: the playlist page's list is the generic view (raw titles, no one-liners). Its header and Settings work.
+- YouTube: the playlist page's list is the generic view (raw titles, no one-liners). Its header, Settings and Menu now match the other YouTube pages.
 - Partly fixed:
   - a Google Maps popup that appeared only under heavy load (not reproduced since round 8)
   - weather.com under 4x CPU slowdown. Sift shows the forecast within about 1 s of the page, but the page's own long tasks can delay what a test measures.

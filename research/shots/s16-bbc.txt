@@ -1,0 +1,80 @@
+[button] Skip to content
+[button] Menu
+[button] Search
+[link] Sign In
+H1 Breaking news, video and the latest top stories from the U.S. and around the world
+    [link] Israel heads to polls for pivotal election defined by security and democracy
+    p: Many fear neither of the leading political blocs will win enough seats for a majority - meaning weeks or months of political wrangling may lie ahead.
+    p: 1 hr ago Middle East
+    [link] Lula's comeback in Brazil dents Trump's ambitions for Latin America
+    p: The Trump-Lula relationship may have thawed, but several issues could reignite tensions between the two leaders.
+    p: 5 hrs ago World
+    [link] Kane ends England’s 25-year wait to win men’s Ballon d’Or award
+    p: Harry Kane becomes the first English player to win the Ballon d'Or since Michael Owen in 2001 after being crowned the world's best player at a ceremony in London.
+    p: 8 hrs ago England Men
+    [link] Spain's Putellas wins women's top football prize
+    p: Barcelona and Spain midfielder Alexia Putellas wins the Ballon d'Or Feminin for a record-equalling third time.
+    p: 8 hrs ago Women's Football
+    [link] Truce begins in wartorn Ukraine city after it was announced by Melania Trump
+    p: The ceasefire is meant to allow aid deliveries and the evacuation of civilians.
+    p: 4 hrs ago US & Canada
+    [link] Ex-FBI chief James Comey faces federal charges for third time
+    p: Comey's lawyers say the case stems from alleged disclosure of classified information to the New York Times in 2016.
+    p: 5 hrs ago US & Canada
+    [link] Opposition leader María Machado returns from exile to a Venezuela reshaped by Trump
+    p: Machado returns with Trump's blessing, even if Washington is happy with Venezuela's existing leader - at least for the time being.
+    p: 6 hrs ago Latin America
+    [link] Sydney's new $5bn airport has one big problem: Getting there is tough
+    p: The airport won’t have direct public transportation for a year. How do locals feel about getting there?
+    p: 13 hrs ago Australia
+    [link] Anthropic's blockbuster share listing - 5 surprising things we now know
+    [link] Jordan carries out deadly strike in Syria in retaliation for church attack
+    [link] Jay-Z to perform at Super Bowl half-time show
+    [link] Australian sunscreen brands face stricter rules after safety scandal
+    [link] Meghan to co-host Junior MasterChef Australia
+H2 More to explore
+    [link] India's largest share sale could end cheap mobile internet for millions
+    p: Jio's IPO promises a windfall for investors, but could signal the end of cheap mobile data for millions.
+    p: 7 hrs ago Asia
+    [link] New Zealand election 2026: What you need to know
+    p: Voters will elect a new parliament on 7 November with the cost of living among the key issues.
+    p: 3 hrs ago Asia
+    [link] Will the British public change its mind about Meghan?
+    p: This complicated - and developing - story could prove to be a turning point for Meghan.
+    p: 11 hrs ago UK
+    [link] Star Trek actor Walter Koenig, who played Pavel Chekov, dies aged 90
+    p: He played the eager Russian crewman in the original Star Trek series and later appeared in Babylon 5.
+    p: 12 hrs ago Culture
+    [link] Israel and the US are both going to the polls - the consequences will be global
+    p: The next fortnight sees two elections on different continents. The outcomes will shape geopolitics and the global economy, writes James Landale
+    p: 14 hrs ago BBC InDepth
+    [link] How 'Lula's Army' WhatsApp channel helped turn Brazil election around
+    p: Millions joined a 'Lula's Army' channel that helped to transform online enthusiasm into real-world mobilisation.
+    p: 15 hrs ago Latin America
+H2 Most watched
+    [link] Sydney's new $5bn airport has one big problem: Getting there is tough
+    [link] Why is John Travolta's old luxury jet in a small Australian town?
+    [link] Fire engulfs Hitler's mountaintop Eagle's Nest retreat
+    [link] What is walking down the newly pedestrianised Oxford Street like?
+    [link] Buildings swept away as flash floods hit central Nepal
+H2 Also in news
+    [link] Pope's South American trip to go ahead as planned after lung cancer surgery
+    p: The Pope underwent surgery in to remove a tumour on the lower part of his right lung and is gradually resuming his duties.
+    p: 12 hrs ago
+    [link] Apple says it will replace iPhone Duo handsets with screen problems
+    p: Photos shared online showed faults appearing on the screens of Apple's first foldable device.
+    p: 5 hrs ago Business
+    [link] 'Maxxing' selected as Dictionary.com word of the year
+    p: "Whatever we're doing, we want to push it further," said an expert on why Americans are embracing the term, which is short for maximising.
+    p: 9 hrs ago US & Canada
+    [link] Macklemore begins Free Palestine tour after Ed Sheeran fallout
+    p: Proceeds from the tour, which begins in Dublin next month, will go to organisations supporting Palestinians, he says.
+    p: 7 hrs ago Europe
+    [link] Trump faces backlash after invoking 9/11 in verbal assault on Michigan's Senate candidate
+    p: The Democrat himself has hit back, as has Senator Bernie Sanders and a key Trump supporter from 2024.
+    p: 10 hrs ago US & Canada
+    [link] Fans praise 'perfect' ending as anime series Bleach officially ends
+    p: Twenty-two years after it first aired, one of the biggest animes of all time is coming to an end.
+    p: 13 hrs ago Newsbeat
+    [link] Catholic bishops apologise for 'exploited' Trump meeting
+    p: Two bishops in images that show them praying with Trump have said they believed the meeting was private.
