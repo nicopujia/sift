@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book a table - date segments fixture</title>
+<style>
+  body { font-family: sans-serif; margin: 24px; max-width: 40em; }
+  .field { display: inline-flex; gap: 2px; border: 1px solid #888; padding: 4px 8px; border-radius: 4px; }
+  [role=spinbutton] { padding: 0 2px; outline: none; caret-color: transparent; }
+  [role=spinbutton]:focus { background: #cde; }
+</style>
+</head>
+<body>
+<!-- A date field built as React Aria's DateField draws it: one contenteditable role=spinbutton per part.
+     Arrow keys arrive as keydown; typed digits arrive as beforeinput (insertText), which the segment
+     cancels and reads itself, as useDateSegment does. Backspace is keydown. -->
+<main>
+  <h1>Book a table</h1>
+  <p>Pick the day you want to come. We hold tables for fifteen minutes after the booked time, and we seat walk-ins at the bar.</p>
+  <div>
+    <span id="lbl">Reservation date</span>
+    <div class="field" role="group" aria-labelledby="lbl">
+      <div role="spinbutton" contenteditable="true" tabindex="0" inputmode="numeric" spellcheck="false" aria-label="month" data-seg="m" aria-valuemin="1" aria-valuemax="12">mm</div>/
+      <div role="spinbutton" contenteditable="true" tabindex="0" inputmode="numeric" spellcheck="false" aria-label="day" data-seg="d" aria-valuemin="1" aria-valuemax="31">dd</div>/
+      <div role="spinbutton" contenteditable="true" tabindex="0" inputmode="numeric" spellcheck="false" aria-label="year" data-seg="y" aria-valuemin="1" aria-valuemax="9999">yyyy</div>
+    </div>
+  </div>
+  <p><button id="book" type="button">Book</button></p>
+  <p id="out" role="status"></p>
+</main>
+<script>
+  // ?big=N adds N menu entries under the form (a long page: each extraction costs more).
+  const big = +new URLSearchParams(location.search).get("big") || 0;
+  if (big) { const sec = document.createElement("section"); sec.innerHTML = "<h2>Menu</h2><ul>" + Array.from({ length: big }, (_, i) => `<li><a href="#dish${i}">Dish ${i}: slow-cooked beans with herbs, rice and a side of greens number ${i}</a> <span>$${(i % 30) + 5}.50</span></li>`).join("") + "</ul>"; document.querySelector("main").append(sec); }
+  window.__log = [];
+  const ph = { m: "mm", d: "dd", y: "yyyy" };
+  function set(seg, v) {
+    if (v === null) { seg.removeAttribute("aria-valuenow"); seg.removeAttribute("aria-valuetext"); seg.textContent = ph[seg.dataset.seg]; }
+    else { seg.setAttribute("aria-valuenow", String(v)); seg.setAttribute("aria-valuetext", String(v)); seg.textContent = String(v); }
+    window.__log.push(seg.dataset.seg + "=" + (v ?? ""));
+    (window.__t = window.__t || []).push(Math.round(performance.now()));
+  }
+  for (const seg of document.querySelectorAll("[role=spinbutton]")) {
+    seg.addEventListener("keydown", (e) => {
+      const min = +seg.getAttribute("aria-valuemin"), max = +seg.getAttribute("aria-valuemax");
+      const now = seg.hasAttribute("aria-valuenow") ? +seg.getAttribute("aria-valuenow") : null;
+      if (e.key === "ArrowUp") { e.preventDefault(); set(seg, now === null ? min : now >= max ? min : now + 1); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); set(seg, now === null ? max : now <= min ? max : now - 1); }
+      else if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); const s = now === null ? "" : String(now).slice(0, -1); set(seg, s ? +s : null); }
+    });
+    // Typed digits come as beforeinput, as in React Aria's useDateSegment. Each key's time is logged.
+    seg.addEventListener("beforeinput", (e) => {
+      e.preventDefault();
+      if (e.inputType === "insertText" && /^\d$/.test(e.data || "")) {
+        const now = seg.hasAttribute("aria-valuenow") ? seg.getAttribute("aria-valuenow") : "";
+        const max = +seg.getAttribute("aria-valuemax");
+        const next = +(now + e.data) <= max ? +(now + e.data) : +e.data;
+        set(seg, next);
+      }
+    });
+  }
+  document.getElementById("book").addEventListener("click", () => {
+    const v = (s) => document.querySelector(`[data-seg=${s}]`).getAttribute("aria-valuenow") || "?";
+    document.getElementById("out").textContent = `Booked for ${v("m")}/${v("d")}/${v("y")}.`;
+    window.__log.push("book");
+  });
+</script>
+</body>
+</html>

@@ -17,6 +17,11 @@ export interface Adapter {
    * For the extractor: pass it as `drop` in the context given to findDialog.
    */
   dropDialog?(el: Element): boolean;
+  /**
+   * A page the adapter leaves to the generic extractor (YouTube's playlists and channels): what it adds to
+   * the generic page, such as the site's own top bar controls.
+   */
+  fallback?(page: Page): void;
 }
 
 import { amazon } from "./amazon";

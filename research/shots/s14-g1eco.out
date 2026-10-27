@@ -1,0 +1,74 @@
+url: https://g1.globo.com/economia/
+first sift content: 3522 ms
+logs:
+[error] [bastian] [component] [post-economia-cotacao]
+ TypeError: Cannot read properties of undefined (reading 'currencyRates')
+[warn] [Player API] could not load a/b experiment: Error
+--- outline (67 lines) ---
+[button] Ir para o conteúdo
+  [input:search]  BUSCAR
+  [button] Pesquisar
+[button] Menu
+[button] Entrar com Conta Globo
+H1 Economia
+    [link] Reeleição de Lula: Bolsa despenca 16% após 'circuit breaker' e dólar vai a R$ 5,60
+    p: 'Mercado financeiro' 📈
+    [link] O que é circuit breaker? Entenda suspensão das negociações
+    [link] Por que as eleições mexem tanto com dólar e bolsa?
+    [link] Aplicativos de bancos e corretoras têm instabilidade
+    [link] Como fica a economia real? Veja as propostas de Lula para trabalhadores, aposentados e empresários
+    [link] Dona do Claude divulga pedido de IPO nos EUA e revela prejuízo bilionário
+    p: Abertura de capital
+    [link] Claude acessou dados de eleitores dos EUA
+    [link] Podcast Educação Financeira 🎧
+      [link] Comprar, alugar ou assinar um veículo? Veja o que vale a pena
+      [link] É melhor comprar um carro 0km básico ou um usado bem equipado?
+      [link] Vale a pena comprar um carro que vai sair de linha?
+H2 Calculadoras do g1 📊
+    [link] Calculadora da inflação: veja a variação do seu poder de compra
+    [link] Gasolina ou álcool: qual compensa mais? Confira na calculadora do g1
+    [link] Compras de US$ 50: calculadora mostra como ficam os preços
+    p: Economia
+    [link] Ibovespa -13.88% 176.608 pts Atualizado há 8 horas
+    [link] Dia do Servidor Público é ponto facultativo na administração federal; estados e municípios definem o expediente, e trabalhadores privados não têm folga automática
+    p: Há 2 horas Trabalho e Carreira
+    [link] Após a queda do Ibovespa, ações com desconto podem oferecer oportunidades, mas juros altos, incertezas fiscais e dificuldades financeiras elevam o risco
+    p: Há 2 horas Economia
+    [link] Mega-Sena pode pagar R$ 305 milhões nesta terça-feira; apostas vão até as 20h
+    p: Apostas podem ser feitas até as 20h em lotéricas ou pela internet. · Há 2 horas Mega-Sena
+    [link] Mega-Sena 3075 acumula, e o prêmio sobe para R$ 305 milhões
+    p: Há 5 horas Mega-Sena
+    [link] Globoplay inclui sportv no plano de entrada; assinaturas variam por anúncios, telas simultâneas, qualidade de imagem e downloads, com preços desde R$ 19,90 por mês
+    p: Há 8 horas Tecnologia
+    [link] Circuit breaker é acionado pela primeira vez desde a pandemia de Covid-19; relembre todas as vezes em que a Bolsa parou
+    p: Há 8 horas Economia
+    [link] Ibovespa cai após reeleição de Lula e ações recuam até 58%; exportadoras como Suzano e Vale sobem
+    p: Há 9 horas Economia
+    [link] Em dia de nervosismo no mercado, Tesouro Nacional recompra R$ 7,1 bilhões em títulos públicos
+    p: 2 min · Há 13 horas Economia
+    [link] Oferta de crédito no PIX dependerá de autorização prévia do cliente, define Banco Central
+    p: Há 16 horas PIX
+    [link] Presidente da Audi é acusado de violar regras da empresa ao aparecer com Trump em comício eleitoral
+    p: Há 16 horas Carros
+    [link] Mercado financeiro baixa estimativa de inflação e de alta do PIB neste ano
+    p: Há 17 horas Economia
+    [link] Fundo de ações brasileiras despenca 26% em Nova York após reeleição de Lula
+    p: Há 18 horas Economia
+    [link] INSS inicia pagamento de benefícios de outubro; veja calendário
+    p: Ontem Economia
+    [link] PIB cresceu, desemprego caiu, mas juros e dívidas pesaram: veja o balanço da economia de Lula 3
+    p: Ontem Economia
+    [link] Após reeleição de Lula, fundo de ações brasileiras despenca 19% nos EUA e antecipa reação do mercado
+    p: Ontem Economia
+    [link] Eleições 2026: Anac diz não ter identificado anormalidades na programação de voos comerciais
+    p: Ontem Eleições 2026
+    [link] Mega-Sena acumulada: prêmio estimado de R$ 300 milhões pode ser o 2º maior da história dos sorteios regulares
+    p: Há 2 dias Mega-Sena
+    [link] Mega-sena não tem ganhadores e próximo concurso pode pagar até R$ 300 milhões; confira os números sorteados
+    p: Vencedor pode levar para casa prêmio de cerca de R$ 227 milhões. · Há 2 dias Mega-Sena
+    [link] Quem paga a conta? Economistas analisam promessas de Lula e Flávio diante de Orçamento apertado
+    p: Há 3 dias Economia
+    [link] INSS: faltou ao 1º turno? Votar no segundo pode servir como prova de vida; veja como funciona
+    p: Há 3 dias Economia
+[button] Mostrar mais conteúdos
+[button] Sift

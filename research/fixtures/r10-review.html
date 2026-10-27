@@ -1,0 +1,152 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Write a review · Crumb Bakery</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- r10 (T6-fixtures): a "Write a review" form, as on store and app review pages.
+     Star rating: five native radios, visually hidden, each with a hidden "N stars" text; a live line says "4 stars: Very good".
+     "How long have you used it?": a select-only combobox (div role=combobox, listbox popup, aria-activedescendant,
+     arrows, Enter, Escape, type-ahead), as Headless UI / Radix Select render it.
+     Review text: maxlength 500 with a "N of 500 characters" counter. "Would you recommend it?": Yes/No toggle buttons (aria-pressed).
+     Post review validates: an error summary (GOV.UK style, links to each field, gets focus), aria-invalid and inline errors.
+     Success replaces the form with a thank-you heading that gets focus. Noise: newsletter box, "You may also like" strip, cookie bar. -->
+<style>
+body{font-family:system-ui,sans-serif;margin:0;color:#222}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+header{display:flex;gap:16px;align-items:center;padding:12px 24px;border-bottom:1px solid #ddd}
+main{max-width:720px;margin:24px auto;padding:0 16px}
+.product{display:flex;gap:12px;align-items:center;color:#555}
+.errsum{border:4px solid #b91c1c;padding:12px 16px;margin:16px 0}
+.errsum h2{margin:0 0 8px;font-size:1.1em}
+.errsum a{color:#b91c1c;font-weight:600}
+.field{margin:20px 0}
+.field > label,.lbl,legend{display:block;font-weight:600;margin-bottom:6px}
+fieldset{border:0;padding:0;margin:20px 0}
+.err{color:#b91c1c;font-weight:600;margin:4px 0}
+[aria-invalid=true]{border-color:#b91c1c!important}
+.stars{display:flex;gap:4px}
+.stars input{position:absolute;opacity:0;width:1px;height:1px}
+.stars label{font-size:32px;color:#ccc;cursor:pointer;line-height:1}
+.stars label.on{color:#f59e0b}
+.stars input:focus-visible + label{outline:2px solid #2563eb}
+input[type=text],textarea{width:100%;box-sizing:border-box;padding:8px;border:1px solid #888;border-radius:4px;font:inherit}
+.combo{position:relative;width:280px}
+.combo [role=combobox]{border:1px solid #888;border-radius:4px;padding:8px;cursor:pointer;background:#fff}
+.combo [role=combobox]::after{content:"▾";float:right}
+.combo [role=listbox]{position:absolute;top:100%;left:0;right:0;margin:2px 0 0;padding:4px 0;list-style:none;background:#fff;border:1px solid #888;border-radius:4px;z-index:3}
+.combo [role=option]{padding:6px 10px;cursor:pointer}
+.combo [role=option].active{background:#dbeafe}
+.combo [role=option][aria-selected=true]{font-weight:700}
+.count{color:#555;font-size:.9em}
+.yn button{padding:6px 16px;border:1px solid #888;background:#fff;border-radius:4px}
+.yn button[aria-pressed=true]{background:#1e293b;color:#fff}
+.submit{background:#1e293b;color:#fff;border:0;padding:10px 20px;border-radius:6px;font:inherit}
+aside{background:#f3f4f6;padding:16px;margin-top:32px;border-radius:8px}
+.alsolike{display:flex;gap:12px;margin-top:24px}
+.alsolike a{border:1px solid #ddd;padding:8px;border-radius:6px}
+.cookie{position:fixed;left:0;right:0;bottom:0;background:#111;color:#fff;padding:12px 24px}
+footer{margin-top:48px;padding:24px;border-top:1px solid #ddd;color:#555}
+</style></head><body>
+<header><a href="/"><strong>Crumb Bakery</strong></a><nav aria-label="Main"><a href="/shop">Shop</a> <a href="/orders">Orders</a></nav></header>
+<main>
+<h1>Write a review</h1>
+<div class="product"><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2264%22 height=%2264%22%3E%3Crect width=%2264%22 height=%2264%22 fill=%22%23d6b98c%22/%3E%3C/svg%3E" width="64" height="64" alt=""><p><strong>Rye sourdough loaf, 700 g</strong><br>Delivered on October 20, 2026</p></div>
+<div class="errsum" id="errsum" role="alert" tabindex="-1" hidden><h2>There is a problem</h2><ul id="errlist"></ul></div>
+<form id="f" action="/reviews" method="post" novalidate>
+<fieldset id="rating-fs" aria-describedby="rating-err rating-now"><legend>Overall rating</legend>
+<p class="err" id="rating-err" hidden></p>
+<div class="stars">
+<input type="radio" id="s1" name="rating" value="1"><label for="s1">★<span class="vh">1 star</span></label>
+<input type="radio" id="s2" name="rating" value="2"><label for="s2">★<span class="vh">2 stars</span></label>
+<input type="radio" id="s3" name="rating" value="3"><label for="s3">★<span class="vh">3 stars</span></label>
+<input type="radio" id="s4" name="rating" value="4"><label for="s4">★<span class="vh">4 stars</span></label>
+<input type="radio" id="s5" name="rating" value="5"><label for="s5">★<span class="vh">5 stars</span></label>
+</div>
+<p id="rating-now" aria-live="polite">Not rated yet</p>
+</fieldset>
+<div class="field"><span class="lbl" id="used-l">How long have you used it?</span>
+<div class="combo"><div id="used" role="combobox" tabindex="0" aria-haspopup="listbox" aria-expanded="false" aria-controls="used-lb" aria-labelledby="used-l used-v"><span id="used-v">Choose one</span></div>
+<ul id="used-lb" role="listbox" aria-labelledby="used-l" tabindex="-1" hidden>
+<li role="option" id="u1" aria-selected="false">Less than a week</li>
+<li role="option" id="u2" aria-selected="false">A few weeks</li>
+<li role="option" id="u3" aria-selected="false">A few months</li>
+<li role="option" id="u4" aria-selected="false">More than a year</li>
+</ul></div></div>
+<div class="field"><label for="title">Title</label><p class="err" id="title-err" hidden></p><input type="text" id="title" name="title" aria-describedby="title-err"></div>
+<div class="field"><label for="body">Your review</label><p class="err" id="body-err" hidden></p><textarea id="body" name="body" rows="5" maxlength="500" aria-describedby="body-err body-count"></textarea><p class="count" id="body-count">0 of 500 characters</p><p class="vh" id="body-live" aria-live="polite"></p></div>
+<div class="field"><span class="lbl" id="rec-l">Would you recommend it to a friend?</span><div class="yn" role="group" aria-labelledby="rec-l"><button type="button" id="yes" aria-pressed="false">Yes</button> <button type="button" id="no" aria-pressed="false">No</button></div></div>
+<div class="field"><label><input type="checkbox" id="first" checked> Show only my first name</label></div>
+<p><button type="submit" class="submit">Post review</button></p>
+</form>
+<div id="done" hidden></div>
+<aside><h2>Get fresh bread news</h2><p>One email a week with new loaves and offers.</p><form onsubmit="event.preventDefault()"><label>Email <input type="email"></label> <button>Sign up</button></form></aside>
+<div class="alsolike"><span>You may also like:</span><a href="/p/seeded">Seeded loaf</a><a href="/p/bagels">Bagels, 6 pack</a><a href="/p/focaccia">Focaccia</a></div>
+</main>
+<footer><a href="/help">Help</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></footer>
+<div class="cookie" id="cookie">We use cookies to remember your basket. <button type="button" onclick="document.getElementById('cookie').remove()">OK</button></div>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+const words = ["", "Poor", "Fair", "Good", "Very good", "Excellent"];
+function stars() {
+  const v = +(document.querySelector("input[name=rating]:checked")?.value || 0);
+  for (const l of document.querySelectorAll(".stars label")) l.classList.toggle("on", +l.htmlFor.slice(1) <= v);
+  $("rating-now").textContent = v ? v + (v === 1 ? " star" : " stars") + ": " + words[v] : "Not rated yet";
+}
+for (const r of document.querySelectorAll("input[name=rating]")) r.addEventListener("change", () => { __log.push("rating " + r.value); stars(); });
+// select-only combobox
+const cb = $("used"), lb = $("used-lb"), opts = [...lb.children];
+let act = -1, picked = -1, typed = "", typedT = 0;
+function openLb() { lb.hidden = false; cb.setAttribute("aria-expanded", "true"); setAct(picked >= 0 ? picked : 0); __log.push("used open"); }
+function closeLb() { lb.hidden = true; cb.setAttribute("aria-expanded", "false"); cb.removeAttribute("aria-activedescendant"); }
+function setAct(i) { act = i; opts.forEach((o, j) => o.classList.toggle("active", j === i)); if (i >= 0) cb.setAttribute("aria-activedescendant", opts[i].id); }
+function pick(i) { picked = i; opts.forEach((o, j) => o.setAttribute("aria-selected", String(j === i))); $("used-v").textContent = opts[i].textContent; __log.push("used " + opts[i].textContent); closeLb(); }
+cb.addEventListener("click", () => lb.hidden ? openLb() : closeLb());
+cb.addEventListener("keydown", (e) => {
+  const open = !lb.hidden;
+  if (!open && ["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) { e.preventDefault(); openLb(); return; }
+  if (!open) return;
+  if (e.key === "ArrowDown") { e.preventDefault(); setAct(Math.min(act + 1, opts.length - 1)); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); setAct(Math.max(act - 1, 0)); }
+  else if (e.key === "Home") { e.preventDefault(); setAct(0); }
+  else if (e.key === "End") { e.preventDefault(); setAct(opts.length - 1); }
+  else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (act >= 0) pick(act); }
+  else if (e.key === "Escape") { e.preventDefault(); closeLb(); __log.push("used esc"); }
+  else if (e.key === "Tab") { if (act >= 0) pick(act); }
+  else if (e.key.length === 1) { const now = Date.now(); typed = (now - typedT < 600 ? typed : "") + e.key.toLowerCase(); typedT = now; const i = opts.findIndex((o) => o.textContent.toLowerCase().startsWith(typed)); if (i >= 0) setAct(i); }
+});
+lb.addEventListener("mousedown", (e) => e.preventDefault());
+lb.addEventListener("click", (e) => { const o = e.target.closest("[role=option]"); if (o) pick(opts.indexOf(o)); });
+document.addEventListener("click", (e) => { if (!lb.hidden && !e.target.closest(".combo")) closeLb(); });
+// counter
+let liveT;
+$("body").addEventListener("input", () => { const n = $("body").value.length; $("body-count").textContent = n + " of 500 characters"; clearTimeout(liveT); liveT = setTimeout(() => { $("body-live").textContent = (500 - n) + " characters left"; }, 1000); });
+// yes/no
+for (const b of [$("yes"), $("no")]) b.onclick = () => { const on = b.getAttribute("aria-pressed") !== "true"; $("yes").setAttribute("aria-pressed", "false"); $("no").setAttribute("aria-pressed", "false"); b.setAttribute("aria-pressed", String(on)); __log.push("recommend " + (on ? b.textContent : "none")); };
+// validation
+function setErr(id, field, msg) { const e = $(id); e.hidden = !msg; e.textContent = msg ? "Error: " + msg : ""; if (field) msg ? field.setAttribute("aria-invalid", "true") : field.removeAttribute("aria-invalid"); }
+$("f").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const errs = [];
+  const rating = document.querySelector("input[name=rating]:checked");
+  if (!rating) errs.push(["s1", "Choose a star rating"]);
+  setErr("rating-err", null, rating ? "" : "Choose a star rating");
+  const t = $("title").value.trim();
+  if (!t) errs.push(["title", "Enter a title for your review"]);
+  setErr("title-err", $("title"), t ? "" : "Enter a title for your review");
+  const b = $("body").value.trim();
+  const bm = b.length < 20 ? (b ? "Your review must be at least 20 characters" : "Write your review") : "";
+  if (bm) errs.push(["body", bm]);
+  setErr("body-err", $("body"), bm);
+  __log.push("submit errors=" + errs.length);
+  if (errs.length) {
+    $("errlist").innerHTML = errs.map(([id, m]) => '<li><a href="#' + id + '">' + m + "</a></li>").join("");
+    $("errsum").hidden = false; $("errsum").focus();
+    document.title = "Error: Write a review · Crumb Bakery";
+    return;
+  }
+  $("errsum").hidden = true; document.title = "Review posted · Crumb Bakery";
+  __log.push("posted " + rating.value + " | " + t + " | " + ($("used").getAttribute("aria-activedescendant") ? $("used-v").textContent : $("used-v").textContent) + " | rec=" + ($("yes").getAttribute("aria-pressed") === "true" ? "yes" : $("no").getAttribute("aria-pressed") === "true" ? "no" : "none") + " | first=" + $("first").checked);
+  $("f").hidden = true;
+  $("done").innerHTML = '<h2 tabindex="-1" id="thanks">Thanks, your review was sent</h2><p>It will appear on the product page after we check it, usually within a day.</p><p><a href="/p/rye">Back to Rye sourdough loaf</a></p>';
+  $("done").hidden = false; $("thanks").focus();
+});
+$("errlist").addEventListener("click", (e) => { const a = e.target.closest("a"); if (!a) return; e.preventDefault(); const el = $(a.getAttribute("href").slice(1)); el.focus(); el.scrollIntoView({ block: "center" }); __log.push("errlink " + el.id); });
+</script></body></html>

@@ -6,7 +6,7 @@ import type { AiReply, AiRequest, LineInput, ModelCfg, RuntimeMsg, Settings } fr
 import { mergeSettings } from "../shared/messages";
 import { cacheClear, cacheGet, cacheSet } from "./cache";
 import { bump, flushStats } from "./stats";
-import { addsLink, addsSpeaker, claimsNoAnswer, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, unsupported } from "./text";
+import { addsLink, addsSpeaker, claimsNoAnswer, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, movesKicker, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, swapsPerson, unquoted, unsupported } from "./text";
 
 // ---------- settings ----------
 
@@ -43,7 +43,9 @@ chrome.storage.onChanged.addListener((ch) => {
 // 9: A teaser headline keeps its own words (it may stay a question), and no line says the story leaves something unanswered.
 // 10: No line names who said, did, or chose something its title and context leave unnamed.
 // 11: No line puts facts in an order or a cause its title and context do not state (a teaser's quote is not the story's setting).
-const PROMPT_VERSION = 11;
+// 12: Short versions are asked for in the page's language by name; a news line keeps a kicker's subject ("sus aliados" are
+// the kicker's person's) and never sets a kicker's quote beside another noun.
+const PROMPT_VERSION = 12;
 
 const LINES_INTRO = `You rewrite entries from a list on a web page into plain, literal one-line descriptions, for people who need pages to be simple and fast to read: low vision, ADHD, dyslexia, older users.
 
@@ -94,7 +96,8 @@ Rules:
 ${LINES_RULES}
 - Say the news directly, the way a plain news line would. Never mention the headline, title, article, note, report, or story itself: never write "The headline says", "The article explains", "A report on", "El artículo informa", "El título pregunta", "La nota repasa", or the like. Wrong: "The headline claims a leaked list names five replacements". Right: "A leaked list names five possible replacements".
 - Keep who said what: a claim stays a claim of its source ("X says", "según X"), never a fact. Keep a direct quote in quotation marks, with who said it.
-- A quote that opens a headline and the story's event stay apart: the quote is not when, where, or why the event happened. Wrong: "The band made the song after the singer's death was reported" for "‘My death was reported’: how the band made the song". Right: "‘My death was reported’: how the band made the song".
+- A quote that opens a headline and the story's event stay apart: the quote is not when, where, or why the event happened, and never what a thing in the headline is. Wrong: "The band made the song after the singer's death was reported" for "‘My death was reported’: how the band made the song". Right: "‘My death was reported’: how the band made the song". Wrong: "Guelar analyzed Lula's win, a “grave error”" for "“There was a grave error”. Guelar analyzed Lula's win". Right: "“There was a grave error”: Guelar analyzed Lula's win".
+- A kicker before the headline ("Milei's friends.", "Los amigos de Milei.") says whose story it is. A possessive or pronoun in the headline ("sus aliados", "his allies") belongs to that person, not to the nearest other name. Keep the person the kicker names. Wrong: "Elections test Bolsonaro's allies after his defeat" for "Milei's friends. After Bolsonaro's defeat, the elections that test the club of his allies". Right: "Elections test Milei's allies after Bolsonaro's defeat".
 - A name after "By" or "Por" is the writer of the piece. Never present the writer as a speaker or as the source of a quote or claim. Keep "I" and "we" as the headline has them: never turn them into a role such as "the writer", "the speaker", or "the authors".
 - Keep exactly who did what to whom. Never swap the actor (fans are not teammates), and never drop a negation or a word that sets the relation, such as "not", "against", "contra", "sin", "sobre".
 - Keep the words that set when, how, or how sure: "then-19", "former", "forced to", "allegedly", "reportedly". An age or a role at the time of the events stays with them.
@@ -526,7 +529,7 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
     if (hit === KEEP_TITLE) continue;
     // A saved line passes the same checks as a new one (it may have been saved
     // before they existed, or for an older context); one that fails keeps the title.
-    const shown = hit && (hit === it.t ? hit : vetLine(hit, it, mode));
+    const shown = hit && (hit === it.t ? hit : scriptFits(hit, langs[i] ? langScript(langs[i]) : scriptOf(it.t), it.t) && vetLine(hit, it, mode));
     if (shown) reply({ id: req.id, item: it.id, text: shown });
     else if (!hit) misses.push({ it, key: keys[i], lang: langs[i] });
   }
@@ -682,7 +685,7 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
  * language of the same script.
  */
 async function lineFits(text: string, want: string, title: string): Promise<boolean> {
-  if (!scriptFits(text, want ? langScript(want) : scriptOf(title))) return false;
+  if (!scriptFits(text, want ? langScript(want) : scriptOf(title), title)) return false;
   if (!want) return true;
   const got = await entryLang(text, want, detect, true);
   return !got || got === want;
@@ -702,6 +705,8 @@ function vetLine(raw: string, it: LineInput, mode: string): string | null {
   const text = keepQuotes(raw.trim(), src).replace(/[.。]$/, "");
   if (!text || unsupported(raw.trim(), src)) return null;
   if (mode !== "gist" && (claimsNoAnswer(text, src) || addsSpeaker(text, src) || addsLink(text, src) || quoteAsFact(text, it.t))) return null;
+  // A group or an ally given to the wrong person, or a kicker's quote set beside another noun (F1036).
+  if (mode !== "gist" && (swapsPerson(text, src) || movesKicker(text, it.t) || movesKicker(text, it.c ?? ""))) return null;
   if (mode === "news" ? META.test(text) : wrapsTitle(text, it.t)) return null;
   return text;
 }
@@ -735,6 +740,37 @@ function proseWords(md: string, lang: string): number {
   }
 }
 
+/** A language's English name, to tell the model which one to write in ("Portuguese" for "pt"). */
+function langName(lang: string): string {
+  try {
+    return new Intl.DisplayNames(["en"], { type: "language" }).of(lang) ?? lang;
+  } catch {
+    return lang;
+  }
+}
+
+/**
+ * The language a Short version is written in: the page's, unless its text is
+ * clearly in another one (a Spanish page marked "en"). "" when neither is known.
+ */
+const condenseLang = (req: { lang: string; text: string }) => entryLang(proseText(req.text).slice(0, 6000), req.lang, detect);
+
+/**
+ * A Short version in the language asked for (F1035): written in its script,
+ * and neither as a whole nor in any paragraph of a dozen words or more clearly
+ * in another language. Quotes are left out: they keep their speaker's words.
+ */
+async function condenseFits(out: string, want: string): Promise<boolean> {
+  if (!want) return true;
+  const prose = unquoted(proseText(out));
+  if (!scriptFits(prose, langScript(want))) return false;
+  for (const p of [prose, ...prose.split(/\n+/).filter((p) => (p.match(/\p{L}+/gu)?.length ?? 0) >= 12)]) {
+    const got = await entryLang(p, want, detect, true);
+    if (got && got !== want) return false;
+  }
+  return true;
+}
+
 async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: Reply, signal: AbortSignal, useCache: boolean, site: string, pc: PortCtx) {
   const s = await settings();
   // Keyed by the article's own text: a share button, a comment count, a
@@ -749,11 +785,14 @@ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: 
   const hit = useCache ? await cacheGet(key) : undefined;
   if (hit && !ttlOf(req, pc)) pc.saved.set(key, hit);
   if (hit === NO_SHORT) return reply({ id: req.id, error: "no short version for this text", code: "http", final: true });
+  // Always the page's language, named to the model: an output in another one is never shown or saved (F1035).
+  const want = await condenseLang(req);
   /** What a Short version may state: the title and the text. */
   const source = req.title + "\n" + req.text;
   // A saved Short version passes the same checks as a new one: it may have
   // been saved before they existed, or from a text whose numbers changed since.
-  if (hit) return finish(checked(hit));
+  // One in another language (saved before this check) is made again.
+  if (hit && (await condenseFits(hit, want))) return finish(checked(hit));
   // One made from an earlier text of the same article that covers all of this
   // one's prose: renumbered to this text, checked against it, and measured
   // against the text it was made from.
@@ -762,7 +801,7 @@ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: 
     try {
       const p = JSON.parse(prior) as { text: string; out: string };
       const reused = reuseShort(p.out, p.text, req.text);
-      if (reused && !tooLong(reused, p.text)) {
+      if (reused && !tooLong(reused, p.text) && (await condenseFits(reused, want))) {
         if (!ttlOf(req, pc)) pc.saved.set(artKey, prior);
         const out = checked(reused);
         save(pc, req, key, out);
@@ -797,7 +836,7 @@ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: 
         [s.condense, s.condenseFallback, s.lastResort],
         {
           system: i ? CONDENSE_PART_SYSTEM : CONDENSE_SYSTEM,
-          user: `Title: ${req.title}${parts.length > 1 ? ` (part ${i + 1} of ${parts.length})` : ""}\nThe text has ${words} words. Write about ${Math.max(30, Math.round(words * 0.35))} words, and never more than ${Math.max(30, Math.round(words * 0.5))}, not counting heading and [[B…]] lines.${note}\n\n${part}`,
+          user: `Title: ${req.title}${parts.length > 1 ? ` (part ${i + 1} of ${parts.length})` : ""}\n${want ? `The text is in ${langName(want)}. Write in ${langName(want)}.\n` : ""}The text has ${words} words. Write about ${Math.max(30, Math.round(words * 0.35))} words, and never more than ${Math.max(30, Math.round(words * 0.5))}, not counting heading and [[B…]] lines.${note}\n\n${part}`,
           maxTokens: Math.min(8000, 300 + est),
           minTokens: Math.min(8000, 300 + Math.round(est * 0.7)),
           signal,
@@ -811,6 +850,12 @@ async function doCondense(req: Extract<AiRequest, { task: "condense" }>, reply: 
       // A note of the model's own about its task ("El texto fuente contiene…") is not part of the text.
       all = all.slice(0, from) + stripPreamble(all.slice(from));
       const got = all.slice(from);
+      // A rewrite in another language (an English one of a Portuguese article) is asked for once more, told so; never shown or saved.
+      if (!(await condenseFits(got, want))) {
+        if (again) return reply({ id: req.id, error: "the Short version came back in another language", code: "http", final: true });
+        note = ` A first rewrite was not in ${langName(want)}. Write only in ${langName(want)}, the language of the text. Never translate.`;
+        continue;
+      }
       if (!(proseTokens(got) > proseTokens(part) * MAX_RATIO || proseWords(got, req.lang) > words * MAX_WORD_RATIO)) break;
       note = ` A first rewrite had ${proseWords(got, req.lang)} words: far too many. Leave out more.`;
     }

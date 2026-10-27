@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profile photo - upload button fixture</title>
+<style>body { font-family: sans-serif; margin: 24px; max-width: 40em; } #file { display: none; }</style>
+</head>
+<body>
+<!-- A styled 'Upload photo' button that opens a hidden file input with input.click(), as most upload widgets do. -->
+<main>
+  <h1>Your profile photo</h1>
+  <p>Add a photo so your neighbors can recognize you at events. Square photos work best, and the photo shows next to your name in comments.</p>
+  <input id="file" type="file" accept="image/*">
+  <button id="up" type="button">Upload photo</button>
+  <p id="msg" role="status"></p>
+</main>
+<script>
+  window.__log = [];
+  document.getElementById("up").addEventListener("click", () => { window.__log.push("button click"); document.getElementById("file").click(); });
+  document.getElementById("file").addEventListener("click", () => window.__log.push("file input click"));
+  document.getElementById("file").addEventListener("change", (e) => { window.__log.push("chosen " + e.target.files.length); document.getElementById("msg").textContent = "Photo chosen: " + e.target.files[0].name; });
+</script>
+</body>
+</html>

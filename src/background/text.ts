@@ -73,18 +73,23 @@ export const langScript = (lang: string) => scriptOfLang(base(lang));
 /**
  * Whether a line is written in `script`: most of its letters for Latin, a fair
  * share for other scripts (a Japanese line keeps Latin brand names). True for
- * a line with no letters or when the script is unknown.
+ * a line with no letters or when the script is unknown. With `source` (the
+ * title it rewrites), letters of a third script fail it: neither `script`,
+ * nor Latin (names, brands), nor one the title uses ("Vector در برابر Thanos"
+ * for "Vector VS Thanos" on an English page, F1062).
  */
-export function scriptFits(text: string, script: string): boolean {
+export function scriptFits(text: string, script: string, source?: string): boolean {
   if (!script) return true;
   let all = 0;
   let mine = 0;
+  let third = 0;
   for (const [name, re] of SCRIPTS) {
     const n = text.match(re)?.length ?? 0;
     all += n;
     if (name === script) mine += n;
+    else if (source !== undefined && n && name !== "latin" && !source.match(re)) third += n;
   }
-  return !all || mine / all >= (script === "latin" ? 0.5 : 0.3);
+  return !all || (third < 2 && mine / all >= (script === "latin" ? 0.5 : 0.3));
 }
 
 // ---------- per-entry language ----------
@@ -193,6 +198,9 @@ const WHOLE_LINKS = /^(?:[^[\]]|\[[^[\]]*\]\(\s*#?L\d+\s*\))*$/;
 const SPACELESS = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}]/u;
 const unlink = (md: string) => md.replace(/\[([^[\]]*)\]\(\s*#?L\d+\s*\)/g, "$1");
 const qwords = (s: string) => unlink(s).toLowerCase().normalize("NFKC").match(/[\p{L}\p{N}]+/gu) ?? [];
+
+/** A text without its quoted spans: what a quote says keeps its speaker's words and language. */
+export const unquoted = (s: string) => s.replace(QUOTED, " ");
 
 function quotesIn(md: string): { at: number; len: number; inner: string }[] {
   return [...md.matchAll(QUOTED)].map((m) => ({ at: m.index!, len: m[0].length, inner: m.slice(1).find((x) => x !== undefined)! }));
@@ -430,6 +438,135 @@ function wordNumbers(text: string): number[] {
   return out;
 }
 
+/**
+ * Units a rewrite may convert a source's amount to, by kind (and system) and
+ * size in a base unit: "a day" is 24 hours, "one year" 12 months, "5 km" 3.1
+ * miles. Within a kind and system only whole results count (8 months is not
+ * "34.8 weeks"); across systems only the usual partner, rounded (see PARTNER).
+ */
+const UNITS = new Map<string, [string, number]>();
+for (const [kind, size, words] of [
+  ["t", 1, "second seconds sec secs segundo segundos seconde secondes sekunde sekunden secondo secondi"],
+  ["t", 60, "minute minutes min mins minuto minutos minuten minuti"],
+  ["t", 3600, "hour hours hr hrs h hora horas heure heures stunde stunden ora ore"],
+  ["t", 86400, "day days día días dia dias jour jours tag tage tagen giorno giorni"],
+  ["t", 604800, "week weeks semana semanas semaine semaines woche wochen settimana settimane"],
+  ["t", 1209600, "fortnight fortnights quincena quincenas"],
+  ["t", 2628000, "month months mes meses mois monat monate monaten mese mesi"],
+  ["t", 31536000, "year years yr yrs año años ano anos année années jahr jahre jahren anno anni"],
+  ["t", 315360000, "decade decades década décadas décennie décennies jahrzehnt jahrzehnte decennio decenni"],
+  ["t", 3153600000, "century centuries siglo siglos século séculos siècle siècles jahrhundert jahrhunderte secolo secoli"],
+  ["l", 0.001, "mm millimetre millimetres millimeter millimeters milímetro milímetros"],
+  ["l", 0.01, "cm centimetre centimetres centimeter centimeters centímetro centímetros"],
+  ["L", 0.0254, "inch inches pulgada pulgadas"],
+  ["L", 0.3048, "foot feet ft"],
+  ["L", 0.9144, "yard yards yd yds"],
+  ["l", 1, "metre metres meter meters metro metros mètre mètres"],
+  ["l", 1000, "km kms kilometre kilometres kilometer kilometers kilómetro kilómetros kilomètre kilomètres kilometro kilometri kph kmh"],
+  ["L", 1609.344, "mile miles mi milla millas miglio miglia meile meilen mph"],
+  ["m", 1, "g gram grams gramme grammes gramo gramos"],
+  ["M", 28.3495, "ounce ounces oz onza onzas"],
+  ["M", 453.592, "pound pounds lb lbs libra libras"],
+  ["m", 1000, "kg kgs kilo kilos kilogram kilograms kilogramme kilogrammes kilogramo kilogramos"],
+  ["m", 1e6, "tonne tonnes tonelada toneladas"],
+  ["v", 0.001, "ml millilitre millilitres milliliter milliliters mililitro mililitros"],
+  ["v", 1, "l litre litres liter liters litro litros"],
+  ["V", 3.78541, "gallon gallons galón galones"],
+] as [string, number, string][])
+  for (const w of words.split(" ")) UNITS.set(w, [kind, size]);
+/** The unit of the other system a rewrite converts to, by size: km and miles, m and feet, cm and inches, kg and pounds, g and ounces, litres and gallons. */
+const PARTNER = new Map<string, number>([["l1000", 1609.344], ["L1609.344", 1000], ["l1", 0.3048], ["L0.3048", 1], ["L0.9144", 1], ["l0.01", 0.0254], ["L0.0254", 0.01], ["m1000", 453.592], ["M453.592", 1000], ["m1", 28.3495], ["M28.3495", 1], ["v1", 3.78541], ["V3.78541", 1]]);
+/** Unit abbreviations that are words too ("h", "mi", "l"): a unit only after digits. */
+const UNIT_ABBR = /^(?:s|sec|secs|min|mins|hr|hrs|h|yr|yrs|mm|cm|ft|yd|yds|km|kms|kph|kmh|mi|mph|g|oz|lb|lbs|kg|kgs|ml|l)$/;
+/** Words that make one of the unit after them: "in a day", "per hour", "al año", "cada semana". */
+const ONE_OF = new Set("a an one per each every un una uno um uma al por cada ein eine einen einem einer pro par".split(" "));
+/** Words that give one of a unit on their own: "daily", "anual". */
+const PER_UNIT: Record<string, string> = { daily: "day", diario: "day", diaria: "day", diarios: "day", diarias: "day", diariamente: "day", quotidien: "day", täglich: "day", hourly: "hour", weekly: "week", semanal: "week", semanales: "week", hebdomadaire: "week", wöchentlich: "week", settimanale: "week", monthly: "month", mensual: "month", mensuales: "month", mensuel: "month", monatlich: "month", mensile: "month", yearly: "year", annual: "year", annually: "year", anual: "year", anuales: "year", anualmente: "year", annuel: "year", jährlich: "year", annuale: "year" };
+/** Parts of one ("half a day", "medio millón", "a quarter of an hour"). */
+const PARTS: Record<string, number> = { half: 0.5, medio: 0.5, media: 0.5, meio: 0.5, quarter: 0.25, cuarto: 0.25 };
+/** "nine in ten", "one out of five", "tres de cada cuatro": a share, as a percent. */
+const RATIO_WORDS = new Set("in of out every de cada em sur su von auf".split(" "));
+/** "doubled", "se triplicó": the times, and the percent of rise and of the old amount. */
+const TIMES: [RegExp, number][] = [
+  [/^(?:doubl\w*|twice|duplic\w*|dupliqu\w*|dobl\w*|dobr\w*|verdoppel\w*|raddoppi\w*)$/, 2],
+  [/^(?:tripl\w*|thrice|verdreifach\w*)$/, 3],
+  [/^(?:quadrupl\w*|cuadruplic\w*|quadruplic\w*|vervierfach\w*)$/, 4],
+];
+/** Noon and midnight, as the clock times a rewrite may give ("12 pm", "00:00"). */
+const CLOCK_WORDS: Record<string, string[]> = {
+  noon: ["12", "t12:00"], midday: ["12", "t12:00"], mediodía: ["12", "t12:00"], midi: ["12", "t12:00"], mittag: ["12", "t12:00"], mezzogiorno: ["12", "t12:00"],
+  midnight: ["12", "24", "t0:00", "t12:00"], medianoche: ["12", "24", "t0:00", "t12:00"], minuit: ["12", "24", "t0:00", "t12:00"], mitternacht: ["12", "24", "t0:00", "t12:00"], mezzanotte: ["12", "24", "t0:00", "t12:00"],
+};
+
+/**
+ * Numbers a rewrite may give for a source's own in another form: its amounts
+ * in another unit ("a day" 24 hours, "one year old" 12 months, "5 km" 3.1
+ * miles), its shares as a percent ("nine in ten" 90, "tres de cada cuatro"
+ * 75), its rises ("doubled" 100%), a part of a scale ("half a million"), and
+ * noon or midnight as a clock time.
+ */
+function convertedNumbers(source: string): string[] {
+  const out: string[] = [];
+  /** n, rounded and to one decimal; and down, for a share ("two in three" 66%). */
+  const add = (n: number, down = false) => {
+    if (!Number.isFinite(n) || n <= 0) return;
+    for (const r of [n, Math.round(n), Math.round(n * 10) / 10, down ? Math.floor(n) : 0]) if (r > 0) out.push(numKey(r));
+  };
+  const toks = [...unlink(source.replace(/\[\[\s*B\d+\s*\]\]/g, " ")).toLowerCase().matchAll(/\d+(?:[.,]\d+)*|\p{L}+/gu)].map((m) => m[0]);
+  /** The amount token i states, and the index after it: digits, a number word ("twenty five"), or null. */
+  const amount = (i: number): [number[], number] | null => {
+    const t = toks[i];
+    if (t === undefined) return null;
+    if (/^\d/.test(t)) return [digitValues(t, "").filter((v) => !v.startsWith("t")).map(Number), i + 1];
+    let n = NUMBER_WORDS.get(t);
+    if (n === undefined) return null;
+    let j = i + 1;
+    const u = NUMBER_WORDS.get(toks[j] ?? "");
+    if (n >= 20 && n % 10 === 0 && u !== undefined && u > 0 && u < 10) [n, j] = [n + u, j + 1];
+    return [[n], j];
+  };
+  for (let i = 0; i < toks.length; i++) {
+    const t = toks[i];
+    for (const c of CLOCK_WORDS[t] ?? []) out.push(c);
+    for (const [re, x] of TIMES) if (re.test(t)) [x, (x - 1) * 100, x * 100].forEach((n) => add(n));
+    if (t === "halved") add(50);
+    // "half a million", "medio millón", "a quarter of a million".
+    const part = PARTS[t];
+    let j = i + 1;
+    while (part && (ONE_OF.has(toks[j] ?? "") || /^(?:of|de)$/.test(toks[j] ?? ""))) j++;
+    if (part && SCALES[toks[j] ?? ""] >= 1e3 && toks[j].length > 2) add(part * SCALES[toks[j]]);
+    // An amount and its unit: "eight hours", "one year old", "5 km", "a day", "half an hour", "daily".
+    let vals: number[] = [];
+    let at = -1;
+    const a = amount(i);
+    if (a) [vals, at] = a;
+    else if (ONE_OF.has(t)) [vals, at] = [[1], i + 1];
+    else if (part) [vals, at] = [[part], j];
+    else if (PER_UNIT[t]) [vals, at] = [[1], -1];
+    const unitWord = at < 0 ? PER_UNIT[t] : toks[at];
+    const unit = unitWord !== undefined ? UNITS.get(unitWord) : undefined;
+    if (vals.length && unit && (at < 0 || !UNIT_ABBR.test(unitWord) || /^\d/.test(t))) {
+      const [kind, size] = unit;
+      const whole = new Set<number>();
+      for (const [, [k, s2]] of UNITS) if (k === kind && s2 !== size) whole.add(s2);
+      const partner = PARTNER.get(kind + size);
+      for (const v of vals) {
+        for (const s2 of whole) if (Number.isInteger(Math.round(((v * size) / s2) * 1e6) / 1e6) && (v * size) / s2 >= 1) add((v * size) / s2);
+        if (partner) add((v * size) / partner);
+      }
+    }
+    // "nine in ten", "one out of five", "tres de cada cuatro".
+    if (a && a[0].length === 1) {
+      let k = a[1];
+      let n = 0;
+      while (n < 2 && RATIO_WORDS.has(toks[k] ?? "")) [k, n] = [k + 1, n + 1];
+      const b = n ? amount(k) : null;
+      if (b && b[0].length === 1 && b[0][0] > a[0][0] && b[0][0] <= 1000) add((a[0][0] / b[0][0]) * 100, true);
+    }
+  }
+  return out;
+}
+
 let lastSource = "";
 let lastNumbers = new Set<string>();
 
@@ -447,6 +584,7 @@ function sourceNumbers(source: string): Set<string> {
   for (const n of wordNumbers(source)) out.add(numKey(n));
   const text = unlink(source.replace(/\[\[\s*B\d+\s*\]\]/g, " "));
   for (const m of text.matchAll(LISTED)) out.add(numKey(Number(m[1]) + Number(m[2])));
+  for (const v of convertedNumbers(source)) out.add(v);
   [lastSource, lastNumbers] = [source, out];
   return out;
 }
@@ -484,6 +622,12 @@ function speakerWords(s: string): string[] {
  * speech verb, a title in quotation marks).
  */
 function speakerOf(sentence: string, at: number, end: number): string[] {
+  const v = closestSays(sentence, at, end);
+  return v ? verbSpeaker(sentence, v, at, end) : [];
+}
+
+/** The speech verb nearest the words at [at, end) of a sentence, outside them. */
+function closestSays(sentence: string, at: number, end: number): RegExpMatchArray | null {
   let best: { v: RegExpMatchArray; d: number } | null = null;
   for (const v of sentence.matchAll(SAYS)) {
     const vs = v.index!;
@@ -492,7 +636,23 @@ function speakerOf(sentence: string, at: number, end: number): string[] {
     const d = ve <= at ? at - ve : vs - end;
     if (!best || d < best.d) best = { v, d };
   }
-  return best ? verbSpeaker(sentence, best.v, at, end) : [];
+  return best?.v ?? null;
+}
+
+/**
+ * Whether a sentence gives the words at [at, end) to a pronoun: "she said",
+ * "dijo él", or a verb with no subject ("—…—, dijo."): a person the text
+ * named before.
+ */
+function saidByPronoun(sentence: string, at: number, end: number): boolean {
+  const v = closestSays(sentence, at, end);
+  if (!v || TO_SPEAKER.test(v[0])) return false;
+  const vs = v.index!;
+  const ve = vs + v[0].length;
+  const subject = (/[^;:“”"«»„]*$/.exec(sentence.slice(ve <= at ? 0 : end, vs))?.[0] ?? "").split(/\s+/).filter((w) => /\p{L}/u.test(w));
+  const after = /^[^,;:.!?“”"«»„]*/.exec(sentence.slice(ve))![0].split(/\s+/).filter(Boolean);
+  const head = (subject.length ? subject[subject.length - 1] : after[0] ?? "").replace(/[^\p{L}]/gu, "").toLowerCase();
+  return PRONOUNS.has(head) || (!subject.length && !speakerWords(after.slice(0, 5).join(" ")).length);
 }
 
 /** Who a speech verb in a sentence ties words to (see speakerOf); the words are at [at, end). */
@@ -546,8 +706,15 @@ function speakerNear(out: string, q: { at: number; len: number; inner: string },
   const sEnd = sEndRel < 0 ? src.length : found.index + found[0].length + sEndRel;
   const theirs = speakerOf(src.slice(sStart, sEnd), found.index - sStart, found.index + found[0].length - sStart);
   if (theirs.some((t) => !ROLES.has(t.toLowerCase()))) return named.some((w) => theirs.some((t) => same(w, t)));
-  // None there (a pronoun, a quote on its own): the person must be named near it.
-  const window = src.slice(Math.max(0, found.index - 300), found.index + found[0].length + 300);
+  // A pronoun ("she said"): the person must be named before it in its section
+  // (since the heading before it), at any distance, or near it after.
+  const after = found.index + found[0].length + 300;
+  if (saidByPronoun(src.slice(sStart, sEnd), found.index - sStart, found.index + found[0].length - sStart)) {
+    const head = src.slice(0, found.index).search(/(?:^|\n)#{1,6}\s[^\n]*\n(?![\s\S]*\n#{1,6}\s)/);
+    return named.some((w) => wordIn(w, src.slice(Math.max(0, head), after)));
+  }
+  // A quote on its own: the person must be named near it.
+  const window = src.slice(Math.max(0, found.index - 300), after);
   return named.some((w) => wordIn(w, window));
 }
 
@@ -623,15 +790,40 @@ function sentencesOf(line: string): string[] {
   return out.filter(Boolean);
 }
 
+/** A sentence that warns: a limit, a danger, or something never to do ("Never take more than…", "No supere…"). */
+const WARNING =
+  /(?<![\p{L}\p{N}])(?:never|do not|don['’]t|must not|mustn['’]t|should not|shouldn['’]t|no more than|not more than|at most|maximum|warning|danger|dangerous|avoid|overdose|nunca|no (?:tome|tomes|tomar|debe|deben|supere|superar|exceda|exceder|use|usar|dé|dar)|máximo|máxima|peligro|peligroso|evite|evitar|advertencia|jamais|niemals|nicht mehr als|non (?:superare|assumere|dare))(?![\p{L}\p{N}])/iu;
+
+/** The source's own sentence a rewritten warning stands for: a warning too, with at least half of its words (three or more); null when none. */
+function warningOf(s: string, source: string, used: Set<string>): string | null {
+  const want = ctokens(s);
+  let best: string | null = null;
+  let most = 0;
+  for (const line of source.split("\n")) {
+    if (/^\s*#{1,6}\s|^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line)) continue;
+    for (const t of sentencesOf(line.replace(/^\s*(?:[-*•>]|\d+[.)])\s+/, ""))) {
+      const have = ctokens(t);
+      let n = 0;
+      for (const w of want) if (have.has(w)) n++;
+      if (n > most && !used.has(t) && WARNING.test(t)) [best, most] = [t, n];
+    }
+  }
+  if (!best || most < 3 || most < want.size * 0.5) return null;
+  used.add(best);
+  return best;
+}
+
 /**
  * A Short version without the sentences that give a quote to a speaker, or
  * state a number, its source does not (see unsupported). A sentence whose
  * only fault is a quote the source does not have stays: keepQuotes takes its
- * quotation marks off. Headings and [[B…]] lines stay; a list item keeps its
+ * quotation marks off. A warning whose only fault is a number is put back as
+ * the source says it (see warningOf). Headings and [[B…]] lines stay; a list item keeps its
  * marker; a line left with no sentence goes.
  */
 export function dropUnsupported(md: string, source: string): string {
   const lines: string[] = [];
+  const used = new Set<string>();
   for (const line of md.split("\n")) {
     if (/^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line) || !line.trim()) {
       lines.push(line);
@@ -639,8 +831,10 @@ export function dropUnsupported(md: string, source: string): string {
     }
     const mark = /^\s*(?:[-*•>]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
     const all = sentencesOf(line.slice(mark.length));
-    const kept = all.filter((s) => !unsupported(s, source));
-    if (kept.length === all.length) lines.push(line);
+    // A warning whose only fault is a number in another form ("in 24 hours"
+    // for "in a day") stays, in the source's own words.
+    const kept = all.map((s) => (unsupported(s, source) === "number" && WARNING.test(s) ? warningOf(s, source, used) ?? s : s)).filter((s) => !unsupported(s, source));
+    if (kept.length === all.length && kept.every((s, i) => s === all[i])) lines.push(line);
     else if (kept.length) lines.push(mark + kept.join(" "));
   }
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
@@ -655,9 +849,20 @@ export function dropUnsupported(md: string, source: string): string {
  */
 const NOTE_START =
   /^[\s(*_]*(?:here is|here's|here are|below is|below are|aquí (?:está|tienes|va|van)|a continuación|note|nota|n\.b\.|word count|recuento|this is (?:a|the|my) (?:shorter|short|condensed|rewritten|summari[sz]ed|simplified|requested)|esta es (?:la|una) versión|i (?:will|'ll|’ll|have|kept|removed|left|cut|omitted|shortened|rewrote|condensed)\b|i['’]ve\b|he (?:mantenido|conservado|reescrito|resumido|eliminado|omitido|acortado)|mantendré|(?:the |el |la )?(?:source|original) text|(?:el |la )?(?:texto|versión) (?:fuente|original|de origen|corta|abreviada))/iu;
+/**
+ * Words about the task itself, never about the page's subject: the shorter
+ * version, the source text, a word count, the placeholders, the instructions,
+ * the links or headings kept or removed. A bare "version", "article", "text",
+ * "words" or "links" is what a first-person lead, a review's verdict, or a
+ * correction note may talk about ("I have tested every version…", "Note: This
+ * article was corrected…"), and does not count.
+ */
 const NOTE_TOPIC =
-  /\b(?:text|texto|article|artículo|summary|resumen|version|versión|rewrite|reescritura|instructions?|instrucciones|placeholders?|marcadores|headings?|encabezados|words?|palabras|recuento|links?|enlaces|requested|solicitad[oa]|pedid[oa]|shorter|más corta|condensed|abreviad[oa])\b|\[\[B/iu;
-const NOTE_ANYWHERE = /\[\[B[…*.]|versi[oó]n (?:solicitada|pedida)|requested (?:version|rewrite|length)/iu;
+  /(?<![\p{L}\p{N}])(?:(?:shorter|short|shortened|condensed|abridged|rewritten|simplified|summari[sz]ed|requested|concise|brief)\s+(?:version|text|rewrite|summary|form)|(?:source|original|input|provided|given)\s+text|word\s+count|\(\s*~?\d+\s+words?\s*\)|(?:has|is|contains|of)\s+(?:about\s+|around\s+|roughly\s+)?\d+\s+words|placeholders?|marcadores|(?:the|these|your|las|tus)\s+instru(?:ctions|cciones)|as\s+(?:requested|asked|instructed)|(?:kept|keep|preserved|retained|removed|omitted|dropped|cut|left\s+out)\s+(?:all\s+)?(?:the\s+)?(?:links|headings|lists|quotes|markers|formatting|structure)|versi[oó]n\s+(?:corta|abreviada|resumida|condensada|reducida|más\s+corta|breve)|texto\s+(?:fuente|original|de\s+origen|resumido|condensado|abreviado|reescrito|proporcionado)|recuento\s+de\s+palabras|(?:tiene|contiene|de)\s+(?:unas\s+)?\d+\s+palabras|como\s+se\s+(?:pidió|solicitó|indicó)|(?:mantenido|conservado|eliminado|omitido|mantuvieron|conservaron|eliminaron)\s+(?:todos\s+)?(?:los\s+|las\s+)?(?:enlaces|encabezados|títulos|listas|citas))(?![\p{L}\p{N}])|\[\[B/iu;
+/** "Here is a summary", "Aquí tienes la versión…": a note that hands over the text. */
+const NOTE_HANDOVER =
+  /^[\s(*_]*(?:here is|here's|here are|below is|below are|this is|aquí (?:está|tienes|va|van)|a continuación(?:,)?(?: se presenta| está| va| tienes)?|esta es)\s+(?:(?:a|an|the|my|your|una?|el|la|tu)\s+)?(?:\p{L}+\s+){0,2}?(?:version|summary|rewrite|versión|resumen|reescritura)(?![\p{L}\p{N}])/iu;
+const NOTE_ANYWHERE = /\[\[B[…*.]|versi[oó]n (?:solicitada|pedida)|requested (?:version|rewrite|length)|^[\s(*_]*~?\d+\s+(?:words|palabras)[\s)*_.]*$/iu;
 
 /** A Short version without a note of the model's own before or after the text. */
 export function stripPreamble(md: string): string {
@@ -665,7 +870,7 @@ export function stripPreamble(md: string): string {
   const meta = (p: string | undefined) => {
     if (!p || /^\s*(?:#|\[\[\s*B\d+\s*\]\]\s*$)/.test(p)) return false;
     const own = p.replace(QUOTED, " ");
-    return NOTE_ANYWHERE.test(own) || (NOTE_START.test(own) && NOTE_TOPIC.test(own));
+    return NOTE_ANYWHERE.test(own) || NOTE_HANDOVER.test(own) || (NOTE_START.test(own) && NOTE_TOPIC.test(own));
   };
   while (paras.length > 1 && meta(paras[0])) paras.shift();
   while (paras.length > 1 && meta(paras[paras.length - 1])) paras.pop();
@@ -899,6 +1104,78 @@ export function quoteAsFact(line: string, title: string): boolean {
   return false;
 }
 
+/** "sus", "his", "their": a word that ties a noun to someone the text named before. */
+const POSSESSIVE = new Set("su sus seu seus sua suas his her their its ses son sa leur leurs suo sua suoi sue sein seine seinen seiner ihr ihre ihren ihrer".split(" "));
+const TIE_OF = "de|del|do|da|dos|das|di|of|von";
+const ARTICLES = "el|la|los|las|lo|o|a|os|as|the|le|les|il|der|die|das";
+/** A capitalized word that names someone or something: not a common word (an article, "Tras", "Los"). */
+const NAME_WORD = /\p{Lu}[\p{Ll}\p{M}]+(?:[-'’]\p{Lu}[\p{Ll}\p{M}]+)?/gu;
+const isName = (w: string) => w.length >= 3 && !COMMON.has(w.toLowerCase()) && !STARTERS.has(w.toLowerCase()) && !WHEN.has(w.toLowerCase());
+const stemOf = (w: string) => w.toLowerCase().slice(0, Math.max(4, Math.min(6, w.length - 2)));
+
+/** The names a text gives: capitalized words other than common ones ("Los", "Tras"). */
+const namesIn = (text: string) => (text.match(NAME_WORD) ?? []).filter(isName);
+
+/**
+ * A one-liner that gives a group, an ally, or a thing to the wrong person: it
+ * ties a noun to a name ("los aliados de Bolsonaro", "Bolsonaro's allies")
+ * that its title and context never tie so, where they say only "sus aliados"
+ * after that name, and it drops another person they name ("Los amigos de
+ * Milei. Tras la derrota de Bolsonaro, … al club de sus aliados"): the
+ * possessive was read as the nearest name's, not the kicker's subject's.
+ */
+export function swapsPerson(line: string, source: string): boolean {
+  const own = line.replace(QUOTED, " ");
+  const ties: { noun: string; name: string }[] = [];
+  const nameRun = "\\p{Lu}[\\p{Ll}\\p{M}]+(?:\\s+\\p{Lu}[\\p{Ll}\\p{M}]+){0,2}";
+  for (const m of own.matchAll(new RegExp(`([\\p{L}]{4,})\\s+(?:${TIE_OF})\\s+(?:(?:${ARTICLES})\\s+)?(${nameRun})`, "gu"))) ties.push({ noun: m[1], name: m[2] });
+  // "Bolsonaro's allies", "Bolsonaro's former allies": the next word or the one after.
+  for (const m of own.matchAll(new RegExp(`(${nameRun})['’]s?\\s+([\\p{Ll}]{4,})(?:\\s+([\\p{Ll}]{4,}))?`, "gu"))) for (const noun of [m[2], m[3]]) if (noun) ties.push({ noun, name: m[1] });
+  if (!ties.length) return false;
+  const lowLine = line.toLowerCase();
+  const srcNames = namesIn(source);
+  for (const { noun, name } of ties) {
+    const last = name.split(/\s+/).filter(isName).pop();
+    if (!last || COMMON.has(noun.toLowerCase())) continue;
+    const stem = escapeRe(stemOf(noun));
+    const who = escapeRe(last);
+    // The source ties them so itself: "aliados de Bolsonaro", "Bolsonaro's allies".
+    const tied = new RegExp(`${stem}[\\p{L}]*\\s+(?:${TIE_OF})\\s+(?:(?:${ARTICLES})\\s+)?(?:\\p{Lu}[\\p{Ll}\\p{M}]+\\s+){0,2}${who}|${who}['’]s?\\s+(?:[\\p{L}]+\\s+)?${stem}`, "iu");
+    if (tied.test(source)) continue;
+    // Only "sus aliados" (or "the club of his allies"), after the name.
+    const poss = new RegExp(`(?<![\\p{L}])(?:${[...POSSESSIVE].join("|")})\\s+(?:[\\p{L}]+\\s+)?${stem}`, "iu").exec(source);
+    if (!poss) continue;
+    const at = source.toLowerCase().indexOf(last.toLowerCase());
+    if (at < 0 || at > poss.index) continue;
+    // Another person the source names, whom the line leaves out: whose the noun may be.
+    if (srcNames.some((n) => n.toLowerCase() !== last.toLowerCase() && !name.toLowerCase().includes(n.toLowerCase()) && !lowLine.includes(n.toLowerCase()))) return true;
+  }
+  return false;
+}
+
+/** Text right before a quote that sets it beside a noun, as what that noun is ("el triunfo de Lula, un “…”"). */
+const APPOSITION = /[\p{L}\p{N})]\s*[,–—]\s*(?:(?:un|una|unos|unas|el|la|los|las|lo|a|an|the|o|os|as|um|uma|le|les|une|des|il|uno|ein|eine)\s+)?$/iu;
+
+/**
+ * A one-liner that moves the quote opening its title (a kicker: "“Hubo un
+ * gravísimo error”. Guelar analizó el triunfo de Lula…") beside another noun,
+ * as if it described it ("…el triunfo de Lula, un “gravísimo error”"): the
+ * quote is its speaker's words about something the story tells, not about that noun.
+ */
+export function movesKicker(line: string, title: string): boolean {
+  const t = title.replace(/‘([^‘’\n]+)’/g, "“$1”");
+  const first = quotesIn(t)[0];
+  // The title opens with the quote (after a short label at most), and it ends a sentence or a kicker.
+  if (!first || qwords(t.slice(0, first.at)).length > 3 || !/^\s*[.:!?…]?\s*(?:$|[\p{Lu}¿¡“"«])/u.test(t.slice(first.at + first.len))) return false;
+  const kicker = " " + qwords(first.inner).join(" ") + " ";
+  for (const q of quotesIn(line)) {
+    const w = qwords(q.inner);
+    if (w.length < 2 || !kicker.includes(" " + w.join(" ") + " ")) continue;
+    if (APPOSITION.test(line.slice(0, q.at))) return true;
+  }
+  return false;
+}
+
 // ---------- Short versions ----------
 
 /** A line of the model's own that echoes the input's "Title:" field (or its translation), as a heading or a paragraph. */
@@ -964,23 +1241,36 @@ function linksOf(text: string): Map<number, { a: string; line: string }> {
 }
 
 /**
+ * The lines of a text that say what it is, as words only: the lines its cache
+ * key keeps (see stableText) of three words or more, short ones included,
+ * without placeholders and link ids (they are renumbered when a block or a
+ * link before them comes or goes), nor a one- or two-word link (a promotion).
+ */
+function textLines(text: string): string[] {
+  return stableText(text)
+    .split("\n")
+    .filter((l) => !/^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(l))
+    .map((l) => qwords(l))
+    .filter((w) => w.length > 2)
+    .map((w) => w.join(" "))
+    .sort();
+}
+
+/**
  * A Short version made from an earlier text of the same article (`from`: the
- * page had loaded more or less of it, or a promotion came and went), made fit
- * for the text sent now (`to`); null when that text has prose the earlier one
- * did not cover. Its placeholders and link ids are renumbered to the new text;
- * one with no match there goes (the page puts a dropped block back in its
- * place, and lists a dropped link).
+ * same lines, but a block or a link before them came or went, so placeholders
+ * and link ids differ), made fit for the text sent now (`to`); null when any
+ * line of the text changed, came, or went: a Short version of other words
+ * may state what the page no longer says, so a new one is made. Its
+ * placeholders and link ids are renumbered to the new text; one with no match
+ * there goes (the page puts a dropped block back in its place, and lists a
+ * dropped link).
  */
 export function reuseShort(out: string, from: string, to: string): string | null {
-  const had = proseLines(from);
-  const now = proseLines(to);
-  let all = 0;
-  let covered = 0;
-  for (const [l, n] of now) {
-    all += n;
-    if (had.has(l)) covered += n;
-  }
-  if (now.size < 3 || covered < all * 0.95) return null;
+  if (proseLines(to).size < 3) return null;
+  const had = textLines(from);
+  const now = textLines(to);
+  if (had.length !== now.length || had.some((l, i) => l !== now[i])) return null;
   const fa = anchors(from);
   const ta = [...anchors(to)];
   const usedB = new Set<number>();
@@ -997,8 +1287,8 @@ export function reuseShort(out: string, from: string, to: string): string | null
   const usedL = new Set<number>();
   const linkMap = new Map<number, number>();
   for (const [n, x] of fl) {
-    const same = tl.filter(([m, y]) => !usedL.has(m) && y.a === x.a);
-    const hit = same.find(([, y]) => y.line === x.line) ?? (same.length === 1 ? same[0] : undefined);
+    // Only in the same line: a link with the same words elsewhere goes to another address.
+    const hit = tl.find(([m, y]) => !usedL.has(m) && y.a === x.a && y.line === x.line);
     if (hit) {
       usedL.add(hit[0]);
       linkMap.set(n, hit[0]);

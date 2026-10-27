@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Full Text Search: "pinning" - Test Wiki</title></head>
+<body>
+<div id="header"><form id="searchform" method="get" action="/SourcesList"><input type="hidden" name="action" value="fullsearch"><input id="searchinput" type="text" name="value" value="pinning"><input type="submit" name="titlesearch" value="Titles"><input type="submit" name="fullsearch" value="Text"></form></div>
+<div id="page"><div id="content">
+<h1>Full Text Search: "pinning"</h1>
+<p class="searchstats">Results <strong>1 - 6</strong> of about <strong>6</strong> results out of about 25111 pages. (<strong>0.08</strong> seconds)</p>
+<div class="searchresults"><dl id="dl"></dl></div>
+</div></div>
+<script>
+const R = [
+ ["SummerOfCode2009/Aptitude_mixed_install_apt_pinning_integration", 7, "...= Aptitude mixed-install/apt-pinning integration = * Mentor: Daniel Burrows ? * Summary: High-level support of mixed-installs (eg. testing/unstable) and apt-pinning, so that users can follow testing while keeping a few packages from unstable, with the resolver taking pins into account when it searches for solutions ..."],
+ ["Pinning", 1, "#redirect AptConfiguration"],
+ ["AptPinning", 1, "#redirect AptConfiguration"],
+ ["es/AptPreferences", 20, "... artículo trata de explicar como usar las 'preferencias' de APT. En este momento solo pinning está documentado aquí, con ejemplos de prioridades para mezclar versiones estables y de pruebas en un mismo sistema, y de cómo comprobarlas con apt-cache policy antes de instalar..."],
+ ["AptConfiguration", 8, "...ame priority to all packages in a repository. Assigning a priority is often called pinning. Pinning can be used to: * Prefer a DebianBackports package over a DebianStable one, * keep a package at a given version while the rest of the system is upgraded, * mix releases, which is not supported and can break the system in subtle ways..."],
+ ["DebianTesting", 3, "...Testing is the next stable release in the making. If you mix testing and unstable, use pinning to say which release wins by default, and read the release notes before every upgrade, since testing can break for days at a time and security fixes can arrive later than they do for stable..."],
+];
+const dl = document.getElementById("dl");
+for (const [t, n, s] of R) dl.insertAdjacentHTML("beforeend", `<dt><a href="/${t}?highlight=pinning">${t}</a><span class="info"> . . . ${n} match${n > 1 ? "es" : ""}</span></dt><dd>${s}<br></dd><p class="searchhitinfobar">1.4k - rev: 1 (current) last modified: 2009-03-30 15:15:36</p>`);
+</script>
+</body>
+</html>

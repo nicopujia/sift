@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stays in Lisbon - price slider fixture</title>
+<style>
+  body { font-family: sans-serif; margin: 24px; max-width: 48em; }
+  .track { position: relative; width: 300px; height: 6px; background: #ccc; margin: 16px 0; }
+  [role=slider] { position: absolute; top: -7px; width: 20px; height: 20px; border-radius: 50%; background: #246; }
+</style>
+</head>
+<body>
+<!-- A results page with a price filter drawn as a role=slider (arrow keys move it, as booking sites do),
+     above a long list of stays. ?big=N sets how many stays (default 1500). -->
+<main>
+  <h1>Stays in Lisbon</h1>
+  <p>Prices are per night and include taxes and fees. Move the slider to set the most you want to pay.</p>
+  <div>
+    <span id="plbl">Maximum price per night</span>
+    <div class="track"><div id="price" role="slider" tabindex="0" aria-labelledby="plbl" aria-valuemin="20" aria-valuemax="500" aria-valuenow="200" aria-valuetext="$200" style="left: 37%"></div></div>
+    <p id="shown"></p>
+  </div>
+  <ol id="stays"></ol>
+</main>
+<script>
+  window.__log = [];
+  const n = +new URLSearchParams(location.search).get("big") || 1500;
+  const stays = Array.from({ length: n }, (_, i) => ({ name: `Apartment ${i + 1} near the river, two rooms with a balcony`, price: 25 + ((i * 37) % 470) }));
+  const sl = document.getElementById("price");
+  function render() {
+    const max = +sl.getAttribute("aria-valuenow");
+    const list = stays.filter((s) => s.price <= max);
+    document.getElementById("shown").textContent = `${list.length} stays up to $${max}`;
+    document.getElementById("stays").innerHTML = list.slice(0, 1200).map((s) => `<li><a href="#s">${s.name}</a> <span>$${s.price} a night</span></li>`).join("");
+  }
+  let timer = 0;
+  sl.addEventListener("keydown", (e) => {
+    const d = { ArrowRight: 5, ArrowUp: 5, ArrowLeft: -5, ArrowDown: -5 }[e.key];
+    if (!d) return;
+    e.preventDefault();
+    const v = Math.max(20, Math.min(500, +sl.getAttribute("aria-valuenow") + d));
+    sl.setAttribute("aria-valuenow", v); sl.setAttribute("aria-valuetext", "$" + v); sl.style.left = ((v - 20) / 480 * 100) + "%";
+    window.__log.push(v);
+    // The results follow once the slider rests, as most filters do.
+    clearTimeout(timer); timer = setTimeout(render, 300);
+  });
+  render();
+</script>
+</body>
+</html>

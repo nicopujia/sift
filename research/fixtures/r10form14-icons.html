@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Icon words · Crumb</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- r10 form14 (F1010, F1011): icons that carry meaning. A feature list with img alt "Included"/"Not included" (16 px),
+     a paragraph with an svg role=img "Yes", a checkbox label with an svg role=img "Gluten-free" icon, an avatar whose alt
+     repeats the name beside it (must not be said twice), a delivery radio card with a heading and a list, and a
+     plain two-line radio label (stays one label). -->
+<style>body{font-family:system-ui,sans-serif;margin:24px;max-width:720px}.feat{list-style:none;padding:0}.feat li{display:flex;gap:6px;align-items:center}
+.opt{display:block;border:1px solid #ccc;border-radius:8px;padding:12px;margin:8px 0}.opt input{margin-right:8px}.opt h3{display:inline;margin:0;font-size:1.1em}</style></head><body>
+<main><h1>Icon words</h1>
+<h2>Starter plan</h2>
+<ul class="feat">
+<li><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22/%3E" width="16" height="16" alt="Included">1 location</li>
+<li><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22/%3E" width="16" height="16" alt="Not included">Staff accounts</li>
+</ul>
+<p>Open on Sundays: <svg role="img" aria-label="Yes" width="16" height="16" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#16a34a" stroke-width="2" fill="none"/></svg></p>
+<p><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22/%3E" width="24" height="24" alt="Nico Pujia"> Nico Pujia wrote 3 reviews.</p>
+<form onsubmit="event.preventDefault();__log.push('sent '+[...new FormData(this)].map(x=>x.join('=')).join('&'))">
+<label><input type="checkbox" name="gf" value="1"> <svg role="img" aria-label="Gluten-free" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#16a34a"/></svg> Seeded loaf</label>
+<fieldset><legend>Delivery</legend>
+<label class="opt"><input type="radio" name="d" value="std" checked><h3>Standard</h3><p>Arrives in 3 to 5 days.</p><ul class="feat"><li><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22/%3E" width="16" height="16" alt="Not included">Tracking</li></ul></label>
+<label class="opt"><input type="radio" name="d" value="exp"><h3>Express</h3><p>Arrives tomorrow.</p><ul class="feat"><li><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22/%3E" width="16" height="16" alt="Included">Tracking</li></ul></label>
+<label><input type="radio" name="d" value="pick"> Pickup <span>in store</span></label>
+</fieldset>
+<button>Save</button>
+</form></main>
+<script>window.__log=[]</script></body></html>

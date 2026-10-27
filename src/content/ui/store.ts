@@ -28,7 +28,7 @@ export interface Handlers {
   files(ref: string, files: FileList): void;
   /** `via`: Enter in the field, or Sift's own submit button (the default). */
   submit(field: Field | null, formRef?: string, buttonRef?: string, via?: "enter" | "button"): void;
-  media(op: "play" | "back" | "fwd" | "mute" | "captions" | "fullscreen", info: MediaInfo, portalRef: string): void;
+  media(op: "play" | "back" | "fwd" | "mute" | "captions" | "fullscreen" | "prev" | "next", info: MediaInfo, portalRef: string): void;
   closeDialog(key: string, closeRef?: string, dialogRef?: string): void;
   loadMore(ref?: string): void;
   menu(open: boolean): void;

@@ -1,0 +1,85 @@
+url: https://wiki.debian.org/SourcesList?pow_referer=
+first sift content: 581 ms
+logs:
+
+--- outline (183 lines) ---
+[button] Skip to content
+  [input:search]  Search
+  [button] Titles
+[link] Login
+    [link] Debian
+H1 SourcesList
+    [link] Login
+    [link] Info
+    [link] Attachments
+  [select:select-one] show 
+  p: SHORTENING…
+    [link] Translation(s)
+    [link] English
+    [link] Español
+    [link] Français
+    [link] Italiano
+    [link] Português (Brasil)
+    [link] Русский
+    [link] PackageManagement
+  p: Contents
+      [link] Introduction
+      [link] Commonly used APT sources
+      [link] Using APT sources
+      [link] Using a graphical program
+      [link] Using a text editor
+      [link] APT sources format
+      [link] debian.sources format
+      [link] sources.list format
+      [link] Upgrading to the new format
+      [link] Details of the APT source format
+      [link] Archive Type
+      [link] Repository URI
+      [link] Suite
+      [link] Components
+      [link] Examples
+      [link] debian.sources
+      [link] sources.list
+      [link] Unstable
+      [link] Using Tor with Apt
+      [link] CD-ROM
+      [link] Name Resolution
+      [link] Debug Symbol Packages
+      [link] debian-debug.sources
+      [link] sources-debug.list
+      [link] More information
+  H2 Introduction
+    [link] break your system
+    [link] Apt
+    [link] software repositories
+    [link] DebianStable
+    [link] the Opera browser
+  H2 Commonly used APT sources
+    [link] DebianStable
+    [link] StableProposedUpdates
+    [link] point releases
+    [link] StableUpdates
+    [link] point release
+    [link] StableProposedUpdates
+    [link] DebianSecurity
+    [link] DebianBackports
+    [link] DebianStable
+    [link] DebianTesting
+    [link] DebianUnstable
+    [link] DebianExperimental
+  H2 Using APT sources
+  H2 Using a graphical program
+  p: Some programs allow configuring Apt sources through a graphical interface. For example:
+  p: Applications menu > Synaptic > Settings > Repositories
+  p: Applications menu > Settings > Software and updates
+    [link] software-properties-gtk
+  H2 Using a text editor
+    [link] NeuroDebian
+    [link] root
+    [link] text editor
+    [link] sources.list(5)
+  H2 APT sources format
+    [link] Debian Reference Manual - 2.1.4. Debian archive basics
+  H2 debian.sources format
+    [link] bullseye
+    [link] trixie

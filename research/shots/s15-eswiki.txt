@@ -1,0 +1,80 @@
+[button] Ir al contenido
+  [input:search]  Buscar en Wikipedia
+  [button] Buscar
+[button] Menú
+[link] Crear una cuenta
+H1 Pan
+  p: ACORTANDO…
+    [link] Pan (desambiguación)
+  [link] 
+  figcaption: Distintas variedades de pan, alguno decorado con semillas de sésamo.
+  [link] 
+  figcaption: Pan hallulla
+  [link] 
+  figcaption: Pan blanco (pan de harina de trigo) con su corte exterior característico.
+  [link] 
+  figcaption: Cereales: avena, cebada, trigo y pan cortado en rebanadas hecho con ellos.
+    [link] latín
+    [link] comida
+    [link] horneado
+    [link] masa
+    [link] cereal
+    [link] agua
+    [link] sal
+    [link] levaduras
+    [link] fermente
+    [link] cereal
+    [link] harina
+    [link] trigo
+    [link] centeno
+    [link] cebada
+    [link] maíz
+    [link] arroz
+    [link] levadura
+    [link] fermentación
+    [link] dióxido de carbono
+    [link] grasas
+    [link] aceite
+    [link] mantequilla
+    [link] tocino de cerdo
+    [link] pan lactal
+    [link] huevos
+    [link] azúcar
+    [link] especias
+    [link] frutas
+    [link] frutos secos
+    [link] pasas
+    [link] verduras
+    [link] cebolla
+    [link] ajo
+    [link] semillas
+    [link] levadura
+    [link] pan ácimo
+    [link] toscamente molidos
+    [link] pan plano
+    [link] galletas
+    [link] pasteles
+    [link] nutritivo
+    [link] moldes
+    [link] barras
+    [link] trenzas
+    [link] aros
+    [link] pan
+    [link] alimentación humana
+    [link] sinónimo
+    [link] alimento
+    [link] Europa
+    [link] Oriente Medio
+    [link] India
+    [link] América
+    [link] Oceanía
+    [link] rituales
+    [link] matzoh
+    [link] pascua judía
+    [link] hostia
+    [link] eucaristía cristiana
+    [link] pueblos eslavos
+    [link] pan y la sal
+    [link] núcleos familiares
+    [link] panadería
+    [link] urbanas

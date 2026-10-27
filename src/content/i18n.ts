@@ -50,6 +50,8 @@ const en = {
   unmute: "Unmute",
   back10: "Back 10s",
   fwd10: "Ahead 10s",
+  prevVideo: "Previous video",
+  nextVideo: "Next video",
   position: "Position in video",
   skip: "Skip to content",
   enterToUse: "Press Enter to use it, Escape to come back.",
@@ -97,6 +99,7 @@ const en = {
   firstPage: "First page",
   lastPage: "Last page",
   consentFirst: "The site asks for a cookie choice before it plays this video.",
+  consentClick: "The site asks for a cookie choice before it responds to clicks. Choose, then try again.",
 };
 
 type Strings = typeof en;
@@ -153,6 +156,8 @@ const es: Strings = {
   unmute: "Activar sonido",
   back10: "Atrás 10 s",
   fwd10: "Adelante 10 s",
+  prevVideo: "Video anterior",
+  nextVideo: "Siguiente video",
   position: "Posición en el vídeo",
   skip: "Ir al contenido",
   enterToUse: "Pulsá Enter para usarla y Escape para volver.",
@@ -200,6 +205,7 @@ const es: Strings = {
   firstPage: "Primera página",
   lastPage: "Última página",
   consentFirst: "El sitio pide elegir sobre las cookies antes de reproducir este video.",
+  consentClick: "El sitio pide elegir sobre las cookies antes de responder a los clics. Elegí y probá de nuevo.",
 };
 
 const pt: Strings = {
@@ -252,6 +258,8 @@ const pt: Strings = {
   unmute: "Ativar som",
   back10: "Voltar 10 s",
   fwd10: "Avançar 10 s",
+  prevVideo: "Vídeo anterior",
+  nextVideo: "Próximo vídeo",
   position: "Posição no vídeo",
   skip: "Ir para o conteúdo",
   enterToUse: "Pressione Enter para usar e Escape para voltar.",
@@ -299,6 +307,7 @@ const pt: Strings = {
   firstPage: "Primeira página",
   lastPage: "Última página",
   consentFirst: "O site pede uma escolha sobre cookies antes de reproduzir este vídeo.",
+  consentClick: "O site pede uma escolha sobre cookies antes de responder aos cliques. Escolha e tente de novo.",
 };
 
 const fr: Table = {
@@ -487,6 +496,8 @@ const ar: Strings = {
   unmute: "إلغاء كتم الصوت",
   back10: "رجوع 10 ث",
   fwd10: "تقديم 10 ث",
+  prevVideo: "الفيديو السابق",
+  nextVideo: "الفيديو التالي",
   position: "الموضع في الفيديو",
   skip: "انتقل إلى المحتوى",
   enterToUse: "اضغط Enter لاستخدامها، وEscape للرجوع.",
@@ -534,6 +545,7 @@ const ar: Strings = {
   firstPage: "الصفحة الأولى",
   lastPage: "الصفحة الأخيرة",
   consentFirst: "يطلب الموقع اختيارك بشأن ملفات تعريف الارتباط قبل تشغيل هذا الفيديو.",
+  consentClick: "يطلب الموقع اختيارك بشأن ملفات تعريف الارتباط قبل أن يستجيب للنقرات. اختر ثم حاول مرة أخرى.",
 };
 
 // Sift's main controls in other common languages; the rest stays English.

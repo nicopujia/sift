@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Economia | g1 (fixture)</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  .menu { display: none; }
+  .ticker { overflow: hidden; white-space: nowrap; width: 100%; }
+  .ticker .row { display: flex; }
+  .ticker .copy { display: flex; flex: none; gap: 24px; padding: 8px; }
+  .item { display: flex; gap: 6px; }
+  main { max-width: 900px; margin: 0 auto; }
+  .bstn-hl-list { list-style: none; padding: 0; }
+  .feed-post { margin: 16px 0; }
+</style>
+</head>
+<body>
+<!-- F1001: G1 section fronts. A long hidden menu makes main less than a quarter of the text (root = body),
+     main's class says it holds an ad ("has-smart-container-ad"), headline cards are "with-related",
+     their related links are nested inside the headline link (built by script), and the quote ticker
+     repeats its strip for a marquee. Expected in Sift: the ticker once, every headline and related link
+     as its own entry with its own href, and the feed. -->
+<header><h1><a href="/economia/">Economia</a></h1></header>
+<nav class="menu" id="menu"></nav>
+<div class="ticker"><div class="row" id="ticker"></div></div>
+<main id="glb-main-home" class="glb-grid has-smart-container-ad">
+  <div class="bstn-hls" id="hls"></div>
+  <div class="bstn-fd bstn-fd-csr" id="feed"></div>
+</main>
+<script>
+  // A long hidden menu (G1's has about 18,000 characters).
+  const menu = document.getElementById("menu");
+  for (let i = 0; i < 300; i++) menu.insertAdjacentHTML("beforeend", `<a href="/secao-${i}/">Seção número ${i} do menu do site</a> `);
+  menu.insertAdjacentHTML("beforeend", "x".repeat(12000));
+  // A marquee: the same strip of quotes, 6 times.
+  const strip = `<div class="copy"><span>Moedas</span><div class="item"><strong>Dólar Comercial</strong><div><span>R$ 5,403</span> <span>8,21%</span></div></div><div class="item"><strong>Euro Comercial</strong><div><span>R$ 6,039</span> <span>8,04%</span></div></div><span>B3</span><div class="item"><strong>Ibovespa</strong><div><span>176.608 pts</span> <span>-13,88%</span></div></div></div>`;
+  document.getElementById("ticker").innerHTML = strip.repeat(6);
+  // Headline cards: the related links sit inside the headline link (only a script can nest them).
+  const hls = document.getElementById("hls");
+  const card = (kicker, href, title, related) => {
+    const box = document.createElement("div");
+    box.className = "bstn-hl type-materia with-chapeu with-related";
+    const a = document.createElement("a");
+    a.className = "bstn-hl-link";
+    a.href = href;
+    const ul = document.createElement("ul");
+    ul.className = "bstn-hl-list";
+    ul.innerHTML = `<li class="bstn-hl-chapeuitem"><span class="bstn-hl-chapeu">${kicker}</span></li><li class="bstn-hl-mainitem"><span class="bstn-hl-title">${title}</span></li>`;
+    for (const [rh, rt] of related) {
+      const li = document.createElement("li");
+      li.className = "bstn-hl-relateditem";
+      const ra = document.createElement("a");
+      ra.className = "bstn-hl-link bstn-related";
+      ra.href = rh;
+      ra.innerHTML = `<span class="bstn-hl-title bstn-related">${rt}</span>`;
+      li.appendChild(ra);
+      ul.appendChild(li);
+    }
+    a.appendChild(ul);
+    box.appendChild(a);
+    hls.appendChild(box);
+  };
+  card("'Mercado financeiro'", "/economia/noticia/2026/10/26/dolar-ibovespa.ghtml", "Reeleição de Lula: Bolsa despenca 16% após circuit breaker e dólar vai a R$ 5,60", [
+    ["/economia/noticia/2026/10/26/o-que-e-circuit-breaker.ghtml", "O que é circuit breaker? Entenda suspensão das negociações"],
+    ["/economia/noticia/2026/10/26/por-que-as-eleicoes-mexem-tanto-com-dolar-e-bolsa.ghtml", "Por que as eleições mexem tanto com dólar e bolsa?"],
+  ]);
+  card("Abertura de capital", "/tecnologia/noticia/2026/10/26/anthropic-ipo-eua.ghtml", "Dona do Claude divulga pedido de IPO nos EUA e revela prejuízo bilionário", [
+    ["/tecnologia/noticia/2026/10/26/claude-dados-eleitores.ghtml", "Claude acessou dados de eleitores dos EUA"],
+  ]);
+  // The feed.
+  const feed = document.getElementById("feed");
+  for (let i = 1; i <= 8; i++) feed.insertAdjacentHTML("beforeend", `<div class="feed-post"><a href="/economia/noticia/2026/10/26/noticia-numero-${i}-do-feed.ghtml"><h2>Notícia número ${i} do feed de economia de hoje</h2></a><p>Resumo da notícia número ${i}, com o que aconteceu no mercado.</p><span>Há ${i} horas · Economia</span></div>`);
+</script>
+</body>
+</html>

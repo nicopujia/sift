@@ -16,7 +16,7 @@ import {
   mediaOf, reraisePortals, setModalOpen, setPortals, suspendPortals, videoIn,
 } from "./portal";
 import { accName, clean, resetCaches, shadowRootOf, textIn, visible } from "./dom";
-import { refreshShield, shieldOff, shieldOn } from "./shield";
+import { refreshShield, shieldOff, shieldOn, withoutShield } from "./shield";
 import * as proxy from "./proxy";
 import { App, lastTouched, lastTyped, suggestAnchor } from "./ui/app";
 import { CSS } from "./ui/styles";
@@ -941,8 +941,8 @@ function boot() {
       if (pf && (enterable(pf) || (pf as HTMLElement).isContentEditable)) return escapeField(e, pf);
       if (siftEscape()) return;
     }
-    // Keys a group of Sift's controls takes (a video's bar: k, j, l, 0-9).
-    const group = tg?.closest?.(".media");
+    // Keys a group of Sift's controls takes (a video's bar: the player's letter keys, 0-9), also on the video's box.
+    const group = tg?.closest?.(".media") ?? (tg?.matches?.(".portal") ? tg.parentElement?.querySelector(":scope > .media") : null);
     if (group && !e.isComposing) {
       onKeys.get(group)?.(e);
       if (e.defaultPrevented) return;
@@ -972,10 +972,42 @@ function boot() {
       if (!el || el.getAttribute("role") !== "spinbutton" || e.altKey || e.ctrlKey || e.metaKey || !/^([0-9]|Backspace|Delete)$/.test(e.key)) return false;
     }
     e.preventDefault();
-    proxy.key(el, e.key);
+    // A digit typed in a segment the page edits itself (React Aria's date and time fields) reaches it as
+    // the browser sends it after an uncancelled keydown: beforeinput, then input if not cancelled (F1041).
+    const typed = /^[0-9]$/.test(e.key) && (el as HTMLElement).isContentEditable;
+    proxy.key(el, e.key, typed ? () => {
+      const init = { inputType: "insertText", data: e.key, bubbles: true, cancelable: true, composed: true };
+      if (el.dispatchEvent(new InputEvent("beforeinput", init))) el.dispatchEvent(new InputEvent("input", { ...init, cancelable: false }));
+    } : undefined);
     store.actAt = Date.now();
-    afterAct();
+    keyAct(el, tg);
     return true;
+  }
+  /**
+   * A held key is many presses: Sift's copy shows the page's new value as soon as the page set it, and the
+   * page is read again once the presses pause, not three times per press (F1042).
+   */
+  let keyRun = 0;
+  function keyAct(el: Element, tg?: HTMLElement) {
+    actedAt = performance.now();
+    if (tg)
+      queueMicrotask(() => {
+        if (!tg.isConnected) return;
+        const now = el.getAttribute("aria-valuenow");
+        const text = el.getAttribute("aria-valuetext") || (tg instanceof HTMLInputElement ? "" : (el.textContent ?? "").trim());
+        if (tg instanceof HTMLInputElement) {
+          if (now) tg.value = now;
+          if (text) tg.setAttribute("aria-valuetext", text);
+          return;
+        }
+        if (now) tg.setAttribute("aria-valuenow", now);
+        if (text) tg.setAttribute("aria-valuetext", text);
+        const t = tg.firstChild;
+        const shown = text || now;
+        if (shown && t instanceof Text && !t.nextSibling && t.data !== shown) t.data = shown;
+      });
+    clearTimeout(keyRun);
+    keyRun = window.setTimeout(() => schedule(0), 250);
   }
   /** Bring a page slider to `value` (the user dragged Sift's copy) with its own arrow keys, as a keyboard user would. */
   let slideRun = 0;
@@ -1006,7 +1038,8 @@ function boot() {
     };
     const done = () => {
       store.actAt = Date.now();
-      afterAct();
+      // A drag moves it many times: the page is read once the drag pauses (F1042).
+      keyAct(el);
     };
     step();
   }
@@ -1925,17 +1958,44 @@ function boot() {
       proxy.click(start);
       window.setTimeout(() => {
         const wall = store.mode === "sift" && !loaded() ? consentWallUp() : null;
-        if (!wall) return;
-        askConsent(true);
-        // Asked again after the reader put it away: it shows again.
-        for (const [k, ref] of dismissedRefs) if (elOf(ref) === wall) {
-          store.dismissed.delete(k);
-          dismissedRefs.delete(k);
-        }
-        consentKey = "dlg:" + refOf(wall);
-        schedule(0);
+        if (wall) showConsent(wall, "play");
       }, 2500);
     }, away ? 800 : hidden ? 300 : 0);
+  }
+
+  /** Shows the page's consent wall as a dialog, reject first, saying what it held back; the reader answers it, never Sift. */
+  function showConsent(wall: Element, why: "play" | "click") {
+    askConsent(true, why);
+    // Asked again after the reader put it away: it shows again.
+    for (const [k, ref] of dismissedRefs) if (elOf(ref) === wall) {
+      store.dismissed.delete(k);
+      dismissedRefs.delete(k);
+    }
+    consentKey = "dlg:" + refOf(wall);
+    schedule(0);
+  }
+
+  /**
+   * Replays a click and tells whether the page swallowed it before it reached the element: a
+   * consent wall (the Mirror's InMobi CMP) stops every click in the capture phase until it is
+   * answered (F1034). Seen from the element's parent in the capture phase, so the element's own
+   * handlers stopping it do not count.
+   */
+  function clickSwallowed(el: Element, run: () => void): boolean {
+    const at = el.parentNode ?? el;
+    let seen = false;
+    let reached = false;
+    const first = () => (seen = true);
+    const near = () => (reached = true);
+    window.addEventListener("click", first, true);
+    at.addEventListener("click", near, true);
+    try {
+      run();
+    } finally {
+      window.removeEventListener("click", first, true);
+      at.removeEventListener("click", near, true);
+    }
+    return seen && !reached;
   }
 
   /**
@@ -2652,22 +2712,38 @@ function boot() {
       // Only the reader's own scrolling moves the original along: Sift's view also scrolls when the page redraws.
       const mine = Date.now() - userScrollAt < 1000;
       if (!store.page || Date.now() - lastStep < 1500 || (mine && stepWith(near, Math.sign(moved)))) return;
-      if (!near || Date.now() - lastNudge < 1500) return;
-      // Tabbing through a list's last entries must reach what follows it (Up next before Comments), not keep
-      // it growing (F820): there, more loads once the reader scrolls (wheel, touch, a scrolling key, the
-      // scrollbar) after Tab. A list nothing follows (home, search, comments at the end) grows as Tab nears
-      // its end, as on the original (F920).
-      if (tabAt > userScrollAt && !tabInLastList()) return;
-      // A list in an open section counts too (a watch page's comments).
-      if (!shownItems(store.page.blocks)) return;
-      // A thread that unloads its posts loads more as it is scrolled (stepWith), never by a jump to its end.
-      if (cloakedPosts()) return;
-      lastNudge = Date.now();
-      askMore();
-      loadMore();
+      if (near) nudgeEnd();
     },
     { passive: true },
   );
+
+  let nudgeTimer = 0;
+  /**
+   * Sift's view is near its end: the page loads more. One the 1500 ms gate drops (a fast flick reaches the new
+   * end within it, and from there no scroll event comes) is checked again once the gate expires (F1060).
+   */
+  function nudgeEnd() {
+    clearTimeout(nudgeTimer);
+    if (store.mode !== "sift" || !store.page) return;
+    if (host.scrollTop + host.clientHeight <= host.scrollHeight - host.clientHeight * 1.5) return;
+    const wait = 1500 - (Date.now() - lastNudge);
+    if (wait > 0) {
+      nudgeTimer = window.setTimeout(nudgeEnd, wait + 20);
+      return;
+    }
+    // Tabbing through a list's last entries must reach what follows it (Up next before Comments), not keep
+    // it growing (F820): there, more loads once the reader scrolls (wheel, touch, a scrolling key, the
+    // scrollbar) after Tab. A list nothing follows (home, search, comments at the end) grows as Tab nears
+    // its end, as on the original (F920).
+    if (tabAt > userScrollAt && !tabInLastList()) return;
+    // A list in an open section counts too (a watch page's comments).
+    if (!shownItems(store.page.blocks)) return;
+    // A thread that unloads its posts loads more as it is scrolled (stepWith), never by a jump to its end.
+    if (cloakedPosts()) return;
+    lastNudge = Date.now();
+    askMore();
+    loadMore();
+  }
 
   /**
    * Focus is in a list Tab may grow (F920): the page's own feed (home, search: what Sift folds after it, its
@@ -2746,6 +2822,8 @@ function boot() {
     if (Date.now() - lastStep < 1500) return;
     if (dir < 0 ? host.scrollTop > 0 : host.scrollTop + host.clientHeight < host.scrollHeight - 2) return;
     if (cloakedPosts()) stepWith(dir > 0, dir);
+    // At the end of a list that loads more, a wheel, End or PageDown asks for more, as scrolling there does (F1060).
+    else if (dir > 0) nudgeEnd();
   }
 
   /** When the reader pressed End in a thread that unloads its posts (see edgeScroll). */
@@ -3179,13 +3257,19 @@ function boot() {
     // The innermost block around the target, else the first one after it; with its sections.
     type Hit = { b: Block; path: Block[] };
     const found: { around?: Hit; inside?: Hit; after?: Hit } = {};
+    const next: Hit[] = [];
     const walk = (bs: Block[], path: Block[]) => {
       for (const b of bs) {
         const el = blockEl(b);
         // Blocks are walked outside in, so the last one around it is the innermost.
         if (el && deepContains(el, target)) found.around = { b, path };
         else if (el && deepContains(target, el)) found.inside ??= { b, path };
-        else if (el && !found.after && target.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) found.after = { b, path };
+        // The first block after it in the page's order, not Sift's (a featured comment Sift shows early).
+        else if (el && target.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) {
+          next.push({ b, path });
+          const a = found.after && blockEl(found.after.b);
+          if (!a || el.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING) found.after = { b, path };
+        }
         if (b.t === "section" || b.t === "article") walk(b.blocks, [...path, b]);
         // An entry of a list (a comment of a thread: "parent", "next") is a place of its own; its key names its element.
         if (b.t === "items")
@@ -3196,7 +3280,10 @@ function boot() {
       }
     };
     walk(page.blocks, []);
-    const hit = loose ? found.inside ?? found.around ?? found.after : found.inside;
+    // Strictly, the target's own block counts too (a thank-you heading the page focused after a post, F1013).
+    // A target with nothing to show (Tasty Recipes' empty "jump target" span): the browser shows what follows it (F1043).
+    const empty = !found.inside && !(target.textContent ?? "").trim() && !target.querySelector("img, picture, video, iframe, canvas, svg, input, select, textarea, button");
+    const hit = loose ? found.inside ?? (empty ? found.after : undefined) ?? found.around ?? found.after : found.inside ?? (found.around && blockEl(found.around.b) === target ? found.around : undefined);
     if (!hit) return false;
     // Open the sections on the way (a section that loads on opening loads now).
     for (const sec of [...hit.path, hit.b]) {
@@ -3208,7 +3295,10 @@ function boot() {
     setTimeout(() => {
       // The block itself when Sift marks it (a section, a heading), else its section.
       const keys = [hit.b, ...hit.path.slice().reverse()].map((b) => b.key);
-      const el = keys.map((k) => shadow.querySelector<HTMLElement>(`[data-key="${window.CSS.escape(k)}"]`)).find(Boolean);
+      const marked = (k: string) => shadow.querySelector<HTMLElement>(`[data-key="${window.CSS.escape(k)}"]`);
+      // After an empty target, a block Sift does not mark (the recipe's picture): the first marked one after it.
+      const later = () => next.sort((x, y) => (blockEl(x.b)!.compareDocumentPosition(blockEl(y.b)!) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)).map((h) => marked(h.b.key)).find(Boolean);
+      const el = marked(keys[0]) ?? (empty && hit === found.after ? later() : null) ?? keys.slice(1).map(marked).find(Boolean);
       if (!el) return;
       // To the top of the view, below Sift's sticky bar.
       const bar = shadow.querySelector(".bar")?.getBoundingClientRect().height ?? 0;
@@ -3316,7 +3406,19 @@ function boot() {
           // as leaving it does in the browser (Craigslist's price filter reads min and max on change).
           if (blurPending && commitsField(el, blurPending)) proxy.change(blurPending);
           if (el.localName === "a") followSeek();
-          proxy.click(el);
+          // A click the page's consent wall swallowed shows that wall, and why (F1034).
+          // The clicked path, and what the page adds to <body> during the click, are out of `inert`
+          // while it runs: a Copy button selects a text field it appends and copies with execCommand
+          // (clipboard.js, copy-to-clipboard). Focus the page took meanwhile comes back to Sift, which
+          // then follows it as it follows a focus the page could not move (its menu's first item) (F1040).
+          const back = proxy.deepActive();
+          const swallowed = clickSwallowed(el, () => withoutShield(() => proxy.click(el), el));
+          const now = document.activeElement;
+          const took = now && now !== host && now !== document.body && now !== document.documentElement ? proxy.deepActive() : null;
+          if (back && shadow.contains(back) && shadow.activeElement !== back) back.focus({ preventScroll: true });
+          if (took?.isConnected) took.dispatchEvent(new CustomEvent("sift-focus", { bubbles: true, composed: true }));
+          const wall = swallowed && store.mode === "sift" ? consentWallUp() : null;
+          if (wall) showConsent(wall, "click");
           flushBlur();
           if (problem) {
             notify(problem);
@@ -3486,6 +3588,10 @@ function boot() {
           break;
         case "captions":
           if (btn(info.captions)) proxy.click(btn(info.captions)!);
+          break;
+        case "prev":
+        case "next":
+          if (btn(info[op])) proxy.click(btn(info[op])!);
           break;
         case "fullscreen":
           fsBack = { el: proxy.deepActive(), top: host.scrollTop, at: performance.now() };

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spring cleanup day - copy link fixture</title>
+<style>body { font-family: sans-serif; margin: 24px; max-width: 40em; }</style>
+</head>
+<body>
+<!-- A share box whose 'Copy link' copies the event's address the way clipboard.js does: a hidden,
+     read-only textarea added to <body>, select(), document.execCommand('copy'), then removed.
+     ?api=1 copies with navigator.clipboard.writeText instead (the control). ?portal=1 adds a shown frame (control for the cause). ?lib=c2c copies as the
+     copy-to-clipboard package (react-copy-to-clipboard) does: a span added to <body>, a range selecting it, execCommand('copy'). -->
+<main>
+  <h1>Spring cleanup day</h1>
+  <p>Join neighbors on Saturday morning to clear litter from the creek path and the playground. Gloves and bags are provided at the community center from 9 am, and the work ends with lunch at noon.</p>
+  <p>Share the event with friends who want to help. The link below opens this page with the sign-up form.</p>
+  <div class="event-link">
+    <input id="link" readonly value="https://example.org/events/spring-cleanup?ref=share" aria-label="Event link">
+    <button id="copy" type="button">Copy link</button>
+  </div>
+  <p id="msg" role="status"></p>
+</main>
+<script>
+  // ?portal=1: the page also has a map Sift shows as itself (a portal), so <body> is not inert as a whole.
+  if (new URLSearchParams(location.search).get("portal") === "1") { const f = document.createElement("iframe"); f.title = "Map of the creek path"; f.width = 600; f.height = 340; f.srcdoc = "<p style='font:20px sans-serif'>Map of the creek path</p>"; document.querySelector("main").insertBefore(f, document.querySelector(".event-link")); }
+  window.__log = [];
+  const api = new URLSearchParams(location.search).get("api") === "1";
+  document.addEventListener("copy", () => window.__log.push("copy event, selection=" + JSON.stringify(String(window.getSelection())) + ", active=" + (document.activeElement && document.activeElement.localName)), true);
+  document.getElementById("copy").addEventListener("click", async () => {
+    const text = document.getElementById("link").value;
+    if (api) {
+      try { await navigator.clipboard.writeText(text); window.__log.push("api ok"); document.getElementById("msg").textContent = "Link copied"; }
+      catch (e) { window.__log.push("api failed " + e.name); }
+      return;
+    }
+    if (new URLSearchParams(location.search).get("lib") === "c2c") {
+      const mark = document.createElement("span");
+      mark.textContent = text;
+      mark.style.all = "unset"; mark.style.position = "fixed"; mark.style.top = "0"; mark.style.clip = "rect(0, 0, 0, 0)"; mark.style.whiteSpace = "pre"; mark.style.userSelect = "text";
+      document.body.appendChild(mark);
+      const sel = document.getSelection(); sel.removeAllRanges();
+      const range = document.createRange(); range.selectNodeContents(mark); sel.addRange(range);
+      let ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { window.__log.push("execCommand threw " + e.name); }
+      window.__log.push("c2c execCommand " + ok);
+      sel.removeAllRanges(); mark.remove();
+      document.getElementById("msg").textContent = ok ? "Link copied" : "Press Ctrl+C to copy";
+      return;
+    }
+    // clipboard.js (fakeCopyAction + select): a fake textarea, selected, copied, removed.
+    const fake = document.createElement("textarea");
+    fake.style.fontSize = "12pt"; fake.style.border = "0"; fake.style.padding = "0"; fake.style.margin = "0";
+    fake.style.position = "absolute"; fake.style.left = "-9999px"; fake.style.top = (window.pageYOffset || document.documentElement.scrollTop) + "px";
+    fake.setAttribute("readonly", "");
+    fake.value = text;
+    document.body.appendChild(fake);
+    fake.select();
+    fake.setSelectionRange(0, fake.value.length);
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) { window.__log.push("execCommand threw " + e.name); }
+    window.__log.push("execCommand " + ok + ", fake focused=" + (document.activeElement === fake));
+    fake.remove();
+    document.getElementById("msg").textContent = ok ? "Link copied" : "Press Ctrl+C to copy";
+  });
+</script>
+</body>
+</html>

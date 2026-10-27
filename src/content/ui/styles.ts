@@ -134,6 +134,13 @@ a.btn[aria-current] { text-decoration: none; border-color: #111; }
 .field [aria-invalid=true] { border-color: var(--danger); border-width: 3px; }
 .check { display: flex; gap: .55em; align-items: center; font-size: 1em; cursor: pointer; }
 .check input { width: 1.3em; height: 1.3em; margin: 0; accent-color: #111; }
+/* A choice drawn as a card (a plan): its name, then the rest of the card under it (F1011). */
+.check.card { flex-wrap: wrap; align-items: center; border: 2px solid #ccc; border-radius: .6em; padding: .6em .8em; max-width: 34em; }
+.check.card:has(input:checked) { border-color: #111; }
+.check.card > span { font-weight: 600; }
+.check.card > .detail { flex-basis: 100%; padding-left: 1.85em; }
+.check.card > .detail > :first-child { margin-top: .2em; }
+.check.card > .detail p, .check.card > .detail ul, .check.card > .detail ol { margin: .2em 0; }
 fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: .4em; }
 legend { font-weight: 600; padding: 0; margin-bottom: .2em; }
 

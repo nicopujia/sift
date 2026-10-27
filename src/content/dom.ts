@@ -638,17 +638,17 @@ export function accName(el: Element): string {
     // A label hidden some other way still names its field; an icon-only label
     // (OpenStreetMap's car, bike and foot modes) names it by its tooltip or picture.
     // The same words twice (a wrapping label and a label for the same id) are said once.
-    const labels = el.labels ? Array.from(new Set(Array.from(el.labels).map((l) => textIn(l) || clean(l.textContent) || pictureName(l)))).join(" ") : "";
+    const labels = el.labels ? Array.from(new Set(Array.from(el.labels).map((l) => labelWords(l) || clean(l.textContent) || pictureName(l)))).join(" ") : "";
     if (clean(labels)) return clean(labels);
     // A page that repeats the same ids (OpenStreetMap's two copies of its route modes) ties each
     // label to the first copy only: the label for this id beside the field still names it.
     const beside = !el.labels?.length && el.id ? el.parentElement?.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null;
     if (beside) {
-      const n = textIn(beside) || clean(beside.textContent) || pictureName(beside);
+      const n = labelWords(beside) || clean(beside.textContent) || pictureName(beside);
       if (n) return n;
     }
     const wrap = el.closest("label");
-    if (wrap) return textIn(wrap) || pictureName(wrap);
+    if (wrap) return labelWords(wrap) || pictureName(wrap);
     return clean(el.title) || clean((el as HTMLInputElement).placeholder) || adjacentText(el);
   }
   if (el instanceof HTMLImageElement) return clean(el.alt) || clean(el.title);
@@ -673,6 +673,16 @@ export function accName(el: Element): string {
   return sr ? clean(sr.textContent).slice(0, 120) : "";
 }
 
+/**
+ * A label's words, with the icons among them that name themselves ("Not included" drawn as a cross
+ * beside "Delivery zones"), as a screen reader hears it (F1010).
+ */
+function labelWords(l: Element): string {
+  const t = textIn(l);
+  if (!t || !l.querySelector("[role=img][aria-label], img[alt]:not([alt=''])")) return t;
+  return contentName(l, true) || t;
+}
+
 /** What an element without words says through its tooltip or picture (a label holding only an icon). */
 function pictureName(el: Element): string {
   const pic = el.querySelector("[role=img][aria-label], img[alt]:not([alt='']), [aria-label], svg title, [title]");
@@ -690,7 +700,7 @@ function pictureName(el: Element): string {
  * pictures that name themselves (role=img with a label, an img's alt), without
  * the parts hidden from screen readers.
  */
-function contentName(el: Element): string {
+function contentName(el: Element, apart = false): string {
   const parts: string[] = [];
   const go = (n: Element) => {
     for (let c = n.firstChild; c; c = c.nextSibling) {
@@ -708,7 +718,8 @@ function contentName(el: Element): string {
         continue;
       }
       if (NO_TEXT.has(e.localName)) continue;
-      const block = isBlock(e);
+      // With `apart`, words CSS sets apart (a card's name and price in their own boxes) are two words.
+      const block = isBlock(e) || (apart && setApart(e, "l"));
       if (block) parts.push(" ");
       go(e);
       if (block) parts.push(" ");
@@ -801,8 +812,9 @@ export const AD_TOKEN =
 
 // "promo-price", "share-price" and "promo-code" are content, not furniture.
 // A negated class ("no-breadcrumb", "no-share") says the box has none: it is not noise.
+// Nor is a box that says it holds some ("with-related" on G1's headline card with its related links, F1001).
 export const NOISE_TOKEN =
-  /(^|[\s_-])(?<!(?:^|[\s_-])no[_-])(cookie|consent|gdpr|newsletter|subscribe-?box|paywall-?prompt|share(?![\s_-]*(price|holder))|sharing|social|sharebar|breadcrumbs?|skip-?link|editsection|edit-?section|back-?to-?top|related|recommend(ed|ations)?|trending|most-?popular|outbrain|(?<!price[\s_-]*)promo(?![\s_-]*(price|code))|popup|modal-?backdrop|toast|chat-?widget|intercom|drift|centralnotice|banner-?overlay|fundrais(ing|er)-?banner|promo(tion)?-?cards?|auto-?promos?|powered-?by)($|[\s_-])/i;
+  /(^|[\s_-])(?<!(?:^|[\s_-])(?:no|with|has)[_-])(cookie|consent|gdpr|newsletter|subscribe-?box|paywall-?prompt|share(?![\s_-]*(price|holder))|sharing|social|sharebar|breadcrumbs?|skip-?link|editsection|edit-?section|back-?to-?top|related|recommend(ed|ations)?|trending|most-?popular|outbrain|(?<!price[\s_-]*)promo(?![\s_-]*(price|code))|popup|modal-?backdrop|toast|chat-?widget|intercom|drift|centralnotice|banner-?overlay|fundrais(ing|er)-?banner|promo(tion)?-?cards?|auto-?promos?|powered-?by)($|[\s_-])/i;
 
 export const SOCIAL_HOSTS =
   /(^|\.)(facebook\.com|fb\.com|twitter\.com|x\.com|t\.co|instagram\.com|linkedin\.com|pinterest\.[a-z.]+|reddit\.com\/submit|wa\.me|whatsapp\.com|api\.whatsapp\.com|telegram\.me|t\.me|tiktok\.com|threads\.net|bsky\.app|flipboard\.com|tumblr\.com)$/i;
@@ -859,7 +871,8 @@ export function isAd(el: Element): boolean {
   const al = el.getAttribute("aria-label");
   if (al && /^(advertisement|advertising|ad|ads|publicidad|anuncio|sponsored( content)?|patrocinado)$/i.test(al.trim())) return true;
   // A player's state while its ad plays ("jw-flag-ads", "vjs-ad-playing") does not make the player an ad.
-  const tk = tokens(el).replace(/(^|\s)(jw-flag-ads[\w-]*|vjs-ad-[\w-]+)(?=\s|$)/g, " ");
+  // Nor does a box's note that it holds one: G1's section main is "has-smart-container-ad" (F1001).
+  const tk = tokens(el).replace(/(^|\s)(jw-flag-ads[\w-]*|vjs-ad-[\w-]+|(?:has|with)-[\w-]+)(?=\s|$)/gi, " ");
   return AD_TOKEN.test(tk) || (/(^|[\s_-])adv($|[\s_-])/i.test(tk) && advAd(el));
 }
 
@@ -891,37 +904,130 @@ export function lang(): string {
   ).trim();
 }
 
-/** Common words that tell one language's headlines from another's. */
-const LANG_WORDS: Record<string, Set<string>> = {
-  en: new Set("the and of to is in that for with on are was this from you be by at".split(" ")),
-  es: new Set("el los las del y es más una un por fue pero muy también sobre al se".split(" ")),
-  pt: new Set("do da dos das não são você ao à é em uma um com mais pelo pela foi também se".split(" ")),
-  fr: new Set("le les des du et est une dans pour pas qui sur au avec ce cette".split(" ")),
-  de: new Set("der die das und ist nicht mit den dem ein eine auf für sich von zu".split(" ")),
-  it: new Set("il gli della delle che è non una per con sono del nel alla anche più".split(" ")),
+/**
+ * Each language's most common words, so close languages differ by the words only one of them uses: Dutch "het een
+ * niet" and English "the of", Catalan "els amb és" and Spanish "los con es", Galician "unha non" and Portuguese "uma
+ * não". A word common to two languages is listed under both, so it counts for neither against the other.
+ */
+const LANG_WORDS: Record<string, string> = {
+  en: "the of and to a in is it that for on was with he as at by this are be from his have or not but they she her an had were which their we been has will said would there one can who all its more if about after new you up out what when than into also",
+  nl: "de het een van en in is dat op te die voor met zijn niet aan er maar om ook als bij nog wordt door naar werd heeft hij ze zij uit over dan kan worden deze tot wel meer was geen al had wat dit nu na onder hun haar zo ik je we of jaar",
+  de: "der die und in den von zu das mit sich des auf für ist im dem nicht ein eine als auch es an er hat aus bei sie nach wird einer um am sind noch wie einem über einen so zum war haben nur oder aber vor zur bis mehr durch man dass sein wurde werden ich wir kann was",
+  fr: "de la le et les des en un du une que est pour qui dans a par plus pas au sur ne se ce il sont avec ou son aux mais nous elle comme sa ses ont cette été leur y à je vous on tout fait être après sans entre",
+  es: "de la que el en y a los se del las un por con no una su para es al lo como más o pero sus le ha me si sin sobre este ya entre cuando todo esta ser son dos también fue había era muy años hasta desde está mi porque qué han hay vez puede todos así nos ni tiene uno donde e otro después según durante",
+  ca: "de la el i a que en les els del per un una es amb no al va dels com més ha o hi seu però també és són ho li se han aquest aquesta sobre entre ja fins molt quan tot seva ser perquè anys on sense dos fer després això era si pel ni ens des fa",
+  gl: "de a o e que en do da os as un unha non se no na dos das con para por é ao como máis pero ou súa seu foi polo pola xa tamén moi cando ser este esta entre sobre ten hai desde ata anos dun dunha nun nunha tras onde nos nas aos ás isto iso co coa lle porque sen despois aínda era son",
+  ast: "de la el y en que los les con un una del al por como más pero o so sobre ye nun pa nel na nos dende tamién esti esta tolos toles dellos delles agora cuandu yá pela pol cola colos anque foi hai fai ente ensin hasta según",
+  oc: "de la e lo que en a los las per un una es del dels amb son dins se pas o mai sus coma aquel aquela entre lor tanben pus fins èra foguèt an pel als al ont mas sa sas son sos fòrça plan totes aquò ara",
+  pt: "de a o que e do da em um para é com não uma os no se na por mais as dos como mas foi ao ele das tem à seu sua ou ser quando muito há nos já está eu também só pelo pela até isso ela entre era depois sem mesmo aos ter seus quem nas esse eles estão você num nem suas às numa pelos elas são anos sobre após ainda este esta",
+  it: "di e il la che è per un in del non una a i le si con da al sono della ha dei gli più lo nel alla come ma anche delle ci se o nella questo ad cui degli sul dal tra hanno essere stato suo sua loro dopo ancora quando perché questa ne molto solo senza sulla dalla alle fino nei nelle sia già era poi anni",
+  ro: "de și în a la cu care pe nu din să se o un mai este pentru au că ce fost sunt al lui ca sau după prin cel cea fi va dar ei acest această își între le am ar fiind are despre până doar foarte iar unei unui unor sale său lor",
+  sv: "och i att det som en på är av för med till den har de inte om ett han men var jag sig från vi så kan man när år säger hade sin under efter eller nu hon vid då ska skulle mot också hans bara finns där alla mycket sedan blir blev två mellan dem upp ut vara än dess sina denna detta",
+  da: "og i at det er en til på som de med af for har den ikke et der var om han vi men fra kan jeg sig så hun også efter skal ved sin når nu vil mod over år eller blev havde man alle have da kun være hvor mange dem op ud mere meget noget hans end sine her siger bliver deres nogle dette denne under får hvis andre før kommer",
+  no: "og i det er en til på som å av for med at de har den ikke et han var om vi men fra kan jeg seg så hun også etter skal ved sin når nå vil mot over år eller ble hadde man alle ha da bare være hvor mange dem opp ut mer mye noe hans enn sine her sier blir deres noen dette denne under får hvis mellom blitt slik inn andre før kommer",
+  pl: "w i na z się nie do to że jest o a jak od po przez dla ale co za jego tym czy tak jej oraz który która które są był była było by ma może już tylko jako także roku lat ich jednak bardzo pod przy ze we też gdy tego tej ten ta sobie go nad przed między kiedy został została",
+  cs: "a v se na je že s z o to do k i pro jako by ve ale po jsou od za které který která jeho také byl byla bylo jsem už tak jak při nebo podle jen již tím její mezi než této tento pouze roce let být má může či však aby kde když kdy ze",
+  sk: "a v sa na je že s z o to do k aj pre ako by vo ale po sú od za ktoré ktorý ktorá jeho tiež bol bola bolo som už tak pri alebo podľa len tým jej medzi než tejto tento iba roku rokov byť má môže či však aby kde keď kedy zo",
+  tr: "bir ve bu da de için ile olarak çok daha en gibi ne o sonra kadar ama her olan ise var değil mi mı ki yeni ya ancak büyük göre şekilde sadece tarafından olduğu oldu yıl yılında ilk iki kendi arasında önce bile hem şey şu nasıl neden",
+  id: "yang dan di ke dari ini itu dengan untuk tidak dalam akan pada juga ada oleh atau adalah bisa karena saat sudah telah lebih tersebut mereka kami kita saya ia dia para satu dua bahwa sebagai hanya namun jika masih bagi hingga belum sangat setelah secara menjadi banyak harus seperti tahun baru orang",
+  ms: "yang dan di ke dari ini itu dengan untuk tidak dalam akan pada juga ada oleh atau adalah boleh kerana ketika sudah telah lebih tersebut mereka kami kita saya ia dia para satu dua bahawa sebagai hanya namun jika masih bagi hingga belum sangat selepas secara menjadi banyak perlu seperti tahun baru orang daripada iaitu",
 };
+const LANGS = Object.keys(LANG_WORDS);
+let langOfWord: Map<string, number> | undefined;
 let textLangFor = "";
 let textLangWas = "";
 
 /**
- * A page that does not say its language (G1's search page has no lang) is read for it: the language whose
- * common words its title, headings and links use most, when one clearly leads; else nothing (F931).
+ * A page that does not say its language (G1's search page has no lang) is read for it (F931): its title, then its
+ * paragraphs, headings and links, leaving out text marked as another language (a list of the site's languages).
+ * When the guess is not sure, nothing, so Sift's view does not mark the text wrongly (F1032).
  */
 function textLang(): string {
   if (textLangFor === location.href) return textLangWas;
   let text = document.title;
-  for (const e of Array.from(document.querySelectorAll("h1, h2, h3, p, a"))) {
-    if (text.length > 4000) break;
-    text += " " + (e.textContent ?? "");
+  for (const sel of ["p", "h1, h2, h3", "a"]) {
+    for (const e of Array.from(document.querySelectorAll(sel))) {
+      if (text.length > 4000) break;
+      const marked = e.closest("[lang]");
+      if ((marked && marked !== document.documentElement && marked !== document.body) || e.hasAttribute("hreflang")) continue;
+      text += " " + (e.textContent ?? "");
+    }
   }
-  const n: Record<string, number> = {};
-  for (const w of text.toLowerCase().split(/[^\p{L}]+/u)) for (const k in LANG_WORDS) if (LANG_WORDS[k].has(w)) n[k] = (n[k] ?? 0) + 1;
-  const [a, b] = Object.entries(n).sort((x, y) => y[1] - x[1]);
-  const pick = a && a[1] >= 12 && a[1] >= 1.5 * (b?.[1] ?? 0) ? a[0] : "";
+  const pick = langOfText(text);
   // Too little text yet to tell: asked again on the next pass.
   if (pick || text.length > 2000) {
     textLangFor = location.href;
     textLangWas = pick;
   }
   return pick;
+}
+
+/**
+ * The language of a text, or "" when it is not sure. A script one language owns names it (Hangul, kana, Hebrew,
+ * Greek, Thai), as do the letters that tell Russian from Ukrainian, Arabic from Persian, and simplified Chinese from
+ * traditional. Latin text needs several sentences: the winner's common words must be a real share of the words, some
+ * of them its own alone, and it must beat every other language two to one on the words that tell the two apart.
+ */
+export function langOfText(text: string): string {
+  const s = text.slice(0, 6000);
+  const count = (re: RegExp) => s.match(re)?.length ?? 0;
+  const letters = s.replace(/\P{L}+/gu, "").length;
+  if (letters - s.replace(/\P{Script=Latin}+/gu, "").length > letters / 2) {
+    if (letters < 150) return "";
+    const share = (re: RegExp) => count(re) / letters;
+    if (share(/\p{Script=Hangul}/gu) > 0.4) return "ko";
+    const kana = count(/[\p{Script=Hiragana}\p{Script=Katakana}]/gu);
+    const han = count(/\p{Script=Han}/gu);
+    if (kana + han > letters / 2) {
+      if (kana > (kana + han) / 10) return "ja";
+      const simp = count(/[这们个来说时会为国学对发经过还没开关见长门问间车马书与实现进动从业东区将应当]/gu);
+      const trad = count(/[這們個來說時會為國學對發經過還沒開關見長門問間車馬書與實現進動從業東區將應當]/gu);
+      return simp >= 10 && trad * 5 < simp ? "zh" : trad >= 10 && simp * 5 < trad ? "zh-Hant" : "";
+    }
+    for (const [re, code] of [[/\p{Script=Hebrew}/gu, "he"], [/\p{Script=Greek}/gu, "el"], [/\p{Script=Thai}/gu, "th"]] as const) if (share(re) > 0.5) return code;
+    if (share(/\p{Script=Cyrillic}/gu) > 0.5) {
+      // Russian's ы э ё, Ukrainian's і ї є ґ; letters of Belarusian, Serbian, Macedonian or Kazakh rule both out.
+      const ru = count(/[ыэё]/giu);
+      const uk = count(/[іїєґ]/giu);
+      const other = count(/[ўјђћџљњѓќѕәғқңөұүһ]/giu);
+      return ru >= 10 && (uk + other) * 20 < ru ? "ru" : uk >= 10 && (ru + other) * 20 < uk ? "uk" : "";
+    }
+    if (share(/\p{Script=Arabic}/gu) > 0.5) {
+      // Arabic's ة ي ك, Persian's ی ک; letters of Urdu, Kurdish or Pashto rule Persian out.
+      const ar = count(/[\u0629\u064A\u0643]/gu);
+      const fa = count(/[\u06CC\u06A9]/gu);
+      const other = count(/[\u0679\u0688\u0691\u06BA\u06D2\u06BE\u06D5\u06C6\u06CE\u0695\u06B5\u067C\u0689\u0693\u0696\u069A\u06AB\u06BC\u06CD\u06D0]/gu);
+      return ar >= 20 && fa * 10 < ar ? "ar" : fa >= 20 && ar * 10 < fa && other * 20 < fa ? "fa" : "";
+    }
+    return "";
+  }
+  if (!langOfWord) {
+    langOfWord = new Map();
+    for (const [i, k] of LANGS.entries()) for (const w of LANG_WORDS[k].split(" ")) langOfWord.set(w, (langOfWord.get(w) ?? 0) | (1 << i));
+  }
+  const words = s.toLowerCase().match(/\p{L}+/gu) ?? [];
+  if (words.length < 60) return "";
+  const n = LANGS.length;
+  const hits = new Array<number>(n).fill(0);
+  const own = new Array<number>(n).fill(0);
+  // apart[i * n + j]: words of language i that language j does not use.
+  const apart = new Array<number>(n * n).fill(0);
+  const byMask = new Map<number, number>();
+  for (const w of words) {
+    const m = langOfWord.get(w);
+    if (m) byMask.set(m, (byMask.get(m) ?? 0) + 1);
+  }
+  for (const [m, c] of byMask) {
+    if ((m & (m - 1)) === 0) own[31 - Math.clz32(m)] += c;
+    for (let i = 0; i < n; i++) {
+      if (!(m & (1 << i))) continue;
+      hits[i] += c;
+      for (let j = 0; j < n; j++) if (!(m & (1 << j))) apart[i * n + j] += c;
+    }
+  }
+  // At most one language beats every other two to one.
+  const best = hits.findIndex((h, i) => h > 0 && hits.every((_, j) => j === i || (apart[i * n + j] >= 2 * apart[j * n + i] && apart[i * n + j] - apart[j * n + i] >= 5)));
+  // A language not listed here (Croatian, Afrikaans) shares many words with one that is, but has few of its own.
+  if (best < 0 || hits[best] < 15 || hits[best] < words.length * 0.12 || own[best] < Math.max(2, hits[best] * 0.03)) return "";
+  return LANGS[best];
 }

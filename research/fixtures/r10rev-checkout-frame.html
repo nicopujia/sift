@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Checkout - Bread Shop</title></head><body>
+<header><a href="/">Bread Shop</a></header>
+<main>
+<h1>Checkout</h1>
+<form action="/checkout/address" method="post"><h2>Shipping address</h2><label>Full name <input name="name"></label><label>Street <input name="street"></label><label>City <input name="city"></label><label>ZIP <input name="zip"></label><button type="submit">Save address</button></form>
+<h2>Order summary</h2>
+<table><thead><tr><th>Item</th><th>Price</th></tr></thead><tbody>
+<tr><td>Sourdough loaf</td><td>$8.00</td></tr><tr><td>Rye loaf</td><td>$7.50</td></tr><tr><td>Baguette</td><td>$4.00</td></tr>
+<tr><td>Croissants (4)</td><td>$10.00</td></tr><tr><td>Shipping</td><td>$6.00</td></tr><tr><td>Total</td><td>$35.50</td></tr>
+</tbody></table>
+<p>Payment</p>
+<iframe src="https://js.stripe.com/v3/elements-inner-card.html" title="Secure card payment input frame" style="width:600px;height:220px;border:1px solid #ccc"></iframe>
+</main></body></html>

@@ -299,20 +299,25 @@ function enterSubmits(f: Field, formRef?: string) {
 
 const ariaNum = (s: string | undefined) => (s && isFinite(+s) ? +s : undefined);
 
+/** A choice drawn as a card (F1011): named by its short label, described by the rest of its card. */
+const cardAria = (f: Field): any => (f.detail ? { "aria-labelledby": "nm-" + f.key, "aria-describedby": "dt-" + f.key } : {});
+
 function FieldView({ f, formRef, group }: { f: Field; formRef?: string; group: string }) {
   switch (f.kind) {
     case "checkbox":
       return (
-        <label class="check">
-          <input type="checkbox" ref={enterSubmits(f, formRef)} data-ref={f.ref} checked={!!f.checked} disabled={f.disabled} onClick={(e) => { e.preventDefault(); H.check(f.ref, !f.checked); }} />
-          <span>{f.label}</span>
+        <label class={f.detail ? "check card" : "check"}>
+          <input type="checkbox" ref={enterSubmits(f, formRef)} data-ref={f.ref} checked={!!f.checked} disabled={f.disabled} onClick={(e) => { e.preventDefault(); H.check(f.ref, !f.checked); }} {...cardAria(f)} />
+          <span id={f.detail ? "nm-" + f.key : undefined}>{f.label}</span>
+          {f.detail && <div class="detail" id={"dt-" + f.key}><Blocks blocks={f.detail} /></div>}
         </label>
       );
     case "radio":
       return (
-        <label class="check">
-          <input type="radio" ref={enterSubmits(f, formRef)} data-ref={f.ref} name={group + (f.name ?? "")} checked={!!f.checked} disabled={f.disabled} onClick={(e) => { e.preventDefault(); H.check(f.ref, true); }} />
-          <span>{f.label}</span>
+        <label class={f.detail ? "check card" : "check"}>
+          <input type="radio" ref={enterSubmits(f, formRef)} data-ref={f.ref} name={group + (f.name ?? "")} checked={!!f.checked} disabled={f.disabled} onClick={(e) => { e.preventDefault(); H.check(f.ref, true); }} {...cardAria(f)} />
+          <span id={f.detail ? "nm-" + f.key : undefined}>{f.label}</span>
+          {f.detail && <div class="detail" id={"dt-" + f.key}><Blocks blocks={f.detail} /></div>}
         </label>
       );
     case "select":
@@ -353,18 +358,28 @@ function FieldView({ f, formRef, group }: { f: Field; formRef?: string; group: s
   }
 }
 
+/** The button fields (a custom select, a Yes/No group) the page sets right before a field, in their place (F1012). */
+const beforeOf = (f: Field) =>
+  (f.before ?? []).map((g) => (
+    <div key={"b" + g.ref + f.key} class="row" role={g.label ? "group" : undefined} aria-label={g.label}>
+      {g.actions.map((a) => <Btn key={a.key} a={a} />)}
+    </div>
+  ));
+
 function FormView({ b }: { b: Extract<Block, { t: "form" }> }) {
   // Group runs of radios with the same name into one fieldset.
   const parts: any[] = [];
   let i = 0;
   while (i < b.fields.length) {
     const f = b.fields[i];
+    parts.push(...beforeOf(f));
     // A named group (a fieldset's legend: "Payment method") keeps its name for its fields.
     if (f.group) {
       const g = f.group;
       const inner: any[] = [];
       while (i < b.fields.length && b.fields[i].group?.ref === g.ref) {
         const x = b.fields[i++];
+        if (x !== f) inner.push(...beforeOf(x));
         inner.push(<FieldView key={x.key} f={x} formRef={b.ref} group={b.key} />);
         if (x.after?.length) inner.push(<div key={"a" + x.key} class="row">{x.after.map((a) => <Btn key={a.key} a={a} />)}</div>);
       }
@@ -381,7 +396,7 @@ function FormView({ b }: { b: Extract<Block, { t: "form" }> }) {
       while (i < b.fields.length && b.fields[i].kind === "radio" && b.fields[i].name === f.name) run.push(b.fields[i++]);
       parts.push(
         <fieldset key={"g" + f.key}>
-          {run.map((r) => <FieldView key={r.key} f={r} formRef={b.ref} group={b.key} />)}
+          {run.map((r, j) => [...(j ? beforeOf(r) : []), <FieldView key={r.key} f={r} formRef={b.ref} group={b.key} />])}
         </fieldset>,
       );
       continue;
@@ -561,23 +576,42 @@ function MediaBar({ media, portalRef }: { media: MediaInfo; portalRef: string })
     v.currentTime = Math.min(Math.max(0, s), v.duration || Infinity);
     tick((n) => n + 1);
   };
-  // The player's own keys, while focus is on its bar (the page never gets keys pressed in Sift):
-  // k plays or pauses, j and l go back and ahead 10 s, 0-9 jump to that tenth of the video.
+  // The player's own keys, while focus is on its bar or box (the page never gets keys pressed in Sift):
+  // k plays or pauses, j and l go back and ahead 10 s, m mutes, c turns captions on or off, f is full screen,
+  // Shift+P and Shift+N go to the previous and next video of a playlist, 0-9 jump to that tenth of the video.
   const onKey = (e: KeyboardEvent) => {
-    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    // Never while the reader types in a field.
+    const at = e.composedPath()[0];
+    if (at instanceof Element && at.matches("input:not([type=range]), textarea, select, [contenteditable]")) return;
     const k = e.key.toLowerCase();
-    if (k === "k") H.media("play", media, portalRef);
+    if (e.shiftKey) {
+      if (k === "n" && media.next) H.media("next", media, portalRef);
+      else if (k === "p" && media.prev) H.media("prev", media, portalRef);
+      else return;
+    } else if (k === "k") H.media("play", media, portalRef);
     else if (k === "j") H.media("back", media, portalRef);
     else if (k === "l") H.media("fwd", media, portalRef);
+    else if (k === "m") H.media("mute", media, portalRef);
+    else if (k === "c" && media.captions) H.media("captions", media, portalRef);
+    else if (k === "f") H.media("fullscreen", media, portalRef);
     else if (/^[0-9]$/.test(k) && known) seek((v.duration * +k) / 10);
     else return;
     e.preventDefault();
+  };
+  // A playlist's Previous and Next. The player's Previous says "Replay" while it starts the first video over:
+  // Sift says that too. Its plain Previous and Next (their labels carry a key hint) get Sift's own words.
+  const own = (r: string | undefined, fallback: string) => {
+    const b = elOf(r);
+    return (b && !b.hasAttribute("aria-keyshortcuts") && b.getAttribute("aria-label")?.replace(/\s*\([^)]*\)\s*$/, "").trim()) || fallback;
   };
   return (
     <div class="row media" role="group" aria-label={t("video")} ref={(el) => void (el && onKeys.set(el, onKey))}>
       <button type="button" class="btn primary" onClick={() => H.media("play", media, portalRef)}>{playing ? t("pause") : t("play")}</button>
       <button type="button" class="btn" onClick={() => H.media("back", media, portalRef)}>{t("back10")}</button>
       <button type="button" class="btn" onClick={() => H.media("fwd", media, portalRef)}>{t("fwd10")}</button>
+      {media.prev && elOf(media.prev) && <button type="button" class="btn" onClick={() => H.media("prev", media, portalRef)}>{own(media.prev, t("prevVideo"))}</button>}
+      {media.next && elOf(media.next) && <button type="button" class="btn" onClick={() => H.media("next", media, portalRef)}>{own(media.next, t("nextVideo"))}</button>}
       <button type="button" class="btn" onClick={() => H.media("mute", media, portalRef)}>{v.muted ? t("unmute") : t("mute")}</button>
       {media.captions && (
         <button

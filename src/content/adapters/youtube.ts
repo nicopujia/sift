@@ -509,13 +509,18 @@ function playerBlock(player: Element, label: string): Block {
   const cc = q<HTMLElement>(".ytp-subtitles-button", player);
   const captions = cc && cc.style.display !== "none" && cc.getAttribute("aria-disabled") !== "true" ? refOf(cc) : undefined;
   const ratio = video && video.videoWidth ? video.videoHeight / video.videoWidth : 9 / 16;
+  // On a playlist or Mix, its own Previous and Next (on the first video, Previous replays it once it has started).
+  const list = new URL(location.href).searchParams.has("list");
   return {
     t: "portal",
     key: "player",
     ref: refOf(player),
     ratio: Math.min(Math.max(ratio, 0.4), 1),
     label,
-    media: { video: video ? refOf(video) : undefined, play: vis(".ytp-play-button"), captions, fullscreen: vis(".ytp-fullscreen-button") },
+    media: {
+      video: video ? refOf(video) : undefined, play: vis(".ytp-play-button"), captions, fullscreen: vis(".ytp-fullscreen-button"),
+      prev: list ? vis(".ytp-prev-button") : undefined, next: list ? vis(".ytp-next-button") : undefined,
+    },
   };
 }
 
@@ -1122,6 +1127,13 @@ export const youtube: Adapter = {
       console.warn("sift: youtube adapter failed, using the generic view", e);
     }
     return null;
+  },
+  // A page this adapter does not read (a playlist, a channel) has the same top bar: Settings stays in Sift's (F1061).
+  fallback(p) {
+    const have = new Set((p.top ?? []).flatMap((a) => [a.ref, a.label.toLowerCase()]));
+    const add = top().filter((a) => !have.has(a.ref) && !have.has(a.label.toLowerCase()));
+    if (add.length) p.top = [...(p.top ?? []), ...add];
+    p.dialog = settingsMenu() ?? p.dialog;
   },
   quiet: () => qa("#movie_player, ytd-miniplayer, #video-preview, tp-yt-paper-tooltip"),
   // YouTube opens its popups in a few known hosts. Fixed or absolute page parts (the masthead,

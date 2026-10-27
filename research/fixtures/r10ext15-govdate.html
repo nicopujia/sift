@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tramitar el Pasaporte | Argentina.gob.ar</title>
+<!-- r10ext15 F1047: a service page whose meta tags carry a 2021 first-publish date and a 2026 update; the page shows no date at all.
+     Sift must show no date under the H1. ?v=news: the same meta date, and the page shows "15 de marzo de 2021": the date stays.
+     ?v=short: the page shows "15 mar" without the year: the date stays. -->
+<meta property="og:site_name" content="Argentina.gob.ar">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="2021-03-15T10:47:41-03:00">
+<meta property="article:modified_time" content="2026-03-06T10:16:18-03:00">
+<meta property="og:updated_time" content="2026-03-06T10:16:18-03:00">
+<style>body { font-family: sans-serif; max-width: 760px; margin: 0 auto; padding: 0 16px; }</style>
+</head>
+<body>
+<header><a href="/">Argentina.gob.ar</a> <nav><a href="/servicios">Servicios</a> <a href="/tramites">Trámites</a></nav></header>
+<main>
+<article>
+<h1>Tramitar el Pasaporte</h1>
+<p id="when" class="lead"></p>
+<p>El pasaporte es el documento de viaje que te permite salir del país y entrar a otros países. Podés tramitarlo en cualquier centro de documentación del Registro Nacional de las Personas, con turno previo o sin turno según el centro que elijas.</p>
+<h2>¿Qué necesito?</h2>
+<ul><li>Tener el DNI vigente.</li><li>Pagar la tasa del trámite.</li><li>Presentarte en persona para la foto, la firma y las huellas.</li></ul>
+<h2>¿Cómo hago?</h2>
+<p>Pedí un turno en el centro de documentación más cercano. El día del turno, llevá tu DNI y el comprobante de pago. Te toman la foto, la firma y las huellas en el momento, y recibís el pasaporte en tu domicilio en el plazo que elijas.</p>
+<p>Si tenés menos de 18 años, tenés que ir con tus padres o con quien tenga tu responsabilidad parental, y presentar la partida de nacimiento si el DNI no muestra los datos de los padres.</p>
+<h2>¿Cuánto cuesta?</h2>
+<p>El costo depende del plazo de entrega que elijas: normal, exprés o en 24 horas. Podés pagar con tarjeta de crédito o débito, o en efectivo en los centros que lo permiten.</p>
+</article>
+</main>
+<script>
+const v = new URLSearchParams(location.search).get("v");
+if (v === "news") document.getElementById("when").textContent = "Publicado el 15 de marzo de 2021";
+else if (v === "short") document.getElementById("when").textContent = "Publicado el 15 mar";
+else document.getElementById("when").remove();
+</script>
+</body>
+</html>

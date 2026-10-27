@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soft Oat Cookies - a Tasty Recipes card</title>
+<!-- r10int15 (F1043, F1045): the Tasty Recipes plugin's markup. "Jump to Recipe" points at an empty
+     span (display:block) followed by an ad box and the card. Each ingredient is a checkbox named by
+     aria-label, an EMPTY <label for>, then the visible text; US / M rewrite the quantity spans, not the
+     aria-labels. Expect in Sift: Jump to Recipe scrolls to the card's title; each ingredient once, on one
+     line, as a checkbox named by its visible text; after M, the metric text only. -->
+<style>
+  body { font-family: sans-serif; margin: 24px auto; max-width: 44em; }
+  .tall { height: 1600px; background: linear-gradient(#fff, #eee); }
+  .ad { min-height: 250px; background: #fdd; }
+  .tasty-recipes-ingredients li { list-style: none; }
+  .tr-ingredient-checkbox-container label { display: inline-block; width: 14px; height: 14px; border: 1px solid #555; }
+  .tr-ingredient-checkbox-container input { position: absolute; opacity: 0; }
+</style>
+</head>
+<body>
+<main>
+<article>
+  <h1>Soft Oat Cookies</h1>
+  <p><a class="tasty-recipes-jump-link" href="#tasty-recipes-7-jump-target">Jump to Recipe</a></p>
+  <p>These oat cookies are soft in the middle and crisp at the edges. We tested them a dozen times so you do not have to, and the trick is to take them out before they look done.</p>
+  <h2 id="why">Why these work</h2>
+  <p>Melted butter makes them chewy, and a short rest in the fridge keeps them from spreading too far on the tray while they bake.</p>
+  <div class="tall"><p>Many photos and tips follow here on the real site, which is why a reader wants the jump link at the top of the page.</p></div>
+  <span class="tasty-recipes-jump-target" id="tasty-recipes-7-jump-target" style="display:block;padding-top:2px;margin-top:-2px;"></span>
+  <div class="ad adthrive-ad" id="AdThrive_Content_1"></div>
+  <div class="tasty-recipes">
+    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400'%3E%3Crect width='600' height='400' fill='%23c96'/%3E%3C/svg%3E" width="600" height="400" alt="A stack of soft oat cookies">
+    <h2 class="tasty-recipes-title">The Softest Oat Cookies</h2>
+    <p>Soft oat cookies with a crisp edge, ready in twenty minutes.</p>
+    <div class="tasty-recipes-ingredients">
+      <h3>Ingredients</h3>
+      <div class="tasty-recipes-units"><span>Units</span>
+        <button type="button" data-unit="usc" aria-pressed="true">US</button>
+        <button type="button" data-unit="metric" aria-pressed="false">M</button>
+      </div>
+      <div class="tasty-recipes-ingredients-body">
+        <ul>
+          <li data-tr-ingredient-checkbox=""><span class="tr-ingredient-checkbox-container"><input type="checkbox" id="ic1" aria-label="8 tablespoons of salted butter"><label for="ic1"></label></span><span data-amount="8">8 tablespoons</span> of <strong>salted butter</strong></li>
+          <li data-tr-ingredient-checkbox=""><span class="tr-ingredient-checkbox-container"><input type="checkbox" id="ic2" aria-label="1/2 cup white sugar"><label for="ic2"></label></span><span class="nutrifox-quantity" data-usc="1/2" data-metric="100">1/2</span> <span class="nutrifox-unit" data-usc="cup" data-metric="grams">cup</span> <strong>white sugar</strong></li>
+          <li data-tr-ingredient-checkbox=""><span class="tr-ingredient-checkbox-container"><input type="checkbox" id="ic3" aria-label="1 teaspoon vanilla"><label for="ic3"></label></span><span data-amount="1">1 teaspoon</span> <strong>vanilla</strong></li>
+          <li data-tr-ingredient-checkbox=""><span class="tr-ingredient-checkbox-container"><input type="checkbox" id="ic4" aria-label="1 egg"><label for="ic4"></label></span><span data-amount="1">1</span> <strong>egg</strong></li>
+          <li data-tr-ingredient-checkbox=""><span class="tr-ingredient-checkbox-container"><input type="checkbox" id="ic5" aria-label="1 1/2 cups rolled oats (5 ounces)"><label for="ic5"></label></span><span class="nutrifox-quantity" data-usc="1 1/2" data-metric="140">1 1/2</span> <span class="nutrifox-unit" data-usc="cups" data-metric="grams">cups</span> <strong>rolled oats</strong> (5 ounces)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="tasty-recipes-instructions">
+      <h3>Instructions</h3>
+      <ol><li>Melt the butter and beat it with the sugar.</li><li>Add the vanilla and the egg, then the oats.</li><li>Bake for 9 to 11 minutes.</li></ol>
+    </div>
+  </div>
+  <h2 id="comments">12 Comments</h2>
+  <p>Best cookies I have made this year.</p>
+</article>
+</main>
+<script>
+  for (const b of document.querySelectorAll(".tasty-recipes-units button")) {
+    b.addEventListener("click", () => {
+      const u = b.dataset.unit === "metric" ? "metric" : "usc";
+      for (const x of document.querySelectorAll(".tasty-recipes-units button")) x.setAttribute("aria-pressed", String(x === b));
+      for (const s of document.querySelectorAll(".nutrifox-quantity, .nutrifox-unit")) s.textContent = s.dataset[u];
+    });
+  }
+  document.querySelector(".tasty-recipes-jump-link").addEventListener("click", (e) => {
+    e.preventDefault();
+    document.getElementById("tasty-recipes-7-jump-target").scrollIntoView();
+  });
+</script>
+</body>
+</html>

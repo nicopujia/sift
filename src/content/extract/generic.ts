@@ -84,6 +84,8 @@ const FEEDBACK =
   /was this (page|article|answer|information|content) (helpful|useful)|did you find (this|it) helpful|rate this (page|article)|help us improve|¿(te )?(fue|result[oó]|ha resultado) [úu]til|¿te sirvi[oó]/i;
 const SPONSORED_HEAD =
   /^(sponsored( content| stories| links| products)?|promoted( content| stories)?|partner content|paid (content|post)|from our partners|around the web|contenido patrocinado|patrocinado|publicidad|ads?|(our )?shopping picks|content lab|sponsored\s*([·•|:–-]\s*)?by\s*\S.{0,60})$/i;
+/** Google's ad click redirect ("/aclk?…", googleadservices.com/pagead/aclk). */
+const AD_CLICK = /^(https?:\/\/(www\.)?google\.[a-z.]+)?\/aclk\?|^https?:\/\/(www\.)?googleadservices\.com\//i;
 /** A plain title line that names a sponsored section; a bare "Ad" or "Publicidad" over an ad slot names only that slot. */
 const SPONSORED_SECTION =
   /^(sponsored (content|stories|links|products)|promoted (content|stories)|partner content|paid (content|post)|from our partners|around the web|contenido patrocinado|(our )?shopping picks|content lab)$/i;
@@ -320,7 +322,10 @@ export class Out {
     if (!this.fields.length && !this.actions.length) this.ctlKey = "c:" + a.ref;
     this.ctlForm = form;
     this.actions.push(a);
+    this.actionAt.push(this.fields.length);
   }
+  /** How many fields came before each action, to keep a field-like button where it is (F1012). */
+  private actionAt: number[] = [];
   private flushLinks() {
     if (!this.links.length) return;
     this.blocks.push({ t: "ul", key: this.linksKey, items: this.links });
@@ -328,7 +333,25 @@ export class Out {
   }
   private flushControls() {
     if (!this.fields.length && !this.actions.length) return;
-    nameTwins(this.fields, [...this.actions, ...this.fields.flatMap((f) => f.after ?? [])]);
+    // A custom select or a Yes/No toggle group between the fields stays there, under its label,
+    // not in the row of buttons after the form (F1012).
+    if (this.fields.length) {
+      const keep: Action[] = [];
+      this.actions.forEach((a, i) => {
+        const at = this.actionAt[i] ?? this.fields.length;
+        const el = elOf(a.ref);
+        if (at >= this.fields.length || !fieldButton(el)) return void keep.push(a);
+        const f = this.fields[at];
+        const g = el!.closest("[role=group], [role=radiogroup]");
+        const gref = g ? refOf(g) : a.ref;
+        const last = f.before?.[f.before.length - 1];
+        if (last && last.ref === gref) last.actions.push(a);
+        else (f.before ??= []).push({ ref: gref, label: g ? groupName(g) || undefined : undefined, actions: [a] });
+      });
+      this.actions = keep;
+    }
+    this.actionAt = [];
+    nameTwins(this.fields, [...this.actions, ...this.fields.flatMap((f) => [...(f.after ?? []), ...(f.before ?? []).flatMap((g) => g.actions)])]);
     if (this.fields.length) this.blocks.push({ t: "form", key: this.ctlKey, ref: this.ctlForm, fields: this.fields, actions: this.actions });
     else this.blocks.push({ t: "actions", key: this.ctlKey, actions: this.actions });
     this.fields = [];
@@ -341,6 +364,8 @@ export class Out {
    */
   static rewriteIfLong(b: Block): Block {
     if (b.t !== "items" || b.items.length < 4 || b.rewrite) return b;
+    // Comments (read in full, or answered) keep their own words (F1030).
+    if (b.items.some((it) => it.body || it.replies)) return b;
     const words = b.items.reduce((n, it) => n + it.title.split(/\s+/).length, 0) / b.items.length;
     // Places named by their address ("Main Street, Indian Orchard, Springfield, Hampden County, …"):
     // short parts between commas. A name stays as it is, however long.
@@ -370,6 +395,16 @@ export class Out {
     for (const b of this.blocks) Out.rewriteIfLong(b);
     return this.blocks;
   }
+}
+
+/**
+ * A button the page uses as a field (a custom select, a toggle of a Yes/No group): it keeps its place
+ * among the fields (F1012).
+ */
+function fieldButton(el: Element | null): boolean {
+  if (!el) return false;
+  if (el.getAttribute("role") === "combobox" || el.getAttribute("aria-haspopup") === "listbox") return true;
+  return el.hasAttribute("aria-pressed") && !!el.closest("[role=group], [role=radiogroup]");
 }
 
 /** The list entry a control is in, if any. */
@@ -912,6 +947,19 @@ function closesPanel(b: Element, ctx: Ctx | null): boolean {
   return !!region && region !== document.querySelector("main, [role=main]") && !!region.querySelector("h1");
 }
 
+/**
+ * The feed entry or post around `el`, when it links to itself by its headline (a quick post's cover link named by
+ * its headline): its "Copy link" copies that same address (The Verge home, F1033).
+ */
+function headlinedEntry(el: Element): boolean {
+  const e = el.closest("article, [role=article], li, [role=listitem]");
+  if (!e || tlen(e) > 3000 || !e.querySelector("p")) return false;
+  return Array.from(e.querySelectorAll("a[href]")).some((a) => {
+    const n = textIn(a) || clean(a.getAttribute("aria-label"));
+    return n.length >= 20 && /\s/.test(n) && !inPage(a) && !a.contains(el);
+  });
+}
+
 export function usefulControl(el: Element, label: string, ctx: Ctx | null = null): boolean {
   if (!label) return false;
   const inForm = formControl(el, ctx);
@@ -921,7 +969,8 @@ export function usefulControl(el: Element, label: string, ctx: Ctx | null = null
   const href = el instanceof HTMLAnchorElement ? hrefOf(el) : undefined;
   // "Copy", "Copy code", "Copy link" copy what the page may never show (a share link, an invite code): they stay,
   // except in a share bar, and "Copy link" beside a story, where they copy the page's own address (F904).
-  if (COPY_LABEL.test(label)) return !shareTarget(el, href) && !(/link|enlace/i.test(label) && ctx?.inArticle && !ctx.inDialog);
+  // In a dialog (a Drive-style 'Share "Bakery recipes"'), copying is the dialog's main action: its own name or class does not make it a share bar.
+  if (COPY_LABEL.test(label)) return (!!ctx?.inDialog || !shareTarget(el, href)) && !(/link|enlace/i.test(label) && !ctx?.inDialog && (ctx?.inArticle || headlinedEntry(el)));
   if (SKIP_LABEL.test(label) || SHARE_LABEL.test(label) || (SHARE_MAYBE.test(label) && shareTarget(el, href))) return (inForm && !/^(×|✕|x)$/i.test(label)) || closesPanel(el, ctx);
   // "More" or "Menu" that opens a page is a link ("More" on Hacker News); as a button it is a widget toggle.
   // Quantity steppers ("+" named "More", "−") next to a number field are real controls.
@@ -931,7 +980,8 @@ export function usefulControl(el: Element, label: string, ctx: Ctx | null = null
   };
   // A row's or page's overflow menu ("More", "⋮" that opens Rename, Download, Delete) is how its actions are reached.
   const overflow = overflowMenu(el, label);
-  if (SKIP_EXACT.test(label) && !overflow && !(href && !inPage(el) && /^(more|menu|\.\.\.|…)$/i.test(label)) && !(/^more$/i.test(label) && !href && stepper())) return false;
+  // On a consent prompt, "More options" is one of its choices (the way to choose purposes, F1034).
+  if (SKIP_EXACT.test(label) && !overflow && !(href && !inPage(el) && /^(more|menu|\.\.\.|…)$/i.test(label)) && !(/^more$/i.test(label) && !href && stepper()) && !(ctx?.inDialog && /^more options$/i.test(label) && el.closest(CMP_SEL))) return false;
   if (/^[\p{P}\p{S}\s]{1,3}$/u.test(label) && !overflow && !stepper()) return false;
   // A link to a social network is a follow or share button, except in a post's own text
   // (a comment that is just "https://x.com/…") or when it shows its own address.
@@ -1098,6 +1148,15 @@ function childNodesOf(n: Node): Node[] {
   return Array.from(n.childNodes);
 }
 
+/** An icon-sized picture whose alt is a word that means something ("Not included", "Yes"), not a logo, a file name or the words beside it. */
+function iconWord(img: HTMLImageElement, alt: string): boolean {
+  if (alt.length > 40 || LOGO_NAME.test(alt) || /\.(png|jpe?g|gif|svg|webp)$/i.test(alt)) return false;
+  const w = img.width || img.getBoundingClientRect().width, h = img.height || img.getBoundingClientRect().height;
+  if (!w || !h || w > 32 || h > 32) return false;
+  const around = img.parentElement ? textIn(img.parentElement).toLowerCase() : "";
+  return !around.includes(alt.toLowerCase());
+}
+
 export function inlineOf(el: Element, ctx: Ctx | null = null, buttons = false): Inline[] {
   return inlineNodes(childNodesOf(el), ctx, buttons);
 }
@@ -1189,6 +1248,16 @@ export function inlineNodes(nodes: Node[], ctx: Ctx | null = null, buttons = fal
         }
         continue;
       }
+      // An icon that names itself ("Not included", "Yes" drawn as a cross or a tick) says its words (F1010).
+      if (tag === "svg" && e.getAttribute("role") === "img" && e.getAttribute("aria-hidden") !== "true" && visible(e)) {
+        const label = clean(e.getAttribute("aria-label")) || (e.hasAttribute("aria-labelledby") ? accName(e) : "");
+        if (label && !LOGO_NAME.test(label) && !/(^|\W)logo(\W|$)/i.test(`${e.getAttribute("class") ?? ""} ${e.getAttribute("category") ?? ""}`)) {
+          sep(e, label);
+          put(label);
+          prev = e;
+        }
+        continue;
+      }
       if (SKIP.has(tag) || tag === "button" || tag === "input" || tag === "select" || tag === "textarea") continue;
       // A visual copy ("$19.99") of screen-reader text that Sift drops is what people read,
       // and so is a separator kept from screen readers ("Coffee shop · 1 Ferry Building").
@@ -1234,8 +1303,9 @@ export function inlineNodes(nodes: Node[], ctx: Ctx | null = null, buttons = fal
       }
       if (tag === "img") {
         const alt = clean((e as HTMLImageElement).alt);
-        // Keep emoji-like inline images as their alt text.
-        if (alt && alt.length <= 3) {
+        // Keep emoji-like inline images as their alt text, and an icon that says what it means
+        // ("Not included" drawn as a cross beside a feature) unless the words beside it say it already (F1010).
+        if (alt && (alt.length <= 3 || iconWord(e as HTMLImageElement, alt))) {
           sep(e, alt);
           put(alt);
           prev = e;
@@ -1617,11 +1687,22 @@ function isTextBlock(el: Element): boolean {
 
 // ---------- images, media, surfaces ----------
 
+/**
+ * A lazy photo the hidden original never scrolled to, sized by its height alone (width:auto in a
+ * box with an aspect ratio: the Mirror's in-story photos), has no width until it loads: its box's
+ * width stands for it (F1039). Its own width otherwise.
+ */
+function lazyWidth(img: HTMLImageElement, r: DOMRect = img.getBoundingClientRect()): number {
+  if (r.width || img.naturalWidth || r.height < 50) return r.width;
+  if (!(img.loading === "lazy" || img.hasAttribute("srcset") || img.hasAttribute("data-src"))) return 0;
+  return img.parentElement?.getBoundingClientRect().width ?? 0;
+}
+
 export function contentImage(img: HTMLImageElement, ctx: Ctx, minW = 160, minH = 100): Img | null {
   const r = img.getBoundingClientRect();
   const src = imgSrc(img);
   if (!src || src.startsWith("data:image/gif")) return null;
-  const w = r.width || img.naturalWidth;
+  const w = r.width || img.naturalWidth || lazyWidth(img, r);
   let h = r.height || img.naturalHeight;
   // A lazy photo the hidden original never scrolled to has not loaded (BBC at narrow widths): it has
   // its width but no height yet. Its size attributes, else a 16:9 guess, stand for it.
@@ -1809,6 +1890,45 @@ function dataChart(el: Element): boolean {
 }
 const NUM_PART = /^[\d.,%\s+-]+$/;
 
+/** A map's name or class ("Mapa de Sudamérica…", "ln-nd-mapa-gobiernos"). */
+const MAP_HINT = /(^|[^\p{L}])(maps?|mapas?|cartes?|karten?|choropleth)([^\p{L}]|$)/iu;
+
+/**
+ * A map drawn in SVG in a story (La Nación's two maps of South America, each country colored
+ * left or right): its title, legend, years and notes say little apart from the drawing, and its
+ * country names are drawing text. Kept as a picture with its title and legend, like a chart (F1037).
+ */
+function dataMap(el: Element): boolean {
+  if (SKIP.has(el.localName) || /^(svg|img|figure|a|button|p|li|table|ul|ol|form|select)$/.test(el.localName) || tlen(el) > 1200) return false;
+  const svgs = Array.from(el.querySelectorAll("svg"));
+  if (!svgs.length || el.querySelector("h1, h2, h3, h4, a[href], button, input, select, textarea, video, img, iframe:not([aria-hidden=true])") || el.closest("a[href], button")) return false;
+  const r = el.getBoundingClientRect();
+  if (r.width < 300 || r.height < 200 || r.height > innerHeight * 2.5) return false;
+  // Its words outside the drawing are a title, a legend and short notes, not prose.
+  const parts = chartParts(el);
+  if (parts.length > 16 || parts.some((p) => p.length > 160)) return false;
+  return svgs.some((s) => {
+    const q = s.getBoundingClientRect();
+    if (q.width < 200 || q.height < 150 || s.querySelectorAll("path, polygon").length < 8) return false;
+    return MAP_HINT.test(`${s.getAttribute("aria-label") ?? ""} ${tokens(s)} ${tokens(el)}`);
+  });
+}
+
+/** A map said in words for its name: its title and legend, then each drawing's places as it names them ("Argentina: Izquierda"). */
+function mapLabel(el: Element): string {
+  const said = chartParts(el).join(" · ");
+  const maps: string[] = [];
+  for (const s of Array.from(el.querySelectorAll("svg"))) {
+    const named = Array.from(s.querySelectorAll("[aria-label]")).map((x) => clean(x.getAttribute("aria-label")));
+    const texts = Array.from(s.querySelectorAll("text")).map((x) => clean(x.textContent));
+    const places = Array.from(new Set((named.some(Boolean) ? named : texts).filter(Boolean)));
+    if (!places.length) continue;
+    const own = clean(s.getAttribute("aria-label"));
+    maps.push((own ? own + ": " : "") + places.join(", "));
+  }
+  return [said, ...maps].map((x) => x.replace(/[\s.]+$/, "")).filter(Boolean).join(". ");
+}
+
 /** A chart's words and numbers in order, outside its drawing. */
 function chartParts(el: Element): string[] {
   const out: string[] = [];
@@ -1948,7 +2068,7 @@ function photoButton(el: Element): boolean {
   if (el.localName !== "button" && el.getAttribute("role") !== "button") return false;
   if (el.localName === "input" || el.querySelector(HEADING_SEL + ", p:not(figcaption p), ul, ol, input, select, textarea")) return false;
   const img = el.querySelector("img");
-  if (!img || img.getBoundingClientRect().width < 160) return false;
+  if (!img || lazyWidth(img) < 160) return false;
   const cap = el.querySelector("figcaption");
   return tlen(el) - (cap ? tlen(cap) : 0) <= 20;
 }
@@ -2283,6 +2403,13 @@ function controlInto(el: Element, out: Out, ctx: Ctx) {
     if (el instanceof HTMLSelectElement && sf && el.form === sf && f.label.length <= 5 && (/lang/i.test(el.name + " " + el.id) || !!el.querySelector("option[lang]"))) f.label = t("searchLanguage");
     const g = groupOf(el);
     if (g) f.group = g;
+    if (f.kind === "radio" || f.kind === "checkbox") {
+      const card = choiceCard(el, ctx);
+      if (card) {
+        f.label = card.name;
+        f.detail = card.detail;
+      }
+    }
     out.field(f, ctx.formRef);
     return;
   }
@@ -2310,6 +2437,67 @@ function controlInto(el: Element, out: Out, ctx: Ctx) {
   // Each comment's "Reply", each row's "Delete" and each "120" in a row of
   // versions is its own control, even right after one with the same label.
   out.action(toAction(el, label), ctx.formRef);
+}
+
+/**
+ * A choice drawn as a card (a plan: its name, price, text and feature list, all in the label around its
+ * radio): a short name, the card's heading or first line, and the rest of the card under it, each part
+ * on its own, instead of one run-on label cut at 160 characters (F1011). Null for a plain label.
+ */
+function choiceCard(el: Element, ctx: Ctx): { name: string; detail: Block[] } | null {
+  const box = el instanceof HTMLInputElement ? el.closest("label") : el;
+  if (!box || tlen(box) < 20 || tlen(box) > 3000 || !box.firstElementChild) return null;
+  // A card holds only its choice: a link or another control in it is read the usual way.
+  if (Array.from(box.querySelectorAll("input:not([type=hidden]), select, textarea, button, a[href], [role=button], [role=checkbox], [role=radio]")).some((c) => c !== el)) return null;
+  const key = "cd:" + refOf(box) + ":";
+  const pieces: { el: Element | null; block: Block }[] = [];
+  let run: Node[] = [];
+  const flush = () => {
+    if (!run.length) return;
+    const content = inlineNodes(run, ctx);
+    run = [];
+    if (clean(textOf(content))) pieces.push({ el: null, block: { t: "p", key: key + pieces.length, content } });
+  };
+  const go = (n: Element) => {
+    for (let c = n.firstChild; c; c = c.nextSibling) {
+      if (c.nodeType === 3) {
+        run.push(c);
+        continue;
+      }
+      if (c.nodeType !== 1) continue;
+      const e = c as Element;
+      if (e === el) continue;
+      const d = getComputedStyle(e).display;
+      if (d.startsWith("inline") || d === "contents" || d === "none") {
+        run.push(e);
+        continue;
+      }
+      flush();
+      if (!visible(e) || e.getAttribute("aria-hidden") === "true") continue;
+      if (e.localName === "ul" || e.localName === "ol") {
+        const items = Array.from(e.children).filter((li) => visible(li)).map((li) => inlineOf(li, ctx)).filter((x) => clean(textOf(x)));
+        if (items.length) pieces.push({ el: e, block: { t: e.localName, key: key + pieces.length, items } });
+        continue;
+      }
+      const at = pieces.length;
+      go(e);
+      flush();
+      if (pieces.length === at + 1 && !pieces[at].el) pieces[at].el = e;
+    }
+  };
+  go(box);
+  flush();
+  if (pieces.length < 2 || !(pieces.length >= 3 || pieces.some((p) => p.block.t !== "p") || tlen(box) > 80)) return null;
+  // The name: a heading in the card, else its first line that is not a badge pinned over it ("Most popular").
+  const hd = box.querySelector(HEADING_SEL);
+  const badge = (e: Element | null) => !!e && /^(absolute|fixed)$/.test(getComputedStyle(e).position);
+  const named =
+    (hd && pieces.find((p) => p.el && (p.el === hd || p.el.contains(hd) || hd.contains(p.el)))) ||
+    pieces.find((p) => p.block.t === "p" && !badge(p.el));
+  if (!named || named.block.t !== "p") return null;
+  const name = clean(textOf(named.block.content));
+  if (!name || name.length > 80) return null;
+  return { name, detail: pieces.filter((p) => p !== named).map((p) => p.block) };
 }
 
 const GROUP_SEL = "fieldset, [role=radiogroup], [role=group]";
@@ -2498,6 +2686,28 @@ function prominentLink(el: Element, strict = false): boolean {
   return false;
 }
 
+/**
+ * A message the page put up (a form's "Thanks, your review was sent", its heading focused, then
+ * "Back to Rye sourdough loaf" on a line of its own): its heading is no link, and its one link goes
+ * somewhere else. It reads as a heading, its text and that link, not as a list entry whose title
+ * is the link (F1013).
+ */
+function statusBox(el: Element): boolean {
+  const hd = el.querySelector(HEADING_SEL);
+  if (!hd || hd.closest("a[href]") || hd.querySelector("a[href]") || el.localName === "a") return false;
+  const links = Array.from(el.querySelectorAll("a[href]")).filter((a) => visible(a));
+  if (links.length !== 1) return false;
+  // The heading the page moved focus to (tabindex=-1) is where the reader is told what happened.
+  if (hd.getAttribute("tabindex") === "-1") return true;
+  const a = links[0];
+  if (!(hd.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING)) return false;
+  // On a line of its own, after the text, naming something other than the heading.
+  const line = a.parentElement;
+  return !!line && line !== el && isBlockish(line) && tlen(line) <= tlen(a) + 3 && !!line.previousElementSibling && !textIn(a).toLowerCase().includes(textIn(hd).toLowerCase());
+}
+
+const isBlockish = (e: Element) => !getComputedStyle(e).display.startsWith("inline");
+
 /** A single story or product card: one headline link, little else. */
 function asCard(el: Element, ctx: Ctx): Item | null {
   if (ctx.inArticle || ctx.inPost || el === ctx.articleEl || (ctx.articleEl && el.contains(ctx.articleEl))) return null;
@@ -2519,6 +2729,7 @@ function asCard(el: Element, ctx: Ctx): Item | null {
     if (ht.length < 25 || promoText(all.replace(ht, " ")) || promoText(ht.replace(TITLE_PROMO_WEAK, " "))) return null;
   }
   if (holdsCover(el)) return null;
+  if (statusBox(el)) return null;
   // Several headings of its own are a list of parts (weather.com's days, each an h3 over its row), not one card.
   if (el.querySelectorAll(HEADING_SEL).length >= 3) return null;
   const heads = headlineLinks(el);
@@ -2580,6 +2791,36 @@ function coverCard(el: Element, out: Out, ctx: Ctx): boolean {
       s.text = undefined;
       s.keepTitle = undefined;
     }
+    if (s && !repeatCard(s, ctx)) out.item(s);
+  }
+  return true;
+}
+
+/**
+ * A headline link that holds the links of its related stories (G1's script builds "a.bstn-hl-link > ul > li > a.bstn-related",
+ * which HTML could not nest): the headline is its entry, with its kicker, and each related story follows as an
+ * entry of its own, so no story is glued to the headline or opens its page (F1001).
+ */
+function nestedLinkCard(el: Element, out: Out, ctx: Ctx): boolean {
+  if (ctx.inArticle || ctx.inPost || (ctx.titleEl && el.contains(ctx.titleEl))) return false;
+  const href = hrefOf(el);
+  const inner = Array.from(el.querySelectorAll("a[href]")).filter((a) => hrefOf(a) !== href && visible(a) && textIn(a));
+  if (!href || !inner.length) return false;
+  // The headline's own words, piece by piece (the kicker, then the title), outside the related links.
+  const parts: string[] = [];
+  const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+    const p = n.parentElement;
+    const s = clean(n.nodeValue);
+    if (s && p && !inner.some((a) => a.contains(p)) && visible(p)) parts.push(s);
+  }
+  if (!parts.length) return false;
+  const title = parts.reduce((a, b) => (b.length > a.length ? b : a));
+  const at = parts.indexOf(title);
+  const it: Item = { key: "i:" + refOf(el), title, href, ref: refOf(el), meta: parts.slice(0, at).length ? [parts.slice(0, at).join(" ")] : [] };
+  if (!repeatCard(it, ctx)) out.item(it);
+  for (const a of inner) {
+    const s = toItem(a, ctx);
     if (s && !repeatCard(s, ctx)) out.item(s);
   }
   return true;
@@ -2904,10 +3145,13 @@ export function toItem(el: Element, ctx: Ctx): Item | null {
   const replyEls = repliesIn(el, ctx);
   const inReply = (n: Node) => replyEls.length > 0 && replyEls.some((r) => r.contains(n));
   // A comment is named by its own author; only a story card has a kicker over its headline.
-  const h0 = replyEls.length ? Array.from(el.querySelectorAll(HEADING_SEL)).find((h) => !inReply(h)) ?? null : el.querySelector(HEADING_SEL);
+  let h0 = replyEls.length ? Array.from(el.querySelectorAll(HEADING_SEL)).find((h) => !inReply(h)) ?? null : el.querySelector(HEADING_SEL);
+  // A comment's paragraphs marked up as a heading (Lobsters' div role=heading) are its text, never its name (F1030).
+  const prose = h0 && proseHeading(h0) ? h0 : null;
+  if (prose) h0 = Array.from(el.querySelectorAll(HEADING_SEL)).find((h) => !inReply(h) && !proseHeading(h)) ?? null;
   const heading = ctx.inComments ? h0 : kickerHeading(el, h0);
   // A comment's own text (GitHub's markdown body) is read in full, with its paragraphs and code, not as a snippet.
-  const body0 = ctx.inComments ? postBodyOf(el) : null;
+  const body0 = (ctx.inComments ? postBodyOf(el) : null) ?? prose;
   const bodyEl = body0 && !inReply(body0) ? body0 : null;
   const links = (el.localName === "a" ? [el] : Array.from(el.querySelectorAll("a[href]"))).filter(
     (a) => visible(a) && !inPage(a) && !SOCIAL_HOSTS.test(hostOf((a as HTMLAnchorElement).href)) && !bodyEl?.contains(a) && !inReply(a),
@@ -2922,7 +3166,8 @@ export function toItem(el: Element, ctx: Ctx): Item | null {
   // Only a link that names the card is its target, never one from a later sentence,
   // and never one that acts on the card ("Report abuse" under a review).
   if (!main && links.length) {
-    const named = links.filter((a) => titleLink(a, el) && !actionLabel(textIn(a) || accName(a)));
+    // A vote arrow (Lobsters' "31" to /login) never names the entry (F1030).
+    const named = links.filter((a) => titleLink(a, el) && !actionLabel(textIn(a) || accName(a)) && !voteLink(a));
     // A link in the entry's own sub-list (a result's sections) names a part, not the entry.
     const sub = (a: Element) => {
       const li = a.parentElement?.closest("li, [role=listitem]");
@@ -3214,6 +3459,8 @@ export function toItem(el: Element, ctx: Ctx): Item | null {
     // The row's overflow menu ("More actions for Notes.txt") holds its Rename, Download and Delete.
     const overflow = overflowMenu(b, label);
     if (!usefulControl(b, label, ctx) || label === title || ((label.length > 40 || ITEM_ACTION_NOISE.test(label)) && !overflow)) continue;
+    // "Copy link" on an entry that links to itself copies the address its title already gives (F1033).
+    if (main && !ctx.inDialog && COPY_LABEL.test(label) && /link|enlace/i.test(label)) continue;
     // Its entry's name is said with it already (Sift's button is described by the title).
     actions.push(toAction(b, overflow && label.toLowerCase().endsWith(" for " + title.toLowerCase()) ? label.slice(0, -(title.length + 5)) : label));
     if (actions.length >= 2 + linkActs.length) break;
@@ -3324,6 +3571,11 @@ function postGroup(el: Element): boolean {
 function resultList(el: Element): boolean {
   const c = resultCache.get(el);
   if (c && c.pass === passNo()) return c.v;
+  if (el.localName === "dl") {
+    const v = resultDefs(el);
+    resultCache.set(el, { pass: passNo(), v });
+    return v;
+  }
   const kinds = new Map<string, number>();
   let n = 0;
   for (const c of Array.from(el.children)) {
@@ -3343,6 +3595,28 @@ function resultList(el: Element): boolean {
   return v;
 }
 const resultCache = new WeakMap<Element, { pass: number; v: boolean }>();
+
+/**
+ * Search results as a <dl> (MoinMoin's full-text search, F1044): three or more
+ * terms, most of them one link to another page over a short snippet in the
+ * <dd> after it. A glossary's terms are not links.
+ */
+function resultDefs(dl: Element): boolean {
+  let n = 0;
+  let hits = 0;
+  for (const dt of Array.from(dl.children)) {
+    if (dt.localName !== "dt") continue;
+    n++;
+    const links = dt.querySelectorAll("a[href]");
+    const len = tlen(dt);
+    // The link is the term's name: most of it, or what it starts with ("Pinning . . . 1 match").
+    if (links.length !== 1 || inPage(links[0]) || tlen(links[0]) < 4 || len > 200 || (tlen(links[0]) < len * 0.5 && !textIn(dt).startsWith(textIn(links[0])))) continue;
+    let dd = dt.nextElementSibling;
+    while (dd && dd.localName !== "dd" && dd.localName !== "dt") dd = dd.nextElementSibling;
+    if (dd?.localName === "dd" && tlen(dd) >= 10 && tlen(dd) <= 800) hits++;
+  }
+  return hits >= 3 && hits >= n * 0.6;
+}
 
 /** A list of results right after `el` (a toolbar's sibling, or the list one level inside it). */
 function resultsAfter(el: Element): boolean {
@@ -3450,7 +3724,8 @@ export function findArticle(root: Element): Element | null {
     if (inNoise(p.parentElement)) continue;
     const s = 1 + Math.min(tx.length / 100, 3) + (tx.match(/[,，、]/g)?.length ?? 0) * 0.3;
     const parent = p.parentElement;
-    if (!parent) continue;
+    // A result's info line set right in its list (MoinMoin's "1.4k - rev: 1", F1044) is part of an entry, not a story's paragraph.
+    if (!parent || (parent.localName === "dl" && resultList(parent))) continue;
     scores.set(parent, (scores.get(parent) ?? 0) + s);
     const gp = parent.parentElement;
     if (gp) scores.set(gp, (scores.get(gp) ?? 0) + s / 2);
@@ -3583,8 +3858,9 @@ export function walk(parent: Element, out: Out, ctx: Ctx, skip?: Element | null)
     const rows = controlRows(ks);
     // A panel drawn to the right of a map follows it (F874; see walkNodes).
     let after: Map<Element, Element[]> | null = null;
+    const copies = marqueeCopies(ks);
     for (const el of ks) {
-      if (el === skip) continue;
+      if (el === skip || copies?.has(el)) continue;
       const map = mapBefore(el);
       if (map) {
         (after ??= new Map()).set(map, [...(after.get(map) ?? []), el]);
@@ -3592,7 +3868,7 @@ export function walk(parent: Element, out: Out, ctx: Ctx, skip?: Element | null)
       }
       if (rows) out.flush();
       visit(el, out, ctx);
-      for (const p of after?.get(el) ?? []) visit(p, out, ctx);
+      visitSide(after?.get(el), out, ctx);
       after?.delete(el);
     }
     for (const ps of after?.values() ?? []) for (const p of ps) visit(p, out, ctx);
@@ -3600,6 +3876,30 @@ export function walk(parent: Element, out: Out, ctx: Ctx, skip?: Element | null)
     return;
   }
   walkNodes(Array.from(parent.childNodes), parent, out, ctx, skip);
+}
+
+/**
+ * A marquee repeats its strip to scroll without end (G1's quote ticker holds the same quotes 8 times):
+ * a sibling that says exactly what an earlier one said, with the same links, is a copy and is said once (F1001).
+ */
+function marqueeCopies(ks: Element[]): Set<Element> | null {
+  if (ks.length < 2) return null;
+  let byLen: Map<number, Element[]> | null = null;
+  let out: Set<Element> | null = null;
+  const key = (e: Element) => `${e.localName}|${(e.textContent ?? "").replace(/\s+/g, " ").trim()}|${Array.from(e.querySelectorAll("a[href]"), (a) => (a as HTMLAnchorElement).href).join(" ")}`;
+  for (const k of ks) {
+    const n = tlen(k);
+    // Short twins ("Yes", "Reply") are separate controls; only a long run of the same words is a copy.
+    if (n < 40) continue;
+    const same = (byLen ??= new Map<number, Element[]>()).get(n);
+    if (!same) {
+      byLen.set(n, [k]);
+      continue;
+    }
+    if (!k.querySelector("input, select, textarea") && same.some((o) => key(o) === key(k))) (out ??= new Set()).add(k);
+    else same.push(k);
+  }
+  return out;
 }
 
 /** Sibling rows of one kind (2 to 50), each with a button and another button or link of its own, and no field to fill. */
@@ -3659,12 +3959,23 @@ function walkNodes(nodes: Node[], parent: Element, out: Out, ctx: Ctx, skip?: El
     flush();
     if (unlabeled) named = new Set(labelNodes(e));
     visit(e, out, ctx);
-    for (const p of after?.get(e) ?? []) visit(p, out, ctx);
+    visitSide(after?.get(e), out, ctx);
     after?.delete(e);
   }
   flush();
   // A map passed over: its panels still show.
   for (const ps of after?.values() ?? []) for (const p of ps) visit(p, out, ctx);
+}
+
+/** The blocks of the panels drawn beside a map (F874), which move with it (routeFirst, F1071). */
+const sideBlocks = new WeakSet<Block>();
+function visitSide(ps: Element[] | undefined, out: Out, ctx: Ctx) {
+  if (!ps?.length) return;
+  out.flush();
+  const n = out.blocks.length;
+  for (const p of ps) visit(p, out, ctx);
+  out.flush();
+  for (const b of out.blocks.slice(n)) sideBlocks.add(b);
 }
 
 /** The maps on the page, found once per pass. */
@@ -3770,8 +4081,13 @@ export function headingText(el: Element): string {
 function heading(el: Element): number {
   const m = /^h([1-6])$/.exec(el.localName);
   if (m) return +m[1];
-  if (el.getAttribute("role") === "heading") return +(el.getAttribute("aria-level") || 2);
+  if (el.getAttribute("role") === "heading" && !proseHeading(el)) return +(el.getAttribute("aria-level") || 2);
   return 0;
+}
+
+/** Paragraphs a site marked up as a heading (Lobsters' comment text, div role=heading): text, not a heading (F1030). */
+function proseHeading(el: Element): boolean {
+  return !/^h[1-6]$/.test(el.localName) && el.getAttribute("role") === "heading" && (!!el.querySelector("p, ul, ol, blockquote, pre, hr, table") || tlen(el) > 200);
 }
 
 /**
@@ -3893,6 +4209,8 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
   if (++ctx.count > BUDGET) return budgetCut(out, ctx);
   if (tag === "slot") return walk(el, out, ctx);
   if (isAd(el) || ctx.drop?.(el)) return;
+  // A link through Google's ad click redirect is an ad, labeled or not (Maps' tour ad under "Sponsored · By …": F961).
+  if (tag === "a" && AD_CLICK.test(el.getAttribute("href") ?? "")) return;
   if (!ctx.inArticle && sweepstakes(el)) return;
   if (el.matches(WIKI_CHROME)) return;
   // A breadcrumb told only by its schema (TOI's ul itemtype BreadcrumbList), and the site's furniture
@@ -3944,7 +4262,8 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
   // A results map or chart in a story (La Nación's svelte div.ln-root: an SVG map of 54 states, a select
   // and two buttons) is one thing, shown as it is: its labels and values apart say nothing (F828).
   // A small chart (a seat chart) is kept the same way, its numbers in its name (F929).
-  const widget = ctx.inArticle && !ctx.inDialog ? (dataWidget(el) ? dataWidget : dataChart(el) ? dataChart : null) : null;
+  // A map drawn in SVG is kept as a picture too, its places in its name (F1037).
+  const widget = ctx.inArticle && !ctx.inDialog ? (dataWidget(el) ? dataWidget : dataChart(el) ? dataChart : dataMap(el) ? dataMap : null) : null;
   if (widget) {
     // The widget itself, not the layout boxes around it.
     let w = el;
@@ -3952,7 +4271,7 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
       const ks = Array.from(w.children).filter((c) => !SKIP.has(c.localName) && visible(c));
       if (ks.length !== 1 || !widget(ks[0])) break;
       // A chart's labels may sit beside its drawing, outside a narrower box (La Nación's seat charts).
-      if (widget === dataChart && ks[0].getBoundingClientRect().width < w.getBoundingClientRect().width - 2) break;
+      if (widget !== dataWidget && ks[0].getBoundingClientRect().width < w.getBoundingClientRect().width - 2) break;
       w = ks[0];
     }
     const b = surfaceBlock(w, "", ctx);
@@ -3960,7 +4279,8 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
       b.tool = undefined;
       // It reflows at Sift's width: as tall as what it holds there, not scaled down to the page's shape.
       const wr = w.getBoundingClientRect();
-      b.ratio = Math.min(Math.max(wr.height, w.scrollHeight) / Math.max(1, wr.width), 1.6);
+      // A map's panels stack at a narrow width (two maps one over the other): it may be taller (F1037).
+      b.ratio = Math.min(Math.max(wr.height, w.scrollHeight) / Math.max(1, wr.width), widget === dataMap ? 3.95 : 1.6);
       if (widget === dataChart) {
         b.chart = true;
         // Named by the short title just before it ("Diputados", set in a plain div), not by the notes under it.
@@ -3969,6 +4289,9 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
         const s = a?.previousElementSibling;
         const title = s && tlen(s) <= 60 && !s.querySelector("a[href], button") ? textIn(s) : "";
         b.label = chartLabel(title || (b.label === t("interactive") ? "" : b.label), w);
+      } else if (widget === dataMap) {
+        b.chart = true;
+        b.label = mapLabel(w);
       }
       out.push(b);
       return;
@@ -3978,6 +4301,17 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
   // A page header that holds the page's title (its h1 and standfirst outside <main>):
   // the title and what follows it stay, the site's logo and menu before it go.
   if ((tag === "header" || el.getAttribute("role") === "banner") && ctx.titleEl && el.contains(ctx.titleEl) && isChrome(el, ctx) && !CHROME_TOKEN.test(tokens(el)) && storyHeader(el, ctx.titleEl)) return fromTitle(el, out, ctx);
+  // A site header built from a plain box (MoinMoin's div#header: logo, login, search, page actions, then the page's h1):
+  // the title comes first; the header's links and page tools follow it (F1046).
+  if (tag === "div" && /^header$/i.test(el.id || tokens(el)) && ctx.titleEl && el.contains(ctx.titleEl) && !inMain(el) && !ctx.inArticle && tlen(el) < 1500) {
+    const ks = kids(el);
+    const i = ks.findIndex((k) => k === ctx.titleEl || k.contains(ctx.titleEl!));
+    if (i > 0) {
+      fromTitle(el, out, ctx);
+      for (const k of ks.slice(0, i)) visit(k, out, ctx);
+      return;
+    }
+  }
   if (isChrome(el, ctx)) return;
   // A site bar outside the main region that also holds the page's title (an h1
   // in the masthead) keeps only the title.
@@ -4243,6 +4577,7 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
   }
 
   if ((tag === "div" || tag === "li" || tag === "article") && coverCard(el, out, ctx)) return;
+  if (tag === "a" && el.querySelector("a[href]") && nestedLinkCard(el, out, ctx)) return;
   if (tag === "a" || tag === "article" || tag === "li" || tag === "div" || tag === "section" || tag.includes("-")) {
     const card = asCard(el, ctx);
     if (card) {
@@ -4265,6 +4600,8 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
         return;
       }
       if (isPromo(content, ctx.inArticle)) return;
+      const more = readMoreLink(content, el, ctx);
+      if (more) return relatedLink(out, more.a, more.href, more.ref);
       // A link to another story in capitals, alone in its paragraph (Fox's "AMERICANS WARNED ABOUT PARIS
       // TRAVEL …"), is related reading: it joins the related links after the story (F648).
       if (ctx.inArticle && !ctx.inDialog && content.length === 1 && typeof content[0] === "object" && "a" in content[0]) {
@@ -4504,6 +4841,8 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
       return;
     }
     if (isPromo(content, ctx.inArticle)) return;
+    const more = readMoreLink(content, el, ctx);
+    if (more) return relatedLink(out, more.a, more.href, more.ref);
     // Short notes read small; a line that leads with a link is a title, not a note.
     const leadsWithLink = typeof content[0] === "object" && "a" in content[0];
     out.push({ t: "p", key: "p:" + refOf(el), content, small: text.length < 40 && !ctx.inArticle && !leadsWithLink ? true : undefined });
@@ -5141,6 +5480,27 @@ function relatedLink(out: Out, text: string, href: string, ref: string) {
   out.push(b);
 }
 
+/** A label that sends the reader to another story ("READ MORE:", "Leia também:"). */
+const READ_MORE = /^(read more|read also|also read|see also|more on this( story)?|leer m[aá]s|lea tambi[eé]n|lee tambi[eé]n|te puede interesar|leia (tamb[eé]m|mais)|veja tamb[eé]m|lire aussi|[àa] lire aussi|lesen sie auch|mehr zum thema|leggi anche)\s*[:：›»>|-]?$/i;
+
+/**
+ * A line inside a story that is only a "READ MORE:" label and a link to another story
+ * (the Mirror's ReadMore box): related reading, after the story, not part of it (F1038).
+ * The link, or the null when the line is the story's own.
+ */
+function readMoreLink(content: Inline[], el: Element, ctx: Ctx): { a: string; href: string; ref: string } | null {
+  if (!ctx.inArticle || ctx.inDialog) return null;
+  const links = content.filter((c): c is { a: string; href?: string; ref?: string } => typeof c === "object" && "a" in c);
+  if (links.length !== 1 || !links[0].href || !links[0].ref) return null;
+  const label = clean(content.filter((c) => c !== links[0]).map((c) => (typeof c === "string" ? c : "b" in c ? c.b : "i" in c ? c.i : "")).join(""));
+  if (!label || !READ_MORE.test(label) || links[0].a.split(/\s+/).length < 3) return null;
+  const a = elOf(links[0].ref);
+  if (a && inPage(a)) return null;
+  return storyHref(links[0].href) || /read-?more/i.test(`${tokens(el)} ${el.getAttribute("data-testid") ?? ""} ${a?.getAttribute("data-tmdatatrack") ?? ""}`)
+    ? { a: links[0].a, href: links[0].href, ref: links[0].ref }
+    : null;
+}
+
 /**
  * Other stories listed at the end of a story ("Últimas noticias" and its
  * headlines, "MÁS NOTICIAS", linked headlines of related reports): they follow
@@ -5341,6 +5701,21 @@ function list(el: Element, out: Out, ctx: Ctx) {
         if (visible(box)) controlInto(box, out, ctx);
         continue;
       }
+      // A checkbox whose own label is empty, with the entry's words beside it (Tasty Recipes' ingredients:
+      // aria-label "8 tablespoons of salted butter", then that text): one checkbox named by the words as they
+      // show now, which follow a switch of units while its aria-label does not; not its name, then the words again (F1045).
+      const words = box?.type === "checkbox" && box.labels?.length && Array.from(box.labels).every((l) => !textIn(l)) ? textIn(li) : "";
+      if (box && words && words.length <= 300 && visible(box) && !li.querySelector("ul, ol, table, h1, h2, h3, h4, h5, h6, img, p")) {
+        for (const a of Array.from(li.querySelectorAll("a[href]"))) visit(a, out, ctx);
+        const f = toField(box);
+        if (f) {
+          f.label = words;
+          const g = groupOf(box);
+          if (g) f.group = g;
+          out.field(f, ctx.formRef);
+        }
+        continue;
+      }
       // An entry the site marks as its own promotion ("ds-home-aside__autopromo": "Partner Services ·
       // Le Monde for hotels") goes, as such a box does outside a list (F649).
       if (!ctx.inDialog && /(^|[\s_-])auto-?promos?($|[\s_-])/i.test(tokens(li))) continue;
@@ -5386,6 +5761,24 @@ function followRow(li: Element, tx: string, kind: string): boolean {
 }
 
 function defs(el: Element, out: Out, ctx: Ctx) {
+  // Search results as terms (MoinMoin, F1044): one entry per result, its title
+  // link over its own snippet and details, never a term without its link.
+  if (resultList(el)) {
+    let it: Item | null = null;
+    for (const c of kids(el)) {
+      if (!visible(c)) continue;
+      if (c.localName === "dt") {
+        if (it) out.item(it);
+        const a = c.querySelector("a[href]");
+        const title = a ? textIn(a) : textIn(c);
+        const rest = a ? clean(textIn(c).replace(title, "")).replace(/^[.\s·]+/, "") : "";
+        it = title ? { key: "i:" + refOf(c), title, href: a ? hrefOf(a) : undefined, ref: a ? refOf(a) : undefined, meta: rest ? [rest] : [], keepTitle: true } : null;
+      } else if (it && c.localName === "dd") it.text = [it.text, textIn(c)].filter(Boolean).join(" ");
+      else if (it && textIn(c)) it.meta.push(textIn(c));
+    }
+    if (it) out.item(it);
+    return;
+  }
   let rows: { k: string; v: Inline[] }[] = [];
   let part = 0;
   const flush = () => {
@@ -5897,10 +6290,17 @@ function figure(el: Element, out: Out, ctx: Ctx) {
     // A photo that only zooms in place (La Nación's "--zoom" box, made fixed over the page) shows
     // nothing new in Sift, where the photo is already shown in full: no "Open image" for it.
     const real = (x: Element) => x.localName === "button" || x.hasAttribute("aria-haspopup") || x.hasAttribute("aria-controls") || x.hasAttribute("aria-expanded");
-    if (own || real(clickable) || real(el)) out.action(toAction(clickable, own ? lab : t("openImage")), ctx.formRef);
+    // A gallery's own short words over the photo ("View 3 Images") say what it opens (F1039).
+    const capEl = clickable.querySelector("figcaption");
+    const rest = own ? "" : clean(capEl ? textIn(clickable).replace(textIn(capEl), " ") : textIn(clickable));
+    const count = rest.length <= 30 && GALLERY_COUNT.test(rest) ? rest : "";
+    if (own || real(clickable) || real(el)) out.action(toAction(clickable, own ? lab : count || t("openImage")), ctx.formRef);
   }
   for (const a of thumbs) out.action(a, ctx.formRef);
 }
+
+/** A gallery's count over its first photo ("View 3 Images", "Ver 12 fotos"). */
+const GALLERY_COUNT = /\d+\s+(\p{L}+\s+)?(images?|photos?|pictures?|fotos?|im[aá]genes|imagens|bilder)(?!\p{L})/iu;
 
 /**
  * A gallery's strip of thumbnails (Craigslist's listing photos: a.thumb around
@@ -6060,13 +6460,13 @@ const SEARCH_SEL = [
   "input[name=q]", "input[name=query]", "input[name=search]", "input[name=s]", "input[name=k]",
   "input[name=field-keywords]", "input[name=search_query]", "input[aria-label*=search i]",
   "input[placeholder*=search i]", "input[aria-label*=buscar i]", "input[placeholder*=buscar i]",
-  "input[aria-label*=busc i]", "input[placeholder*=busc i]", "input[role=combobox][type=text]",
+  "input[aria-label*=busc i]", "input[placeholder*=busc i]", "input[role=combobox][type=text]", "input[id*=search i]",
 ].join(",");
 const SEARCH_BUTTON = /search|buscar|busca|suche|recherche|pesquis|cerca|^go$|^ir$|^ok$|submit|enviar/i;
 /** Boxes that say they are search on their own; weaker hints (name=s, a combobox) need a header or search landmark. */
 const STRONG_SEARCH =
   "input[type=search], input[role=searchbox], [role=search] input, input[name=q], input[name=query], input[name=search], input[name=search_query], input[name=field-keywords], input[aria-label*=search i], input[placeholder*=search i], input[aria-label*=buscar i], input[placeholder*=buscar i], input[aria-label*=busc i], input[placeholder*=busc i]";
-const SEARCH_PLACE = "header,[role=banner],nav,[role=search]";
+const SEARCH_PLACE = "header,#header,[role=banner],nav,[role=search]";
 
 export function findSearch(ctx: Ctx): Field | undefined {
   const cands = (Array.from(document.querySelectorAll(SEARCH_SEL)) as HTMLInputElement[]).filter(
@@ -6081,6 +6481,11 @@ export function findSearch(ctx: Ctx): Field | undefined {
   const f = toField(pick);
   if (!f) return undefined;
   f.kind = "search";
+  // The word "Search" a script keeps in the box until it is focused (MoinMoin's searchFocus) is its hint, not a query (F1046).
+  if (/^(search|buscar|busca|suche|recherche|rechercher|pesquisar|cerca)\W{0,3}$/i.test(f.value.trim())) {
+    f.placeholder ||= f.value.trim();
+    f.value = "";
+  }
   // "q" is the field's name, not a label anyone should hear.
   if (!f.label || f.label.length > 40 || f.label.length < 3 || f.label === pick.name) f.label = t("search");
   if (f.placeholder && (f.placeholder.length < 3 || f.placeholder === pick.name)) f.placeholder = undefined;
@@ -6273,7 +6678,7 @@ export function findTop(): Action[] {
   // A site header built from plain boxes (Infobae's div#siteheader.site-header) at the top of the page.
   for (const n of Array.from(document.querySelectorAll("div[id*=header i], div[class*=header i], div[class*=masthead i]")).slice(0, 200)) {
     // TOI's div.header-container counts too (F823).
-    if (roots.some((r) => r.contains(n)) || !(CHROME_TOKEN.test(tokens(n)) || /(^|\s)(site-?)?header-?(container|wrapper|wrap)(\s|$)/i.test(tokens(n))) || n.closest("main, [role=main], article, footer")) continue;
+    if (roots.some((r) => r.contains(n)) || !(CHROME_TOKEN.test(tokens(n)) || /(^|\s)(site-?)?header(-?(container|wrapper|wrap))?(\s|$)/i.test(tokens(n))) || n.closest("main, [role=main], article, footer")) continue;
     // At the top of the page, or pinned at the top of the window when the page is scrolled.
     const r = n.getBoundingClientRect();
     if (r.height > 0 && Math.min(r.top + scrollY, r.top) < 300) roots.push(n);
@@ -6803,8 +7208,8 @@ function dialogIn(ctx: Ctx): Dialog | undefined {
     const blocks = cutNote(sub.done(), dctx);
     if (!blocks.length) continue;
     if (wall) rejectFirst(blocks);
-    // Asked for by Play: it says why it shows (F826).
-    if (wall && asked) blocks.unshift({ t: "p", key: "consent-why:" + refOf(d), content: [t("consentFirst")] });
+    // Asked for by Play, or by a click the wall swallowed: it says why it shows (F826, F1034).
+    if (wall && asked) blocks.unshift({ t: "p", key: "consent-why:" + refOf(d), content: [t(consentWhy)] });
     const titleEl = d.querySelector("h1,h2,h3,[role=heading]");
     const title =
       clean(d.getAttribute("aria-label")) || (d.getAttribute("aria-labelledby") ? accName(d) : "") || (titleEl ? textIn(titleEl) : "") ||
@@ -6925,8 +7330,11 @@ const cmpText = (w: Element) => textIn(w) || Array.from(w.querySelectorAll("ifra
  * reject first, and says why. Never by itself: a page that reads without an answer needs none.
  */
 let consentAsked = false;
-export function askConsent(on: boolean) {
+/** What the reader did that the wall held back: Play, or any click (F1034). */
+let consentWhy: "consentFirst" | "consentClick" = "consentFirst";
+export function askConsent(on: boolean, why: "play" | "click" = "play") {
   consentAsked = on;
+  consentWhy = why === "click" ? "consentClick" : "consentFirst";
 }
 
 /** A consent prompt over most of the window, which the page shows over its content (a cookie wall). */
@@ -7043,14 +7451,34 @@ function ldDate(named = true): string {
   return "";
 }
 
-/** Whether the page's text shows this date ("Oct 26, 2026", "26.10.2026", "2026-10-26"), some other year, or no year at all (outside its footer). */
-function pageShowsDate(iso: string): "this" | "other" | "none" {
+/**
+ * Whether the page's text shows this date ("Oct 26, 2026", "26.10.2026", "2026-10-26"), some other year, or no year at all (outside its footer).
+ * With `dayMonth`, a day and month shown without the year ("Oct 26", "26 de octubre") counts as this date too.
+ */
+function pageShowsDate(iso: string, dayMonth = false): "this" | "other" | "none" {
   const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(iso);
   if (!m) return "other";
   const [, y, mo, dd] = m;
   const d = String(+dd);
   const mm = String(+mo);
   const re = new RegExp(`\\b0?${d}\\b\\D{0,20}${y}|\\b0?${d}\\D{1,3}0?${mm}\\D{1,3}${y}|${y}\\D{1,4}0?${mm}\\D{1,4}0?${d}(?!\\d)`);
+  let dm: RegExp | null = null;
+  if (dayMonth) {
+    const names = new Set<string>();
+    const at = new Date(+y, +mo - 1, +dd, 12);
+    for (const l of [document.documentElement.lang || navigator.language, "en"]) {
+      for (const month of ["long", "short"] as const) {
+        try {
+          const n = new Intl.DateTimeFormat(l, { month }).format(at).replace(/\.$/, "");
+          if (/^\p{L}{3,}$/u.test(n)) names.add(n.toLowerCase());
+        } catch {}
+      }
+    }
+    if (names.size) {
+      const ms = Array.from(names).join("|");
+      dm = new RegExp(`\\b0?${d}\\.?\\s+(de\\s+)?(${ms})\\b|\\b(${ms})\\.?\\s+0?${d}\\b`, "iu");
+    }
+  }
   let other = false;
   const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let n = tw.nextNode(); n; n = tw.nextNode()) {
@@ -7062,6 +7490,14 @@ function pageShowsDate(iso: string): "this" | "other" | "none" {
     const box = p.parentElement && (p.parentElement.textContent?.length ?? 0) < 200 ? p.parentElement : p;
     if (re.test(s) || re.test(box.textContent ?? "")) return "this";
     if (/\b(19|20)\d\d\b/.test(s)) other = true;
+  }
+  if (dm) {
+    const tw2 = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = tw2.nextNode(); n; n = tw2.nextNode()) {
+      const p = n.parentElement;
+      if (!p || /^(script|style|noscript|template)$/.test(p.localName) || p.closest("footer, [role=contentinfo]")) continue;
+      if (dm.test(n.nodeValue ?? "")) return "this";
+    }
   }
   return other ? "other" : "none";
 }
@@ -7106,6 +7542,8 @@ export function byline(articleEl: Element | null, h1: Element | null = null): st
     }
   }
   let when = meta('meta[property="article:published_time"]') || meta('meta[name="date"]') || meta('meta[itemprop="datePublished"]');
+  // Never a date the page does not show (F1047): a service page's 2021 first-publish date in its meta tags, on a page updated since.
+  if (when && pageShowsDate(when, true) !== "this") when = "";
   if (!when) {
     const tEl = (articleEl ?? document).querySelector("time[datetime]") ?? document.querySelector("header time[datetime], article time[datetime]");
     when = tEl?.getAttribute("datetime") ?? "";
@@ -7221,9 +7659,16 @@ function docTitle(site: string): string {
   const parts = raw.split(/\s+[|\-–—·•]\s+/).map((p) => p.trim()).filter(Boolean);
   if (parts.length < 2) return raw;
   const s = norm(site).replace(/\s(com|org|net|ar|co|uk)$/g, "");
-  const kept = parts.filter((p) => {
+  // The site's words in any order ("Debian Wiki" on wiki.debian.org, F1046).
+  const sw = new Set(s.split(" "));
+  // The last part that names the host is the site's tagline ("Pan - Wikipedia, la enciclopedia libre"
+  // on es.wikipedia.org, "Pão – Wikipédia, a enciclopédia livre"), not the article (F1072).
+  const host = location.hostname.split(".").filter((l) => l.length >= 4 && !/^(www\d?|com|org|net|info)$/.test(l)).pop() ?? "";
+  const fold = (p: string) => norm(p).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const kept = parts.filter((p, i) => {
     const n = norm(p);
-    return !(s && (n === s || s.includes(n) || n.includes(s)));
+    if (host && i === parts.length - 1 && fold(p).split(" ").includes(host)) return false;
+    return !(s && (n === s || s.includes(n) || n.includes(s) || n.split(" ").every((w) => sw.has(w))));
   });
   const pool = kept.length ? kept : parts;
   return pool.slice().sort((a, b) => b.length - a.length)[0];
@@ -7234,9 +7679,12 @@ function docTitle(site: string): string {
  * headline inside a story card or a heading inside an answer or comment.
  */
 export function titleH1(articleEl: Element | null = null): Element | null {
-  const h1s = Array.from(document.querySelectorAll("h1")).filter((h) => visible(h) && textIn(h).length > 3 && !h.closest("sift-root") && !inSweepstakes(h));
+  const dt = docTitle(siteName());
+  // A short h1 counts when it is the <title>'s article part ("Pan", "Pão": F1072); else it is a logo or a mark.
+  const named = (h: Element) => textIn(h).length > 3 || (textIn(h).length > 0 && norm(textIn(h)) === norm(dt));
+  const h1s = Array.from(document.querySelectorAll("h1")).filter((h) => visible(h) && named(h) && !h.closest("sift-root") && !inSweepstakes(h));
   if (!h1s.length) return null;
-  const ref = new Set(norm(docTitle(siteName())).split(" ").filter((w) => w.length > 2));
+  const ref = new Set(norm(dt).split(" ").filter((w) => w.length > 2));
   let best: Element | null = null;
   let bestScore = 0;
   for (const h of h1s) {
@@ -7260,7 +7708,14 @@ export function titleH1(articleEl: Element | null = null): Element | null {
     return false;
   };
   const plain = h1s.filter((h) => !h.closest("a[href]") && !inPost(h));
-  // No good match: on an article page, the last h1 before (or inside) its body;
+  // No good match: the h1 that names the page's address ("SourcesList" on wiki.debian.org/SourcesList), never a later section's (F1046).
+  let seg = "";
+  try {
+    seg = norm(decodeURIComponent(location.pathname.split("/").filter(Boolean).pop() ?? "").replace(/[-_+]+/g, " "));
+  } catch {}
+  const bySeg = seg.length > 2 ? plain.find((h) => norm(textIn(h)) === seg) : undefined;
+  if (bySeg) return bySeg;
+  // On an article page, the last h1 before (or inside) its body;
   // otherwise the first plain h1.
   if (articleEl) {
     let last: Element | null = null;
@@ -7755,6 +8210,14 @@ function routeFirst(blocks: Block[]) {
   const fi = blocks.findIndex((b) => b.t === "form");
   if (ti < 0 || fi < 0 || fi > ti) return;
   const tb = blocks[ti] as Extract<Block, { t: "table" }>;
+  // Only a route planner: its summary gives a distance or a time, its fields are where from and where to,
+  // or its rows are turns. A checkout's card frame or a café's map after its hours never moves (F1031).
+  const form = blocks[fi] as Extract<Block, { t: "form" }>;
+  if (/pay|card|checkout|tarjeta|pago|zahl|paiement/i.test((blocks[pi] as Extract<Block, { t: "portal" }>).label)) return;
+  const summed = /\d\s?(km|mi|m|ft|min|h)\b|\b\d{1,2}:\d\d\b/i.test(tb.head.join(" ")) && /distan|time|tiempo|tempo|zeit|dur/i.test(tb.head.join(" "));
+  const places = form.fields.filter((f) => /^(from|to|start|origin|destination|desde|hasta|origen|destino|von|nach|départ|arrivée|partida|chegada)\b/i.test(f.label)).length >= 2;
+  const turns = tb.rows.filter((r) => /\b(turn|left|right|continue|slight|keep|merge|roundabout|exit|arrive|gire|doble|izquierda|derecha|contin[uú]e|siga|rotonda|tournez|gauche|droite|links|rechts|abbiegen)\b/i.test(r.map(textOf).join(" "))).length >= tb.rows.length / 2;
+  if (!summed && !places && !turns) return;
   const lead: Block[] = [];
   // The list's heading ("Directions") and its one-cell head row ("Distance: 1.7km. Time: 0:22.") are the route's summary.
   const hi = blocks[ti - 1]?.t === "h" && ti - 1 > fi ? ti - 1 : -1;
@@ -7766,9 +8229,12 @@ function routeFirst(blocks: Block[]) {
     tb.head = [];
     tb.heads = undefined;
   }
-  const [map] = blocks.splice(pi, 1);
+  // The panels drawn beside the map (its Map Layers) go with it, so a layer choice shows on the map just above (F1071).
+  let pe = pi + 1;
+  while (pe < blocks.length && sideBlocks.has(blocks[pe])) pe++;
+  const map = blocks.splice(pi, pe - pi);
   if (hi >= 0) blocks.splice(hi, 1);
-  blocks.splice(fi, 0, ...lead, map);
+  blocks.splice(fi, 0, ...lead, ...map);
 }
 
 function demoteExtraH1(blocks: Block[], title: string) {

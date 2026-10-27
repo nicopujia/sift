@@ -38,5 +38,11 @@ export function extract(): Page {
       return p;
     }
   }
-  return extractGeneric();
+  const g = extractGeneric();
+  try {
+    current?.fallback?.(g);
+  } catch (e) {
+    console.warn("sift: adapter fallback failed", e);
+  }
+  return g;
 }

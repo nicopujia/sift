@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Consent wall that swallows clicks (F1034)</title>
+<style>
+body { font: 16px sans-serif; margin: 0; }
+main { max-width: 760px; margin: 0 auto; padding: 16px; }
+.qc-cmp-cleanslate { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
+.qc-cmp2-summary { background: #fff; padding: 24px; max-width: 620px; }
+</style>
+</head>
+<body>
+<header><a href="/fx/r10news15-consent.html">Daily Fixture</a> <button id="signin" aria-label="User Avatar - redirects to sign in and sign up">Sign in</button></header>
+<main>
+<h1>The Daily Fixture: Top stories</h1>
+<ul>
+<li><a href="/fx/r10news15-article.html?from=home">Harry Kane beats Mbappe to win the Ballon d'Or as England captain</a></li>
+<li><a href="/fx/r10news15-article.html?from=home2">Bank bosses earn more in two days than typical workers earn in a year</a></li>
+<li><a href="/fx/r10news15-article.html?from=home3">A royal gardener is killed by a falling tree during the storm</a></li>
+</ul>
+<p id="log">No click reached the page yet.</p>
+</main>
+<div id="qc-cmp2-container" class="qc-cmp2-container">
+  <div class="qc-cmp-cleanslate" role="dialog" aria-modal="true" aria-labelledby="qc-title">
+    <div class="qc-cmp2-summary">
+      <h2 id="qc-title">We value your privacy</h2>
+      <p>We and our partners store and/or access information on a device, such as cookies, and process personal data for personalised advertising and content.</p>
+      <button class="more" type="button">More Options</button>
+      <button class="pay" type="button">Reject and Pay</button>
+      <button class="accept" type="button">I Accept</button>
+    </div>
+  </div>
+</div>
+<script>
+// Like the Mirror's InMobi CMP: every click outside the wall is stopped in the capture phase until a choice is made.
+const wall = document.querySelector(".qc-cmp-cleanslate");
+let answered = false;
+document.addEventListener("click", (e) => {
+  if (answered || wall.contains(e.target)) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+}, true);
+for (const b of wall.querySelectorAll("button")) b.addEventListener("click", () => {
+  answered = true;
+  document.getElementById("log").textContent = "Choice made: " + b.textContent;
+  document.getElementById("qc-cmp2-container").remove();
+});
+document.getElementById("signin").addEventListener("click", () => { document.getElementById("log").textContent = "Sign in pressed"; });
+</script>
+</body>
+</html>

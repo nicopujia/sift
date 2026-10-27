@@ -1,0 +1,17 @@
+# Round 10 findings: lang15
+
+Each was reproduced by a skeptic. F10xx are new in round 10; older ids are findings a round 10 recheck found not fully fixed. The suspected cause and fix are leads, not orders.
+
+## F1032 (medium, regression): Pages without a lang attribute get a wrong guessed language: Dutch is marked 'en', Catalan 'es', and that wrong language goes to Sift's lang attribute, its UI and the AI lines
+
+Found by: R1-extractor. Where: src/content/dom.ts:895-927 (LANG_WORDS, textLang, the pick at 920), via lang() at 886 and generic.ts:7889
+
+Evidence: Harness on a Dutch news list with no lang (fx/r10rev-nl-nolang.html): page.lang = 'en'. Before round 9 it was ''. Catalan (fx/r10rev-ca-nolang.html): 'es' (was ''). Swedish: ''. Real extension on the Dutch fixture: Sift's .sift div has lang='en' (html lang '', navigator en-US). Screen readers then read the Dutch text with the English voice, and setLang('en') picks Sift's English table although Sift has an nl table. In src/background/index.ts:507-514, a known page language forces every list line into that language for every mode except news. So a Dutch store or video list without lang would get English lines; before, each title's language was detected.
+
+Repro: cd /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r9 && bun run.ts r10m.js,p9m.js http://127.0.0.1:8799/fx/r10rev-nl-nolang.html 1 | grep source= ; same for r10rev-ca-nolang.html; real: SIFT_PORT=9468 SIFT_TAB=R1-extractor bun scripts/act.ts goto:http://127.0.0.1:8799/fx/r10rev-nl-nolang.html wait:6000 "eval:document.querySelector('sift-root').shadowRoot.querySelector('.sift').getAttribute('lang')"
+
+Suspected cause: Only 6 languages are scored, and the lead test (12 or more hits, 1.5 times the runner-up) never checks that the winner explains much of the text. Dutch 'is/in/was' count as English, and Catalan 'el/del/una/al' (plus 'les' and 'per' spread over fr and it) count as Spanish. Lead: require that the winner's words are a real share of all words, add stop words that rule a language out (nl: de het een van; ca: els amb però), or use chrome.i18n.detectLanguage. Keep '' when unsure.
+
+Skeptic: Reproduced. Harness on the fixtures: Dutch gives lang=en (p9m.js gives ''), and Catalan gives es (p9m.js gives ''). To rule out fixtures built to hit the word lists, I ran real pages with the lang attribute and the content-language meta removed. nos.nl gives 'en'. ara.cat and vilaweb.cat both give 'es'. p9m.js gives '' on all three. nl and ca Wikipedia gave '' with both bundles. In the real extension on the Dutch fixture, the .sift element has lang='en' (the html lang is '', navigator is en-US). So Sift marks Dutch text as English for screen readers. From reading the code, not observed: background/index.ts:507-508 forces every non-news list line into the known page language, so a lang-less Dutch store or video list would get English lines. The Short version prompt says 'same language as the text', so articles are not affected. This only hits pages without lang, but those are exactly the pages textLang exists for, and the guess is wrong for two major languages.
+
+Skeptic's fix lead: In dom.ts textLang (lines 895-927), require the winner's hits to be a real share of all words (for example at least 6-8%). Add stop words that rule a language out (nl: de het een van niet op; ca: els amb però dels per a la) or score nl and ca as their own languages. Alternatively use chrome.i18n.detectLanguage with its isReliable flag. Return '' when unsure.

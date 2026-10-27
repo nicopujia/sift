@@ -238,12 +238,27 @@ function tellPrivate() {
   }
 }
 
-/** A page of search results: its search box holds the query its address asked for. Its results are never condensed. */
+/**
+ * A page of search results: its search box holds the query its address asked
+ * for, the top bar's or one in the page (MoinMoin's, F1044). Its results are never condensed.
+ */
 function searchResults(page: Page): boolean {
-  const q = page.search?.value?.trim().toLowerCase();
-  if (!q) return false;
+  const qs = new Set<string>();
+  const add = (f: { kind: string; value: string }) => {
+    const v = f.value?.trim().toLowerCase();
+    if (v && v.length >= 2 && (f.kind === "search" || f.kind === "text")) qs.add(v);
+  };
+  if (page.search) add(page.search);
+  const walk = (bs: Block[]) => {
+    for (const b of bs) {
+      if (b.t === "form") b.fields.forEach(add);
+      else if (b.t === "section" || b.t === "article") walk(b.blocks);
+    }
+  };
+  walk(page.blocks);
+  if (!qs.size) return false;
   try {
-    for (const v of new URL(page.url).searchParams.values()) if (v.trim().toLowerCase() === q) return true;
+    for (const v of new URL(page.url).searchParams.values()) if (qs.has(v.trim().toLowerCase())) return true;
   } catch {
     /* not a URL */
   }

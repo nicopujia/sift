@@ -1,0 +1,918 @@
+{
+ "confirmed": [
+  {
+   "source": "T6-fixtures",
+   "title": "Icon-only meaning is dropped: 'Not included' / 'Yes' / 'No' marks given by svg role=img aria-label vanish, so plan cards and a comparison table say the wrong thing",
+   "severity": "high",
+   "where": "http://127.0.0.1:8799/fx/r10-plans.html (new fixture /home/nico/projects/sift/research/fixtures/r10-plans.html): the plan radio cards and the 'Compare features' table",
+   "evidence": "Original (screenshot /home/nico/projects/sift-test-6/research/shots/r10t6-plans-original.png, /home/nico/projects/sift-test-6/research/shots/r10t6-plans-table-original.png) shows grey crosses for Starter's 'Delivery zones' and 'Staff accounts' and a cross/tick/tick row for Delivery zones. Chrome's accessible names for the original radios (CDP, Sift off): 'Starter $0/month For one market stall trying online orders. Included 1 location Included 50 orders a month Not included Delivery zones Not included Staff accounts'. Sift's radio labels: 'Starter $0/month For one market stall trying online orders. 1 location 50 orders a month Delivery zones Staff accounts' (Sift text includes 'Not included' = false), so Starter reads as if it includes delivery zones and staff accounts. Sift's table: 'Delivery zones | (empty) | (empty) | (empty)' (svg role=img aria-label No/Yes), while img alt and visually hidden text cells survive ('Staff accounts | No | No | Yes', 'Phone support | No | No | Yes'). Shots: /home/nico/projects/sift-test-6/research/shots/r10t6-plans-sift.png (taken before I fixed a fixture CSS bug that also showed the seats row), /home/nico/projects/sift-test-6/research/shots/r10t6-plans-table-sift.png. Harness variant /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r10t6/my/plans-table.html: a list item with img alt='Not included' also becomes plain 'Staff accounts'. Same output from the round 9 bundle, so not a regression.",
+   "repro": "SIFT_PORT=9466 ./scripts/chrome.sh start; then SIFT_PORT=9466 SIFT_TAB=T6-fixtures bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r10t6/go.ts goto:http://127.0.0.1:8799/fx/r10-plans.html wait:3500 \"sx:[...R.querySelectorAll('table tr')].map(r=>[...r.children].map(c=>c.innerText.trim()||'(empty)').join(' | ')).join('\\n')\" \"sx:R.querySelector('.sift').innerText.includes('Not included')\" -> the Delivery zones row is three '(empty)' cells and the second check prints false. For the original names: press:Alt+Shift+S, then bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r10t6/axname.ts \"input[name=plan]\".",
+   "suspectedCause": "src/content/dom.ts accName(): for inputs it names the field from textIn(label) (visible text only), so [role=img][aria-label] and img alt inside a wrapping label are skipped (pictureName is used only when the label has no words). Table cell and list item text also comes from visible text, which keeps img alt in cells but not svg role=img aria-label. Fold role=img/aria-label and img alt into the text where they sit (as 'Not included', 'Yes').",
+   "verdict": "Reproduced on a fresh load, and the same result again on a second load. In Sift the table's Delivery zones row is 'Delivery zones | (empty) | (empty) | (empty)'. The img alt cells and visually hidden text cells survive ('Staff accounts | No | No | Yes', 'Phone support | No | No | Yes'). .sift innerText.includes('Not included') is false. Sift's radio labels are '<span>Starter $0/month For one market stall trying online orders. 1 location 50 orders a month Delivery zones Staff accounts</span>', with no aria-label on the input. With Sift off, CDP gives the name 'Starter ... Included 1 location Included 50 orders a month Not included Delivery zones Not included Staff accounts', and the screenshot shows grey crosses. So in Sift, Starter reads as if it includes delivery zones and staff accounts, which is wrong. It is wrong information on a purchase choice, so high severity holds. Code cause: in inlineOf (src/content/extract/generic.ts ~line 1189), the SKIP set includes 'svg', and that check runs before the role=img check at line 1211, so an svg role=img aria-label never reaches it. accName (src/content/dom.ts:628) names an input from textIn(label) and uses pictureName only when the label has no words. Shots: /home/nico/projects/sift-test-6/research/shots/skeptic-plans-sift.png and /home/nico/projects/sift-test-6/research/shots/skeptic-plans-orig.png.",
+   "fix": "In inlineOf in src/content/extract/generic.ts, move the role=img + aria-label check (line ~1211) above the SKIP.has(tag) test, so an svg role=img is read by its label. Also keep a meaningful img alt like 'Not included' (today only alt of 3 characters or fewer is kept). In accName in src/content/dom.ts, name a field from a wrapping or for= label with contentName(label) instead of textIn(label), so role=img and img alt words inside the label are included."
+  },
+  {
+   "source": "T6-fixtures",
+   "title": "Plan radio cards collapse into one run-on label line, so plans cannot be compared at a glance",
+   "severity": "medium",
+   "where": "http://127.0.0.1:8799/fx/r10-plans.html, the three plan cards (radios visually hidden inside label cards, the Stripe/Shopify pattern)",
+   "evidence": "On the original each card has a name, a big price, a description and a 4-row feature list. In Sift each becomes a single radio label paragraph: 'Most popular Pro $29/month For a bakery with orders every day. 1 location Unlimited orders Delivery zones Staff accounts' (badge first, features run together with no separators). Shot: /home/nico/projects/sift-test-6/research/shots/r10t6-plans-table-sift.png (top) vs /home/nico/projects/sift-test-6/research/shots/r10t6-plans-original.png. Choosing a plan works (Business shows the seats row, 'Add a seat' and typed seats update the summary, Continue logs and announces).",
+   "repro": "SIFT_PORT=9466 SIFT_TAB=T6-fixtures bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r10t6/go.ts goto:http://127.0.0.1:8799/fx/r10-plans.html wait:3500 \"sx:[...R.querySelectorAll('input[type=radio]')].map(r=>r.closest('label').innerText.replace(/\\s+/g,' ')).join('\\n')\" shot:plans",
+   "suspectedCause": "A field's label is taken as one flattened string (accName/labelOf, cut at 160 characters), so block structure inside a label card (name, price, description, ul of features) is lost; the card could render its inner blocks under the radio.",
+   "verdict": "Reproduced. Each plan card becomes one radio label span: 'Most popular Pro $29/month For a bakery with orders every day. 1 location Unlimited orders Delivery zones Staff accounts', with no separators between features. It is worse than run-on text. labelOf (src/content/extract/generic.ts:833) cuts at 160 characters. When I gave each card 4 more feature li items through a DOM mutation (a realistic length for a pricing card), Sift re-extracted to 'Starter ... Gift cards Pickup scheduling Custom do\u2026', and 'Inventory alerts' was nowhere in Sift's text (includes = false). So on real pricing pages, features are silently lost, not just hard to compare. Medium holds. Choosing a plan still works. Shot: /home/nico/projects/sift-test-6/research/shots/skeptic-plans-long.png.",
+   "fix": "In the form field path (controlInto / field label building in src/content/extract/generic.ts, and the radio rendering in FormView in src/content/ui/app.tsx), keep a short name for a radio or checkbox wrapped in a label that holds block content (ul/li, several block spans). Use the card's first line or heading-like part as the name, and render the rest of the card's blocks (description, feature list via inlineOf/contentName) under the radio as its description. Do not flatten it through labelOf's 160-character cut."
+  },
+  {
+   "source": "T6-fixtures",
+   "title": "Custom select and toggle-button group inside a form are moved after all the form's fields, away from their labels",
+   "severity": "medium",
+   "where": "http://127.0.0.1:8799/fx/r10-review.html (new fixture /home/nico/projects/sift/research/fixtures/r10-review.html): 'How long have you used it?' (div role=combobox, Headless UI/MUI style) and 'Would you recommend it to a friend?' Yes/No (role=group aria-labelledby, aria-pressed buttons)",
+   "evidence": "Original order: rating, How long (combobox), Title, Your review, Yes/No, 'Show only my first name', Post review. Sift: the label 'How long have you used it?' stays as small text above Title, while its button 'How long have you used it? Choose one' renders after the Your review textarea and before the textarea's '0 of 500 characters' counter; 'Would you recommend it to a friend?' is followed by the 'Show only my first name' checkbox and only then 'Yes | No | Post review' in one row. Keyboard order matches the wrong visual order (tabwalk: radio, Title, textarea, How long\u2026, checkbox, Yes, No, Post review). The Yes button's ancestors are button < div < form: the group name is gone, so a screen reader hears 'Yes, toggle button' with no question. Shots: /home/nico/projects/sift-test-6/research/shots/r10t6-review-sift.png, /home/nico/projects/sift-test-6/research/shots/r10t6-review-sift2.png. Harness: 'form: fields=[text:Title; textarea:Your review] actions=[How long have you used it? Choose one]' and 'form: fields=[checkbox:Show only my first name] actions=[Yes; No; Post review]'. The actions themselves work (options sheet, Yes aria-pressed, posting).",
+   "repro": "SIFT_PORT=9466 SIFT_TAB=T6-fixtures bun /home/nico/projects/sift-test-6/scripts/tabwalk.ts http://127.0.0.1:8799/fx/r10-review.html 12 -> SIFT <textarea> comes before SIFT <button> How long have you used it? Choose one, and SIFT <input> (the checkbox) before Yes/No.",
+   "suspectedCause": "The page model's form block is {fields, actions} (src/content/model.ts:142); controlInto in src/content/extract/generic.ts sends a non-field control to out.action, and FormView (src/content/ui/app.tsx:356) renders all fields and then one row of all actions, so a button-based control between fields loses its place, and a role=group name is not carried to its buttons.",
+   "verdict": "Reproduced with tabwalk: radio, Title input, textarea, 'How long have you used it? Choose one' button, checkbox, Yes, No, Post review. The original order is rating, combobox, Title, review, Yes/No, checkbox, Post review. The outline and screenshot show the 'How long have you used it?' label as a small p above Title. Its button sits after the textarea, between two '0 of 500 characters' lines. 'Would you recommend it to a friend?' is followed by the 'Show only my first name' checkbox, then a row 'Yes | No | Post review'. The Yes button is <button class=btn aria-pressed=false>Yes</button> inside div.row inside form.form, with no group or aria-labelledby, so the question is lost for screen readers. The Yes/No buttons also sit beside the submit button as if they were form actions. This is a real form-structure and accessibility problem, so medium holds. Shot: /home/nico/projects/sift-test-6/research/shots/skeptic-review-sift.png.",
+   "fix": "In src/content/extract/generic.ts, controlInto should keep a button-based field (div role=combobox with a listbox, and a role=group of aria-pressed buttons) in the form's fields list at its DOM position. That needs a new optional field kind in model.ts (or a fields entry that holds actions). FormView in src/content/ui/app.tsx should render it in place, under its label, wrapped in role=group with aria-label taken from the group's aria-labelledby."
+  },
+  {
+   "source": "T6-fixtures",
+   "title": "After posting the review, the confirmation is drawn as a list card: the heading becomes a link and the real 'Back to \u2026' link becomes plain text",
+   "severity": "medium",
+   "where": "http://127.0.0.1:8799/fx/r10-review.html after a valid 'Post review'",
+   "evidence": "Original: form replaced by <h2>Thanks, your review was sent</h2> (focused), a paragraph, and the link 'Back to Rye sourdough loaf' (/p/rye). Sift: a list item whose title 'Thanks, your review was sent' is a blue link to http://127.0.0.1:8799/p/rye, and 'Back to Rye sourdough loaf' is a small grey p with no link (sx: 'a href=\u2026/p/rye :: Thanks, your review was sent | p href=null :: Back to Rye sourdough loaf'). Focus lands on the li item. Posting itself works (log 'posted 4 | Best rye in town | A few weeks | rec=yes | first=true'). Shot: /home/nico/projects/sift-test-6/research/shots/r10t6-review-posted.png",
+   "repro": "SIFT_PORT=9466 SIFT_TAB=T6-fixtures bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r10t6/go.ts goto:http://127.0.0.1:8799/fx/r10-review.html wait:3500 \"click:4 stars\" \"type:Title=>Best rye in town\" \"type:Your review=>Dense and sour, keeps a week.\" \"click:Post review\" wait:1200 outline -> '[link] Thanks, your review was sent' and 'p: Back to Rye sourdough loaf'.",
+   "suspectedCause": "The generic card heuristic (toItem in src/content/extract/generic.ts) treats any box with a heading, text and one link as a list entry and moves its only link onto the title; a single status box (role-less div that replaced a form, heading with tabindex=-1) should stay as heading, paragraph and link.",
+   "verdict": "Reproduced twice. After a valid Post review, the page log shows the post (e.g. 'posted 5 | Good | Choose one | rec=yes | first=true'). The page's #done is <h2 tabindex=-1>Thanks, your review was sent</h2><p>\u2026</p><p><a href=/p/rye>Back to Rye sourdough loaf</a></p>. In Sift it is a list item: 'a href=http://127.0.0.1:8799/p/rye :: Thanks, your review was sent | p (no link) :: Back to Rye sourdough loaf'. Focus is on li.item. The screenshot shows the confirmation heading as a blue underlined link and 'Back to \u2026' as small grey plain text. The success message is drawn as a link that navigates away, and the real link is dead text. This is a misleading form outcome, so medium holds. Shot: /home/nico/projects/sift-test-6/research/shots/skeptic-review-posted.png.",
+   "fix": "In asCard() (src/content/extract/generic.ts ~line 2502, which feeds toItem), do not build a card when the heading is not linked and the box's only link sits in its own block after the text (a 'Back to \u2026' link), or when the heading is a focus target (tabindex=-1, or document focus is in the box). Let it walk as heading, paragraph and link."
+  },
+  {
+   "source": "R3-ai-background",
+   "title": "A Short version saved for an earlier text of the same article is reused when the article has changed: it states a claim the page now contradicts, keeps a paragraph that was removed, loses new short paragraphs, and puts a link on another link's address",
+   "severity": "high",
+   "where": "src/background/text.ts:974-983 (reuseShort coverage check); src/background/index.ts:760-773 (reuse path); src/content/ai.ts:476-482 (meta taken from the current text, so planShort shows nothing in full)",
+   "evidence": "Chrome 9469 with my mock model on port 8881. Two fixtures share one h1 on one site, as an edited article would. mayor1.html made 1 condense call, and its Short version starts 'Mayor Ana Ruiz said on Monday that she will run for a third term\u2026'. mayor2.html says 'she will not run'. It made 0 calls and showed the same 'she will run' sentence, and nothing put the changed paragraph back. mayor5.html removes the car-thefts paragraph. It made 0 calls, and the Short version still says 'Police reported fewer car thefts this.' mayor3.html adds a 'Road closures on Sunday:' list with items under 8 words. The Short version has none of it. guide2.html removes the passport paragraph. Its Short version still says 'Renew your passport online here', and that link now goes to /report-lost-card (linkcheck.ts prints the href). The same happens offline with reuseShort (r10ai/t/reuse.ts, reuselink.ts). Cause: reuse needs only 95% of the new text's 8-word-or-longer lines (by words) to appear in the old text. Shorter lines never count, and lines the old text had but the new one lacks are never checked. Link ids are renumbered by their words alone. The reused text is checked only for quotes and numbers. It is then saved under the new key for 30 days. The page gets meta for the current text, so freshUnits is empty and the changed or new paragraphs are not shown in full, as they are after a change within one visit. Inference, not tested: daily pages updated at one URL (puzzle hints, schedules) would show yesterday's facts.",
+   "repro": "Start the mock: bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r10ai/mock.ts, in tmux. Then run SIFT_PORT=9469 SIFT_TAB=R3-ai-background bun scratchpad/r10ai/settings.ts. Then, in this order: bun scratchpad/r10ai/watch.ts mayor1.html 8 'short version|Mayor Ana' and then mayor2.html, mayor5.html 'car thefts' and mayor3.html 'Main Street'. For the link: bun scratchpad/r10ai/linkcheck.ts guide1.html, then guide2.html. Offline: bun scratchpad/r10ai/t/reuse.ts and t/reuselink.ts.",
+   "suspectedCause": "reuseShort treats 'the new text's long lines are 95% inside the old text' as 'the same text'. Fix lead: reuse only when every prose unit of both texts matches (short ones included), or return the old text with the reuse so the page shows new or changed paragraphs in full and drops sentences about gone ones (planShort already does this within a visit). Map a link only when its line is unchanged.",
+   "regression": true,
+   "verdict": "Confirmed, high. Chrome 9469 with the mock: mayor1 made 1 condense call. Then mayor2 made 0 calls, and its Short version opens 'she will run for a third term' while the page says 'will not run'. Repeated in the other order after a cache clear: mayor3 first (1 call, its Short version has 'Road closures on Sunday. Main Street is closed all day.'), then mayor2 (0 calls) showed 'will run' and 'Road closures\u2026 Main Street is closed all day.' The mayor2 page has neither. mayor5 (car-thefts paragraph removed) made 0 calls and still showed 'Police reported fewer car thefts this.' mayor3 reusing mayor1's version showed no road closures, while a fresh mayor3 call keeps them. guide1 then guide2: 0 calls, and 'Renew your passport online here' links to /report-lost-card (guide2 has no passport paragraph). The offline runs of reuse.ts and reuselink.ts agree. Cause, from the code: reuseShort (text.ts ~968) counts only the 8-word-or-longer lines of the new text and wants 95% of their words in the old text. A one-word edit to one line of a 25-line article passes. Lines the old text had and the new one lacks are never checked. A link is mapped by its words alone when only one candidate is left (`same.length === 1`). index.ts ~762-770 then saves the result under the new key, and the content side builds meta from the current text, so freshUnits is empty and nothing is shown in full.",
+   "fix": "src/background/text.ts reuseShort: reuse only when the prose line sets match both ways, short lines included (or allow only lines the new text adds at the end, as with lazy loading). Map a link only when `y.line === x.line`, and drop the `same.length === 1` fallback. Better: have doCondense (src/background/index.ts reuse branch) return p.text with the reply, and build the content's ShortMeta from that text (src/content/ai.ts condense). planShort then shows changed or new paragraphs in full and drops sentences about removed ones, as it does within one visit."
+  },
+  {
+   "source": "R3-ai-background",
+   "title": "stripPreamble still removes a first-person lead or a correction note: a review's verdict paragraph disappears from the Short version (rest of F909)",
+   "severity": "high",
+   "where": "src/background/text.ts:656-673 (NOTE_START 'i (have|kept|left|will\u2026)', i've, 'he mantenido', note/nota; NOTE_TOPIC version/article/words/text/links); called from src/background/index.ts:812 and 841",
+   "evidence": "Chrome 9469 with my mock: fx pixel.html, a first-person phone review. The mock's first paragraph is 'I have tested every version of the Pixel phone since 2016, and the Pixel 11 is the first one I would not recommend.' The Short version starts with 'The design is almost the same as last year's.' The verdict is gone, and nothing puts it back. Offline (r10ai/t/pre3.ts, pre2.ts), these are removed too: 'I've used this app for five years, and the new version breaks the one feature I need.', 'I left Twitter after twelve years; this article explains why.', 'I kept a diary \u2026 the words I wrote most\u2026', 'He mantenido este blog \u2026 esta es la versi\u00f3n que m\u00e1s me gusta.' and 'I will not vote for this budget \u2026 the text of the housing law\u2026'. A last paragraph is removed in the same way: 'Note: This article was corrected on March 3 to fix the date of the vote.', 'Nota: este art\u00edculo fue actualizado con la cifra oficial de heridos.' and 'Here are the links to the forms you need to apply.'",
+   "repro": "Offline: cd /home/nico/projects/sift-test-9 && bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r10ai/t/pre3.ts (and t/pre2.ts). Chrome: start the mock and settings as above, then bun scratchpad/r10ai/watch.ts pixel.html 7 '.*'.",
+   "suspectedCause": "A paragraph that opens with 'I have/I've/I left/I kept/I will' or 'Note:' and contains a common word such as version, article, words, text or links counts as the model's own note. Fix lead: count only a note about the task (the Short version, [[B\u2026]], a word count, 'here is the shorter\u2026'), never a paragraph whose words come from the source text.",
+   "regression": false,
+   "verdict": "Confirmed. I rate it medium rather than high. Chrome 9469 with the mock, pixel.html, run twice with the cache cleared in between (1 call each time). The Short version starts with 'The design is almost the same as last year's.' The verdict paragraph 'I have tested every version of the Pixel phone since 2016, and the Pixel 11 is the first one I would not recommend.' is gone, though the original page has it. The offline pre3.ts removes 6 of 7 first-person openers: I have\u2026version, I've\u2026version, I left\u2026article, I kept\u2026words, He mantenido\u2026versi\u00f3n, I will\u2026text. Only 'I cut sugar\u2026' is kept. pre2.ts removes the last-paragraph 'Note: This article was corrected\u2026' and 'Nota: este art\u00edculo fue actualizado\u2026', the 'I will write a follow-up article\u2026' close, and 'Here are the links to the forms\u2026'. It also removes the 'I have read every word of the bill's text' op-ed opener. Cause: NOTE_START (text.ts ~656) admits any 'I have/I've/I will/I kept/I left/Note:' opening. NOTE_TOPIC matches everyday words (version, article, text, words, links), so a first-person paragraph about the subject counts as the model's note. A review's verdict or an op-ed's thesis is lost from the Short version and is not put back.",
+   "fix": "src/background/text.ts NOTE_START/NOTE_TOPIC/stripPreamble: count a paragraph as a note only when it talks about the task: [[B\u2026]], a word count, 'here is the shorter/condensed version', 'I kept/removed the placeholders/links/headings', or 'the source/original text'. Drop the bare 'I have/I've/I will/I left/I kept' and 'Note:' openers with generic topic words. Or keep any paragraph most of whose content words appear in the source."
+  },
+  {
+   "source": "R3-ai-background",
+   "title": "The number check still drops faithful warning sentences when the model converts a unit or a ratio ('in a day' to '24 hours', 'one year old' to '12 months', 'nine in ten' to '90%') (rest of F906)",
+   "severity": "high",
+   "where": "src/background/text.ts:587-593 (unsupported, number test), :633-647 (dropUnsupported drops the whole sentence), :443-452 (sourceNumbers)",
+   "evidence": "Chrome 9469 with my mock: fx dose.html, a paracetamol leaflet. The source says 'never take more than eight tablets in a day, because too much paracetamol can cause serious liver damage' and 'Children under one year old should only be given paracetamol made for babies'. The model's text says 'Never take more than 8 tablets in 24 hours: too much can seriously damage the liver.' and 'Give children under 12 months only baby paracetamol\u2026'. The Short version shows the dose ('two 500 mg tablets every four to six hours') but neither warning, and '90% of people have no side effects' is gone too. Offline (r10ai/t/num2.ts), each of these returns 'number': 500,000 for 'Half a million', 90% for 'Nine in ten', 20% for 'One in five', 100% for 'doubled', 10 years for 'a decade', 12 pm for 'noon', 24 hours for 'in a day', 75% for 'Tres de cada cuatro' and 12 months for 'one year old'.",
+   "repro": "Offline: cd /home/nico/projects/sift-test-9 && bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r10ai/t/num2.ts. Chrome: mock and settings as above, then bun scratchpad/r10ai/watch.ts dose.html 7 '.*'.",
+   "suspectedCause": "Any number in digits that the source does not state in some form drops the whole sentence, and nothing restores it. Fix lead (also in the F906 skeptic note): when a number fails, keep the sentence and put the source sentence back in full, or accept common conversions (day = 24 hours, year = 12 months, 'X in Y' = percent, 'half a million').",
+   "regression": false,
+   "verdict": "Confirmed, high (medication warnings). Chrome 9469 with the mock, dose.html, run twice with a cleared cache. The Short version keeps 'Adults can take two 500 mg tablets every four to six hours.' It loses 'Never take more than 8 tablets in 24 hours: too much can seriously damage the liver.' (the sentence is cut out of its paragraph) and the 'children under 12 months only baby paracetamol' warning. '90% of people have no side effects\u2026' is gone too. The original page states all three. Offline, num2.ts returns 'number' for 500,000/half a million, 90%/nine in ten, 20%/one in five, 100%/doubled, 10 years/a decade, 12 pm/noon, 24 hours/in a day, 75%/tres de cada cuatro and 12 months/one year old. Cause: unsupported() fails any digit value the source does not state in some form, and dropUnsupported removes the whole sentence with nothing restored. This is the rest of F906. The cases F906 reported now pass.",
+   "fix": "src/background/text.ts sourceNumbers: add common conversions: 'a day'/'daily' = 24 hours, 'a year'/'one year' = 12 months, 'a week' = 7 days, 'a decade' = 10 years, noon/midnight = 12, 'X in Y'/'X de cada Y' = the percent, half/quarter with a scale word, doubled/tripled = 100/200%. In dropUnsupported, when a sentence fails only on 'number', keep it with the source's own wording, or put the source sentence back in full instead of deleting it (warnings above all)."
+  },
+  {
+   "source": "R3-ai-background",
+   "title": "The speaker check drops a correctly attributed lead quote when the source says 'she said' and names the speaker more than 300 characters earlier (rest of F907)",
+   "severity": "high",
+   "where": "src/background/text.ts:549-551 (speakerNear: a named speaker must appear within 300 characters of the source quote when the source attributes it with a pronoun); :587-589; :633-647",
+   "evidence": "Chrome 9469 with my mock: fx union.html. Paragraph 1 introduces 'Maria Lopez, the head of the workers' union\u2026'. Paragraph 4 says '\u201cWe will not accept a single job cut,\u201d she said.' The model's first sentence, 'Union leader Maria Lopez said \u201cwe will not accept a single job cut\u201d and threatened a strike.', is dropped. The Short version starts with 'The Northgate plant employs about 2,000 people\u2026', so the article's main point is lost. The same fixture kept the sentence when the word 'union' happened to fall within 300 characters after the quote, so whether the lead survives depends on stray words nearby. Offline (r10ai/t/spk2.ts), unsupported() returns 'speaker' when the name is 571 characters from the quote.",
+   "repro": "Offline: cd /home/nico/projects/sift-test-9 && bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r10ai/t/spk2.ts. Chrome: mock and settings as above, then bun scratchpad/r10ai/watch.ts union.html 7 '.*'.",
+   "suspectedCause": "With a pronoun attribution in the source, the name must be inside a fixed 300-character window. Fix lead: accept a speaker the source names anywhere before the quote, or on a 'speaker' failure remove only the quote marks or the name instead of the sentence.",
+   "regression": false,
+   "verdict": "Confirmed. I rate it medium-high. Chrome 9469 with the mock, union.html, run twice with a cleared cache. The Short version starts with 'The Northgate plant employs about 2,000 people\u2026'. The lead 'Union leader Maria Lopez said \u201cwe will not accept a single job cut\u201d and threatened a strike.' is dropped, though the source names Maria Lopez in paragraph 1 and has '\u201cWe will not accept a single job cut,\u201d she said.' in paragraph 4. On the exact fixture source, unsupported() returns 'speaker', and 'Maria Lopez said \u201c\u2026\u201d' fails too. If the source sentence says 'Lopez was blunt' instead of 'she', it passes. spk2.ts gives 'speaker' at a name-to-quote distance of 571 characters. Cause: speakerNear (text.ts ~549) needs the named speaker within 300 characters of the quote when the source attributes it with a pronoun. Whether a correct lead survives depends on how long the paragraphs between are. This is the rest of F907.",
+   "fix": "src/background/text.ts speakerNear: when the source's own attribution is a pronoun, accept a named speaker the source mentions anywhere before the quote (or anywhere in the source). In dropUnsupported, answer a 'speaker' failure by taking off the quote marks or the name rather than deleting the sentence."
+  }
+ ],
+ "rejected": [
+  {
+   "source": "T5-amazon-gmail-a11y",
+   "title": "Gmail reply: after 'Reply opened below.' the next Tab lands on Forward, not the reply body",
+   "severity": "medium",
+   "regression": true,
+   "where": "http://127.0.0.1:8799/fx/gmail.html#inbox/2 (Reply in a thread)",
+   "evidence": "Focusing Sift's Reply and pressing Enter says 'Reply opened below.'. Focus stays on Reply. The next Tab goes to 'Forward' (button.btn normal), and only a second Tab reaches the 'Message Body' textarea. research/round9/works.md line 252 (round 8) says that after 'Compose opened below.' and 'Reply opened below.' the next Tab reaches To or the reply body. Compose still meets that line (next Tab reaches 'To recipients'); Reply no longer does. The reply itself still works: Tab, Tab, 'Thx', Shift+Enter, 'Ok', Tab, Enter sends {to:'news@celiac.example', body:'Thx\\nOk'}. When the page focuses its own reply body, as real Gmail does, Sift's focus follows into the textarea, so the real site is probably not hit. I could not run a round 8 build to confirm the regression; the evidence is the works.md line. Shot: /home/nico/projects/sift-test-5/research/shots/r10t5-gmail-reply-open.png",
+   "repro": "SIFT_PORT=9465 SIFT_TAB=T5-amazon-gmail-a11y bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t5r10/go.ts goto:http://127.0.0.1:8799/fx/gmail.html wait:500 goto:http://127.0.0.1:8799/fx/gmail.html#inbox/2 wait:3000 listen \"sx:([...R.querySelectorAll('button')].find(b=>b.innerText.trim()==='Reply').focus(),1)\" press:Enter wait:1500 said press:Tab focus. It prints said ['Reply opened below.'] and then focus '... :: Forward'.",
+   "suspectedCause": "src/content/index.ts ~2357-2363 announces the opened form and leaves focus on the opener. The form is rendered after the thread's other actions (Forward), so the order between the opener and the form is not 'next'. Either move focus into the opened form when the page does not, or place the form right after its opener.",
+   "verdict": "The behavior reproduces (2 of 2) but I reject it. On fx/gmail.html#inbox/2 I focused Reply and pressed Enter. Sift said 'Reply opened below.', Tab went to Forward, and a second Tab reached the textarea. Sift's order is Reply | Forward | textarea | Send. Reasons: (1) This is the same report a round 9 skeptic already rejected (research/round9/rejected.md line 3, w3.json): same fixture, same steps, same evidence. (2) The regression is not shown. thread() in adapters/gmail.ts pushes the 'replies' actions and then editor() in the same order in sift-r8-base, sift-r8b-base, sift-r9-base and this build. The 'opened' and newForm logic in index.ts is the same in all of them. The fixture has been unchanged since 2026-10-24. So round 8 could only have shown the same Tab order, and the works.md line is loose wording. (3) It is a fixture artifact. The fixture never focuses its own reply body. When I focused the page's Message Body right after Enter, as real Gmail does, Sift's focus went into the textarea. (4) It costs one Tab, and 'opened below' is accurate. The original's Reply and Forward are spans with no tabindex, so it has no keyboard path to compare."
+  },
+  {
+   "source": "T6-fixtures",
+   "title": "Backspace in an empty chip field does not remove the last chip as it does on the original",
+   "severity": "medium",
+   "where": "http://127.0.0.1:8799/fx/r5-chips.html, the 'Add a skill' chip input (same pattern as tag inputs and email 'To' fields)",
+   "evidence": "Original (Sift off): 'sa', ArrowDown, Enter adds Food safety, then Backspace in the empty field logs 'backspace Food safety' and the chips become 'Sourdough,Pastry'. In Sift the same keys log only 'add Food safety'; after Backspace the page chips stay 'Sourdough,Pastry,Food safety' and Sift still lists 'Remove Food safety'. The Remove buttons still work by mouse and keyboard.",
+   "repro": "SIFT_PORT=9466 SIFT_TAB=T6-fixtures bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r10t6/go.ts goto:http://127.0.0.1:8799/fx/r5-chips.html wait:3000 \"sx:(()=>{const i=[...R.querySelectorAll('input')].find(i=>i.placeholder==='Add a skill');i.focus();return 1})()\" keys:sa wait:800 press:ArrowDown press:Enter wait:900 press:Backspace wait:900 log \"eval:[...document.querySelectorAll('.chip')].map(c=>c.dataset.v).join()\" -> log has no 'backspace', chips still 3. Add press:Alt+Shift+S before the steps (and pclick:#skill instead of the sx focus) to see the original remove it.",
+   "suspectedCause": "Sift replays a text field's keys to the page only when its value changes (src/content/proxy.ts ~line 90, setValue sends 'Backspace' only when the value got shorter), so Backspace in an already empty field never reaches the page's keydown handler; forward Backspace/Delete keydown when the field is empty.",
+   "verdict": "The facts reproduce. In Sift: 'sa', ArrowDown, Enter logs only 'add Food safety', Backspace in the empty field changes nothing, and the chips stay 'Sourdough,Pastry,Food safety'. On the original the log adds 'backspace Food safety' and the chips become 'Sourdough,Pastry'. But this is the same report, on the same fixture and field, that the skeptics rejected as low severity in round 5 (research/round5/rejected.md line 9) and again in round 7 (research/round7/rejected.md line 4). The claim itself says removing a chip stays fully usable through the 'Remove \u2026' buttons, by mouse and keyboard. A keyboard shortcut with a working, visible alternative is not high or medium severity."
+  },
+  {
+   "source": "R3-ai-background",
+   "title": "The privacy text says only Short versions and one-line descriptions are saved, but the cache now also keeps the full page text of every condensed page (signed-in pages included), and a signed-in page's Short version can be re-saved for 30 days",
+   "severity": "medium",
+   "where": "src/background/index.ts:829 (artKey saves {text: req.text, out}); src/background/index.ts:764-768 (reuse saves with the current page's TTL); src/options/index.tsx:71; README.md:50; site/index.html:48",
+   "evidence": "Chrome 9469, extension IndexedDB 'sift' read from the Options page (scratchpad/r10ai/idb.ts). Every condensed page left a '{\"text\": \u2026}' entry with its whole source text, for example the Fox article (8171 characters) and each fixture. fx account.html is a signed-in bank message with a 'Sign out' link. It left a 7-day entry holding the full message: 'Dear Ana Ruiz, your account number ending in 4471 was used \u2026 to pay 1,240 dollars to \u2026 Northwind Travel'. fx account2.html is the same page without 'Sign out' and with one paragraph removed. It made 0 model calls and saved the signed-in page's Short version ('Dear Ana Ruiz, your account number ending in 4471\u2026') again as a 30-day entry. Options says 'Short versions and one-line descriptions are saved \u2026 Those from signed-in pages, such as email, are deleted after 7 days'. README says 'Results are saved', and the install page says 'Results are cached'. None of them says the page text itself is kept. stats.ts matches the texts: it sends v, i, d and exactly the 10 listed counts.",
+   "repro": "Mock and settings as above. Then bun scratchpad/r10ai/watch.ts account.html 6 'Dear Ana', then bun scratchpad/r10ai/idb.ts 'Northwind|4471' (one 7-day entry holds the full text). Then watch.ts account2.html 6 'Dear Ana' and idb.ts again: a new 30-day entry holds the signed-in Short version.",
+   "suspectedCause": "round 9's reuse (ai13) stores the source text next to the latest Short version and saves reused results with the current page's lifetime. Fix lead: store hashes or per-line fingerprints instead of the text (reuseShort needs only the line set, anchors and link words), keep the shorter lifetime of the entry reused, or update the privacy text in all three places.",
+   "regression": true,
+   "verdict": "The facts reproduce, but the impact is low, not medium. Chrome 9469 with the mock: account.html (has Sign out) left a 7-day entry '{\"text\":\"Dear Ana Ruiz, your account number ending in 4471 \u2026 Northwind Travel\u2026' next to the 7-day Short version. account2.html then made 0 calls and added a 30-day entry with the same Short version. Why this is not a medium privacy bug: the page text stays in the user's own browser. It is kept for the same 7 or 30 days as the Short version, incognito never saves it, and Options' clear button removes it. Nothing new is sent anywhere. The 30-day re-save happens only because account2 is judged not signed in (the fixture removed 'Sign out'). A fresh condense of account2 would have saved its own Short version, with the same name and account digits, for 30 days anyway. Reuse needs the same site, the same title and 95% of the same prose, so the only extra content kept longer is the few lines the public page lacks. What remains is a wording mismatch: Options and README describe saved 'Short versions'/'Results', not the source text. That is cheap to correct, but it is a disclosure-wording issue."
+  }
+ ],
+ "stillOpen": [
+  {
+   "id": "F904",
+   "status": "partly",
+   "evidence": "Fixed on the page itself. copycode.ts: Sift gives clipboard BREAD-42, log ['code copied'] and 'Code copied' shown, the same as the original. activation.ts: Sift's Copy link gives clipboard 'https://drive.example/s/bakery-recipes', and the page log is identical to the original's (copied, confirms, export 3, help opened, remove all, undo). Still broken in a share dialog. I injected a role=dialog with aria-label 'Share \"Bakery recipes\"' holding 'Anyone with the link can view.' plus Copy link and Done into r9-activation. Sift's sheet read 'Share \"Bakery recipes\" / Close / Anyone with the link can view. / Done' in 2 of 2 runs: Copy link is dropped. The same dialog labeled 'People with access' keeps Copy link. So does one named through aria-labelledby. Cause in src/content/extract/generic.ts: line 924 returns !shareTarget(el, href) for COPY_LABEL, and shareTarget (line 893) is true when any ancestor's aria-label contains 'share'. A share dialog's own label trips it. Repro: SIFT_PORT=9465 SIFT_TAB=T5-amazon-gmail-a11y bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t5r10/go.ts goto:http://127.0.0.1:8799/fx/r9-activation.html wait:3000 \"eval:(()=>{const d=document.createElement('div');d.setAttribute('role','dialog');d.setAttribute('aria-label','Share \\\"Bakery recipes\\\"');d.innerHTML='<h2>Share</h2><p>Anyone with the link can view.</p><button>Copy link</button><button>Done</button>';d.style.cssText='position:fixed;top:100px;left:100px;background:#fff';document.body.append(d);return 1})()\" wait:2500 \"sx:R.querySelector('[aria-modal=true]')?.innerText\" (no 'Copy link').",
+   "src": "T5-amazon-gmail-a11y",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, confirmed. On the page itself it is fixed. copycode.ts gives clipboard BREAD-42, log ['code copied'] and 'Code copied' shown, in Sift (twice) and in the original. activation.ts in Sift gives clipboard 'https://drive.example/s/bakery-recipes' and the full log (copied, confirms, export 3, help opened, remove all, undo). In a share dialog it is still broken. I injected into r9-activation a role=dialog holding 'Anyone with the link can view.', a working Copy link (writes https://drive.example/s/dialog-link) and Done. With aria-label 'Share \"Bakery recipes\"', Sift's sheet reads 'Share \"Bakery recipes\" / Close / Anyone with the link can view. / Done'. Copy link is missing and the clipboard stays EMPTY (2 of 2). The original copies the link (log ['dlg copied']). A dialog with only class 'share-dialog' and no label drops it too. With aria-label 'People with access', or named through aria-labelledby, Sift keeps Copy link and it copies. The cause is in src/content/extract/generic.ts. usefulControl's COPY_LABEL branch returns !shareTarget(el, href). shareTarget walks up to 5 ancestors and returns true when any has a 'share' class token or an aria-label containing 'share'. A share dialog's own name or class trips that check. This is the Drive-style case the original F904 skeptic named, and there Copy link is the dialog's main action.",
+    "fix": "In src/content/extract/generic.ts, usefulControl's COPY_LABEL branch: do not drop a copy control inside a dialog. Use (ctx?.inDialog || !shareTarget(el, href)). Or make shareTarget stop its ancestor walk at a [role=dialog], [aria-modal=true] or <dialog> element, so the dialog's own aria-label or class does not count. Keep the 'small tool row next to Share' check, so share-icon rows are still dropped."
+   }
+  },
+  {
+   "id": "F906",
+   "status": "partly",
+   "evidence": "The reported values now pass. Offline (scratchpad/r9ai/t/drop.ts, num.ts and r10ai/t/skeptic.ts), these all return ok: sixteen, Twenty-five, Diecisiete, $40.00, 1.500,00, 9.30pm, 1.5 million, $84.00, fifteen, trece, Forty, Veinticinco, $12.00, 2.5 million and 9.30am. In Chrome 9469 with my mock, aspirin.html keeps 'Children under 16 must never take aspirin\u2026'. Still failing: a sentence is dropped whole when the model converts a unit or a ratio. Examples: 'in a day' becomes '24 hours', 'one year old' becomes '12 months', 'nine in ten' becomes '90%', and also 'one in five', 'half a million', 'doubled', 'a decade', 'noon' and 'tres de cada cuatro' (r10ai/t/num2.ts). On fx dose.html in Chrome, the Short version lost the daily-maximum and liver warning and the baby-dose warning. Reported as a finding below.",
+   "src": "R3-ai-background",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, confirmed. The reported values now pass: the offline skeptic.ts, r9ai drop.ts and num.ts return ok for fifteen, trece, Forty, Veinticinco, $12.00, 2.5 million, 9.30am, Twenty-five, Diecisiete, $40.00, 1.500,00, 9.30pm, 1.5 million and $84.00. The aspirin age warning is kept. Still failing: unit and ratio conversions drop faithful sentences, including the paracetamol daily-maximum and baby-dose warnings in Chrome (see N2).",
+    "fix": "See N2: accept common conversions in sourceNumbers, and restore the source sentence instead of deleting it on a 'number' failure."
+   }
+  },
+  {
+   "id": "F907",
+   "status": "partly",
+   "evidence": "The reported cases pass. Offline: 'Brazilian'/'Brazil' and 'Spanish finance minister' pass. 'Videoclip oficial de \u00abHopelessly\u00bb', 'Canci\u00f3n \u00abBillie Jean\u00bb\u2026', 'Tema \u00abHopelessly\u00bb\u2026' and 'Song \u201cPatient A\u201d by Ado' pass vetLine. In Chrome, rigged.html keeps 'Trump said on Monday \u2026 \u201ca rigged election\u201d'. Still failing: the source can attribute the quote with a pronoun ('\u201cWe will not accept a single job cut,\u201d she said.') and name the speaker more than 300 characters earlier. Then the correct sentence 'Union leader Maria Lopez said \u201cwe will not accept a single job cut\u201d\u2026' is dropped as 'speaker'. Seen on fx union.html in Chrome. Reported as a finding below.",
+   "src": "R3-ai-background",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, confirmed. The reported cases pass offline: 'Ruiz, the Spanish finance minister, said\u2026' is ok. 'Tema \u00abHopelessly\u00bb, videoclip oficial' and 'Song \u201cPatient A\u201d by Ado' pass vetLine. The rigged-election drop.ts case is kept. Still failing: a correctly named speaker is rejected when the source attributes the quote with 'she said' and names her more than 300 characters earlier. union.html loses its lead in Chrome (see N3).",
+    "fix": "See N3: in speakerNear, accept a name the source states anywhere before a pronoun-attributed quote. On a 'speaker' failure, remove the marks rather than the sentence."
+   }
+  },
+  {
+   "id": "F909",
+   "status": "partly",
+   "evidence": "The quoted cases are kept. pre.ts keeps the 'I will keep fighting', Nadal, factory and DeepL 'source text' paragraphs, and the skeptic's striker, coach and 'Open source text editors' cases are kept too. In Chrome, veto.html opens with 'The president vetoed the tax bill\u2026'. Still failing: an unquoted first-person paragraph that starts with I have, I've, I left, I kept, I will or He mantenido and contains version, article, words or text is still removed (r10ai/t/pre3.ts). So is a 'Note: This article was corrected\u2026' paragraph. On fx pixel.html in Chrome, the review's verdict paragraph is gone. Reported as a finding below.",
+   "src": "R3-ai-background",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, confirmed. The quoted cases are kept: in pre.ts, Biden 'I will keep fighting', Nadal, the factory chief and DeepL 'source text' come out unchanged, and the striker, coach and 'Open source text editors' cases are kept. Still failing: unquoted first-person openers ('I have tested every version\u2026', 'I've used\u2026new version', 'I left\u2026this article') and 'Note: This article was corrected\u2026' closers are removed. The Pixel review's verdict disappears in Chrome (see N1).",
+    "fix": "See N1: narrow NOTE_START/NOTE_TOPIC in src/background/text.ts to notes about the task itself."
+   }
+  }
+ ],
+ "recheck": {
+  "F901": {
+   "id": "F901",
+   "status": "fixed",
+   "evidence": "r9-savebar: the fixture's own CSS (#savebar{display:flex}) beats the hidden attribute, so the original shows the bar from load. Sift shows it too ('Unsaved changes', Discard, Save). To test the real case I injected #savebar[hidden]{display:none}. Sift then had 0 Save/Discard buttons before any change and 2 (at y=799) after clicking Wed. Save through Sift logged save {...} on the page, said 'Settings saved', and the bar went away (0 buttons). Thu then Discard logged 'discard' and said 'Changes discarded.'. Shots: /home/nico/projects/sift-test-5/research/shots/r10t5-savebar-truehidden-dirty.png and r10t5-savebar-after-discard.png.",
+   "src": "T5-amazon-gmail-a11y"
+  },
+  "F902": {
+   "id": "F902",
+   "status": "fixed",
+   "evidence": "Sift now renders <span role=spinbutton aria-valuenow=18 aria-valuetext='18:00'>18:00</span>. Its AX name is 'Order cut-off (hour, 24 h)' via aria-labelledby. With it focused: ArrowUp took the page to 19:00, two more ArrowUp to 21:00 (Sift 21:00), and ArrowDown to 20:00 (Sift 20:00). Later then gave 21:00 on both. Page log: change cut 19, 20, 21, 20, 21.",
+   "src": "T5-amazon-gmail-a11y"
+  },
+  "F904": {
+   "id": "F904",
+   "status": "partly",
+   "evidence": "Fixed on the page itself. copycode.ts: Sift gives clipboard BREAD-42, log ['code copied'] and 'Code copied' shown, the same as the original. activation.ts: Sift's Copy link gives clipboard 'https://drive.example/s/bakery-recipes', and the page log is identical to the original's (copied, confirms, export 3, help opened, remove all, undo). Still broken in a share dialog. I injected a role=dialog with aria-label 'Share \"Bakery recipes\"' holding 'Anyone with the link can view.' plus Copy link and Done into r9-activation. Sift's sheet read 'Share \"Bakery recipes\" / Close / Anyone with the link can view. / Done' in 2 of 2 runs: Copy link is dropped. The same dialog labeled 'People with access' keeps Copy link. So does one named through aria-labelledby. Cause in src/content/extract/generic.ts: line 924 returns !shareTarget(el, href) for COPY_LABEL, and shareTarget (line 893) is true when any ancestor's aria-label contains 'share'. A share dialog's own label trips it. Repro: SIFT_PORT=9465 SIFT_TAB=T5-amazon-gmail-a11y bun /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/t5r10/go.ts goto:http://127.0.0.1:8799/fx/r9-activation.html wait:3000 \"eval:(()=>{const d=document.createElement('div');d.setAttribute('role','dialog');d.setAttribute('aria-label','Share \\\"Bakery recipes\\\"');d.innerHTML='<h2>Share</h2><p>Anyone with the link can view.</p><button>Copy link</button><button>Done</button>';d.style.cssText='position:fixed;top:100px;left:100px;background:#fff';document.body.append(d);return 1})()\" wait:2500 \"sx:R.querySelector('[aria-modal=true]')?.innerText\" (no 'Copy link').",
+   "src": "T5-amazon-gmail-a11y",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, confirmed. On the page itself it is fixed. copycode.ts gives clipboard BREAD-42, log ['code copied'] and 'Code copied' shown, in Sift (twice) and in the original. activation.ts in Sift gives clipboard 'https://drive.example/s/bakery-recipes' and the full log (copied, confirms, export 3, help opened, remove all, undo). In a share dialog it is still broken. I injected into r9-activation a role=dialog holding 'Anyone with the link can view.', a working Copy link (writes https://drive.example/s/dialog-link) and Done. With aria-label 'Share \"Bakery recipes\"', Sift's sheet reads 'Share \"Bakery recipes\" / Close / Anyone with the link can view. / Done'. Copy link is missing and the clipboard stays EMPTY (2 of 2). The original copies the link (log ['dlg copied']). A dialog with only class 'share-dialog' and no label drops it too. With aria-label 'People with access', or named through aria-labelledby, Sift keeps Copy link and it copies. The cause is in src/content/extract/generic.ts. usefulControl's COPY_LABEL branch returns !shareTarget(el, href). shareTarget walks up to 5 ancestors and returns true when any has a 'share' class token or an aria-label containing 'share'. A share dialog's own name or class trips that check. This is the Drive-style case the original F904 skeptic named, and there Copy link is the dialog's main action.",
+    "fix": "In src/content/extract/generic.ts, usefulControl's COPY_LABEL branch: do not drop a copy control inside a dialog. Use (ctx?.inDialog || !shareTarget(el, href)). Or make shareTarget stop its ancestor walk at a [role=dialog], [aria-modal=true] or <dialog> element, so the dialog's own aria-label or class does not count. Keep the 'small tool row next to Share' check, so share-icon rows are still dropped."
+   }
+  },
+  "F950": {
+   "id": "F950",
+   "status": "fixed",
+   "evidence": "searchchange.ts, 2 of 2 runs in Sift (type 'bread' in the bar field, click Sift's Search with the mouse): log ['change bread','blur','search \"bread\"'] and results 'Results for bread: Rye loaf, Seeded rye'. The original gives the identical log and results. Sift's view shows 'Results for bread: Rye loaf, Seeded rye'. The Enter path also matches the original: ['search \"rye\"','change rye'], same results.",
+   "src": "T5-amazon-gmail-a11y"
+  },
+  "F953": {
+   "id": "F953",
+   "status": "fixed",
+   "evidence": "cartrow.ts, 2 of 2 runs in Sift (2nd Quantity, type 1, wait 1.5 s, type 2): rows [row-a:1, row-b:211, row-c:1], log ['b=11','b=211'], total $1701. Sift's focus ends on the input holding 211. The original gives the identical rows, log and total.",
+   "src": "T5-amazon-gmail-a11y"
+  },
+  "F903": {
+   "id": "F903",
+   "status": "fixed",
+   "evidence": "Real extension (9466). r9-savebar: /Advanced|Minimum order/ in Sift's text = true, 2 details/summary elements; labels 'Shop name | Pickup only | Advanced'; after clicking Advanced the labels include 'Minimum order ($)' with a number field, and typed digits reach #adv input (page value equals Sift's). r9ctrl12-adv: 'Advanced', 'Advanced search' with 'Ingredient', 'Gluten-free only', 'Vegan only' and the p.adv-note paragraph are shown; the Italian ad slots ('Pubblicit\u00e0', 'ADV') are absent (regex false). Harness r9.js vs r10.js: r9-savebar gains 'section: Advanced (collapsed) / form: fields=[number:Minimum order ($)]'. Shots: /home/nico/projects/sift-test-6/research/shots/r10t6-F903-savebar-adv.png, /home/nico/projects/sift-test-6/research/shots/r10t6-F903-adv-fixture.png",
+   "src": "T6-fixtures"
+  },
+  "F905": {
+   "id": "F905",
+   "status": "fixed",
+   "evidence": "r8ext11-thread: Sift innerText includes 'Agreed' = true and 'council meets' = true (page: true). dana's meta is now only '2 hours ago'; both ed replies render nested under dana (li < ol < div < li < ol, a real nested list for screen readers). r8ext11-nested-comments: Sift has 10 'Reply N to comment' texts, page has 10; parent metas no longer end with '\u00b7 maria_lopez'. Shots: /home/nico/projects/sift-test-6/research/shots/r10t6-F905-thread.png, /home/nico/projects/sift-test-6/research/shots/r10t6-F905-nested.png",
+   "src": "T6-fixtures"
+  },
+  "F934": {
+   "id": "F934",
+   "status": "fixed",
+   "evidence": "Original repro page (scratchpad r9/my/stray-label.html served on 127.0.0.1:8876) in the real extension: 'Find us', '412 Valencia St, San Francisco', 'Call (415) 555-0134' and 'Serves 6, takes 90 minutes' all present (H2 Find us kept). Fixer fixture r9ext13a-stray-label still drops the 'Trending' and 'Related stories' labels with their boxes. Harness pre/now diff adds back the 4 lines. Shot: /home/nico/projects/sift-test-6/research/shots/r10t6-F934-stray-label.png",
+   "src": "T6-fixtures"
+  },
+  "F935": {
+   "id": "F935",
+   "status": "fixed",
+   "evidence": "utm-giftguide (scratch 8876): all 4 product H2s are shown as links to their utm_campaign URLs (4 'h2 a' in Sift); harness shows prose=false (was true), so no Short version replaces the guide. Fixer fixture r9ext13a-utm-giftguide keeps the 4 H2s, the 'Get the deal at King Arthur' link and the linked figure (named 'The OXO scale on a counter'), and drops the 'Take the AIQ test' promo. Shots: /home/nico/projects/sift-test-6/research/shots/r10t6-F935-giftguide.png, /home/nico/projects/sift-test-6/research/shots/r10t6-F935-fixer-giftguide.png",
+   "src": "T6-fixtures"
+  },
+  "F936": {
+   "id": "F936",
+   "status": "fixed",
+   "evidence": "giveaway-blog: 3/3 post cards including 'Win a stand mixer: our autumn giveaway' (filed under Giveaways); H1 is 'Latest posts' and the page title is 'Latest posts' (was the site name, H1 demoted). sweeps-landing: H1 'Win a year of groceries', the dates/prize/'NO PURCHASE NECESSARY' line, the 'Official rules' link, the email field and 'Enter now' are all shown. r9ext13a-sweeps-banner still drops the Booking-style '$5,000 Cruise Giveaway' banner. Shots: /home/nico/projects/sift-test-6/research/shots/r10t6-F936-giveaway-blog.png, /home/nico/projects/sift-test-6/research/shots/r10t6-F936-sweeps-landing.png",
+   "src": "T6-fixtures"
+  },
+  "F937": {
+   "id": "F937",
+   "status": "fixed",
+   "evidence": "sizes-swiper: Sift shows buttons 8, 9, 10, 11 under 'Select size'; clicking 10 gives 'Size: 10' in Sift and on the page. Fixer fixture r9ext13a-sizes-swiper: slick dots 1/2/3 are dropped, the 'Quantity' 1/2 buttons in div.qty-slider are kept. Shot: /home/nico/projects/sift-test-6/research/shots/r10t6-F937-sizes.png",
+   "src": "T6-fixtures"
+  },
+  "F938": {
+   "id": "F938",
+   "status": "fixed",
+   "evidence": "event-details-es: three H2 date sections; the open one shows '10:00 \u2013 13:00 hs', clicking 'S\u00e1bado, 14 de noviembre de 2026' shows '14:00 \u2013 17:00 hs'. event-details-lc ('10:00 am \u2013 1:00 pm') and event-details (AM/PM) keep their times. Harness now has section + time for all three dates (Domingo: '9:30 \u2013 12:30 hs'). r9ext13b-details-time (with a byline date) keeps the dated sections, and the Guardian-style dateline folds to a small 'Tue 20 Oct 2026 10.00 GMT' line. Shots: /home/nico/projects/sift-test-6/research/shots/r10t6-F938-es.png, /home/nico/projects/sift-test-6/research/shots/r10t6-F938-details-time.png",
+   "src": "T6-fixtures"
+  },
+  "F906": {
+   "id": "F906",
+   "status": "partly",
+   "evidence": "The reported values now pass. Offline (scratchpad/r9ai/t/drop.ts, num.ts and r10ai/t/skeptic.ts), these all return ok: sixteen, Twenty-five, Diecisiete, $40.00, 1.500,00, 9.30pm, 1.5 million, $84.00, fifteen, trece, Forty, Veinticinco, $12.00, 2.5 million and 9.30am. In Chrome 9469 with my mock, aspirin.html keeps 'Children under 16 must never take aspirin\u2026'. Still failing: a sentence is dropped whole when the model converts a unit or a ratio. Examples: 'in a day' becomes '24 hours', 'one year old' becomes '12 months', 'nine in ten' becomes '90%', and also 'one in five', 'half a million', 'doubled', 'a decade', 'noon' and 'tres de cada cuatro' (r10ai/t/num2.ts). On fx dose.html in Chrome, the Short version lost the daily-maximum and liver warning and the baby-dose warning. Reported as a finding below.",
+   "src": "R3-ai-background",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, confirmed. The reported values now pass: the offline skeptic.ts, r9ai drop.ts and num.ts return ok for fifteen, trece, Forty, Veinticinco, $12.00, 2.5 million, 9.30am, Twenty-five, Diecisiete, $40.00, 1.500,00, 9.30pm, 1.5 million and $84.00. The aspirin age warning is kept. Still failing: unit and ratio conversions drop faithful sentences, including the paracetamol daily-maximum and baby-dose warnings in Chrome (see N2).",
+    "fix": "See N2: accept common conversions in sourceNumbers, and restore the source sentence instead of deleting it on a 'number' failure."
+   }
+  },
+  "F907": {
+   "id": "F907",
+   "status": "partly",
+   "evidence": "The reported cases pass. Offline: 'Brazilian'/'Brazil' and 'Spanish finance minister' pass. 'Videoclip oficial de \u00abHopelessly\u00bb', 'Canci\u00f3n \u00abBillie Jean\u00bb\u2026', 'Tema \u00abHopelessly\u00bb\u2026' and 'Song \u201cPatient A\u201d by Ado' pass vetLine. In Chrome, rigged.html keeps 'Trump said on Monday \u2026 \u201ca rigged election\u201d'. Still failing: the source can attribute the quote with a pronoun ('\u201cWe will not accept a single job cut,\u201d she said.') and name the speaker more than 300 characters earlier. Then the correct sentence 'Union leader Maria Lopez said \u201cwe will not accept a single job cut\u201d\u2026' is dropped as 'speaker'. Seen on fx union.html in Chrome. Reported as a finding below.",
+   "src": "R3-ai-background",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, confirmed. The reported cases pass offline: 'Ruiz, the Spanish finance minister, said\u2026' is ok. 'Tema \u00abHopelessly\u00bb, videoclip oficial' and 'Song \u201cPatient A\u201d by Ado' pass vetLine. The rigged-election drop.ts case is kept. Still failing: a correctly named speaker is rejected when the source attributes the quote with 'she said' and names her more than 300 characters earlier. union.html loses its lead in Chrome (see N3).",
+    "fix": "See N3: in speakerNear, accept a name the source states anywhere before a pronoun-attributed quote. On a 'speaker' failure, remove the marks rather than the sentence."
+   }
+  },
+  "F908": {
+   "id": "F908",
+   "status": "fixed",
+   "evidence": "Offline, drop.ts keeps 'The health agency said the syrup is \u201cnot safe for children under six\u201d'. The skeptic's case 'The minister called the plan \u201ca good first step\u201d\u2026' now keeps the sentence and loses only the marks. In Chrome with the mock, trump.html opens with 'Donald Trump calific\u00f3 de fraudulentas las elecciones de Brasil, pero no present\u00f3 pruebas.'",
+   "src": "R3-ai-background"
+  },
+  "F909": {
+   "id": "F909",
+   "status": "partly",
+   "evidence": "The quoted cases are kept. pre.ts keeps the 'I will keep fighting', Nadal, factory and DeepL 'source text' paragraphs, and the skeptic's striker, coach and 'Open source text editors' cases are kept too. In Chrome, veto.html opens with 'The president vetoed the tax bill\u2026'. Still failing: an unquoted first-person paragraph that starts with I have, I've, I left, I kept, I will or He mantenido and contains version, article, words or text is still removed (r10ai/t/pre3.ts). So is a 'Note: This article was corrected\u2026' paragraph. On fx pixel.html in Chrome, the review's verdict paragraph is gone. Reported as a finding below.",
+   "src": "R3-ai-background",
+   "skeptic": {
+    "confirmed": true,
+    "verdict": "Partly fixed, confirmed. The quoted cases are kept: in pre.ts, Biden 'I will keep fighting', Nadal, the factory chief and DeepL 'source text' come out unchanged, and the striker, coach and 'Open source text editors' cases are kept. Still failing: unquoted first-person openers ('I have tested every version\u2026', 'I've used\u2026new version', 'I left\u2026this article') and 'Note: This article was corrected\u2026' closers are removed. The Pixel review's verdict disappears in Chrome (see N1).",
+    "fix": "See N1: narrow NOTE_START/NOTE_TOPIC in src/background/text.ts to notes about the task itself."
+   }
+  },
+  "F910": {
+   "id": "F910",
+   "status": "fixed",
+   "evidence": "Chrome 9469 with my mock on port 8881, three visits each. cfilter.html: visit 1 made 3 condense calls (condense, condense-fb, last), and visits 2 and 3 made 0. climit.html: visit 1 made 1 call, and visits 2 and 3 made 0. index.ts:782-821 saves NO_SHORT for a day after a final filter or limit stop.",
+   "src": "R3-ai-background"
+  },
+  "F927": {
+   "id": "F927",
+   "status": "fixed",
+   "evidence": "Offline with a copy of vetLine (r10ai/t/vet.ts, f927.ts), the reported line is rejected by addsLink. With the standfirst as context, which contains 'after', quoteAsFact rejects it instead. 'False report' variants are rejected too. NEWS_SYSTEM has the new rule, PROMPT_VERSION is 11, and cache hits go through vetLine. Remaining gap: a variant with 'when' ('\u2026made Time of the Season when Rolling Stone said the singer had died') still passes (see polish).",
+   "src": "R3-ai-background"
+  },
+  "F928": {
+   "id": "F928",
+   "status": "fixed",
+   "evidence": "Fox France article in Chrome 9469 with my mock as the model, so the model's real wording was not tested. With a fast mock, visit 1 made 1 condense call and the first paragraph never changed in 100 s. Visit 2 made 0 calls and showed the Short version at 5.6 s. With a mock that streams over 25 s, I cleared the cache and visited again: 1 call, the Short version at 39 s, and no change up to 100 s. A refresh now needs 25% or more of the prose rewritten (short.ts rewritten), and the worker reuses the latest Short version (but see the reuseShort finding).",
+   "src": "R3-ai-background"
+  },
+  "F930": {
+   "id": "F930",
+   "status": "fixed",
+   "evidence": "Offline (r10ai/t/f930.ts), dropTitleLine removes the line in all these forms: '## Title: \u2018Democracy always\u2019\u2026', 'Title: \u2026', '**T\u00edtulo:** \u2026' and a '## <title>' heading. In Chrome, fx titleecho.html got a mock answer that starts with '## Title: <title>', and the Short version showed no Title line. checked() runs on both new and cached results (index.ts:756, 839-842).",
+   "src": "R3-ai-background"
+  },
+  "F824": {
+   "id": "F824",
+   "status": "fixed",
+   "evidence": "Offline with the exact Infobae title, addsSpeaker rejects 'Diego Maradona compr\u00f3 el ic\u00f3nico auto de Rocky; el vendedor reaccion\u00f3 y Maradona dijo una frase memorable' (vetLine copy, r10ai/t/f927.ts). In news mode, the title then stays. Edge case: a shorter title with the name 30 characters or less before a colon still passes (see polish).",
+   "src": "R3-ai-background"
+  }
+ },
+ "works": [
+  "T5-amazon-gmail-a11y: amazon-search (my CDP Fetch guard blocked 4021 requests to amazon/ssl-images hosts, including 1 POST; nothing reached Amazon). Each action asked for exactly the original's URL or form. Sort by keyboard and by mouse set #s-result-sort-select to price-asc-rank. Sennheiser, '4 Stars & Up', 'Up to $30' (keyboard), Next, page '2' (keyboard), the AirPods Pro 3 title, 'Click to see price', Returns & Orders and Cart all matched. The search box gave /s/ref=nb_sb_noss?url=search-alias%3Daps&field-keywords=gluten+free+bread. Add to cart POSTed /cart/add-to-cart?...discoveredAsins.0=B0C3HCD34R with that card's form body.",
+  "T5-amazon-gmail-a11y: amazon-search content: all 16 results kept. One-liners keep brand and model on all 9 branded rows (Soundcore Q20i Black/White, AirPods Pro 3, HAOYUYAN, Beats Solo 4 matte black, Sony WH-CH520, AirPods 5, BERIBES, Sony WH-CH720N), plus color where the title has one. Filters has 43 details groups. Previous and '\u2026 20' are aria-disabled, and 1 has aria-current. Menu is a labeled modal with all 30 nav-xshop links. Words drop from 4852 to 927.",
+  "T5-amazon-gmail-a11y: amazon-product-blocked is shown faithfully: the same text, Continue, Conditions of Use, Privacy Policy and the \u00a9 line (Continue not clicked).",
+  "T5-amazon-gmail-a11y: Product fixture: Blue and White sync both ways ('Color: \u2026', aria-pressed). White is aria-disabled until chosen. Page-side Black, quantity 3 and '78,027 ratings' show in Sift within 2.5 s. Quantity 2 by keyboard, then Add to Cart (Enter) and Buy Now (Space), gives __added [{qty:'2',btn:'add-to-cart-button'},{qty:'2',btn:'buy-now-button'}]. About this item has 4 full bullets. Product details, Description and Reviews open with their content. The rating '4.5 out of 5 stars (78,026 ratings)' is kept, and the Sponsored block is gone. Menu holds Today's Deals and Gift Cards. Search gives ?field-keywords=gluten+free+bread.",
+  "T5-amazon-gmail-a11y: Cart fixture by keyboard: + and \u2212 give $92.93 \u2192 $132.90 \u2192 $172.87 \u2192 $132.90 \u2192 $92.93. Sift's Qty and subtotal follow, and focus stays on the button (described by the item title). Save for later replays a click on the original input (counter 1). Delete by keyboard says 'Removed: soundcore by Anker Q20i Hybrid Active Noise Cancelling Headphones.' and moves focus to the next Delete, described by 'Gluten-free sourdough starter, 2 oz'. Delete by mouse gives 'Subtotal (0 items): $0.00'. Proceed to checkout sets __checkout=true.",
+  "T5-amazon-gmail-a11y: Gmail fixture: opening an email gives #inbox/2 and says the subject. Back to Inbox says 'Inbox'. Archive from the thread leaves [1,3]. Mark as read/unread toggles with focus kept, described by the subject. Delete says 'Removed: \u2026'. Archiving the last email moves focus to the previous email's Archive. Keyboard compose sends {to:'friend@example.com', subject:'Bakery list', body:'Line one\\nLine two'}. Mouse compose with an immediate Send keeps the body. Search gives ?q=bakery. Menu > Starred gives #starred. history.back and forward resync and say the title. Promotions replays a click on the page's tab.",
+  "T5-amazon-gmail-a11y: Gmail inline compose: 'Compose opened below.' is said, and the next Tab reaches 'To recipients'. When the page focuses its To field or reply body, Sift's focus follows. Switching to the original mid-compose shows the draft. 'XY' typed into the original's Subject shows as 'SubXY' in Sift after switching back.",
+  "T5-amazon-gmail-a11y: F800/F700 hold. The r8a11y10 floating compose is an inline form at 1280x900, 640x450@2 and 400x800. Escape, opening another email and Back to Inbox keep the draft in Sift and on the page. The ?bd=1 and ?max=1&es=1 composes are 'New Message' modal sheets (main inert): Tab is trapped, Escape runs the page's save and close (__saved [{to:'q@w'}]), and focus goes back to Compose. At 200% the sheet scrolls and Send is reachable (348-393 of 450). r7dlg8 'Save & close' at 1280 and 'Guardar y cerrar' at 640@2 both save.",
+  "T5-amazon-gmail-a11y: F600 and F630 hold. On the r6t5-gmailtoast fixture, Archive says 'Removed: Your class schedule for next week. Conversation archived. Undo'. Undo by mouse and by keyboard restores [1,2,3] (__undone 1 then 2) and says 'Action undone.'. Dismiss hides the page toast, and Sift's Undo is gone; the ?btn=1 variant behaves the same. The notice sits under the bar controls at 640x450@2 and 390x844 and covers none, including during Shift+Tab.",
+  "T5-amazon-gmail-a11y: F803 holds: picking Tue Nov 3 on r8-slots says '5 free times on Tuesday, November 3 9:00, 9:30, 10:30, 14:00, 16:30'. On r4int-slowcart at 640x450@2, 'Added to cart (1).' is shown at 291-319 and said once.",
+  "T5-amazon-gmail-a11y: Gmail sync: an email added by the page shows in Sift at 73 ms. Its gist ('Muir Woods parking reservation confirmed for Sunday at 9 AM; show code MW-4421 and arrive within 30 minutes') arrived at 1.6 s.",
+  "T5-amazon-gmail-a11y: axe-core: 0 violations on the product, cart, Gmail, amazon-search, amazon-product-blocked, YouTube watch and BBC article pages. Also 0 on: amazon-search with Filters, Brands and Customer Review open, and with Menu open; Gmail with inline compose, thread plus reply, Menu, the toast and the backdrop compose; YouTube with Description, Up next and Comments open and with Settings open; BBC with full text and Menu open; the Options page.",
+  "T5-amazon-gmail-a11y: CDP AX tree: 0 unnamed controls on the product (21), cart (13), Gmail (20), blocked (5), amazon-search (50), BBC (14) and YouTube watch (20-22). Landmarks: banner > search, main > h1 and h2 sections, then status; amazon-search adds a form for Filters and nav 'pagination'.",
+  "T5-amazon-gmail-a11y: Keyboard: the Menu sheets on the product, Gmail, amazon-search, BBC and YouTube, and YouTube's Settings sheet, are labeled aria-modal dialogs with main inert and focus on Close. Tab makes 0 exits in n+2 presses. Shift+Tab from Close wraps to the last entry. Escape returns focus to the opener. Skip to content focuses main#sift-main. The switch is role=switch 'Sift view'. Space and Alt+Shift+S toggle both ways, and focus goes to main on return. Typing 'abc' into YouTube's search during load keeps focus, and both fields get 'abc'.",
+  "T5-amazon-gmail-a11y: Tab order is logical, with only the browser's wrap point outside Sift: product 18 stops, cart 13, Gmail 20, YouTube watch 20, BBC 14.",
+  "T5-amazon-gmail-a11y: 200% zoom (640x450@2): Sift's scroller is 640/640 with 0 elements past the viewport on the product, cart, Gmail, blocked page, amazon-search (also with Filters and 3 groups open), BBC and YouTube watch. The YouTube video keeps playing (9.9 s \u2192 12.9 s in 3 s), with the portal aligned to the video within 1 px. The Menu sheets fit, with the last entry in view (Gmail Sent, product Gift Cards, BBC Documentaries, amazon-search Books). At the bottom of the product, cart and Gmail pages, the switch covers nothing.",
+  "T5-amazon-gmail-a11y: 400 px: Sift's scroller is 400/400 on all 7 pages, including amazon-search with filter groups open. The switch is 60x42, keeps its name and covers nothing.",
+  "T5-amazon-gmail-a11y: Language: Sift's lang matches the page (en-us on the Amazon pages, en on Gmail and YouTube, en-GB on BBC, es on infobae-article). On the infobae snapshot every Sift control is Spanish (Ir al contenido, Men\u00fa, Ver texto completo, Reproducir, Atr\u00e1s 10 s, Adelante 10 s, Silenciar, Pantalla completa, Vista Sift).",
+  "T5-amazon-gmail-a11y: Announcements on load: at most the initial 'Loading\u2026' on all 7 pages. The YouTube time label is aria-live=off, and the position slider reads 'Position in video', '0:14 / 3:33'.",
+  "T5-amazon-gmail-a11y: Options: axe 0. The 7- and 30-day cache times are stated. 'HTTPS://WWW.Example.COM:8080/path?q=1' plus 'example.com' is saved once as 'example.com', with 'Saved.' shown. I restored the empty list and did not press Clear.",
+  "T5-amazon-gmail-a11y: Speed (firstpaint.ts, 3 runs, medians): Sift's first content came at the same poll as the original's on the product (129 ms), cart (158), Gmail (112), blocked page (177), amazon-search (1942) and BBC (793). YouTube watch matched the original's player (3024 ms) and came well before the original's title (Sift 2039 ms vs 5571 ms).",
+  "T6-fixtures: Outline sweep, extraction only: bundles from the round 9 tree (r9.js) and the merged src (r10.js) on 161 fixtures (all r4-*, r4int-*, r5*, r6*, int-*, core-*, generic-*, ui-*, r7-*, r8-*, r8ext11-*, r9-*, r9ctrl12-*). 154 identical; the 7 that differ are intended fixes (r8ext11-thread and nested-comments replies, r9-activation and r9ctrl12-copy Copy link/code, r9-savebar and r9ctrl12-savebar spinbutton and Advanced section, r9ctrl12-adv). Outputs: /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/r10t6/out-fx/",
+  "T6-fixtures: r4-login: Show password gives type=text and 'Hide password' aria-pressed=true (log 'toggle text'); the Remember me label ticks the page box; Enter logs 'submit nico@example.com pwlen=7 remember=true'; Sift's password is cleared with the page's; 'Wrong email or password\u2026' is announced.",
+  "T6-fixtures: r4-checkout: Enter in ZIP gives ?step=2 and 'Payment' is announced; Back keeps 'Nico Pujia|1 Market St|San Francisco|94103'; Review gives ?step=3 with 'Card ending 1111'; history.back/forward give 'Payment'/'Review your order'; Change address gives ?step=1; Enter on the PayPal radio submits to ?step=3; Place order shows 'Order BB-2041 is confirmed.' with focus on the 'Thank you' H1.",
+  "T6-fixtures: r4-cookiewall: no sheet, no cookie text, 133 of 133 article words. r4-feed: wheel scrolling loads 20 to 60 posts with three '10 new items' announcements; 60 Reply links and 60 Like buttons; a Like becomes 'Like 2' with aria-pressed=true.",
+  "T6-fixtures: r4-latemodal: promo stays hidden; typing 'San Francisco Bay Area' across the promo opening keeps every key; session alertdialog opens with focus on 'Stay signed in' and Enter logs 'ok' and closes; age gate focuses 'Yes, I am 21 or older'.",
+  "T6-fixtures: r4-lazyselect: Country options arrive; ArrowDown x2 logs 'country AR', 'country US'; City enabled with Portland/San Francisco/Seattle. r4-widgets: slider ArrowRight logs size 13, 14; More gives qty 2; Gift wrap logs 'gift true'; glaze to 4; Add to cart logs 'add size=14 qty=2 gift=true glaze=4' and 'Added to cart.' is announced.",
+  "T6-fixtures: r4-rtl: lang=ar, dir=rtl, the only Latin word is 'Sift'; Short version (\u0627\u0644\u0646\u0633\u062e\u0629 \u0627\u0644\u0645\u062e\u062a\u0635\u0631\u0629 / \u0639\u0631\u0636 \u0627\u0644\u0646\u0635 \u0627\u0644\u0643\u0627\u0645\u0644) is all Arabic after about 30 s; search logs 'search \u062e\u0628\u0632 \u0627\u0644\u0634\u0639\u064a\u0631' (shot /home/nico/projects/sift-test-6/research/shots/r10t6-rtl.png).",
+  "T6-fixtures: ext2-newsletter-open and r4int: the Subscribe sheet has its email field, typing reaches the page ('nico'), Escape returns focus to Subscribe; lazymodel logs change, blur, save in that order; latedialog opens 'Subscribed' with Close focused and Enter logs 'closed'.",
+  "T6-fixtures: r5-faq: aria-expanded mirrored, one open at a time, lazy answer with 'your addresses' link, Space closes q3, Enter on a details summary opens it, chat bubble removed. r5-tabs: 'Notifications opened below.', 'Notification settings saved.', 'Profile opened below.', 'Could not save: enter a valid email.' announced; Billing loads; Change card logs.",
+  "T6-fixtures: r5-wizard: empty Next focuses the field with aria-invalid=true; 'Step 2 of 3: Dates' and 'Step 3 of 3: Review and terms' announced; Back keeps 'Crumb Co|Bread and pastry' and the ticked Nov 14; Pay is aria-disabled until the terms box; 'Booked. We emailed your receipt.' announced.",
+  "T6-fixtures: r5-daterange: mouse Nov 10 to Nov 13 gives '3 nights \u00d7 $140 = $420 total', Reserve logs 'reserve Nov 10, 2026 to Nov 13, 2026 guests 2' and announces 'Held for 10 minutes\u2026'; keyboard Next month, Dec 3, Dec 5 gives '2 nights \u00d7 $140 = $280 total'.",
+  "T6-fixtures: r5-chips: 'lam' + ArrowDown + Enter adds Laminated dough; a mouse pick adds Food safety; Remove Pastry works by mouse and keyboard; Create alert logs 'create BakerBaker | Sourdough,Laminated dough,Food safety | full | Weekly' (Baker was prefilled) and announces 'Alert created. We will email you weekly.'",
+  "T6-fixtures: r5-table: 6 th, caption, aria-sort; 'chen' gives 1 row and '1 orders'; Total sorts ascending mirrored on the page; Delete opens the 'Delete order #1003?' alertdialog with focus on Cancel; Escape returns to Delete; Confirm deletes (5 rows) and Undo restores 6, both toasts announced; tab order is exactly Skip, Filter, Search, Menu, Orders, Export CSV, 4 sort headers, each row's link/Edit/Delete, switch.",
+  "T6-fixtures: r5-rowmenu: More actions opens Rename/Download/Delete with focus on Rename; Download announces 'Downloading Rye recipe.pdf\u2026'; Escape returns focus to the opener; Delete announces '\u2026 moved to Trash.'; Load more shows all files; the row buttons carry aria-describedby to the file name. r5-stickybar: Go to payment aria-disabled until terms, then logs 'checkout gift=true' and announces 'Taking you to payment\u2026'.",
+  "T6-fixtures: r6-dangerzone: Enter saves with 'Settings saved.' announced and no sheet; 'Try again' gives retry; typed-name dialog keeps the button aria-disabled for 'bread-ap' and enables it for 'bread-app'; Escape returns focus to 'Delete this project'; Delete gives 'Project deleted'; promo removed.",
+  "T6-fixtures: r6-filterpop: Bobs + Doves + Apply logs 'apply Bobs,Doves', announces '4 results', focus on 'Brand (2)'; keyboard-only Space/Space/Enter in the Brand list applies 'Acme,Caputo'; Gluten-free aria-pressed mirrored; 'Remove filter Gluten-free' gives 4 results; Tab Tab Enter picks 'Price: low to high'; 'Add Bobs rice flour, 680 g to cart' logs.",
+  "T6-fixtures: r6-readmore: full review texts present; 'Show more reviews' adds 'Too sour for kids' with '3 out of 5 stars'; Expand all sets all three answers aria-expanded=true. r6edit6-termsdialog: 10 paragraphs, 'read to end' fires, Accept logs 'joined' and 'Welcome to the club.' is announced.",
+  "T6-fixtures: r6-inlineedit: 'Mum is now your default address.' and 'Saved House.' announced with focus back on 'Edit House'; keyboard-only edit logs 'save Mum | 9 Oak St' with focus on 'Edit Mum'. r6-bulktable: 'Labels ready for 1 orders.' and '2 orders marked as shipped.' announced; Next gives ?page=2 'Orders 6-10 of 12'; keyboard Space/Enter/Enter path works. r6-termsgate: full terms (184 vs 191 words), agree + Open account announces 'Your savings account is open\u2026', chat removed.",
+  "T6-fixtures: r7-signup: email error on blur with aria-invalid and its description; 'nico is taken. Try nico2026.' and 'nicop is available.' announced; checklist text without \u2713/\u2717 glyphs; Show/Hide aria-pressed; Create account aria-disabled until valid; 'Account created. We sent a link to nico@example.com.' announced. r7-sessionsave ?msg=3: sheet with focus on Close, Tab cycles Close/Sign in, Enter announces 'You are signed in again\u2026', Save draft logs.",
+  "T6-fixtures: r8-settings: switches are labelled checkboxes; 'Saving\u2026' then 'Saved'; ArrowRight on radios logs 'freq never'; Reset sheet focuses Cancel, Escape returns focus, Reset announces 'Settings reset to defaults.' r8-slots: Wednesday 'No times left\u2026', Thursday '4 free times\u2026', day aria-pressed mirrored, Continue/Escape focus, notes reach the page, 'Booked: Thu Nov 5 at 14:00. Undo' then 'Booking canceled.'; cookie bar removed.",
+  "T6-fixtures: r9-activation: native confirm Cancel keeps the file, OK deletes and announces 'Seeded loaf.docx deleted.'; Remove all + Undo works ('All files removed. Undo', 'Files restored.'); Export list downloads bakery-recipes.csv; Open help opens the same popup; Copy link now copies the share URL (clipboard 'https://drive.example/s/bakery-recipes', 'Link copied' announced). r9-savebar: day buttons mirror aria-pressed, 'Pickup only' is a labelled checkbox, promo and help bubble removed.",
+  "T6-fixtures: Round 3 interaction fixtures: int-combo logs 'escape closed list', 'change apr', 'submit apr'; int-chat sends on first click; int-cbform submits with the box ticked; Space on int-spacekey does not reach the page; paste reaches Sift's and the page's field on int-clip ('rye bread'); synthetic Alt+Shift+S leaves Sift on while the trusted one toggles; int-nfsearch async and inpage each log exactly one 'enter rye flour'; int-nag sheet with Close stays gone after in-page navigation; int-dlgsuggest picks 'Malaga (AGP)'; int-stuck blur reaches the page; r6genb7-plain-autocomplete ArrowDown x2 + Enter picks 'Springfield, MA, USA' with '4 suggestions' announced.",
+  "T6-fixtures: New r10-plans: Bill yearly switch becomes a labelled checkbox and changes all prices to /year; plan change, seats stepper (shown only for Business), typed seats and Continue all reach the page, and the live summary ('Business, billed monthly, 10 staff seats: $129 a month.', 'Taking you to payment for Pro (yearly)\u2026') is announced; Black Friday bar, logo strip, footer and sales chat removed; arrow keys move between plan radios.",
+  "T6-fixtures: New r10-review: star radios ('\u2605 4 stars') work and '4 stars: Very good' is announced; the select-only combobox opens an options sheet by mouse and keyboard (Enter, Tab, Enter) and the choice reaches the page; Yes mirrors aria-pressed; empty submit shows the error summary with focus on 'There is a problem' and announces it; its links move focus to Sift's Title field and first star; fields get aria-invalid with the error in aria-describedby; the counter '29 of 500 characters' is in the textarea's description; posting works; cookie bar and footer removed.",
+  "T6-fixtures: Keyboard: tab walks of 30 steps stay in Sift on r10-plans, r10-review, r8ext11-thread, r5-table, r6-bulktable, r6-filterpop, r9-activation, r4-checkout, r8-slots, r5-chips and r6-inlineedit; the only page stops are <body>, the browser wrap point (1-3 per walk)."
+ ],
+ "polish": [
+  "T5-amazon-gmail-a11y: amazon-search with Amazon's CSS blocked (the required guard): Amazon's hidden language flyout opens as a modal 'Change language' sheet on every load, so the first Escape is needed. This is a known harness artifact (round 4 rejected.md, round 5 polish). Shot /home/nico/projects/sift-test-5/research/shots/r10t5-amazon-search.png",
+  "T5-amazon-gmail-a11y: amazon-search price lines repeat the coupon text with no space: 'You pay $22.09 15% off coupon appliedYou pay $22.09 with coupon' (rows 3 and 8; the same in round 9).",
+  "T5-amazon-gmail-a11y: r9-savebar: two labels show twice, as a small paragraph and again as the field's own label: 'Order cut-off (hour, 24 h)' and 'Pickup only'. Shot /home/nico/projects/sift-test-5/research/shots/r10t5-savebar-truehidden-dirty.png",
+  "T5-amazon-gmail-a11y: r9-savebar: the rescued save bar sits at the end of the form, not sticky as on the original. On a long settings page, Save would be far from the change.",
+  "T5-amazon-gmail-a11y: BBC article (https://www.bbc.com/news/articles/ck1wv9p0p9e3o): in 1 of 4 tab walks the switch took two Tab stops in a row (stops 14 and 15). The other 3 walks had one.",
+  "T5-amazon-gmail-a11y: Cart fixture: + and \u2212 change Qty and the subtotal silently (the fixture has no live region either). A screen reader user hears nothing about the new quantity.",
+  "T5-amazon-gmail-a11y: Gmail inline compose at 640x450@2: Tab into Message Body leaves most of it below the fold (top 413, bottom 539 of 450). Only the first line is visible while typing.",
+  "T5-amazon-gmail-a11y: Gmail inline compose: after Send, focus lands on 'Primary', not on Compose. Rounds 5-7 works lines said focus returns to Compose and starts in To, but those were for the compose sheet that F800 replaced. Round 9 accepted the inline flow, where focus stays on Compose and the next Tab reaches To.",
+  "T5-amazon-gmail-a11y: Product fixture: the color swatch buttons (Black, Blue, White) are not grouped under a 'Color' label for assistive tech. Only the 'Color: Black' paragraph before them gives context.",
+  "T6-fixtures: r10-plans: 'Bill yearly (2 months free)' is shown twice, as small text and as the checkbox label.",
+  "T6-fixtures: r10-plans: the FAQ summaries render as H2 under the H2 'Questions' instead of one level lower.",
+  "T6-fixtures: r10-review: the options sheet of 'How long have you used it?' is named 'Write a review' (the page title), not the question; options are plain buttons with aria-pressed=false.",
+  "T6-fixtures: r10-review: the page's visually hidden live counter ('471 characters left') is not announced in Sift (the visible counter is in the textarea's description).",
+  "T6-fixtures: r10-review: an unclassed <aside> newsletter box ('Get fresh bread news', Email, Sign up) and an unclassed 'You may also like' link strip are kept; with class names newsletter-signup / related-products both are removed.",
+  "T6-fixtures: r5-chips: a newly added chip's Remove button lands after the 'Add a skill' field in Sift (the page puts it before the field), so Shift+Tab from the field reaches 'Remove Pastry'.",
+  "T6-fixtures: r6-readmore: the three 'Read more' buttons stay although Sift already shows each full review.",
+  "T6-fixtures: r5-rowmenu: in the menu sheet ArrowDown does not move between Rename/Download/Delete (Tab does); the original menu uses arrows.",
+  "T6-fixtures: r5-table: after confirming Delete, focus jumps to the next row's 'Delete order 1002' button.",
+  "T6-fixtures: r10-review: 'Show only my first name' and Yes/No order aside, the 'How long have you used it?' small label reads as a stray caption until the form is re-split by error messages (then the button sits right under it).",
+  "R3-ai-background: src/background/index.ts:571-575 and text.ts:124-160 (entryLang with output=true). A Spanish one-liner that quotes an English song title can be judged English when the title has two English function words. It is then saved as KEEP_TITLE for 30 days, and the English title stays in a Spanish list. With Chrome's detector, 2 of 22 realistic lines failed: 'Whitney Houston canta \u00abI Will Always Love You\u00bb, video oficial' and '\u00abWhat Is Love\u00bb de Haddaway, video oficial' (r10ai/t/detect.ts). Leaving text inside \u00ab\u2026\u00bb out of the check would fix it.",
+  "R3-ai-background: src/background/text.ts:570 addsSpeaker. The 'NAME:' column-label exemption also matches a headline whose name is 30 characters or less before its colon. 'Maradona compr\u00f3 el auto de Rocky: la reacci\u00f3n del vendedor y una frase para la posteridad' lets '\u2026y dijo una frase memorable' through (r10ai/t/f927.ts).",
+  "R3-ai-background: src/background/text.ts:864 addsLink. ORDER has no 'when', 'while' or 'as', so 'The Zombies made Time of the Season when Rolling Stone said the singer had died' passes vetLine.",
+  "R3-ai-background: src/content/short.ts:637-646 planShort. A placeholder the model writes inside markup leaves stray characters: '- [[B0]]' leaves a lone '-' paragraph, and '**[[B0]]** text' leaves '**' and '** text' (r10ai/t/plan.ts).",
+  "R3-ai-background: src/background/cache.ts:4 caps the number of entries (20,000), not their size. Since round 9, each condensed page also stores its source text (up to 120,000 characters, index.ts:829), so the cache can grow to gigabytes under unlimitedStorage."
+ ],
+ "done": [
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search snapshot",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts with '[data-component-type=s-search-result] h2': original 1942/1474/2003 ms, Sift 1942/1474/2003 ms (same poll each run). Median 1942 vs 1942."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search snapshot",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Sort by keyboard and by mouse set price-asc-rank on the original select. 9 links (Sennheiser, 4 Stars & Up, Up to $30 by keyboard, Next, page 2 by keyboard, AirPods Pro 3 title, Click to see price, Returns & Orders, Cart) each requested exactly the original href (guard log). Search gave /s/ref=nb_sb_noss?...field-keywords=gluten+free+bread. Add to cart POSTed /cart/add-to-cart?...discoveredAsins.0=B0C3HCD34R (blocked by the guard)."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search snapshot",
+   "check": "content",
+   "pass": true,
+   "evidence": "16/16 results. Brand and model kept on all 9 branded rows, color where the title has one. 43 filter groups. Pagination states match the original. Words 4852 \u2192 927."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search snapshot",
+   "check": "language",
+   "pass": true,
+   "evidence": "Page lang en-us, Sift lang en-us. All controls are English."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search snapshot",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "Menu: labeled modal, 30 links, focus on Close, main inert, Shift+Tab \u2192 Books, Escape \u2192 Menu. The Change language sheet (CSS-blocked artifact) closes with Escape."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search snapshot",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 (also with Filters/Brands/Customer Review open and with Menu open). 50 controls, 0 unnamed. banner>search, main>h1, Filters form, h2 results, nav 'pagination', status. Nothing said on load."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-search snapshot",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2: scroller 640/640, 0 elements past the viewport, also with Filters plus 3 groups open. 400 px: 400/400. The Menu's last entry is in view at 200% (361-400 of 450)."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-product-blocked snapshot",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts 'h4': original 177/125/193 ms, Sift identical. Median 177 vs 177."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-product-blocked snapshot",
+   "check": "content",
+   "pass": true,
+   "evidence": "The same block text, Continue, Conditions of Use, Privacy Policy and the \u00a9 line as the original's innerText (Continue not clicked)."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "amazon-product-blocked snapshot",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0. 5 controls, 0 unnamed. banner, main > H1, status. Lang en-us \u2192 en-us. No overflow at 640@2 or 400 px."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts '#productTitle': original 129/162/116 ms, Sift identical. Median 129 vs 129."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Blue and White clicks set the page's selection ('Blue', 'White'), and page-side Black, qty 3 and '78,027 ratings' show in Sift within 2.5 s. Qty 2 by keyboard, Add to Cart (Enter) and Buy Now (Space) give __added [{qty:'2',btn:'add-to-cart-button'},{qty:'2',btn:'buy-now-button'}]. Search \u2192 ?field-keywords=gluten+free+bread. The details, description and reviews sections open."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "language",
+   "pass": true,
+   "evidence": "en-us \u2192 en-us."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "18 tab stops, all in Sift. Menu sheet: focus Close, 0 exits in 5 Tabs, Shift+Tab \u2192 Gift Cards, Escape \u2192 Menu. Skip link \u2192 main#sift-main. Space and Alt+Shift+S toggle both ways."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0. 21 controls, 0 unnamed. Swatches pressed=true/false, and White is disabled (aria-disabled). banner>search, main>h1, h2 About/Product details/Description/Reviews, status."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-product.html",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2: 640/640. 400 px: 400/400. The switch is 98x42 and 60x42 and covers nothing at the bottom."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-cart.html",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts '#sc-active-cart h1': original 241/158/98 ms, Sift identical. Median 158 vs 158."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-cart.html",
+   "check": "actions",
+   "pass": true,
+   "evidence": "+/\u2212 by keyboard: $92.93\u2192$132.90\u2192$172.87\u2192$132.90\u2192$92.93 on the page, and Sift follows. Save for later: page click counter 1. Delete by keyboard and by mouse removes the lines (Subtotal (0 items): $0.00). Checkout sets __checkout=true."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-cart.html",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "13 tab stops, all in Sift. After Delete, focus moves to the next Delete."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-cart.html",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0. 13 controls, 0 unnamed. Row buttons are described by the item title. Delete says 'Removed: <title>.'. Lang en-us \u2192 en-us."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/amazon-cart.html",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640/640 at 640x450@2 and 400/400 at 400 px. The switch covers nothing at the bottom."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts 'tr.zA': original 213/112/106 ms, Sift identical. Median 112 vs 112."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Open thread (#inbox/2), Back, Archive from thread ([1,3]), Delete, Mark read/unread, and Archive of the last email all match the page. Reply sends {to:'news@celiac.example',body:'Thx\\nOk'}. Compose sends {to:'friend@example.com',subject:'Bakery list',body:'Line one\\nLine two'}. Search \u2192 ?q=bakery. Menu Starred \u2192 #starred. history back and forward resync."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "language",
+   "pass": true,
+   "evidence": "en \u2192 en."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "keyboard",
+   "pass": false,
+   "evidence": "20 tab stops, all in Sift. The Menu sheet traps Tab (0 exits in 6), Shift+Tab \u2192 Sent, Escape \u2192 Menu. Compose: the next Tab reaches To. Reply: the next Tab after 'Reply opened below.' reaches Forward, not the body (see finding)."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 (also with compose, thread plus reply, Menu, toast, backdrop compose). 20 controls, 0 unnamed. banner>search, main>H1 Inbox, status. Opening a thread says the subject."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "fx/gmail.html",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640/640 at 200% and 400/400 at 400 px, also with inline compose open. Compose fields and Send are reachable by Tab with a 3px solid focus ring."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "YouTube watch (dQw4w9WgXcQ, live)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "Against '#movie_player video': original 3024/4919/2817 ms, Sift identical (median 3024). Against 'h1.ytd-watch-metadata': original 5037/5571/7890, Sift 2039/1648/4890 (median 5571 vs 2039)."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "YouTube watch (dQw4w9WgXcQ, live)",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "20 tab stops in Sift. Menu and Settings sheets: focus Close, 0 exits, Shift+Tab wraps, Escape returns to the opener. Early typing keeps focus ('abc' in both fields)."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "YouTube watch (dQw4w9WgXcQ, live)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 (also with Description, Up next and Comments open, and with Settings open). 20-22 controls, 0 unnamed. banner>search, main>h1, h2 Description/Up next/Comments, status. Only 'Loading\u2026' said on load. Time label aria-live=off."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "YouTube watch (dQw4w9WgXcQ, live)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2: 640/640, video plays 9.9\u219212.9 s, portal within 1 px of the video. 400 px: 400/400. Lang en \u2192 en."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "BBC article ck1wv9p0p9e3o (live)",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts 'h1': original 1575/793/632 ms, Sift identical. Median 793 vs 793."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "BBC article ck1wv9p0p9e3o (live)",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "14 tab stops in Sift; one of 4 walks hit the switch twice (polish). Menu sheet: 15 entries, focus Close, 0 exits in 17 Tabs, Shift+Tab \u2192 Documentaries, Escape \u2192 Menu."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "BBC article ck1wv9p0p9e3o (live)",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "axe 0 (also with full text and Menu open). 14 controls, 0 unnamed. banner, main>h1, status. Nothing said on load. Lang en-GB \u2192 en-GB."
+  },
+  {
+   "src": "T5-amazon-gmail-a11y",
+   "page": "BBC article ck1wv9p0p9e3o (live)",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450@2: 640/640. 400 px: 400/400. The Menu's last entry (Documentaries) is in view at 200%."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r4-login",
+   "check": "speed",
+   "pass": true,
+   "evidence": "firstpaint.ts 3 runs (h1): original 767/122/119 ms, Sift 767/122/119 ms; median 122 vs 122 (same 100 ms poll tick)"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r4-checkout",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 145/120/192, Sift 145/120/192; median 145 vs 145"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r4-feed",
+   "check": "speed",
+   "pass": true,
+   "evidence": "article: original 301/220/247, Sift same; median 247 vs 247"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r4-rtl",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 516/198/206, Sift same; median 206 vs 206"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r4-widgets",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 324/133/317, Sift same; median 317 vs 317"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r5-table",
+   "check": "speed",
+   "pass": true,
+   "evidence": "table: original 287/664/204, Sift same; median 287 vs 287"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r5-daterange",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 201/321/258, Sift same; median 258 vs 258"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r5-chips",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 273/135/370, Sift same; median 273 vs 273"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r5-wizard",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 228/352/226, Sift same; median 228 vs 228"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r5-tabs",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 249/298/480, Sift same; median 298 vs 298"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r5-faq",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 286/223/310, Sift same; median 286 vs 286"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r5-rowmenu",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 576/298/309, Sift same; median 309 vs 309"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r5-stickybar",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 223/193/305, Sift same; median 223 vs 223"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r6-bulktable",
+   "check": "speed",
+   "pass": true,
+   "evidence": "table: original 671/545/509, Sift same; median 545 vs 545"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r6-filterpop",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 625/398/370, Sift same; median 398 vs 398"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r6-termsgate",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 220/426/298, Sift same; median 298 vs 298"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r6-inlineedit",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 206/158/191, Sift same; median 191 vs 191"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r6-dangerzone",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 130/175/139, Sift same; median 139 vs 139"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r6-readmore",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 236/465/189, Sift same; median 236 vs 236"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r8-slots",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 367/184/223, Sift same; median 223 vs 223"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r9-activation",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 396/350/264, Sift same; median 350 vs 350"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r10-plans",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 228/348/321, Sift same; median 321 vs 321"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r10-review",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 213/262/366, Sift same; median 262 vs 262"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r8ext11-thread",
+   "check": "speed",
+   "pass": true,
+   "evidence": "original 264/245/160, Sift same; median 245 vs 245"
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r4-login, r4-checkout, r4-latemodal, r4-lazyselect, r4-widgets, r4-feed, r4-rtl search",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Every action tried logged the same page effect as the original's handlers (see works): submit, Show password, Remember me, step navigation and history, PayPal radio Enter, Place order, modal OK, select arrows, slider/range/switch/stepper/Add to cart, Like, Arabic search."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r5-faq, r5-tabs, r5-wizard, r5-daterange, r5-chips, r5-table, r5-rowmenu, r5-stickybar",
+   "check": "actions",
+   "pass": false,
+   "evidence": "All mouse and keyboard actions in works.md hold, but on r5-chips Backspace in the empty field does not remove the last chip (original logs 'backspace Food safety'; Sift logs nothing). Reported as a finding."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r6-dangerzone, r6-filterpop, r6-readmore, r6-inlineedit, r6-bulktable, r6-termsgate, r6edit6-termsdialog",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Save/retry/typed-name delete, Brand apply (mouse and keyboard), chips, sort, Add to cart, Show more reviews, Expand all, inline edit and default, bulk ship/print/pagination, terms agree and open account all logged the same effects."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r7-signup, r7-sessionsave, r8-settings, r8-slots, r9-activation, r9-savebar",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Create account, re-sign-in, switches/radios/reset, booking/undo, confirm Cancel/OK, Remove all/Undo, Export download, Open help popup, Copy link, segmented days: same page logs as the original."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r10-plans",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Yearly switch ('yearly true', prices /year), plan Business, Add a seat ('seats 4'), typed '10', ArrowUp to Pro, Continue logs 'continue Pro, billed yearly: $290 a year.' and announces the status."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r10-review",
+   "check": "actions",
+   "pass": true,
+   "evidence": "Star 4, combobox pick by mouse ('used A few months') and keyboard ('used A few weeks'), Yes, error summary links ('errlink title', 'errlink s1'), Post review logs 'posted 4 | Best rye in town | A few weeks | rec=yes | first=true'. The follow-up 'Back to Rye sourdough loaf' link is moved onto the heading (finding)."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r10-plans",
+   "check": "content",
+   "pass": false,
+   "evidence": "'Not included' marks (svg role=img) are lost from plan cards and the comparison table's Delivery zones row is empty in all three cells; the original shows \u2717/\u2713 and has 'Not included' in the accessible names. Reported as high finding."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r10-review",
+   "check": "content",
+   "pass": false,
+   "evidence": "Form order changes (combobox after textarea, Yes/No after the checkbox) and the posted confirmation shows a linked heading and an unlinked 'Back to \u2026'. Reported as two medium findings."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r4-rtl",
+   "check": "language",
+   "pass": true,
+   "evidence": "Sift lang=ar, direction rtl, 1439 Arabic letters on load and 686 with the Short version, the only Latin word is 'Sift'; UI labels \u0627\u0646\u062a\u0642\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u062d\u062a\u0648\u0649 / \u0628\u062d\u062b / \u0627\u0644\u0642\u0627\u0626\u0645\u0629 / \u0639\u0631\u0636 \u0627\u0644\u0646\u0635 \u0627\u0644\u0643\u0627\u0645\u0644."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r6ext7-ctastrip-es, event-details-es",
+   "check": "language",
+   "pass": true,
+   "evidence": "Sift lang=es (page es), 'Ir al contenido', 'Men\u00fa', 'Vista Sift'; date sections keep the Spanish summaries."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r10-plans, r10-review",
+   "check": "language",
+   "pass": true,
+   "evidence": "Sift lang=en matching the page; all UI text English."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r10-plans, r10-review, r8ext11-thread, r5-table, r6-bulktable, r6-filterpop, r9-activation, r4-checkout, r8-slots, r5-chips, r6-inlineedit",
+   "check": "keyboard",
+   "pass": true,
+   "evidence": "tabwalk.ts 30 steps: 27-29 stops in Sift per page; page stops are only <body> (1-3, the wrap point). r5-table order matches works.md exactly. Keyboard-only flows passed on r5-daterange, r5-rowmenu, r6-filterpop, r6-inlineedit, r6-bulktable, r7-sessionsave, r8-settings, r10-review combobox."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "r10-review",
+   "check": "keyboard",
+   "pass": false,
+   "evidence": "Tab order follows Sift's reordered form (radio, Title, textarea, How long\u2026, checkbox, Yes, No, Post review) instead of the original's (radio, How long\u2026, Title, textarea, Yes, No, checkbox, Post review)."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "35 fixtures: r4-login, r4-checkout, r4-feed, r4-rtl, r4-widgets, r4-lazyselect, r5-daterange, r5-chips, r5-table, r5-tabs, r5-wizard, r5-faq, r5-stickybar, r5-rowmenu?all=1, int-nag, r6-termsgate, r6-bulktable, r6-filterpop, r6-inlineedit, r6-dangerzone, r6-readmore, r7-signup, r7-sessionsave, r8-settings, r8-slots, int-combo, r6genb7-plain-autocomplete, r6edit6-termsdialog, r6t5-gmailtoast, r9-activation, r9-savebar, r10-plans, r10-review, r8ext11-thread, r9ctrl12-adv",
+   "check": "screen reader",
+   "pass": true,
+   "evidence": "scripts/a11y.ts (axe-core on Sift's view): 0 violation types on all 35. Names, states and announcements checked by hand are listed in works; the Yes/No group name loss on r10-review is part of a finding."
+  },
+  {
+   "src": "T6-fixtures",
+   "page": "25 fixtures: r4-login, r4-checkout, r4-feed, r4-rtl, r4-widgets, r5-table, r5-daterange, r5-chips, r5-wizard, r5-tabs, r5-faq, r5-rowmenu, r5-stickybar, r6-bulktable, r6-filterpop, r6-termsgate, r6-inlineedit, r6-dangerzone, r6-readmore, r8-slots, r9-activation, r10-plans, r10-review, r8ext11-thread, r9ctrl12-adv",
+   "check": "zoom",
+   "pass": true,
+   "evidence": "640x450 CSS px at deviceScaleFactor 2: 0 Sift elements past the right edge on every page (the original document underneath is 660 px on r5-table and 740 px on r9ctrl12-adv, Sift is not). Shot /home/nico/projects/sift-test-6/research/shots/r10t6-zoom-review.png"
+  }
+ ]
+}

@@ -92,6 +92,13 @@ export interface Field {
   after?: Action[];
   /** The named group it belongs to (a fieldset's legend, a radio group's name: "Payment method"), shown as its fieldset. */
   group?: { ref: string; label: string };
+  /** A choice drawn as a card (a plan): the rest of its card (price, text, feature list), shown under its short label (F1011). */
+  detail?: Block[];
+  /**
+   * Buttons the page uses as fields (a custom select, a Yes/No toggle group, with the group's name),
+   * that sit right before this field on the page: shown there, not after the form (F1012).
+   */
+  before?: { ref: string; label?: string; actions: Action[] }[];
 }
 
 export interface Item {
@@ -128,6 +135,9 @@ export interface MediaInfo {
   play?: string;
   captions?: string;
   fullscreen?: string;
+  /** On a playlist or Mix: the player's own Previous and Next buttons. */
+  prev?: string;
+  next?: string;
 }
 
 export type Block =

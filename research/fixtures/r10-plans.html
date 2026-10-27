@@ -1,0 +1,100 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Choose a plan · Crumb</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- r10 (T6-fixtures): a pricing page with plan radio cards, as on Shopify, Squarespace or Stripe.
+     The radios are visually hidden inside label cards. Each feature row has an icon with role=img and aria-label
+     "Included" or "Not included". A role=switch "Bill yearly" changes every price and the per-period text.
+     The "Staff seats" stepper shows only for Business. The summary line (aria-live) and the total update on each change.
+     Continue logs the choice and shows a status. Noise: the Black Friday bar, logo strip, footer and the sales chat bubble. -->
+<style>
+body{font-family:system-ui,sans-serif;margin:0;color:#222}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.promo{background:#fde68a;padding:8px 24px;text-align:center}
+header{display:flex;gap:16px;align-items:center;padding:12px 24px;border-bottom:1px solid #ddd}
+header nav{display:flex;gap:12px;flex:1}
+main{max-width:960px;margin:24px auto;padding:0 16px}
+.billing{display:flex;gap:8px;align-items:center;margin:16px 0}
+.switch{width:44px;height:24px;border-radius:12px;background:#bbb;border:0;position:relative;cursor:pointer}
+.switch[aria-checked=true]{background:#16a34a}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .2s}
+.switch[aria-checked=true]::after{left:23px}
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;border:0;padding:0;margin:0}
+.plan{position:relative;border:2px solid #ddd;border-radius:12px;padding:16px;cursor:pointer;display:block}
+.plan:has(input:checked){border-color:#2563eb;box-shadow:0 0 0 3px #bfdbfe}
+.plan:has(input:focus-visible){outline:3px solid #2563eb;outline-offset:2px}
+.plan input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
+.name{display:block;font-weight:700;font-size:1.2em}
+.price{display:block;font-size:2em;font-weight:700;margin:8px 0}
+.per{font-size:.5em;font-weight:400;color:#555}
+.badge{position:absolute;top:-12px;right:12px;background:#2563eb;color:#fff;font-size:.75em;padding:2px 8px;border-radius:8px}
+.feat{list-style:none;padding:0;margin:8px 0 0}
+.feat li{display:flex;gap:6px;align-items:center}
+.feat li.no{color:#999}
+.feat svg{width:16px;height:16px;flex:none}
+.seats{display:flex;gap:8px;align-items:center;margin:16px 0}
+.seats input{width:4em}
+.seats[hidden]{display:none}
+.summary{background:#f3f4f6;padding:12px;border-radius:8px}
+.logos{display:flex;gap:24px;opacity:.6;margin:8px 0 24px}
+.chat{position:fixed;right:16px;bottom:16px;background:#2563eb;color:#fff;border-radius:24px;padding:10px 16px;cursor:pointer}
+footer{margin-top:48px;padding:24px;border-top:1px solid #ddd;color:#555}
+.cmp{border-collapse:collapse;margin:8px 0 24px}.cmp th,.cmp td{border-bottom:1px solid #ddd;padding:6px 12px;text-align:left}
+@media (max-width:700px){.plans{grid-template-columns:1fr}}
+</style></head><body>
+<div class="promo">Black Friday: 30% off yearly plans with code CRUMB30. <a href="/deals">See all deals</a> <button type="button" aria-label="Dismiss" onclick="this.parentElement.remove()">×</button></div>
+<header><a href="/"><strong>Crumb</strong></a><nav aria-label="Main"><a href="/features">Features</a><a href="/pricing" aria-current="page">Pricing</a><a href="/blog">Blog</a></nav><a href="/login">Log in</a></header>
+<main>
+<h1>Choose your plan</h1>
+<p>Every plan includes online ordering, a menu page and email support. You can change or cancel your plan at any time.</p>
+<div class="billing"><span id="bl">Bill yearly (2 months free)</span> <button type="button" role="switch" id="yearly" aria-checked="false" aria-labelledby="bl" class="switch"></button></div>
+<form id="f" action="/checkout" method="post">
+<fieldset class="plans"><legend class="vh">Plan</legend>
+<label class="plan"><input type="radio" name="plan" value="Starter"><span class="name">Starter</span><span class="price"><span class="amt" data-m="0" data-y="0">$0</span><span class="per">/month</span></span><span class="desc">For one market stall trying online orders.</span>
+<ul class="feat"><li><svg role="img" aria-label="Included" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#16a34a" stroke-width="2" fill="none"/></svg>1 location</li><li><svg role="img" aria-label="Included" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#16a34a" stroke-width="2" fill="none"/></svg>50 orders a month</li><li class="no"><svg role="img" aria-label="Not included" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="#999" stroke-width="2"/></svg>Delivery zones</li><li class="no"><svg role="img" aria-label="Not included" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="#999" stroke-width="2"/></svg>Staff accounts</li></ul></label>
+<label class="plan"><input type="radio" name="plan" value="Pro" checked><span class="badge">Most popular</span><span class="name">Pro</span><span class="price"><span class="amt" data-m="29" data-y="290">$29</span><span class="per">/month</span></span><span class="desc">For a bakery with orders every day.</span>
+<ul class="feat"><li><svg role="img" aria-label="Included" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#16a34a" stroke-width="2" fill="none"/></svg>1 location</li><li><svg role="img" aria-label="Included" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#16a34a" stroke-width="2" fill="none"/></svg>Unlimited orders</li><li><svg role="img" aria-label="Included" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#16a34a" stroke-width="2" fill="none"/></svg>Delivery zones</li><li class="no"><svg role="img" aria-label="Not included" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="#999" stroke-width="2"/></svg>Staff accounts</li></ul></label>
+<label class="plan"><input type="radio" name="plan" value="Business"><span class="name">Business</span><span class="price"><span class="amt" data-m="79" data-y="790">$79</span><span class="per">/month</span></span><span class="desc">For several shops and a team.</span>
+<ul class="feat"><li><svg role="img" aria-label="Included" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#16a34a" stroke-width="2" fill="none"/></svg>Up to 5 locations</li><li><svg role="img" aria-label="Included" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#16a34a" stroke-width="2" fill="none"/></svg>Unlimited orders</li><li><svg role="img" aria-label="Included" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#16a34a" stroke-width="2" fill="none"/></svg>Delivery zones</li><li><svg role="img" aria-label="Included" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#16a34a" stroke-width="2" fill="none"/></svg>Staff accounts ($5 a seat)</li></ul></label>
+</fieldset>
+<div class="seats" id="seatsrow" hidden><label for="seats">Staff seats</label> <button type="button" id="minus" aria-label="Remove a seat">−</button><input id="seats" name="seats" type="number" min="1" max="20" value="3"><button type="button" id="plus" aria-label="Add a seat">+</button> <span>$5 per seat a month</span></div>
+<p class="summary" id="sum" aria-live="polite"></p>
+<p><button type="submit" id="go">Continue to payment</button></p>
+<p id="msg" role="status"></p>
+</form>
+<h2>Compare features</h2>
+<table class="cmp"><thead><tr><th scope="col">Feature</th><th scope="col">Starter</th><th scope="col">Pro</th><th scope="col">Business</th></tr></thead><tbody>
+<tr><th scope="row">Orders a month</th><td>50</td><td>Unlimited</td><td>Unlimited</td></tr>
+<tr><th scope="row">Delivery zones</th><td><svg role="img" aria-label="No" width="16" height="16" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="#999" stroke-width="2"/></svg></td><td><svg role="img" aria-label="Yes" width="16" height="16" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#16a34a" stroke-width="2" fill="none"/></svg></td><td><svg role="img" aria-label="Yes" width="16" height="16" viewBox="0 0 16 16"><path d="M2 8l4 4 8-8" stroke="#16a34a" stroke-width="2" fill="none"/></svg></td></tr>
+<tr><th scope="row">Staff accounts</th><td><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22%3E%3Cpath d=%22M3 3l10 10M13 3L3 13%22 stroke=%22%23999%22 stroke-width=%222%22/%3E%3C/svg%3E" width="16" height="16" alt="No"></td><td><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22%3E%3Cpath d=%22M3 3l10 10M13 3L3 13%22 stroke=%22%23999%22 stroke-width=%222%22/%3E%3C/svg%3E" width="16" height="16" alt="No"></td><td><img src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22%3E%3Cpath d=%22M2 8l4 4 8-8%22 stroke=%22%2316a34a%22 stroke-width=%222%22 fill=%22none%22/%3E%3C/svg%3E" width="16" height="16" alt="Yes"></td></tr>
+<tr><th scope="row">Phone support</th><td><span aria-hidden="true">✗</span><span class="vh">No</span></td><td><span aria-hidden="true">✗</span><span class="vh">No</span></td><td><span aria-hidden="true">✓</span><span class="vh">Yes</span></td></tr>
+</tbody></table>
+<h2>Questions</h2>
+<details><summary>Can I switch plans later?</summary><p>Yes. Upgrades apply at once and we charge only the difference. Downgrades start on your next billing date.</p></details>
+<details><summary>Do you take a cut of each order?</summary><p>No. Your card processor still charges its own fee.</p></details>
+<p class="logos" aria-hidden="true"><span>Rise &amp; Co</span><span>Le Pain</span><span>Dough Bros</span><span>Masa Madre</span></p>
+</main>
+<footer><p><a href="/about">About</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></p><p>© 2026 Crumb Inc.</p></footer>
+<div class="chat" role="button" tabindex="0">Chat with sales</div>
+<script>
+window.__log = [];
+const $ = (id) => document.getElementById(id);
+const plan = () => document.querySelector("input[name=plan]:checked").value;
+const yearly = () => $("yearly").getAttribute("aria-checked") === "true";
+function draw() {
+  const y = yearly();
+  for (const a of document.querySelectorAll(".amt")) { a.textContent = "$" + (y ? a.dataset.y : a.dataset.m); a.nextElementSibling.textContent = y ? "/year" : "/month"; }
+  const p = plan();
+  $("seatsrow").hidden = p !== "Business";
+  const base = +document.querySelector("input[name=plan]:checked").closest("label").querySelector(".amt").dataset[y ? "y" : "m"];
+  const seats = p === "Business" ? +$("seats").value : 0;
+  const total = base + seats * 5 * (y ? 12 : 1);
+  $("sum").textContent = p + ", billed " + (y ? "yearly" : "monthly") + (seats ? ", " + seats + " staff seats" : "") + ": $" + total + (y ? " a year" : " a month") + ".";
+}
+$("yearly").onclick = () => { $("yearly").setAttribute("aria-checked", String(!yearly())); __log.push("yearly " + yearly()); draw(); };
+for (const r of document.querySelectorAll("input[name=plan]")) r.addEventListener("change", () => { __log.push("plan " + plan()); draw(); });
+$("minus").onclick = () => { $("seats").value = Math.max(1, +$("seats").value - 1); __log.push("seats " + $("seats").value); draw(); };
+$("plus").onclick = () => { $("seats").value = Math.min(20, +$("seats").value + 1); __log.push("seats " + $("seats").value); draw(); };
+$("seats").addEventListener("input", () => { __log.push("seats typed " + $("seats").value); draw(); });
+$("f").addEventListener("submit", (e) => { e.preventDefault(); __log.push("continue " + $("sum").textContent); $("msg").textContent = "Taking you to payment for " + plan() + " (" + (yearly() ? "yearly" : "monthly") + ")…"; });
+document.querySelector(".chat").onclick = () => __log.push("chat");
+draw();
+</script></body></html>
