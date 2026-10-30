@@ -1,0 +1,16 @@
+{
+ "F1301": "On a page with a shown original, a popup that takes focus right after a Sift click, or by select() or dialog.show(), still closes at once",
+ "F1303": "A held submit on a '#' or 'javascript:' form runs the page's submit handler once a second (one Enter adds the item 8 times), delays a plain '#' form until 8 s after load, and never sends it while the page is still loading",
+ "F1304": "A held form submit is replayed every second: one Enter adds a to-do 8 times or runs a search 8 times on a 'javascript:' form",
+ "F1302": "On a page with a shown original, a popup opened by a Sift checkbox or by Enter in a form field still closes at once (the F1200 guard covers only H.act)",
+ "F1305": "A site-header search form with more than one field keeps only its text box: the location, dates and guests fields are dropped",
+ "F1306": "Definition-list terms with several links lose all their links: on arXiv listings no paper can be opened",
+ "F1307": "A sign-out link now takes one of the top bar's 4 slots, so a signed-in header can push the Cart into the Menu",
+ "F1308": "F1210 residue: a whole-page form with no main, article or h1 and under 2000 characters still moves Add to cart and Subscribe into the search bar",
+ "F1309": "In a whole-page form whose search bar holds a second text field, the first button named Submit/OK/Go anywhere on the page becomes the search's button, and that form loses its button",
+ "F1310": "Pages with many closed <details> take seconds per look: scrollBox reads layout of hidden FAQ answers before its cheap style test",
+ "F1311": "The Short version drops a step or an answer that repeats an earlier one word for word: 'Click Next to continue.' as step 4 of 5 disappears",
+ "F1312": "F1218 regression: a byline or count line with a name ('Posted by Sam Rivers, 3 hours ago', 'Reuters, 5 min ago', 'Live: 12,400 watching') is now part of the Short version's cache key, so a revisit pays for a new model call and shows the full text until it comes",
+ "F1313": "A one-day 'no Short version' marker (and a one-day keep-title) is saved again for 7 days when the page turns out to be signed in after it asked",
+ "F1314": "Usage report retried without limit: while sift.pujia.ar/e fails, Sift sends the same day's report again about every 2 s of browsing, not 'one anonymous request per day of use'"
+}

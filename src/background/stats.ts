@@ -52,18 +52,38 @@ async function save() {
   flushStats();
 }
 
-export async function flushStats() {
-  const { stats = {}, sent = {}, settings = {}, reportIds = {} } = (await chrome.storage.local.get(["stats", "sent", "settings", "reportIds"])) as {
+/**
+ * After a report fails, none is tried again for this long, so a day's report
+ * stays one request (tried a few times a day at most), not one per page shown
+ * while the endpoint is down (F1314). The counts wait in storage.
+ */
+const RETRY = 4 * 60 * 60_000;
+let flushing: Promise<void> | undefined;
+
+/** Sends the reports of past days not sent yet; one run at a time. */
+export function flushStats(): Promise<void> {
+  return (flushing ??= flush().finally(() => (flushing = undefined)));
+}
+
+async function flush() {
+  const { stats = {}, sent = {}, settings = {}, reportIds = {}, reportRetry = 0 } = (await chrome.storage.local.get(["stats", "sent", "settings", "reportIds", "reportRetry"])) as {
     stats?: Record<string, Day>;
     sent?: Record<string, boolean>;
     settings?: { analytics?: boolean };
     reportIds?: Record<string, string>;
+    /** When a report may be tried again, after one failed. */
+    reportRetry?: number;
   };
   // Older versions kept one id for the life of the install.
   chrome.storage.local.remove("installId").catch(() => {});
   if (settings.analytics === false) return;
+  // A retry time further off than RETRY was set by a clock that was wrong since.
+  const wait = reportRetry - Date.now();
+  if (wait > 0 && wait <= RETRY) return;
   const now = today();
+  let failed = false;
   for (const [day, counts] of Object.entries(stats as Record<string, Day>)) {
+    if (failed) break;
     if (day >= now || sent[day]) continue;
     // A fresh random id per day's report, only so a retried report is not
     // counted twice. Nothing links one day's report to another's.
@@ -76,12 +96,12 @@ export async function flushStats() {
       if (r.ok || r.status === 204) {
         sent[day] = true;
         delete reportIds[day];
-      }
+      } else failed = true;
     } catch {
-      break;
+      failed = true;
     }
   }
   // Forget sent days that are no longer kept in the counts.
   for (const day of Object.keys(sent)) if (!stats[day]) delete sent[day];
-  await chrome.storage.local.set({ sent, reportIds });
+  await chrome.storage.local.set({ sent, reportIds, reportRetry: failed ? Date.now() + RETRY : 0 });
 }

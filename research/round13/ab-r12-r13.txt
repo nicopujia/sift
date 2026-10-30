@@ -1,0 +1,55 @@
+== r13 rep1 http://127.0.0.1:8799/amazon-search 
+2.27
+medians (5 off, 5 on): original 262 ms (fcp 236 ms); Sift 423 ms, loading 167 ms (fcp 200 ms). Sift - original: 161 ms (1.6x).
+== r12 rep1 http://127.0.0.1:8799/amazon-search 
+3.48
+medians (5 off, 5 on): original 228 ms (fcp 188 ms); Sift 324 ms, loading 167 ms (fcp 212 ms). Sift - original: 96 ms (1.4x).
+== r13 rep1 https://www.youtube.com/ 
+3.46
+medians (5 off, 5 on): original 3172 ms (fcp 2240 ms); Sift 2997 ms, loading 1158 ms (fcp 1180 ms). Sift - original: -175 ms (0.9x).
+== r12 rep1 https://www.youtube.com/ 
+3.80
+medians (5 off, 5 on): original - (fcp 876 ms, 5 never matched); Sift -, loading 904 ms (fcp 1036 ms, 5 never showed content).
+== r13 rep1 https://www.youtube.com/results?search_query=gluten+free+bread 
+2.49
+medians (5 off, 5 on): original 2628 ms (fcp 1548 ms); Sift 2897 ms, loading 947 ms (fcp 996 ms). Sift - original: 269 ms (1.1x).
+== r12 rep1 https://www.youtube.com/results?search_query=gluten+free+bread 
+5.00
+medians (5 off, 5 on): original 2494 ms (fcp 1460 ms); Sift 3080 ms, loading 885 ms (fcp 900 ms). Sift - original: 586 ms (1.2x).
+== r13 rep2 http://127.0.0.1:8799/amazon-search 
+4.84
+medians (5 off, 5 on): original 235 ms (fcp 204 ms); Sift 424 ms, loading 180 ms (fcp 212 ms). Sift - original: 189 ms (1.8x).
+== r12 rep2 http://127.0.0.1:8799/amazon-search 
+6.03
+medians (5 off, 5 on): original 250 ms (fcp 212 ms); Sift 402 ms, loading 215 ms (fcp 256 ms). Sift - original: 152 ms (1.6x).
+== r13 rep2 https://www.youtube.com/ 
+5.05
+medians (5 off, 5 on): original 2557 ms (fcp 1784 ms); Sift 2785 ms, loading 1147 ms (fcp 1180 ms). Sift - original: 228 ms (1.1x).
+== r12 rep2 https://www.youtube.com/ 
+4.84
+medians (5 off, 5 on): original - (fcp 940 ms, 5 never matched); Sift -, loading 355 ms (fcp 408 ms, 5 never showed content).
+== r13 rep2 https://www.youtube.com/results?search_query=gluten+free+bread 
+6.76
+medians (5 off, 5 on): original 2561 ms (fcp 1496 ms); Sift 3478 ms, loading 886 ms (fcp 924 ms). Sift - original: 917 ms (1.4x).
+== r12 rep2 https://www.youtube.com/results?search_query=gluten+free+bread 
+7.01
+medians (5 off, 5 on): original 2579 ms (fcp 1364 ms); Sift 3639 ms, loading 915 ms (fcp 948 ms). Sift - original: 1060 ms (1.4x).
+== r13 rep3 http://127.0.0.1:8799/amazon-search 
+7.16
+medians (5 off, 5 on): original 371 ms (fcp 340 ms); Sift 673 ms, loading 236 ms (fcp 276 ms). Sift - original: 302 ms (1.8x).
+== r12 rep3 http://127.0.0.1:8799/amazon-search 
+9.33
+medians (5 off, 5 on): original 273 ms (fcp 264 ms); Sift 389 ms, loading 242 ms (fcp 272 ms). Sift - original: 116 ms (1.4x).
+== r13 rep3 https://www.youtube.com/ 
+9.01
+medians (5 off, 5 on): original 2911 ms (fcp 2048 ms); Sift 3214 ms, loading 1037 ms (fcp 1076 ms). Sift - original: 303 ms (1.1x).
+== r12 rep3 https://www.youtube.com/ 
+7.68
+medians (5 off, 5 on): original - (fcp 1060 ms, 5 never matched); Sift -, loading 933 ms (fcp 1024 ms, 5 never showed content).
+== r13 rep3 https://www.youtube.com/results?search_query=gluten+free+bread 
+2.19
+medians (5 off, 5 on): original 2663 ms (fcp 1484 ms); Sift 3022 ms, loading 727 ms (fcp 752 ms). Sift - original: 359 ms (1.1x).
+== r12 rep3 https://www.youtube.com/results?search_query=gluten+free+bread 
+5.12
+medians (5 off, 5 on): original 2489 ms (fcp 1492 ms); Sift 2893 ms, loading 736 ms (fcp 764 ms). Sift - original: 404 ms (1.2x).
+DONE

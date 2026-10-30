@@ -970,40 +970,52 @@ export function dropUnsupported(md: string, source: string, lang?: string): stri
 }
 
 /**
- * A Short version that never says the same thing twice (F1100): a sentence of
- * four words or more that repeats an earlier one of its section word for word
- * (case, spacing and punctuation aside) goes, and so does a paragraph left
- * empty. A sentence that differs by any word ("the south district", "Senator
- * Jones", "in the evening") is no repeat (F1215), and a heading starts a new
- * section: the same advice under two headings stays under both. A list item
- * is held only against the items of its own list: two lists (two recipes) may
- * well share one ("200 g de harina").
+ * A Short version that never says the same thing twice in a row (F1100): a
+ * sentence of four words or more that repeats the one right before it word for
+ * word (case, spacing and punctuation aside) goes, and so does a paragraph
+ * that repeats the one before it, or is left empty. A sentence that differs by
+ * any word ("the south district", "Senator Jones", "in the evening") is no
+ * repeat (F1215). A repeat further on is a step or an answer of its own ("Can
+ * I bring a cat? Yes, you can bring a pet on the train."), and a list item is
+ * never dropped: a step may well say what an earlier one said ("4. Click Next
+ * to continue.") (F1311). A heading, a list, or a placeholder ends what came
+ * before it.
  */
 export function dropRepeats(md: string): string {
-  let seen = new Set<string>();
-  let list = new Set<string>();
+  /** The last sentence and paragraph kept, by their words. */
+  let prev = "";
+  let prevPara = "";
   const lines: string[] = [];
   for (const line of md.split("\n")) {
-    const mark = /^\s*(?:[-*•]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
-    if (!mark) list = new Set();
-    if (/^\s*#{1,6}\s/.test(line)) seen = new Set();
-    if (/^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line) || !line.trim()) {
+    if (!line.trim()) {
       lines.push(line);
       continue;
     }
-    const all = sentencesOf(line.slice(mark.length));
-    const kept = all.filter((sentence) => {
-      const words = qwords(sentence.replace(/\*\*|__/g, ""));
-      // A placeholder's block is put back by the page, wherever its sentence went: never dropped here.
-      if (words.length < 4 || /\[\[\s*B\d+\s*\]\]/.test(sentence)) return true;
+    if (/^\s*(?:[-*•]|\d+[.)])\s+/.test(line) || /^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line)) {
+      prev = prevPara = "";
+      lines.push(line);
+      continue;
+    }
+    const all = sentencesOf(line);
+    const keys = all.map((sentence) => qwords(sentence.replace(/\*\*|__/g, "")));
+    // A placeholder's block is put back by the page, wherever its sentence went: never dropped here.
+    const held = /\[\[\s*B\d+\s*\]\]/.test(line);
+    const para = keys.map((w) => w.join(" ")).join("\n");
+    if (!held && para === prevPara && keys.flat().length >= 4) continue;
+    prevPara = para;
+    const kept = all.filter((sentence, i) => {
+      const words = keys[i];
+      if (words.length < 4 || /\[\[\s*B\d+\s*\]\]/.test(sentence)) {
+        prev = "";
+        return true;
+      }
       const key = words.join(" ");
-      const earlier = mark ? list : seen;
-      if (earlier.has(key)) return false;
-      earlier.add(key);
+      if (key === prev) return false;
+      prev = key;
       return true;
     });
     if (kept.length === all.length) lines.push(line);
-    else if (kept.length) lines.push(mark + kept.join(" "));
+    else if (kept.length) lines.push(kept.join(" "));
   }
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }

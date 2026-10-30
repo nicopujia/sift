@@ -10,7 +10,7 @@ const TICKS_CJK = /\d+\s*(?:秒|分|分钟|分鐘|時間|小时|小時|日|天|�
  */
 const LABEL = new Set(
   (
-    "updated update published posted edited modified last read reading time current duration elapsed remaining loaded progress ago just now today yesterday at on by of the a views view comments comment likes shares reads replies votes advertisement advert ad ads sponsored " +
+    "updated update published posted edited modified last read reading time current duration elapsed remaining loaded progress live ago just now today yesterday at on by of the a views view comments comment likes shares reads replies votes advertisement advert ad ads sponsored " +
     "s sec secs second seconds m min mins minute minutes h hr hrs hour hours d day days w wk week weeks mo month months y yr yrs year years " +
     "actualizado actualizada actualización publicado publicada editado modificado última lectura leer tiempo de del el la las los en hace hoy ayer ahora vistas visitas comentarios respuestas votos publicidad anuncio patrocinado " +
     "segundo segundos minuto minutos hora horas día días dia dias semana semanas mes meses año años " +
@@ -23,6 +23,9 @@ const LABEL = new Set(
     "назад обновлено опубликовано сегодня вчера секунду секунды секунд минуту минуты минут час часа часов день дня дней неделю недели месяц месяца месяцев год года лет"
   ).split(" "),
 );
+/** A count of views, likes or comments ("1,2 M views", "266 comments", "12,400 watching"). */
+const COUNT =
+  "\\d[\\d.,]*\\s*[kmb]?\\s+(?:\\p{L}+\\s+){0,2}(?:views?|viewers?|watching|likes?|comments?|shares?|reads?|vistas?|visitas?|viendo|reproducciones|visualizaciones|comentarios?|vues|commentaires?|aufrufe|kommentare|visualizzazioni|commenti)(?!\\p{L})";
 /**
  * A time relative to now ("3hrs ago", "hace 3 horas", "vor 2 Tagen", "3時間前")
  * or a count of views, likes or comments: it changes on its own between
@@ -35,7 +38,7 @@ const VOLATILE = new RegExp(
     "(?<!\\p{L})(?:há|il y a|vor)\\s+(?:\\d+|uma?|une?|einer?|einem)\\s+(?:segundos?|minutos?|horas?|dias?|semanas?|mês|meses|anos?|secondes?|minutes?|heures?|jours?|semaines?|mois|ans?|sekunden?|minuten?|stunden?|tag(?:en)?|wochen?|monat(?:en)?|jahr(?:en)?)(?!\\p{L})",
     "\\d+\\s+(?:secondi|minuti|ore|giorni|settimane|mesi|anni)\\s+fa(?!\\p{L})",
     TICKS_CJK.source,
-    "\\d[\\d.,]*\\s*[kmb]?\\s+(?:\\p{L}+\\s+){0,2}(?:views?|viewers?|watching|likes?|comments?|shares?|reads?|vistas?|visitas?|viendo|reproducciones|visualizaciones|comentarios?|vues|commentaires?|aufrufe|kommentare|visualizzazioni|commenti)(?!\\p{L})",
+    COUNT,
   ].join("|"),
   "iu",
 );
@@ -51,6 +54,9 @@ const FILLER = new Set(
 /** Where a byline's parts meet: "BBC·3hrs ago", "Daily Mail · 266 comments", "Reuters | 2 hours ago". */
 const PART = /\s*[·•|]\s*|\s+[-–—]\s+/;
 const VOLATILE_ALL = new RegExp(VOLATILE.source, "giu");
+const COUNT_ALL = new RegExp(COUNT, "giu");
+/** A time relative to now ("3 hours ago", "hace 3 horas"), not a count. */
+const relative = (s: string) => VOLATILE.test(s.replace(COUNT_ALL, " "));
 
 /**
  * Whether a short line only ticks: once the parts `tick` matches (a clock
@@ -69,5 +75,15 @@ export function onlyTicks(line: string, tick: RegExp): boolean {
   };
   if (labelOnly(line)) return true;
   const parts = line.split(PART);
-  return parts.length > 1 && parts.some((p) => VOLATILE.test(p) && labelOnly(p));
+  if (parts.length > 1 && parts.some((p) => VOLATILE.test(p) && labelOnly(p))) return true;
+  // A byline whose time relative to now follows a comma or a name ("Posted by
+  // Sam Rivers, 3 hours ago", "Sports desk, updated 3 hours ago", "Jane Doe 3
+  // hours ago") (F1312). A sentence has words of its own ("The fire started 2
+  // hours ago."), and a count after a comma may be what it says ("…, 9
+  // million viewers").
+  if (!relative(line)) return false;
+  const last = line.split(/,\s+/).pop()!;
+  if (last !== line && relative(last) && labelOnly(last)) return true;
+  const rest = line.replace(VOLATILE_ALL, " ").replace(all, " ").replace(TICKS_CJK, " ").match(/\p{L}+/gu) ?? [];
+  return rest.every((w) => LABEL.has(w.toLowerCase()) || /^\p{Lu}/u.test(w));
 }

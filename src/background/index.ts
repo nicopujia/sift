@@ -4,7 +4,7 @@
 
 import type { AiReply, AiRequest, LineInput, ModelCfg, RuntimeMsg, Settings } from "../shared/messages";
 import { mergeSettings } from "../shared/messages";
-import { cacheClear, cacheGet, cacheSet } from "./cache";
+import { cacheClear, cacheGet, cacheSet, cacheShorten } from "./cache";
 import { bump, flushStats } from "./stats";
 import { addsLink, addsSpeaker, claimsNoAnswer, dropRepeats, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, movesKicker, proseLang, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, swapsPerson, swapsRole, unquoted, unsupported } from "./text";
 
@@ -969,9 +969,10 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener(async (req: AiRequest) => {
     if (req.task === "private") {
       // The page turned out to be signed-in (its header came late): what it
-      // already saved is saved again for the short time only.
+      // already saved or read is kept for the short time only, and never
+      // longer than before: a day-long "no Short version" stays a day (F1313).
       pc.private = true;
-      for (const [key, v] of pc.saved) cacheSet(key, v, PRIVATE_TTL);
+      for (const key of pc.saved.keys()) cacheShorten(key, PRIVATE_TTL);
       pc.saved.clear();
       return;
     }

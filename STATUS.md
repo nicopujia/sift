@@ -51,7 +51,7 @@ These ran on the build before round 9's fixes. The notes say what changed afterw
 | Amazon cart (test page) | equal | Plus, minus, Delete, Save for later match | Pass | Pass |
 | Gmail (test page) | equal | Open, back, archive, delete, mark, reply, compose, send, search, Undo match | Pass | Pass |
 
-**Read the round 12 frame-by-frame section below first.** The older speed numbers in this section come from a script that could record "equal" when Sift was a little slower.
+**Read the frame-by-frame sections below first (rounds 12 and 13).** The older speed numbers in this section come from a script that could record "equal" when Sift was a little slower.
 
 "Equal" means Sift showed its first content at the same moment as the original. By that older script, Sift was equal or faster on every target page in rounds 9 to 11. The frame-by-frame check below corrects this for BBC home and Infobae home. In round 11 on YouTube:
 
@@ -107,11 +107,34 @@ After round 12's progressive first view (Sift now reads the first screenful with
 
 So Sift's white page and Loading line show at about the same moment as the original's content, and its full view follows about 0.15 to 0.25 s later on these pages. Closing that gap is still open.
 
+## Speed, checked frame by frame (round 13)
+
+Measured on 2026-10-30 on the build published that day (round 12 plus the first round 13 speed fixes), with the same method and commands. The machine was quiet for the first three pages (load average under 2). Fixers started during the run, so the load rose to about 5 for the rest. Times are medians of 5 loads in ms. Raw output: research/round13/speed-r13.txt.
+
+| Page | Original | Sift | Loading | Sift minus original | Round 12 |
+|---|---|---|---|---|---|
+| BBC home (live) | 229 | 279 | 177 | +50 | +357 |
+| Infobae home (live) | 193 | 268 | 193 | +75 | +274 |
+| core-buttons3000 (test page) | 132 | 257 | 141 | +125 | +473 |
+| BBC article (live) | 191 | 244 | 170 | +53 | +62 |
+| YouTube home (live) | 2010 | 2325 | 1065 | +315 | +132 |
+| YouTube search (live) | 2332 | 2649 | 840 | +317 | -180 |
+| YouTube watch (live), title | 3965 | 928 | 928 | -3037 | -5281 |
+| Amazon search (saved page) | 187 | 372 | 123 | +185 | +67 |
+| Amazon product (test page) | 55 | 83 | 60 | +28 | +75 |
+| Amazon cart (test page) | 55 | 81 | 64 | +26 | +41 |
+| Gmail (test page) | 57 | 76 | 61 | +19 | +7 |
+| Daily Mail home (saved page) | 344 | 354 | 354 | +10 | +14 |
+
+- News front pages and the 3000-button page are now within about 0.1 s of the original.
+- Amazon search got slower. Run in turns against the round 12 build, it was slower in all three tries (+161, +189, +302 ms against +96, +152, +116 ms). A fixer is working on it. Data: research/round13/ab-r12-r13.txt.
+- YouTube home and search: Sift's list shows about 0.3 s after the original's. With Sift on, YouTube's own list also renders later, at the same moment as Sift's. The round 12 build gave the same result on YouTube search in the same back-to-back test, so this is not new. It may have been hidden by load before.
+
 Commands, all with 5 runs: YouTube home `ytd-rich-item-renderer --sift li.item`, search (`gluten free bread`) `ytd-video-renderer --sift li.item`, watch (dQw4w9WgXcQ) `'ytd-watch-metadata h1'`; amazon-search `'[data-component-type=s-search-result]' --sift li.item --block amazon`; fixtures amazon-product `'#productTitle' --block amazon`, amazon-cart `.sc-list-item --sift li.item --block amazon`, gmail `tr.zA --sift li.item`; BBC home `'main h2'`, BBC article cq62yg6rggj0o `h1`; Infobae home `'main h2'`; dailymail-home `h2`; core-buttons3000 `h1`. On the Amazon pages, `--block amazon` failed every request to an Amazon host (1189 on amazon-search), and none got through.
 
 ## Still open
 
-- Speed: on news front pages (BBC home, Infobae home) and pages with thousands of controls, Sift's first full view is 0.15 to 0.25 s later than the original's first content (see above).
+- Speed: YouTube home and search show Sift's list about 0.3 s after the original's, and Amazon search about 0.2 s after (round 13 section above). News front pages are now within 0.1 s.
 - Amazon was tested only on saved pages and hand-made test pages. Amazon forbids automated agents. Check it by hand in your own Chrome.
 - Gmail was tested only on a test page, because testers may not sign in. Check it in your own Chrome: load the extension and paste your OpenRouter key in Options.
 - AI wording:

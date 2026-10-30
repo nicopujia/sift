@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Search that posts back and handles submit</title>
+</head>
+<body>
+<main>
+<h1>Recipe finder</h1>
+<p>A search box that posts back to this page ("#"). Its submit listener records each search and does not cancel the submission, so the browser posts the form right after.</p>
+<form id="find" action="#" method="post">
+<label for="q">Find a recipe</label> <input id="q" name="q" type="text">
+<button type="submit">Find</button>
+</form>
+<ul id="done"></ul>
+</main>
+<script>
+window.__log = [];
+document.getElementById("find").addEventListener("submit", () => {
+  const li = document.createElement("li");
+  li.textContent = "searched " + document.getElementById("q").value;
+  document.getElementById("done").append(li);
+  window.__log.push("searched at " + Math.round(performance.now()));
+  sessionStorage.setItem("r13int16-postadd", JSON.stringify(window.__log));
+});
+</script>
+</body>
+</html>

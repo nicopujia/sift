@@ -599,14 +599,24 @@ export function submit(field: Element | null, button: Element | null, form: HTML
     // just reload the page and lose the query. Hold it and try again once the page has loaded.
     const t0 = performance.now();
     const at = location.href.split("#")[0];
+    // Only while the page did nothing with it: a handler that added the item, drew results or took the
+    // text has handled it, and the submission goes on as on the original. Else every retry would replay
+    // its handler again (one Enter, the item added 8 times: F1303).
+    const value = (field as HTMLInputElement | null)?.value;
+    const mo = new MutationObserver(() => {});
+    mo.observe(document, { subtree: true, childList: true, characterData: true });
+    const handled = () =>
+      (field as HTMLInputElement | null)?.value !== value ||
+      mo.takeRecords().some((r) => !(r.target instanceof Element ? r.target : r.target.parentElement)?.closest("sift-root, [data-sift-portal], [role=listbox], [role=option]"));
     const hold = (e: Event) => {
-      if (e.target !== f || e.defaultPrevented) return;
+      if (e.target !== f || e.defaultPrevented || handled()) return;
       e.preventDefault();
       clearTimeout(heldSubmit);
       heldSubmit = setTimeout(function retry() {
         // Not once the page has gone on to another address (the site took it over, or the user went elsewhere).
         if (leftAt >= t0 || location.href.split("#")[0] !== at || !f.isConnected) return;
-        if (document.readyState !== "complete") heldSubmit = setTimeout(retry, 500);
+        // Still loading, for a while at most (an image that never ends must not hold it for good).
+        if (document.readyState !== "complete" && holdsSubmit(f)) heldSubmit = setTimeout(retry, 500);
         else submit(field?.isConnected ? field : null, button, form, via);
       }, 1000);
     };
@@ -615,6 +625,7 @@ export function submit(field: Element | null, button: Element | null, form: HTML
       return submitNow(field, button, f, via);
     } finally {
       removeEventListener("submit", hold);
+      mo.disconnect();
     }
   }
   return submitNow(field, button, form, via);
@@ -625,13 +636,18 @@ let heldSubmit: ReturnType<typeof setTimeout> | undefined;
 
 /**
  * Whether a submission of `f` that the page does not take over is held for
- * now: its action is only a fragment or a script ("#"), and the page is
- * loading or loaded less than 8 seconds ago.
+ * now: a search box (one field to type in) that posts back to this page ("#"),
+ * and the page is loading (at most 10 seconds after DOMContentLoaded) or loaded
+ * less than 8 seconds ago. Not a script address ("javascript:"), whose
+ * submission does nothing, nor a GET, which keeps its query in the new address
+ * (F1303).
  */
 function holdsSubmit(f: HTMLFormElement): boolean {
-  if (!/^\s*(#|javascript:)/i.test(f.getAttribute("action") ?? "")) return false;
-  if (document.readyState !== "complete") return true;
+  if (f.method !== "post" || !/^\s*#/.test(f.getAttribute("action") ?? "")) return false;
+  const typed = Array.from(f.elements).filter((e) => e instanceof HTMLTextAreaElement || (e instanceof HTMLInputElement && BLOCKING.has(e.type)));
+  if (typed.length !== 1 || !/^(text|search)$/.test((typed[0] as HTMLInputElement).type)) return false;
   const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+  if (document.readyState !== "complete") return !nav?.domContentLoadedEventEnd || performance.now() < nav.domContentLoadedEventEnd + 10000;
   return !!nav && performance.now() < nav.loadEventEnd + 8000;
 }
 

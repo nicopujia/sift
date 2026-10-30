@@ -71,6 +71,26 @@ export async function cacheSet(key: string, v: string, ttl?: number): Promise<vo
   }
 }
 
+/**
+ * Keeps a saved entry at most `ttl` (ms) more, never longer than it would
+ * have been kept: a page found to be signed-in after it saved or read it.
+ */
+export async function cacheShorten(key: string, ttl: number): Promise<void> {
+  try {
+    const d = await db();
+    const s = d.transaction(STORE, "readwrite").objectStore(STORE);
+    const q = s.get(key);
+    q.onsuccess = () => {
+      const e = q.result as Entry | undefined;
+      if (!fresh(e)) return;
+      const exp = Math.min(e!.exp ?? e!.ts + MAX_AGE, Date.now() + ttl);
+      if (exp !== e!.exp) s.put({ ...e!, exp }, key);
+    };
+  } catch {
+    /* cache is best effort */
+  }
+}
+
 function prune(d: IDBDatabase) {
   const tx = d.transaction(STORE, "readwrite");
   const s = tx.objectStore(STORE);

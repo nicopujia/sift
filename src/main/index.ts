@@ -132,13 +132,35 @@ if (!(window as any).__siftMain) {
       if (e.hasAttribute("data-sift-portal") || e.localName === "sift-root" || e === document.fullscreenElement || e.matches(":modal")) return true;
     return false;
   };
+  // Not only during the click (F1301, F1302): the page often focuses its popup a microtask, a frame or a
+  // timeout later (React, Vue, Headless UI), or after Sift's checkbox or Enter. So while Sift is shown and
+  // holds focus, a page element outside what Sift shows takes no real focus, as on an inert page. Real
+  // focus already on a page element (a shown original, the editor Sift types into) is left as it is.
+  const guarded = (n: Element): boolean => {
+    if (!n.isConnected || shownAt(n)) return false;
+    if (clicking > 0) return true;
+    const a = active?.get ? (active.get.call(document) as Element | null) : null;
+    return (!a || a === document.body || a.localName === "sift-root") && siftShown();
+  };
+  const askFocus = (n: Element) => n.dispatchEvent(new CustomEvent("sift-focus", { bubbles: true, composed: true }));
   let selField: HTMLInputElement | HTMLTextAreaElement | null = null;
   for (const fproto of [HTMLInputElement.prototype, HTMLTextAreaElement.prototype] as any[])
     for (const name of ["select", "setSelectionRange"]) {
       const orig = fproto[name];
       if (typeof orig !== "function") continue;
       fproto[name] = function (this: HTMLInputElement | HTMLTextAreaElement, ...args: unknown[]) {
-        const r = orig.apply(this, args);
+        // select() focuses the field natively: while guarded (above), select its text without focus.
+        let r: unknown;
+        try {
+          if (name === "select" && guarded(this)) {
+            fproto.setSelectionRange.call(this, 0, this.value.length);
+            askFocus(this);
+            return;
+          }
+        } catch {
+          /* a type with no selection range: the page's own call */
+        }
+        r = orig.apply(this, args);
         // Only the copy that follows in the same task.
         const f = (selField = this);
         setTimeout(() => selField === f && (selField = null));
@@ -149,7 +171,7 @@ if (!(window as any).__siftMain) {
     const f = selField;
     // Never a password: the browser copies none.
     // Or a field the page could not focus during Sift's click (above): it would copy as nothing.
-    if (f?.isConnected && (inertAt(f) || (clicking > 0 && !shownAt(f))) && (f as HTMLInputElement).type !== "password") {
+    if (f?.isConnected && (inertAt(f) || guarded(f)) && (f as HTMLInputElement).type !== "password") {
       try {
         return f.value.slice(f.selectionStart ?? 0, f.selectionEnd ?? 0);
       } catch {
@@ -214,9 +236,9 @@ if (!(window as any).__siftMain) {
   if (typeof focus === "function") {
     proto.focus = function (this: HTMLElement, ...args: unknown[]) {
       try {
-        // During Sift's click, outside what Sift shows of the page: no real focus (above, F1200).
-        if (clicking > 0 && this.isConnected && !shownAt(this)) {
-          this.dispatchEvent(new CustomEvent("sift-focus", { bubbles: true, composed: true }));
+        // Outside what Sift shows of the page, while Sift holds focus: no real focus (above, F1200, F1301).
+        if (guarded(this)) {
+          askFocus(this);
           return;
         }
       } catch {
@@ -276,6 +298,31 @@ if (!(window as any).__siftMain) {
   // A modal dialog inside a shadow root is invisible to document.querySelector(":modal")
   // and sends no toggle event to the document. Tell Sift when one opens and closes.
   const dproto = HTMLDialogElement.prototype as any;
+  // show() focuses the dialog's first control natively: while guarded (above), it opens without taking
+  // focus (inert for that moment), and Sift follows to its copy of that control (F1301).
+  const show = dproto.show;
+  if (typeof show === "function") {
+    dproto.show = function (this: HTMLDialogElement, ...args: unknown[]) {
+      let hold = false;
+      try {
+        hold = !this.open && !this.inert && guarded(this);
+      } catch {
+        /* never break the page's own call */
+      }
+      if (!hold) return show.apply(this, args);
+      this.inert = true;
+      try {
+        return show.apply(this, args);
+      } finally {
+        this.inert = false;
+        try {
+          askFocus(this.querySelector("[autofocus]") ?? this.querySelector("button, [href], input:not([type=hidden]), select, textarea, [tabindex]:not([tabindex='-1'])") ?? this);
+        } catch {
+          /* never break the page's own call */
+        }
+      }
+    };
+  }
   const showModal = dproto.showModal;
   if (typeof showModal === "function") {
     dproto.showModal = function (this: HTMLDialogElement, ...args: unknown[]) {

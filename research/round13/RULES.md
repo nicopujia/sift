@@ -38,6 +38,7 @@ Sift is a Chrome MV3 extension: "reader mode on steroids". README.md explains th
 - No sign-ins, no purchases, no sending messages, no forms that post data. Searches and route queries are fine.
 - Never get around a bot check, a captcha, or an "Access Denied" page. Fix only Sift's part of such a finding.
 - Do not touch the OpenRouter account or settings. Do not commit to git.
+- Disk space is short. Do not copy the repo, download large files or save many screenshots.
 - Never fabricate results. If you could not verify something, say so.
 
 ## Report

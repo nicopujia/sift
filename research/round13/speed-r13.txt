@@ -1,0 +1,121 @@
+== https://www.bbc.com/ | main h2 | 5
+ 16:54:56 up 113 days,  7:19,  6 users,  load average: 0.72, 0.77, 0.47
+run 5 off: original 177 ms; fcp 160 ms, dcl 369 ms, load 3129 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 267 ms, loading 168 ms (original under Sift 267 ms); fcp 184 ms, dcl 613 ms, load 4304 ms, long tasks before it 1 (95 ms, longest 95 ms)
+run 7 on:  sift 256 ms, loading 154 ms (original under Sift 256 ms); fcp 184 ms, dcl 649 ms, load 5253 ms, long tasks before it 1 (90 ms, longest 90 ms)
+run 8 off: original 229 ms; fcp 240 ms, dcl 392 ms, load 567 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 235 ms; fcp 236 ms, dcl 419 ms, load 2832 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 295 ms, loading 180 ms (original under Sift 295 ms); fcp 200 ms, dcl 747 ms, load 3902 ms, long tasks before it 1 (105 ms, longest 105 ms)
+medians (5 off, 5 on): original 229 ms (fcp 236 ms); Sift 279 ms, loading 177 ms (fcp 200 ms). Sift - original: 50 ms (1.2x).
+Sift's first content (last run on): "bbc.com US Secret Service says it is helping to track funds stolen from crypto firm Binance in $6.3b"
+== https://www.infobae.com/ | main h2 | 5
+ 16:55:49 up 113 days,  7:20,  6 users,  load average: 1.99, 1.14, 0.62
+run 5 off: original 193 ms; fcp 272 ms, dcl 393 ms, load 1480 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 207 ms, loading 130 ms (original under Sift 207 ms); fcp 144 ms, dcl 457 ms, load 2558 ms, long tasks before it 1 (67 ms, longest 67 ms)
+run 7 on:  sift 334 ms, loading 246 ms (original under Sift 334 ms); fcp 276 ms, dcl 747 ms, load 2856 ms, long tasks before it 1 (80 ms, longest 80 ms)
+run 8 off: original 166 ms; fcp 152 ms, dcl 270 ms, load 1499 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 234 ms; fcp 308 ms, dcl 436 ms, load 1567 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 222 ms, loading 124 ms (original under Sift 222 ms); fcp 156 ms, dcl 478 ms, load 2306 ms, long tasks before it 1 (84 ms, longest 84 ms)
+medians (5 off, 5 on): original 193 ms (fcp 272 ms); Sift 268 ms, loading 193 ms (fcp 220 ms). Sift - original: 75 ms (1.4x).
+Sift's first content (last run on): "Infobae América Israel agregó a Turquía a los países bajo sospecha de injerencia electoral y el Moss"
+== http://127.0.0.1:8799/fx/core-buttons3000 | h1 | 5
+ 16:56:20 up 113 days,  7:20,  6 users,  load average: 3.73, 1.64, 0.80
+run 5 off: original 135 ms; fcp 76 ms, dcl 90 ms, load 97 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 230 ms, loading 230 ms (original under Sift 230 ms); fcp 320 ms, dcl 264 ms, load 274 ms, long tasks before it 1 (172 ms, longest 172 ms)
+run 7 on:  sift 341 ms, loading 148 ms (original under Sift 148 ms); fcp 260 ms, dcl 72 ms, load 110 ms, long tasks before it 2 (235 ms, longest 150 ms)
+run 8 off: original 132 ms; fcp 224 ms, dcl 79 ms, load 93 ms, long tasks before it 1 (62 ms, longest 62 ms)
+run 9 off: original 73 ms; fcp 196 ms, dcl 154 ms, load 165 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 257 ms, loading 112 ms (original under Sift 257 ms); fcp 136 ms, dcl 314 ms, load 332 ms, long tasks before it 1 (136 ms, longest 136 ms)
+medians (5 off, 5 on): original 132 ms (fcp 196 ms); Sift 257 ms, loading 141 ms (fcp 220 ms). Sift - original: 125 ms (1.9x).
+Sift's first content (last run on): "Picker e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 e12 e13 e14 e15 e16 e17 e18 e19 e20 e21 e22 e23 e24 e25"
+== https://www.bbc.com/news/articles/cq62yg6rggj0o | h1 | 5
+ 16:56:30 up 113 days,  7:20,  6 users,  load average: 3.86, 1.74, 0.84
+run 5 off: original 163 ms; fcp 252 ms, dcl 241 ms, load 367 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 231 ms, loading 133 ms (original under Sift 231 ms); fcp 152 ms, dcl 290 ms, load 2756 ms, long tasks before it 1 (93 ms, longest 93 ms)
+run 7 on:  sift 244 ms, loading 141 ms (original under Sift 244 ms); fcp 164 ms, dcl 301 ms, load 2694 ms, long tasks before it 1 (92 ms, longest 92 ms)
+run 8 off: original 191 ms; fcp 276 ms, dcl 272 ms, load 1840 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 136 ms; fcp 232 ms, dcl 235 ms, load 2089 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 226 ms, loading 226 ms (original under Sift 226 ms); fcp 300 ms, dcl 283 ms, load 3064 ms, long tasks before it 1 (87 ms, longest 87 ms)
+medians (5 off, 5 on): original 191 ms (fcp 232 ms); Sift 244 ms, loading 170 ms (fcp 184 ms). Sift - original: 53 ms (1.3x).
+Sift's first content (last run on): "Lula's comeback in Brazil dents Trump's ambitions for Latin America Ione Wells · 27 Oct 2026 Getty I"
+== https://www.youtube.com/ | ytd-rich-item-renderer | 5 --sift li.item
+ 16:57:01 up 113 days,  7:21,  6 users,  load average: 3.84, 1.93, 0.93
+run 5 off: original 2376 ms; fcp 1608 ms, dcl 1706 ms, load 1990 ms, long tasks before it 5 (1013 ms, longest 440 ms)
+run 6 on:  sift 2325 ms, loading 1160 ms (original under Sift 2325 ms); fcp 1208 ms, dcl 1778 ms, load 1928 ms, long tasks before it 4 (877 ms, longest 454 ms)
+run 7 on:  sift 2669 ms, loading 1094 ms (original under Sift 2669 ms); fcp 1148 ms, dcl 1908 ms, load 2076 ms, long tasks before it 4 (1078 ms, longest 634 ms)
+run 8 off: original 2010 ms; fcp 1440 ms, dcl 1480 ms, load 1550 ms, long tasks before it 4 (868 ms, longest 450 ms)
+run 9 off: original 1945 ms; fcp 1444 ms, dcl 1493 ms, load 1622 ms, long tasks before it 3 (759 ms, longest 413 ms)
+run 10 on:  sift 2337 ms, loading 985 ms (original under Sift 2337 ms); fcp 1008 ms, dcl 1570 ms, load 1701 ms, long tasks before it 4 (845 ms, longest 434 ms)
+medians (5 off, 5 on): original 2010 ms (fcp 1444 ms); Sift 2325 ms, loading 1065 ms (fcp 1100 ms). Sift - original: 315 ms (1.2x).
+Sift's first content (last run on): "YouTube Topics Mix - Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster) Toto, Cynd"
+== https://www.youtube.com/results?search_query=gluten+free+bread | ytd-video-renderer | 5 --sift li.item
+ 16:57:35 up 113 days,  7:22,  6 users,  load average: 4.23, 2.22, 1.07
+run 5 off: original 2320 ms; fcp 1340 ms, dcl 1459 ms, load 1648 ms, long tasks before it 5 (1320 ms, longest 655 ms)
+run 6 on:  sift 2762 ms, loading 854 ms (original under Sift 2762 ms); fcp 876 ms, dcl 1495 ms, load 1611 ms, long tasks before it 6 (1382 ms, longest 591 ms)
+run 7 on:  sift 2791 ms, loading 840 ms (original under Sift 2791 ms); fcp 864 ms, dcl 1439 ms, load 1513 ms, long tasks before it 6 (1318 ms, longest 592 ms)
+run 8 off: original 2490 ms; fcp 1524 ms, dcl 1659 ms, load 1803 ms, long tasks before it 4 (1361 ms, longest 676 ms)
+run 9 off: original 2401 ms; fcp 1560 ms, dcl 1697 ms, load 1776 ms, long tasks before it 5 (1144 ms, longest 526 ms)
+run 10 on:  sift 2547 ms, loading 774 ms (original under Sift 2547 ms); fcp 792 ms, dcl 1407 ms, load 1548 ms, long tasks before it 6 (1269 ms, longest 549 ms)
+medians (5 off, 5 on): original 2332 ms (fcp 1388 ms); Sift 2649 ms, loading 840 ms (fcp 864 ms). Sift - original: 317 ms (1.1x).
+Sift's first content (last run on): "Search: gluten free bread All Shorts Unwatched Videos Recently uploaded Live Filters Make the softes"
+== https://www.youtube.com/watch?v=dQw4w9WgXcQ | ytd-watch-metadata h1 | 5
+ 16:58:09 up 113 days,  7:22,  6 users,  load average: 4.82, 2.61, 1.24
+run 5 off: original 3681 ms; fcp 736 ms, dcl 2056 ms, load 2457 ms, long tasks before it 7 (2059 ms, longest 772 ms)
+run 6 on:  sift 980 ms, loading 980 ms (original under Sift 4381 ms); fcp 1008 ms, dcl 2367 ms, load 2936 ms, long tasks before it 1 (68 ms, longest 68 ms)
+run 7 on:  sift 831 ms, loading 831 ms (original under Sift 4333 ms); fcp 856 ms, dcl 2067 ms, load 2719 ms, long tasks before it 1 (83 ms, longest 83 ms)
+run 8 off: original 4335 ms; fcp 1136 ms, dcl 2532 ms, load 2727 ms, long tasks before it 10 (2354 ms, longest 787 ms)
+run 9 off: original 3902 ms; fcp 972 ms, dcl 1995 ms, load 2727 ms, long tasks before it 11 (2135 ms, longest 782 ms)
+run 10 on:  sift 914 ms, loading 914 ms (original under Sift 5282 ms); fcp 964 ms, dcl 2726 ms, load 3619 ms, long tasks before it 1 (87 ms, longest 87 ms)
+medians (5 off, 5 on): original 3965 ms (fcp 1020 ms); Sift 928 ms, loading 928 ms (fcp 964 ms). Sift - original: -3037 ms (0.2x).
+Sift's first content (last run on): "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster) Loading…"
+== http://127.0.0.1:8799/amazon-search | [data-component-type=s-search-result] | 5 --sift li.item --block amazon
+ 16:59:05 up 113 days,  7:23,  6 users,  load average: 4.95, 2.94, 1.43
+run 6 on:  sift 400 ms, loading 132 ms (original under Sift 241 ms); fcp 152 ms, dcl 1354 ms, load 1613 ms, long tasks before it 2 (161 ms, longest 82 ms)
+run 7 on:  sift 445 ms, loading 121 ms (original under Sift 318 ms); fcp 156 ms, dcl 1283 ms, load 1471 ms, long tasks before it 2 (174 ms, longest 91 ms)
+run 8 off: original 184 ms; fcp 160 ms, dcl 646 ms, load 776 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 166 ms; fcp 128 ms, dcl 602 ms, load 673 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 324 ms, loading 114 ms (original under Sift 239 ms); fcp 132 ms, dcl 1108 ms, load 1308 ms, long tasks before it 1 (75 ms, longest 75 ms)
+medians (5 off, 5 on): original 187 ms (fcp 160 ms); Sift 372 ms, loading 123 ms (fcp 156 ms). Sift - original: 185 ms (2.0x).
+Sift's first content (last run on): "Search: wireless headphones Sort by Featured Price: Low to High Price: High to Low Avg. Customer Rev"
+blocked 1213 requests; got through: none
+== http://127.0.0.1:8799/fx/amazon-product | #productTitle | 5 --block amazon
+ 16:59:22 up 113 days,  7:23,  6 users,  load average: 5.65, 3.23, 1.56
+run 6 on:  sift 80 ms, loading 51 ms (original under Sift 62 ms); fcp 68 ms, dcl 57 ms, load 86 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 7 on:  sift 105 ms, loading 74 ms (original under Sift 74 ms); fcp 104 ms, dcl 69 ms, load 110 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 8 off: original 55 ms; fcp 88 ms, dcl 51 ms, load 65 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 61 ms; fcp 112 ms, dcl 51 ms, load 72 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 83 ms, loading 48 ms (original under Sift 66 ms); fcp 64 ms, dcl 59 ms, load 88 ms, long tasks before it 0 (0 ms, longest 0 ms)
+medians (5 off, 5 on): original 55 ms (fcp 88 ms); Sift 83 ms, loading 60 ms (fcp 88 ms). Sift - original: 28 ms (1.5x).
+Sift's first content (last run on): "soundcore by Anker Q20i Hybrid Active Noise Cancelling Headphones, Wireless Over-Ear Bluetooth, 40H "
+blocked 0 requests; got through: none
+== http://127.0.0.1:8799/fx/amazon-cart | .sc-list-item | 5 --sift li.item --block amazon
+ 16:59:27 up 113 days,  7:23,  6 users,  load average: 5.20, 3.18, 1.55
+run 6 on:  sift 96 ms, loading 71 ms (original under Sift 96 ms); fcp 88 ms, dcl 78 ms, load 81 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 7 on:  sift 89 ms, loading 66 ms (original under Sift 89 ms); fcp 84 ms, dcl 73 ms, load 76 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 8 off: original 45 ms; fcp 48 ms, dcl 43 ms, load 53 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 56 ms; fcp 60 ms, dcl 54 ms, load 59 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 77 ms, loading 52 ms (original under Sift 52 ms); fcp 68 ms, dcl 49 ms, load 64 ms, long tasks before it 0 (0 ms, longest 0 ms)
+medians (5 off, 5 on): original 55 ms (fcp 60 ms); Sift 81 ms, loading 64 ms (fcp 84 ms). Sift - original: 26 ms (1.5x).
+Sift's first content (last run on): "Shopping Cart soundcore by Anker Q20i Hybrid Active Noise Cancelling Headphones $39.97 · Qty 2 · In "
+blocked 0 requests; got through: none
+== http://127.0.0.1:8799/fx/gmail | tr.zA | 5 --sift li.item
+ 16:59:31 up 113 days,  7:23,  6 users,  load average: 5.20, 3.18, 1.55
+run 5 off: original 50 ms; fcp 72 ms, dcl 42 ms, load 45 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 87 ms, loading 67 ms (original under Sift 67 ms); fcp 88 ms, dcl 62 ms, load 66 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 7 on:  sift 61 ms, loading 61 ms (original under Sift 61 ms); fcp 116 ms, dcl 47 ms, load 49 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 8 off: original 48 ms; fcp 52 ms, dcl 44 ms, load 47 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 71 ms; fcp 104 ms, dcl 67 ms, load 71 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 136 ms, loading 67 ms (original under Sift 95 ms); fcp 92 ms, dcl 100 ms, load 101 ms, long tasks before it 0 (0 ms, longest 0 ms)
+medians (5 off, 5 on): original 57 ms (fcp 84 ms); Sift 76 ms, loading 61 ms (fcp 88 ms). Sift - original: 19 ms (1.3x).
+Sift's first content (last run on): "Inbox Primary Promotions UNREADMinerva UniversityYour class schedule for next week Here is your upda"
+== http://127.0.0.1:8799/dailymail-home | h2 | 5
+ 16:59:36 up 113 days,  7:24,  6 users,  load average: 4.86, 3.14, 1.55
+run 5 off: original 377 ms; fcp 480 ms, dcl 305 ms, load 372 ms, long tasks before it 2 (136 ms, longest 82 ms)
+run 6 on:  sift 882 ms, loading 882 ms (original under Sift 882 ms); fcp 1016 ms, dcl 476 ms, load 931 ms, long tasks before it 3 (581 ms, longest 330 ms)
+run 7 on:  sift 373 ms, loading 373 ms (original under Sift 373 ms); fcp 472 ms, dcl 1143 ms, load 1190 ms, long tasks before it 1 (137 ms, longest 137 ms)
+run 8 off: original 344 ms; fcp 452 ms, dcl 302 ms, load 387 ms, long tasks before it 2 (122 ms, longest 69 ms)
+run 9 off: original 334 ms; fcp 440 ms, dcl 275 ms, load 430 ms, long tasks before it 1 (91 ms, longest 91 ms)
+run 10 on:  sift 354 ms, loading 354 ms (original under Sift 354 ms); fcp 456 ms, dcl 914 ms, load 974 ms, long tasks before it 1 (167 ms, longest 167 ms)
+medians (5 off, 5 on): original 344 ms (fcp 452 ms); Sift 354 ms, loading 354 ms (fcp 456 ms). Sift - original: 10 ms (1.0x).
+Sift's first content (last run on): "US Home Chilling US intelligence memo warns Iran's plots to assassinate American officials are in 'a"
+DONE

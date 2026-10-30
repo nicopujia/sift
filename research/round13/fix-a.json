@@ -1,0 +1,198 @@
+{
+  "summary": "Sift fixers, each in its own copy, fix the round 13 findings for their group",
+  "agentCount": 3,
+  "logs": [],
+  "result": [
+    {
+      "g": "int16",
+      "findings": [
+        {
+          "id": "F1303",
+          "status": "fixed",
+          "change": "proxy.ts holdsSubmit now holds only a POST form with action '#' and exactly one text or search field (never 'javascript:', never GET); a submit is held only if the page's handlers changed nothing synchronously (no DOM change outside Sift, field value unchanged); the not-complete wait is capped at DOMContentLoaded + 10 s.",
+          "verified": "Baseline reproduced 8 'added Milk' entries and the GET '#' form navigated about 6-9 s after Enter. After the fix on r13int7-heldsubmit.html: 1 entry; the GET '#' form reaches ?q=milk# within 0.5 s, also on r13int7-heldsubmit-slow.html; the F1235 regression fixture r12news17-latebind.html still reaches ?q=Sinner after its late bind (Enter at 1.3 s, navigation by 3.5 s)."
+        },
+        {
+          "id": "F1304",
+          "status": "fixed",
+          "change": "Same change as F1303: 'javascript:' actions are never held, so nothing replays the Enter key and click again.",
+          "verified": "Baseline reproduced 8 tasks on r13rx-jsvoid-todo.html. After the fix: 1 task after 10 s; r13rx-jsvoid-search.html gives window.searches 1 at 1 s and still 1 at 10 s. New fixture r13int16-postadd.html (POST '#' search whose submit handler does not cancel): 1 search, then the native POST, as on the original."
+        },
+        {
+          "id": "F1301",
+          "status": "fixed",
+          "change": "main/index.ts: the focus guard no longer needs the click to be running. While Sift is shown and real focus is on sift-root or body, a page focus() outside what Sift shows dispatches sift-focus and does not move real focus. select() under the guard uses setSelectionRange with no focus, and non-modal dialog.show() opens with the dialog inert for that call, then reports its first control. The copy path (copied()) uses the same guard.",
+          "verified": "Baseline reproduced 'open, closed' for all five buttons on r13int7-focusasync.html. After the fix all five (micro, frame, timeout, select, dialog) log only '... open', show as a sheet, and Sift's focus is on Copy link or the Link field, the same as the no-portal control. Copy still works on r12int-clipjs-portal, r12conv2-focuscopy, r10skep-clipboardjs and r10int-copylink. r12int-focusportal and r11int-focusclose behave as on the baseline build. React Aria date entry (aria15.ts) still gives 2027-12-25."
+        },
+        {
+          "id": "F1302",
+          "status": "fixed",
+          "change": "Covered by the F1301 guard, which no longer depends on the sift-click window, so H.check and H.submit replays are covered without new sift-click events. index.ts is unchanged.",
+          "verified": "On r13int7-focuspaths.html: 'Send me alerts' logs only ['freq open'] with Sift's focus on Daily; Enter in the New name field logs only ['confirm open'] with focus on 'Yes, rename'; the Rename button still logs ['confirm open']."
+        }
+      ],
+      "files": [
+        "src/main/index.ts",
+        "src/content/proxy.ts"
+      ],
+      "notes": "The group note says F1302 and F1303 are the same bug. The duplicates are actually F1303 and F1304 (the replayed submit). F1302 is the focus-path bug, and the F1301 fix covers it.\n\nNew fixture: /home/nico/projects/sift/research/fixtures/r13int16-postadd.html. It is a POST '#' search form whose submit listener does not cancel.\n\nShared helpers: none renamed. In src/main/index.ts I added local guarded() and askFocus(), and wrappers for HTMLDialogElement.prototype.show and for select() inside the existing select/setSelectionRange loop. No new CustomEvent names: it reuses sift-focus. No model fields changed. src/content/index.ts is unchanged, so the sift-click start/end around H.act stays.\n\nBehavior change for the merge: while Sift is shown and real focus is in Sift (or on body), a page focus() on any element outside a portal, modal, full screen or sift-root no longer moves real focus at any time, not only during clicks. When real focus is already on a page element (the editor setEditable types into via withoutShield, or a shown portal), the guard does not apply.\n\nRegression checks on the fixed build: YouTube home search reaches results?search_query=abcd; YouTube watch play/pause works and Like opens its dialog with focus on Close, then Escape; the BBC article renders its H1 and search reaches /search?q=Starlink; Amazon product fixture Add to Cart logs qty 1; React Aria date entry gives 2027-12-25. On the Gmail fixture, my mouse compose and reply runs filled the wrong fields and sent an empty body, but the baseline build gave the identical result, so this is my test script, not the change. It means the 'page focus is followed' works line was not re-confirmed.\n\nLeft undone or residual:\n- A one-field POST '#' search with no page handler at all is still held and retried until load + 8 s (round 12's Corriere window), so a pure server-side postback search box still waits.\n- A POST '#' form whose submit handler acts only asynchronously (a fetch with no immediate DOM change) and does not cancel would still be replayed on each retry. I did not add request detection, because page-load traffic would break the Corriere retry.\n- select() on input types with no selection range (email, number) falls back to the native select(), which can still take focus.\n- Not checked live on corriere.it; the late-bind fixture passes.\n\nCleanup: Chrome on 9471 is stopped. Disk was 71-72% throughout. The test profile at /home/nico/projects/sift-r13-int16/.chrome (174 MB) was created by this run and is still there; delete it after the merge if space is needed."
+    },
+    {
+      "g": "ext19",
+      "findings": [
+        {
+          "id": "F1305",
+          "status": "fixed",
+          "change": "findSearch now keeps the search's own form or bar (searchRest) when it holds another field or a picker (aria-expanded or aria-haspopup). If the walk drops it (a header, or outside root), extractAll visits that form at the top of the content. Only the box and its button stay in the bar. A lone category select does not trigger this.",
+          "verified": "Harness and extension: whatwhere shows Near=San Francisco, CA, and Find=tacos + Near=Oakland with Search gave ?find_desc=tacos&find_loc=Oakland%2C+CA (Enter in Near also submits). Live USAJOBS shows 'Where do you want to work?' and a typed Denver reached l=. Live Airbnb shows When/Who; picking Nov 20-22 through Sift set 'When Nov 20 - Nov 22'. Live eBay is unchanged (no extra block)."
+        },
+        {
+          "id": "F1306",
+          "status": "fixed",
+          "change": "defs(): a dt with its own non-in-page links becomes a paragraph from inlineOf(dt), and its dd is walked under it. A plain-text dt is unchanged.",
+          "verified": "Live arXiv cs.AI/recent in the extension: 100 of the original's 100 /abs/ and /pdf/ links (was 0). Clicking 'arXiv:2610.40589' opens /abs/2610.40589. The r10ai15-dlsearch outline is unchanged."
+        },
+        {
+          "id": "F1307",
+          "status": "fixed",
+          "change": "findTop holds sign-out matches (new SIGN_OUT regex) in a separate list and adds them only when fewer than 4 slots are filled, at the end.",
+          "verified": "r13rx-signedin in the extension: the top bar is 'Hello, Jane · Account | Orders | Notifications | Cart (2)' and the Menu has 'Shop | Sign out'."
+        },
+        {
+          "id": "F1308",
+          "status": "fixed",
+          "change": "searchHome also returns to the walk for the search's own box when pageWide(form) is true.",
+          "verified": "r13rx-aspnet-noh1, harness and extension: the bar is 'Search products | Search'. The forms keep Add to cart, Add to wish list and Subscribe. r12rx-style aspnet.html is unchanged."
+        },
+        {
+          "id": "F1309",
+          "status": "fixed",
+          "change": "For a page-wide form, a header search bar with a second field (new searchBar helper: smallest box with a button, inside SEARCH_PLACE, at most 300 chars) supplies the button. The 'nearby named button' fallback now starts at the box's parent and never reaches the form or above it.",
+          "verified": "r13rx-aspnet-where in the harness and the extension: the bar is 'Search jobs | Find jobs'. 'City or ZIP' shows at the top. The feedback form keeps its Submit."
+        },
+        {
+          "id": "F1310",
+          "status": "fixed",
+          "change": "scrollBox tests overflowY before reading clientHeight and scrollHeight. visit() now measures only after visitEl has added a p, ul or ol, not before every element.",
+          "verified": "Harness first look: details-1000 went from 1396 to 400 ms and details-2000 from 6295 to 636 ms, with the same outline. In the extension, dataset.ms is 566 (1000) and 746 (2000); the finding reported 3837 and 8059. scrollEnd marks are unchanged on r6-termsgate and r7int9-termsprint."
+        }
+      ],
+      "files": [
+        "src/content/extract/generic.ts"
+      ],
+      "notes": "Only src/content/extract/generic.ts changed (about 95 diff lines). No model.ts fields, no CustomEvents, no app.tsx, proxy.ts or index.ts edits. Kept to findSearch, searchHome, findTop, defs, scrollBox and visit, plus 6 lines in extractAll after the second walkPage pass. New module-level items: `searchRest` (reset at the top of findSearch), `searchMore()`, `searchBar()`, `searchRestDropped()`, `SIGN_OUT`. Merge watch: other groups editing findSearch's button block or extractAll near the `again` pass may conflict textually.\n\nRegression checks:\n- Harness base vs new: all 13 saved snapshots are identical (YouTube home, search and watch, Amazon, Daily Mail, Infobae).\n- 160 fixtures with header, search, dl, details or sign-out markup: the only differences are the 4 r13rx target fixtures and the int-clocksearch clock tick. The int-stuck difference came from a run I killed; rerun it was the same.\n- Live in the extension: Wikipedia header search 'focacc' + ArrowDown + Enter opens /wiki/Focaccia. BBC home and an article, YouTube search, the Gmail fixture and the Amazon product fixture all look normal. weather.com and La Nación outlines are unchanged. eBay gets no extra block.\n- axe found 0 violations on whatwhere.\n\nNot done:\n- F1305 covers only search boxes inside a <form>. A form-less React header search with extra pickers is not handled.\n- Airbnb's tab links read doubled ('All All') in the new block. That is the site's own markup, and I left it.\n- No new fixtures were needed.\n\nTest Chrome 9472 is stopped and its tmux window is gone. Harness scratch is in /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/ext19 (1.8 MB)."
+    },
+    {
+      "g": "ai20",
+      "findings": [
+        {
+          "id": "F1311",
+          "status": "fixed",
+          "change": "dropRepeats (src/background/text.ts) never drops a list item, and drops a prose sentence or paragraph only when it repeats the one right before it; headings, lists and placeholders reset that memory.",
+          "verified": "Offline: the 5-step installer, the bread steps and the FAQ answers are all kept, while the F1100 Spanish echo, a 2-sentence paragraph echo, an in-paragraph echo, F1215 north/south and the sections cases behave as before. In Chrome 9473 with the mock, fx steps.html shows all 5 steps (Click Next twice), dup.html drops the echo, and repeats.html and sections.html keep all their lines."
+        },
+        {
+          "id": "F1312",
+          "status": "fixed",
+          "change": "onlyTicks (src/shared/ticks.ts) now treats a line as a byline when a time relative to now (not a count) follows a comma ('Posted by Sam Rivers, 3 hours ago', 'Sports desk, updated 3 hours ago') or follows only capitalized names and labels ('Jane Doe 3 hours ago'). 'live' was added to LABEL ('Live: 12,400 watching'), and the count pattern was pulled into a COUNT const.",
+          "verified": "tickcmp: all 7 lines from the finding now return true. stable2: the key is unchanged for every byline except 'Posted by admin 3 hours ago' (lowercase name, left as content). The key still changes for the F1218 lines (9 million viewers, 'X, a record', 'record audience, 9 million viewers', shares, 1,200 comments, fire 2/two hours ago, '- Volume: 1.2 million shares', 'Ratings: 9 million viewers', Today at 18:00, Hoy a las, Doors, death toll, Pool, 'Trump spoke 2 hours ago.'). Chrome with the mock: blogA, blogA, blogB gave condense 1, 0, 0 (before the fix: 1, 0, 1)."
+        },
+        {
+          "id": "F1313",
+          "status": "fixed",
+          "change": "When a page turns private, it calls a new cacheShorten(key, PRIVATE_TTL) instead of saving the entry again for 7 days. cacheShorten keeps ts and v, and only lowers exp to min(current expiry, now+7d), so a 1-day no-short marker, a keep-title marker, a 1-day slip line, or an old entry is never extended.",
+          "verified": "Chrome with the mock, fx latepriv.html: visit 1 at 3 s stored no-short with exp 1d. Visits 2 and 3 at 8 s (page turned private) still show exp 1d with the same ts. Before the fix, visit 2 changed it to 7d with a new ts."
+        },
+        {
+          "id": "F1314",
+          "status": "fixed",
+          "change": "In stats.ts, a failed report (non-ok status or network error) sets reportRetry = now + 4 h and stops the loop. flushStats skips sending until then, which means at most 6 tries a day. One flush runs at a time, a clock-skewed retry time is ignored, and a success clears it. The report's contents, its per-day id and the stored counts are unchanged.",
+          "verified": "The finding's statsretry harness at 503 now sends 1 request in about 42 s (it sent 20). stats3.ts runs 503, 404 and unreachable: 1 request over 6 bumps plus 2 concurrent startup flushes, with sent={}. After recovery past the retry time, both past days are sent once, with the same id for the retried day and full counts, and today's counts are kept. With 204, the days are sent once and nothing is sent again."
+        }
+      ],
+      "files": [
+        "src/background/text.ts",
+        "src/shared/ticks.ts",
+        "src/background/index.ts",
+        "src/background/cache.ts",
+        "src/background/stats.ts"
+      ],
+      "notes": "Shared helper change: src/background/cache.ts gains one additive export, cacheShorten(key, ttl). index.ts now imports it, and the 'private' task calls it in place of cacheSet(key, v, PRIVATE_TTL). pc.saved stays a Map, and its values are now unused there. ticks.ts: the count alternative of VOLATILE moved into a COUNT string constant (same regex), 'live' was added to LABEL, and onlyTicks has a new byline tail. dropRepeats keeps its signature. stats.ts: flushStats is now a non-async wrapper that returns the shared run of a new internal flush(), and it adds one storage key, reportRetry (a timestamp, 0 when there is nothing to wait for). There are no new model fields and no new CustomEvent names. bun run typecheck is clean, and bun run build passes. With the mock, I smoke-tested the BBC Anthropic article (H1, byline, SHORT VERSION), YouTube home, search and watch, fx/amazon-product.html, amazon-search.html and fx/gmail.html: all render. I made no real AI calls. I did not run axe or keyboard checks; these changes do not touch the UI. Left as is, outside my findings: (1) 'Posted by admin 3 hours ago', a lowercase name with no comma, still counts as content. (2) On a revisit that reuses the cache, the Short version can show a stale relative time ('3 hours ago' when the page says 4). The number check accepts '3' because 'three years' appears elsewhere in the article. This was already true before round 12. Text-check owners may want a ticking byline line in a reused Short version taken from the current page. Chrome 9473 and the mock on port 8973 are stopped, and their tmux windows are closed. The helper scripts are under /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/ai20 (about 250 KB). Disk is at 72%."
+    }
+  ],
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Fix"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "fix:int16",
+      "phaseIndex": 1,
+      "phaseTitle": "Fix",
+      "agentId": "adcd3a16462336e03",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1793379417057,
+      "queuedAt": 1793379416991,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "The group note says F1302 and F1303 are the same bug. The d…",
+      "promptPreview": "You are the \"int16\" fixer for Sift, a Chrome extension (reader mode on steroids) at /home/nico/projects/sift.\n\nRead these first, in order:\n1. /home/nico/projects/sift/research/round13/RULES.md (the owner's spec, your copy, testing, hard rules, report).\n2. /home/nico/projects/sift/README.md (architecture).\n3. /home/nico/projects/sift/research/round13/int16.md (your findings, each reproduced by a sk…",
+      "promptFramed": true,
+      "lastProgressAt": 1793380348826,
+      "tokens": 159128,
+      "toolCalls": 71,
+      "durationMs": 931766,
+      "resultPreview": "{\"findings\":[{\"id\":\"F1303\",\"status\":\"fixed\",\"change\":\"proxy.ts holdsSubmit now holds only a POST form with action '#' and exactly one text or search field (never 'javascript:', never GET); a submit is held only if the page's handlers changed nothing synchronously (no DOM change outside Sift, field value unchanged); the not-complete wait is capped at DOMContentLoaded + 10 s.\",\"verified\":\"Baseline r…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "fix:ext19",
+      "phaseIndex": 1,
+      "phaseTitle": "Fix",
+      "agentId": "a7b37a613c4d45a3d",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1793379417058,
+      "queuedAt": 1793379416992,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Only src/content/extract/generic.ts changed (about 95 diff …",
+      "promptPreview": "You are the \"ext19\" fixer for Sift, a Chrome extension (reader mode on steroids) at /home/nico/projects/sift.\n\nRead these first, in order:\n1. /home/nico/projects/sift/research/round13/RULES.md (the owner's spec, your copy, testing, hard rules, report).\n2. /home/nico/projects/sift/README.md (architecture).\n3. /home/nico/projects/sift/research/round13/ext19.md (your findings, each reproduced by a sk…",
+      "promptFramed": true,
+      "lastProgressAt": 1793381252786,
+      "tokens": 213566,
+      "toolCalls": 114,
+      "durationMs": 1834937,
+      "resultPreview": "{\"findings\":[{\"id\":\"F1305\",\"status\":\"fixed\",\"change\":\"findSearch now keeps the search's own form or bar (searchRest) when it holds another field or a picker (aria-expanded or aria-haspopup). If the walk drops it (a header, or outside root), extractAll visits that form at the top of the content. Only the box and its button stay in the bar. A lone category select does not trigger this.\",\"verified\":\"…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "fix:ai20",
+      "phaseIndex": 1,
+      "phaseTitle": "Fix",
+      "agentId": "a288e4d776ec47a9c",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1793379417058,
+      "queuedAt": 1793379416992,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Shared helper change: src/background/cache.ts gains one add…",
+      "promptPreview": "You are the \"ai20\" fixer for Sift, a Chrome extension (reader mode on steroids) at /home/nico/projects/sift.\n\nRead these first, in order:\n1. /home/nico/projects/sift/research/round13/RULES.md (the owner's spec, your copy, testing, hard rules, report).\n2. /home/nico/projects/sift/README.md (architecture).\n3. /home/nico/projects/sift/research/round13/ai20.md (your findings, each reproduced by a skep…",
+      "promptFramed": true,
+      "lastProgressAt": 1793380220373,
+      "tokens": 155965,
+      "toolCalls": 59,
+      "durationMs": 802521,
+      "resultPreview": "{\"findings\":[{\"id\":\"F1311\",\"status\":\"fixed\",\"change\":\"dropRepeats (src/background/text.ts) never drops a list item, and drops a prose sentence or paragraph only when it repeats the one right before it; headings, lists and placeholders reset that memory.\",\"verified\":\"Offline: the 5-step installer, the bread steps and the FAQ answers are all kept, while the F1100 Spanish echo, a 2-sentence paragraph…"
+    }
+  ],
+  "totalTokens": 528659,
+  "totalToolCalls": 244
+}

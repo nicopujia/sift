@@ -4282,9 +4282,11 @@ let skipWarned = -1;
  * to scroll to the end of before Agree enables). Sift shows its text in full.
  */
 function scrollBox(el: Element): boolean {
+  // The style first: reading the size of text in a closed <details> lays it out, once per element (F1310).
+  if (el === document.body || el === document.documentElement || !/auto|scroll/.test(getComputedStyle(el).overflowY)) return false;
   const h = el.clientHeight;
-  if (!h || el.scrollHeight <= h + 8 || h > innerHeight * 0.6 || el === document.body || el === document.documentElement) return false;
-  return /auto|scroll/.test(getComputedStyle(el).overflowY) && tlen(el) >= 200;
+  if (!h || el.scrollHeight <= h + 8 || h > innerHeight * 0.6) return false;
+  return tlen(el) >= 200;
 }
 
 /**
@@ -4295,11 +4297,11 @@ function scrollBox(el: Element): boolean {
 export function visit(el: Element, out: Out, ctx: Ctx) {
   try {
     const at = out.blocks.length;
-    const box = scrollBox(el);
     visitEl(el, out, ctx);
     // Its last text block marks the box's end: reaching it in Sift scrolls the page's box to its end too.
-    const last = box && out.blocks.length > at ? out.blocks[out.blocks.length - 1] : null;
-    if (last && (last.t === "p" || last.t === "ul" || last.t === "ol")) last.scrollEnd = refOf(el);
+    // Only a box that gave text is measured (F1310).
+    const last = out.blocks.length > at ? out.blocks[out.blocks.length - 1] : null;
+    if (last && (last.t === "p" || last.t === "ul" || last.t === "ol") && scrollBox(el)) last.scrollEnd = refOf(el);
   } catch (err) {
     if (skipWarned !== passNo()) {
       skipWarned = passNo();
@@ -5935,25 +5937,32 @@ function defs(el: Element, out: Out, ctx: Ctx) {
   // small buttons ("Change email") stay in place as clickable words.
   // A value that is text of its own (an API entry's paragraphs and code examples,
   // a glossary's definition) is read as blocks under its term, not squeezed into a cell.
-  const add = (k: string, dd: Element) => {
-    const blocky = !!dd.querySelector("pre, table, dl, ul, ol, blockquote, " + HEADING_SEL) || dd.querySelectorAll("p").length >= 2 || tlen(dd) > 250;
+  // A term with links of its own (arXiv's "arXiv:2610.35868 [pdf, html, other]") keeps them: it is said as a line
+  // of its own over its value, never squeezed into a plain key (F1306).
+  const add = (k: string, dd: Element, dt?: Element | null) => {
+    const linked = !!dt && Array.from(dt.querySelectorAll("a[href]")).some((a) => !inPage(a) && visible(a));
+    const blocky = linked || !!dd.querySelector("pre, table, dl, ul, ol, blockquote, " + HEADING_SEL) || dd.querySelectorAll("p").length >= 2 || tlen(dd) > 250;
     if (blocky || dd.querySelector("input:not([type=hidden]), select, textarea, [contenteditable=''], [contenteditable=true], [role=textbox], [role=combobox]")) {
       flush();
-      if (k) out.push({ t: "p", key: "dt:" + refOf(dd), content: [{ b: k }] });
+      if (linked) out.push({ t: "p", key: "dt:" + refOf(dd), content: inlineOf(dt!, ctx) });
+      else if (k) out.push({ t: "p", key: "dt:" + refOf(dd), content: [{ b: k }] });
       walk(dd, out, ctx);
       return;
     }
     rows.push({ k, v: inlineOf(dd, ctx, true) });
   };
   let k = "";
+  let term: Element | null = null;
   for (const c of kids(el)) {
     if (!visible(c)) continue;
-    if (c.localName === "dt") k = textIn(c);
-    else if (c.localName === "dd") add(k, c);
+    if (c.localName === "dt") {
+      k = textIn(c);
+      term = c;
+    } else if (c.localName === "dd") add(k, c, term);
     else if (c.localName === "div") {
       const dt = c.querySelector("dt");
       const dd = c.querySelector("dd");
-      if (dt && dd) add(textIn(dt), dd);
+      if (dt && dd) add(textIn(dt), dd, dt);
     }
   }
   flush();
@@ -6623,7 +6632,7 @@ const SEARCH_PLACE = "header,#header,[role=banner],nav,[role=search]";
  * that holds a button counts, and Add to cart or Subscribe stay where they are (F1210). Null: no such box.
  */
 function searchHome(pick: HTMLInputElement, form: HTMLFormElement): Element | null {
-  if (!form.querySelector("main, [role=main], article, h1") && tlen(form) < 2000) return form;
+  if (!form.querySelector("main, [role=main], article, h1") && tlen(form) < 2000 && !pageWide(form)) return form;
   for (let a = pick.parentElement; a && a !== form; a = a.parentElement) {
     if (Array.from(a.querySelectorAll("button, input[type=submit], input[type=image], [role=button]")).some((b) => b !== pick && visible(b))) {
       // A box that also holds another field to type in (a quantity, an email) is a form of its own.
@@ -6635,6 +6644,7 @@ function searchHome(pick: HTMLInputElement, form: HTMLFormElement): Element | nu
 }
 
 export function findSearch(ctx: Ctx): Field | undefined {
+  searchRest = null;
   const cands = (Array.from(document.querySelectorAll(SEARCH_SEL)) as HTMLInputElement[]).filter(
     (i) => !["hidden", "submit", "checkbox", "radio", "button"].includes(i.type) && !i.disabled && (i.matches(STRONG_SEARCH) || !!i.closest(SEARCH_PLACE)),
   );
@@ -6661,9 +6671,14 @@ export function findSearch(ctx: Ctx): Field | undefined {
   ctx.searchEl = pick;
   const named = (b: Element) => SEARCH_BUTTON.test(accName(b)) || SEARCH_BUTTON.test(b.id);
   let btn: Element | null = null;
+  // The search's own box: its form, or inside a form that wraps the page, the box around it with its button.
+  // A bar there with a second field ("City or ZIP") is still the search's own, with its own button (F1309).
+  let home = pick.form ? searchHome(pick, pick.form) : null;
+  const wide = !!pick.form && home !== pick.form;
+  if (wide && !home) home = searchBar(pick);
   // The form's own button: one that says search, else its submit button.
   if (pick.form) {
-    const own = Array.from(searchHome(pick, pick.form)?.querySelectorAll("button, input[type=submit], input[type=image], [role=button]") ?? []).filter((b) => b !== pick && visible(b));
+    const own = Array.from(home?.querySelectorAll("button, input[type=submit], input[type=image], [role=button]") ?? []).filter((b) => b !== pick && visible(b));
     // Not a button that is something else by its role (a date picker's "Calendar" tab, a toggle), though a <button> with no type submits.
     const plain = own.filter((b) => !b.matches("[role=tab], [role=option], [role=menuitem], [role=switch], [role=checkbox], [role=radio], [aria-pressed], [aria-selected]"));
     // Its id counts as a name too, so the role check comes first (Booking's tab id "calendar-searchboxdatepicker-tab-trigger").
@@ -6679,8 +6694,9 @@ export function findSearch(ctx: Ctx): Field | undefined {
     }
   }
   // No button in the form, or no form: a nearby button that says search
-  // (Google Maps keeps it outside the form). Never just any button nearby.
-  for (let scope: Element | null = (pick.form ?? pick).parentElement, i = 0; !btn && scope && i < 3; scope = scope.parentElement, i++) {
+  // (Google Maps keeps it outside the form). Never just any button nearby,
+  // and in a form that wraps the page, never one outside the search's own part of it (F1309).
+  for (let scope: Element | null = wide ? pick.parentElement : (pick.form ?? pick).parentElement, i = 0; !btn && scope && scope !== pick.form && i < 3; scope = scope.parentElement, i++) {
     btn = Array.from(scope.querySelectorAll("button, input[type=submit], [role=button]")).find((b) => b !== pick && visible(b) && named(b)) ?? null;
     if (scope.matches(SEARCH_PLACE)) break;
   }
@@ -6691,7 +6707,40 @@ export function findSearch(ctx: Ctx): Field | undefined {
     const said = btn instanceof HTMLInputElement ? (btn.type === "submit" ? clean(btn.value) : "") : textIn(btn);
     if (said && said.length <= 30 && /\p{L}/u.test(said)) f.submitLabel = said;
   }
+  if (home && searchMore(home, pick, ctx)) searchRest = home;
   return f;
+}
+
+/**
+ * The search's own form or box when it holds more to fill in than the box: a "Near" field, dates, guests
+ * (Yelp, USAJOBS, Airbnb). Only the box and its button go to the bar; when the site's header holding the
+ * rest is dropped, the rest is read at the top of the page (F1305).
+ */
+let searchRest: Element | null = null;
+
+/** A small search form or bar with another field, or a picker that opens one (Airbnb's "When", "Who"). A category select alone does not count. */
+function searchMore(box: Element, pick: Element, ctx: Ctx): boolean {
+  if (tlen(box) > 1000 || box.querySelector("nav, [role=navigation], main, [role=main], article, h1") || box.querySelectorAll("a[href]").length > 8) return false;
+  const sel = "input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=image]):not([type=reset]), textarea, [role=combobox], [role=textbox], [aria-expanded]:not(a), [aria-haspopup]:not(a)";
+  return Array.from(box.querySelectorAll(sel)).some((c) => c !== pick && !c.contains(pick) && !pick.contains(c) && !ctx.used.has(c) && visible(c) && c.getBoundingClientRect().width > 0);
+}
+
+/** In a form that wraps the page, the search bar in the site's header around the box: the smallest box with a button, if it is small (F1309). */
+function searchBar(pick: HTMLInputElement): Element | null {
+  for (let a = pick.parentElement; a && a !== pick.form && a !== document.body; a = a.parentElement) {
+    if (a.matches("header, #header, [role=banner], nav")) return null;
+    if (Array.from(a.querySelectorAll("button, input[type=submit], input[type=image], [role=button]")).some((b) => b !== pick && visible(b))) return a.closest(SEARCH_PLACE) && tlen(a) <= 300 ? a : null;
+  }
+  return null;
+}
+
+/** The search's own form or bar left in a part of the page the walk drops (the site's header), or null. */
+function searchRestDropped(root: Element, ctx: Ctx): Element | null {
+  const box = searchRest;
+  if (!box || !box.isConnected) return null;
+  if (!root.contains(box)) return box.contains(root) ? null : box;
+  for (let a: Element | null = box; a && a !== root; a = a.parentElement) if (isChrome(a, ctx)) return box;
+  return null;
 }
 
 /**
@@ -6870,6 +6919,8 @@ export function findTop(): Action[] {
     if (r.height > 0 && Math.min(r.top + scrollY, r.top) < 300) roots.push(n);
   }
   const out: Action[] = [];
+  // A way to sign out takes a slot only when one is left: it never pushes the cart or account into the Menu (F1307).
+  const leave: Action[] = [];
   const seen = new Set<string>();
   for (const r of roots) {
     for (const el of Array.from(r.querySelectorAll("a[href],button,span,div"))) {
@@ -6893,12 +6944,17 @@ export function findTop(): Action[] {
       const k = label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
       if (seen.has(k)) continue;
       seen.add(k);
+      if (SIGN_OUT.test(label)) {
+        leave.push(toAction(el, label));
+        continue;
+      }
       out.push(toAction(el, label));
       if (out.length >= 4) return withPicker(out, roots);
     }
   }
-  return withPicker(out, roots);
+  return withPicker([...out, ...leave].slice(0, 4), roots);
 }
+const SIGN_OUT = /\b(sign ?out|log ?out|log ?off|cerrar sesi[oó]n|salir|sair|terminar sess[aã]o|abmelden|se d[ée]connecter|d[ée]connexion|esci|disconnetti)\b/i;
 
 /** A site-wide picker: the place a forecast is for ("Montreal"), the page's language ("English (US)"). */
 const PICKER = /(^|[\s_-])(location|locale|language|lang|region|country|city|area)[\s_-]*(picker|switcher|selector|select|chooser|trigger|toggle|menu|button)($|[\s_-])/i;
@@ -8544,6 +8600,13 @@ function extractAll(): Page {
     if (sb) used.add(sb);
     const again = walkPage({ ...newCtx(), articleEl: ctx.articleEl, used, keepAllNav: true, visited: ctx.visited, searchEl: ctx.searchEl, hasByline: ctx.hasByline, byName: ctx.byName, hasDate: ctx.hasDate, titleEl: h1 }, root, scope, beside);
     if (blocksText(again).length > blocksText(blocks).length) blocks = again;
+  }
+  // The rest of the site's search form (its "Near" box, dates, guests) leads the page when the header holding it is dropped (F1305).
+  const rest = searchRestDropped(root, ctx);
+  if (rest) {
+    const o = new Out();
+    visit(rest, o, ctx);
+    blocks.unshift(...o.done());
   }
   const title = h1 ? headingText(h1).slice(0, 200) : pageTitle();
   dropTitleRepeat(blocks, title);
