@@ -1,0 +1,919 @@
+diff --git a/src/background/cache.ts b/src/background/cache.ts
+index fffe575..4e51bc4 100644
+--- a/src/background/cache.ts
++++ b/src/background/cache.ts
+@@ -71,6 +71,26 @@ export async function cacheSet(key: string, v: string, ttl?: number): Promise<vo
+   }
+ }
+ 
++/**
++ * Keeps a saved entry at most `ttl` (ms) more, never longer than it would
++ * have been kept: a page found to be signed-in after it saved or read it.
++ */
++export async function cacheShorten(key: string, ttl: number): Promise<void> {
++  try {
++    const d = await db();
++    const s = d.transaction(STORE, "readwrite").objectStore(STORE);
++    const q = s.get(key);
++    q.onsuccess = () => {
++      const e = q.result as Entry | undefined;
++      if (!fresh(e)) return;
++      const exp = Math.min(e!.exp ?? e!.ts + MAX_AGE, Date.now() + ttl);
++      if (exp !== e!.exp) s.put({ ...e!, exp }, key);
++    };
++  } catch {
++    /* cache is best effort */
++  }
++}
++
+ function prune(d: IDBDatabase) {
+   const tx = d.transaction(STORE, "readwrite");
+   const s = tx.objectStore(STORE);
+diff --git a/src/background/index.ts b/src/background/index.ts
+index 0c125a1..d16ccf3 100644
+--- a/src/background/index.ts
++++ b/src/background/index.ts
+@@ -4,7 +4,7 @@
+ 
+ import type { AiReply, AiRequest, LineInput, ModelCfg, RuntimeMsg, Settings } from "../shared/messages";
+ import { mergeSettings } from "../shared/messages";
+-import { cacheClear, cacheGet, cacheSet } from "./cache";
++import { cacheClear, cacheGet, cacheSet, cacheShorten } from "./cache";
+ import { bump, flushStats } from "./stats";
+ import { addsLink, addsSpeaker, claimsNoAnswer, dropRepeats, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, movesKicker, proseLang, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, swapsPerson, swapsRole, unquoted, unsupported } from "./text";
+ 
+@@ -560,26 +560,32 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
+         // In news mode, an empty line means "not a story" (a promo), and a line
+         // that fails the checks (see vetLine) is no better: keep the title, as the line.
+         let text = vetLine(o.s, m.it, mode);
++        // A line that failed a check, or came in another language (below), is
++        // the model's slip, not the entry's: what stands for it is kept a day
++        // only, so a later visit asks again (F1231).
++        const slip = !text && !!o.s.trim();
+         if (mode === "news" && !text) text = m.it.t;
+         if (!text && !o.s.trim()) return;
+         done.add(String(o.id));
+-        // Elsewhere such a line keeps the title, remembered so it is not paid for again.
++        // Elsewhere such a line keeps the title, remembered for a day so it is not paid for on every visit.
+         if (!text) {
+-          if (useCache) save(pc, req, m.key, KEEP_TITLE);
++          keepTitle(m, DAY);
+           return;
+         }
+         const want = m.lang;
+         // Models sometimes ignore the language they were given (an English title
+         // came back in German, a Russian one in Persian). A line in another
+         // script or clearly in another language is dropped and the original
+-        // title stays, remembered so it is not paid for again.
++        // title stays, remembered for a day so it is not paid for on every visit.
+         checks.push(lineFits(text, want, m.it.t).then((ok) => {
+           if (!ok) {
+-            if (useCache) save(pc, req, m.key, KEEP_TITLE);
++            keepTitle(m, DAY);
+             return;
+           }
+           reply({ id: req.id, item: m.it.id, text });
+-          if (useCache) save(pc, req, m.key, text);
++          if (!useCache) return;
++          if (slip) cacheSet(m.key, text, Math.min(ttlOf(req, pc) ?? DAY, DAY));
++          else save(pc, req, m.key, text);
+         }));
+       } catch {
+         /* partial or malformed line */
+@@ -963,9 +969,10 @@ chrome.runtime.onConnect.addListener((port) => {
+   port.onMessage.addListener(async (req: AiRequest) => {
+     if (req.task === "private") {
+       // The page turned out to be signed-in (its header came late): what it
+-      // already saved is saved again for the short time only.
++      // already saved or read is kept for the short time only, and never
++      // longer than before: a day-long "no Short version" stays a day (F1313).
+       pc.private = true;
+-      for (const [key, v] of pc.saved) cacheSet(key, v, PRIVATE_TTL);
++      for (const key of pc.saved.keys()) cacheShorten(key, PRIVATE_TTL);
+       pc.saved.clear();
+       return;
+     }
+diff --git a/src/background/stats.ts b/src/background/stats.ts
+index 05eff71..9f310b3 100644
+--- a/src/background/stats.ts
++++ b/src/background/stats.ts
+@@ -52,18 +52,38 @@ async function save() {
+   flushStats();
+ }
+ 
+-export async function flushStats() {
+-  const { stats = {}, sent = {}, settings = {}, reportIds = {} } = (await chrome.storage.local.get(["stats", "sent", "settings", "reportIds"])) as {
++/**
++ * After a report fails, none is tried again for this long, so a day's report
++ * stays one request (tried a few times a day at most), not one per page shown
++ * while the endpoint is down (F1314). The counts wait in storage.
++ */
++const RETRY = 4 * 60 * 60_000;
++let flushing: Promise<void> | undefined;
++
++/** Sends the reports of past days not sent yet; one run at a time. */
++export function flushStats(): Promise<void> {
++  return (flushing ??= flush().finally(() => (flushing = undefined)));
++}
++
++async function flush() {
++  const { stats = {}, sent = {}, settings = {}, reportIds = {}, reportRetry = 0 } = (await chrome.storage.local.get(["stats", "sent", "settings", "reportIds", "reportRetry"])) as {
+     stats?: Record<string, Day>;
+     sent?: Record<string, boolean>;
+     settings?: { analytics?: boolean };
+     reportIds?: Record<string, string>;
++    /** When a report may be tried again, after one failed. */
++    reportRetry?: number;
+   };
+   // Older versions kept one id for the life of the install.
+   chrome.storage.local.remove("installId").catch(() => {});
+   if (settings.analytics === false) return;
++  // A retry time further off than RETRY was set by a clock that was wrong since.
++  const wait = reportRetry - Date.now();
++  if (wait > 0 && wait <= RETRY) return;
+   const now = today();
++  let failed = false;
+   for (const [day, counts] of Object.entries(stats as Record<string, Day>)) {
++    if (failed) break;
+     if (day >= now || sent[day]) continue;
+     // A fresh random id per day's report, only so a retried report is not
+     // counted twice. Nothing links one day's report to another's.
+@@ -76,12 +96,12 @@ export async function flushStats() {
+       if (r.ok || r.status === 204) {
+         sent[day] = true;
+         delete reportIds[day];
+-      }
++      } else failed = true;
+     } catch {
+-      break;
++      failed = true;
+     }
+   }
+   // Forget sent days that are no longer kept in the counts.
+   for (const day of Object.keys(sent)) if (!stats[day]) delete sent[day];
+-  await chrome.storage.local.set({ sent, reportIds });
++  await chrome.storage.local.set({ sent, reportIds, reportRetry: failed ? Date.now() + RETRY : 0 });
+ }
+diff --git a/src/background/text.ts b/src/background/text.ts
+index f820383..35ebd0e 100644
+--- a/src/background/text.ts
++++ b/src/background/text.ts
+@@ -437,9 +437,35 @@ function digitValues(tok: string, suffix: string): string[] {
+   return [...out];
+ }
+ 
++/** A decimal digit of any script but ASCII: Persian "۵", Arabic-Indic "٥", Devanagari "५", full-width "５"… */
++const OTHER_DIGIT = /(?![0-9])\p{Nd}/gu;
++const digitOf = new Map<string, string>();
++/**
++ * A text with every script's digits as ASCII ones, and the Arabic decimal and
++ * thousands marks ("١٫٥", "١٬٠٠٠") as "." and ",", so "5" in a rewrite is the
++ * "۵" of its source (F1231). Unicode assigns decimal digits in runs of ten,
++ * 0 to 9, so a digit's value is its distance from the run's start.
++ */
++function asciiDigits(s: string): string {
++  if (!/(?![0-9])\p{Nd}|[٫٬]/u.test(s)) return s;
++  return s
++    .replace(OTHER_DIGIT, (d) => {
++      let v = digitOf.get(d);
++      if (v === undefined) {
++        const cp = d.codePointAt(0)!;
++        let n = 0;
++        while (/\p{Nd}/u.test(String.fromCodePoint(cp - n - 1))) n++;
++        digitOf.set(d, (v = String(n % 10)));
++      }
++      return v;
++    })
++    .replace(/(?<=\d)٫(?=\d)/g, ".")
++    .replace(/(?<=\d)٬(?=\d)/g, ",");
++}
++
+ /** Numbers in digits in a text, each with the values it may stand for. Placeholders and link ids are not numbers of the text. */
+ function numbersOf(s: string): string[][] {
+-  const text = unlink(s.replace(/\[\[\s*B\d+\s*\]\]/g, " "));
++  const text = unlink(asciiDigits(s).replace(/\[\[\s*B\d+\s*\]\]/g, " "));
+   const out: string[][] = [];
+   for (const m of text.matchAll(/(?<![\p{L}\d.,])\d{1,3}(?:[    ]\d{3})+(?![\d.,]\d)|\d+(?:[.,:]\d+)*/gu)) {
+     const vals = digitValues(m[0], text.slice(m.index! + m[0].length, m.index! + m[0].length + 24)).filter((v) => v !== "0");
+@@ -616,15 +642,16 @@ const LISTED = /(?<![\d.,])(\d+)\s+(?:\p{L}+\s+){0,3}?\p{L}+\s*(?:,|;|\s(?:and|y
+  * The numbers a source states: in digits or in words, and the sum of two
+  * counts it lists together (see LISTED): 17 victims for "3 dead and 14 hurt".
+  */
+-function sourceNumbers(source: string): Set<string> {
+-  if (source === lastSource) return lastNumbers;
++function sourceNumbers(raw: string): Set<string> {
++  if (raw === lastSource) return lastNumbers;
++  const source = asciiDigits(raw);
+   const out = new Set<string>();
+   for (const vals of numbersOf(source)) for (const v of vals) out.add(v);
+   for (const n of wordNumbers(source)) out.add(numKey(n));
+   const text = unlink(source.replace(/\[\[\s*B\d+\s*\]\]/g, " "));
+   for (const m of text.matchAll(LISTED)) out.add(numKey(Number(m[1]) + Number(m[2])));
+   for (const v of convertedNumbers(source)) out.add(v);
+-  [lastSource, lastNumbers] = [source, out];
++  [lastSource, lastNumbers] = [raw, out];
+   return out;
+ }
+ 
+@@ -929,7 +956,8 @@ export function dropUnsupported(md: string, source: string, lang?: string): stri
+       lines.push(line);
+       continue;
+     }
+-    const mark = /^\s*(?:[-*•>]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
++    // A list number in any script ("۱.") is a marker, not a number of the text.
++    const mark = /^\s*(?:[-*•>]|\p{Nd}+[.)])\s+/u.exec(line)?.[0] ?? "";
+     const all = sentencesOf(line.slice(mark.length));
+     // A warning whose only fault is a number in another form ("in 24 hours"
+     // for "in a day") stays, in the source's own words.
+@@ -942,40 +970,52 @@ export function dropUnsupported(md: string, source: string, lang?: string): stri
+ }
+ 
+ /**
+- * A Short version that never says the same thing twice (F1100): a sentence of
+- * four words or more that repeats an earlier one of its section word for word
+- * (case, spacing and punctuation aside) goes, and so does a paragraph left
+- * empty. A sentence that differs by any word ("the south district", "Senator
+- * Jones", "in the evening") is no repeat (F1215), and a heading starts a new
+- * section: the same advice under two headings stays under both. A list item
+- * is held only against the items of its own list: two lists (two recipes) may
+- * well share one ("200 g de harina").
++ * A Short version that never says the same thing twice in a row (F1100): a
++ * sentence of four words or more that repeats the one right before it word for
++ * word (case, spacing and punctuation aside) goes, and so does a paragraph
++ * that repeats the one before it, or is left empty. A sentence that differs by
++ * any word ("the south district", "Senator Jones", "in the evening") is no
++ * repeat (F1215). A repeat further on is a step or an answer of its own ("Can
++ * I bring a cat? Yes, you can bring a pet on the train."), and a list item is
++ * never dropped: a step may well say what an earlier one said ("4. Click Next
++ * to continue.") (F1311). A heading, a list, or a placeholder ends what came
++ * before it.
+  */
+ export function dropRepeats(md: string): string {
+-  let seen = new Set<string>();
+-  let list = new Set<string>();
++  /** The last sentence and paragraph kept, by their words. */
++  let prev = "";
++  let prevPara = "";
+   const lines: string[] = [];
+   for (const line of md.split("\n")) {
+-    const mark = /^\s*(?:[-*•]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
+-    if (!mark) list = new Set();
+-    if (/^\s*#{1,6}\s/.test(line)) seen = new Set();
+-    if (/^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line) || !line.trim()) {
++    if (!line.trim()) {
+       lines.push(line);
+       continue;
+     }
+-    const all = sentencesOf(line.slice(mark.length));
+-    const kept = all.filter((sentence) => {
+-      const words = qwords(sentence.replace(/\*\*|__/g, ""));
+-      // A placeholder's block is put back by the page, wherever its sentence went: never dropped here.
+-      if (words.length < 4 || /\[\[\s*B\d+\s*\]\]/.test(sentence)) return true;
++    if (/^\s*(?:[-*•]|\d+[.)])\s+/.test(line) || /^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line)) {
++      prev = prevPara = "";
++      lines.push(line);
++      continue;
++    }
++    const all = sentencesOf(line);
++    const keys = all.map((sentence) => qwords(sentence.replace(/\*\*|__/g, "")));
++    // A placeholder's block is put back by the page, wherever its sentence went: never dropped here.
++    const held = /\[\[\s*B\d+\s*\]\]/.test(line);
++    const para = keys.map((w) => w.join(" ")).join("\n");
++    if (!held && para === prevPara && keys.flat().length >= 4) continue;
++    prevPara = para;
++    const kept = all.filter((sentence, i) => {
++      const words = keys[i];
++      if (words.length < 4 || /\[\[\s*B\d+\s*\]\]/.test(sentence)) {
++        prev = "";
++        return true;
++      }
+       const key = words.join(" ");
+-      const earlier = mark ? list : seen;
+-      if (earlier.has(key)) return false;
+-      earlier.add(key);
++      if (key === prev) return false;
++      prev = key;
+       return true;
+     });
+     if (kept.length === all.length) lines.push(line);
+-    else if (kept.length) lines.push(mark + kept.join(" "));
++    else if (kept.length) lines.push(kept.join(" "));
+   }
+   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+ }
+diff --git a/src/content/extract/generic.ts b/src/content/extract/generic.ts
+index c28ac73..22ce9af 100644
+--- a/src/content/extract/generic.ts
++++ b/src/content/extract/generic.ts
+@@ -2923,8 +2923,9 @@ export function detectItems(el: Element, ctx: Ctx): Set<Element> | null {
+   const baseSet = new Set(best[0] ? baseClasses(best[0]) : []);
+   // In a list of results every entry counts, whatever class marks its type (Sphinx's "kind-object", "kind-text").
+   const anyLi = tag === "li" && resultList(el);
++  const inBest = new Set(best);
+   const members = ch.filter(
+-    (k) => k.localName === tag && (anyLi || best.includes(k) || baseClasses(k).some((c) => baseSet.has(c)) || (!baseSet.size && !baseClasses(k).length)),
++    (k) => k.localName === tag && (anyLi || inBest.has(k) || baseClasses(k).some((c) => baseSet.has(c)) || (!baseSet.size && !baseClasses(k).length)),
+   );
+   if (members.length < 3 || members.length < ch.length * 0.6) return null;
+   if (tag === "p" || tag === "br" || /^h[1-6]$/.test(tag)) return null;
+@@ -2933,7 +2934,9 @@ export function detectItems(el: Element, ctx: Ctx): Set<Element> | null {
+   let total = 0;
+   let simple = 0;
+   let withFields = 0;
+-  for (const k of members) {
++  for (const [i, k] of members.entries()) {
++    // Too few can still be named by a link (a grid of thousands of buttons): not cards, without reading the rest (F1300).
++    if (prominent + unnamed.length + members.length - i < members.length * 0.6) return null;
+     const links = k.localName === "a" ? [k] : Array.from(k.querySelectorAll("a[href]"));
+     const n = tlen(k);
+     total += n;
+@@ -4279,9 +4282,11 @@ let skipWarned = -1;
+  * to scroll to the end of before Agree enables). Sift shows its text in full.
+  */
+ function scrollBox(el: Element): boolean {
++  // The style first: reading the size of text in a closed <details> lays it out, once per element (F1310).
++  if (el === document.body || el === document.documentElement || !/auto|scroll/.test(getComputedStyle(el).overflowY)) return false;
+   const h = el.clientHeight;
+-  if (!h || el.scrollHeight <= h + 8 || h > innerHeight * 0.6 || el === document.body || el === document.documentElement) return false;
+-  return /auto|scroll/.test(getComputedStyle(el).overflowY) && tlen(el) >= 200;
++  if (!h || el.scrollHeight <= h + 8 || h > innerHeight * 0.6) return false;
++  return tlen(el) >= 200;
+ }
+ 
+ /**
+@@ -4292,11 +4297,11 @@ function scrollBox(el: Element): boolean {
+ export function visit(el: Element, out: Out, ctx: Ctx) {
+   try {
+     const at = out.blocks.length;
+-    const box = scrollBox(el);
+     visitEl(el, out, ctx);
+     // Its last text block marks the box's end: reaching it in Sift scrolls the page's box to its end too.
+-    const last = box && out.blocks.length > at ? out.blocks[out.blocks.length - 1] : null;
+-    if (last && (last.t === "p" || last.t === "ul" || last.t === "ol")) last.scrollEnd = refOf(el);
++    // Only a box that gave text is measured (F1310).
++    const last = out.blocks.length > at ? out.blocks[out.blocks.length - 1] : null;
++    if (last && (last.t === "p" || last.t === "ul" || last.t === "ol") && scrollBox(el)) last.scrollEnd = refOf(el);
+   } catch (err) {
+     if (skipWarned !== passNo()) {
+       skipWarned = passNo();
+@@ -5334,12 +5339,12 @@ function readingStrip(el: Element, ctx: Ctx): Block | null {
+   if (cells.length < 8) return null;
+   const tops = new Set(cells.slice(0, 8).map((c) => Math.round(c.getBoundingClientRect().top)));
+   if (tops.size > 1) return null;
++  // A row of buttons (dates, showtimes, sizes) stays a row of buttons to press, however long:
++  // a cell that is or holds a control is not a reading. (Checked before reading every cell's text: a grid of thousands of buttons, F1300.)
++  if (cells.some((c) => isControl(c) || hasControl(c) || c.matches("[onclick], [tabindex]:not([tabindex='-1'])") || c.querySelector("[onclick], h1, h2, h3, h4, img"))) return null;
+   const texts = cells.map((c) => textIn(c));
+   // Readings: short, with a number and a unit or a word ("56°", "3 pm"), not a pager's bare numbers.
+   if (texts.some((tx) => !tx || tx.length > 30) || texts.filter((tx) => /\d/.test(tx) && /[^\d\s.,:]/.test(tx)).length < cells.length * 0.75) return null;
+-  // A row of buttons (dates, showtimes, sizes) stays a row of buttons to press, however long:
+-  // a cell that is or holds a control is not a reading.
+-  if (cells.some((c) => isControl(c) || hasControl(c) || c.matches("[onclick], [tabindex]:not([tabindex='-1'])") || c.querySelector("[onclick], h1, h2, h3, h4, img"))) return null;
+   const content: Inline[] = [];
+   cells.forEach((c, i) => {
+     // A reading that is or holds a link (an hour that opens its details, a day's page) keeps it.
+@@ -5932,25 +5937,32 @@ function defs(el: Element, out: Out, ctx: Ctx) {
+   // small buttons ("Change email") stay in place as clickable words.
+   // A value that is text of its own (an API entry's paragraphs and code examples,
+   // a glossary's definition) is read as blocks under its term, not squeezed into a cell.
+-  const add = (k: string, dd: Element) => {
+-    const blocky = !!dd.querySelector("pre, table, dl, ul, ol, blockquote, " + HEADING_SEL) || dd.querySelectorAll("p").length >= 2 || tlen(dd) > 250;
++  // A term with links of its own (arXiv's "arXiv:2610.35868 [pdf, html, other]") keeps them: it is said as a line
++  // of its own over its value, never squeezed into a plain key (F1306).
++  const add = (k: string, dd: Element, dt?: Element | null) => {
++    const linked = !!dt && Array.from(dt.querySelectorAll("a[href]")).some((a) => !inPage(a) && visible(a));
++    const blocky = linked || !!dd.querySelector("pre, table, dl, ul, ol, blockquote, " + HEADING_SEL) || dd.querySelectorAll("p").length >= 2 || tlen(dd) > 250;
+     if (blocky || dd.querySelector("input:not([type=hidden]), select, textarea, [contenteditable=''], [contenteditable=true], [role=textbox], [role=combobox]")) {
+       flush();
+-      if (k) out.push({ t: "p", key: "dt:" + refOf(dd), content: [{ b: k }] });
++      if (linked) out.push({ t: "p", key: "dt:" + refOf(dd), content: inlineOf(dt!, ctx) });
++      else if (k) out.push({ t: "p", key: "dt:" + refOf(dd), content: [{ b: k }] });
+       walk(dd, out, ctx);
+       return;
+     }
+     rows.push({ k, v: inlineOf(dd, ctx, true) });
+   };
+   let k = "";
++  let term: Element | null = null;
+   for (const c of kids(el)) {
+     if (!visible(c)) continue;
+-    if (c.localName === "dt") k = textIn(c);
+-    else if (c.localName === "dd") add(k, c);
++    if (c.localName === "dt") {
++      k = textIn(c);
++      term = c;
++    } else if (c.localName === "dd") add(k, c, term);
+     else if (c.localName === "div") {
+       const dt = c.querySelector("dt");
+       const dd = c.querySelector("dd");
+-      if (dt && dd) add(textIn(dt), dd);
++      if (dt && dd) add(textIn(dt), dd, dt);
+     }
+   }
+   flush();
+@@ -6620,7 +6632,7 @@ const SEARCH_PLACE = "header,#header,[role=banner],nav,[role=search]";
+  * that holds a button counts, and Add to cart or Subscribe stay where they are (F1210). Null: no such box.
+  */
+ function searchHome(pick: HTMLInputElement, form: HTMLFormElement): Element | null {
+-  if (!form.querySelector("main, [role=main], article, h1") && tlen(form) < 2000) return form;
++  if (!form.querySelector("main, [role=main], article, h1") && tlen(form) < 2000 && !pageWide(form)) return form;
+   for (let a = pick.parentElement; a && a !== form; a = a.parentElement) {
+     if (Array.from(a.querySelectorAll("button, input[type=submit], input[type=image], [role=button]")).some((b) => b !== pick && visible(b))) {
+       // A box that also holds another field to type in (a quantity, an email) is a form of its own.
+@@ -6632,6 +6644,7 @@ function searchHome(pick: HTMLInputElement, form: HTMLFormElement): Element | nu
+ }
+ 
+ export function findSearch(ctx: Ctx): Field | undefined {
++  searchRest = null;
+   const cands = (Array.from(document.querySelectorAll(SEARCH_SEL)) as HTMLInputElement[]).filter(
+     (i) => !["hidden", "submit", "checkbox", "radio", "button"].includes(i.type) && !i.disabled && (i.matches(STRONG_SEARCH) || !!i.closest(SEARCH_PLACE)),
+   );
+@@ -6658,9 +6671,14 @@ export function findSearch(ctx: Ctx): Field | undefined {
+   ctx.searchEl = pick;
+   const named = (b: Element) => SEARCH_BUTTON.test(accName(b)) || SEARCH_BUTTON.test(b.id);
+   let btn: Element | null = null;
++  // The search's own box: its form, or inside a form that wraps the page, the box around it with its button.
++  // A bar there with a second field ("City or ZIP") is still the search's own, with its own button (F1309).
++  let home = pick.form ? searchHome(pick, pick.form) : null;
++  const wide = !!pick.form && home !== pick.form;
++  if (wide && !home) home = searchBar(pick);
+   // The form's own button: one that says search, else its submit button.
+   if (pick.form) {
+-    const own = Array.from(searchHome(pick, pick.form)?.querySelectorAll("button, input[type=submit], input[type=image], [role=button]") ?? []).filter((b) => b !== pick && visible(b));
++    const own = Array.from(home?.querySelectorAll("button, input[type=submit], input[type=image], [role=button]") ?? []).filter((b) => b !== pick && visible(b));
+     // Not a button that is something else by its role (a date picker's "Calendar" tab, a toggle), though a <button> with no type submits.
+     const plain = own.filter((b) => !b.matches("[role=tab], [role=option], [role=menuitem], [role=switch], [role=checkbox], [role=radio], [aria-pressed], [aria-selected]"));
+     // Its id counts as a name too, so the role check comes first (Booking's tab id "calendar-searchboxdatepicker-tab-trigger").
+@@ -6676,8 +6694,9 @@ export function findSearch(ctx: Ctx): Field | undefined {
+     }
+   }
+   // No button in the form, or no form: a nearby button that says search
+-  // (Google Maps keeps it outside the form). Never just any button nearby.
+-  for (let scope: Element | null = (pick.form ?? pick).parentElement, i = 0; !btn && scope && i < 3; scope = scope.parentElement, i++) {
++  // (Google Maps keeps it outside the form). Never just any button nearby,
++  // and in a form that wraps the page, never one outside the search's own part of it (F1309).
++  for (let scope: Element | null = wide ? pick.parentElement : (pick.form ?? pick).parentElement, i = 0; !btn && scope && scope !== pick.form && i < 3; scope = scope.parentElement, i++) {
+     btn = Array.from(scope.querySelectorAll("button, input[type=submit], [role=button]")).find((b) => b !== pick && visible(b) && named(b)) ?? null;
+     if (scope.matches(SEARCH_PLACE)) break;
+   }
+@@ -6688,9 +6707,42 @@ export function findSearch(ctx: Ctx): Field | undefined {
+     const said = btn instanceof HTMLInputElement ? (btn.type === "submit" ? clean(btn.value) : "") : textIn(btn);
+     if (said && said.length <= 30 && /\p{L}/u.test(said)) f.submitLabel = said;
+   }
++  if (home && searchMore(home, pick, ctx)) searchRest = home;
+   return f;
+ }
+ 
++/**
++ * The search's own form or box when it holds more to fill in than the box: a "Near" field, dates, guests
++ * (Yelp, USAJOBS, Airbnb). Only the box and its button go to the bar; when the site's header holding the
++ * rest is dropped, the rest is read at the top of the page (F1305).
++ */
++let searchRest: Element | null = null;
++
++/** A small search form or bar with another field, or a picker that opens one (Airbnb's "When", "Who"). A category select alone does not count. */
++function searchMore(box: Element, pick: Element, ctx: Ctx): boolean {
++  if (tlen(box) > 1000 || box.querySelector("nav, [role=navigation], main, [role=main], article, h1") || box.querySelectorAll("a[href]").length > 8) return false;
++  const sel = "input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=image]):not([type=reset]), textarea, [role=combobox], [role=textbox], [aria-expanded]:not(a), [aria-haspopup]:not(a)";
++  return Array.from(box.querySelectorAll(sel)).some((c) => c !== pick && !c.contains(pick) && !pick.contains(c) && !ctx.used.has(c) && visible(c) && c.getBoundingClientRect().width > 0);
++}
++
++/** In a form that wraps the page, the search bar in the site's header around the box: the smallest box with a button, if it is small (F1309). */
++function searchBar(pick: HTMLInputElement): Element | null {
++  for (let a = pick.parentElement; a && a !== pick.form && a !== document.body; a = a.parentElement) {
++    if (a.matches("header, #header, [role=banner], nav")) return null;
++    if (Array.from(a.querySelectorAll("button, input[type=submit], input[type=image], [role=button]")).some((b) => b !== pick && visible(b))) return a.closest(SEARCH_PLACE) && tlen(a) <= 300 ? a : null;
++  }
++  return null;
++}
++
++/** The search's own form or bar left in a part of the page the walk drops (the site's header), or null. */
++function searchRestDropped(root: Element, ctx: Ctx): Element | null {
++  const box = searchRest;
++  if (!box || !box.isConnected) return null;
++  if (!root.contains(box)) return box.contains(root) ? null : box;
++  for (let a: Element | null = box; a && a !== root; a = a.parentElement) if (isChrome(a, ctx)) return box;
++  return null;
++}
++
+ /**
+  * A lone text box at the top of the page whose form's button says it searches
+  * (weather.gov's location box: "Go", named btnSearch): the site's own lookup,
+@@ -6867,6 +6919,8 @@ export function findTop(): Action[] {
+     if (r.height > 0 && Math.min(r.top + scrollY, r.top) < 300) roots.push(n);
+   }
+   const out: Action[] = [];
++  // A way to sign out takes a slot only when one is left: it never pushes the cart or account into the Menu (F1307).
++  const leave: Action[] = [];
+   const seen = new Set<string>();
+   for (const r of roots) {
+     for (const el of Array.from(r.querySelectorAll("a[href],button,span,div"))) {
+@@ -6890,12 +6944,17 @@ export function findTop(): Action[] {
+       const k = label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+       if (seen.has(k)) continue;
+       seen.add(k);
++      if (SIGN_OUT.test(label)) {
++        leave.push(toAction(el, label));
++        continue;
++      }
+       out.push(toAction(el, label));
+       if (out.length >= 4) return withPicker(out, roots);
+     }
+   }
+-  return withPicker(out, roots);
++  return withPicker([...out, ...leave].slice(0, 4), roots);
+ }
++const SIGN_OUT = /\b(sign ?out|log ?out|log ?off|cerrar sesi[oó]n|salir|sair|terminar sess[aã]o|abmelden|se d[ée]connecter|d[ée]connexion|esci|disconnetti)\b/i;
+ 
+ /** A site-wide picker: the place a forecast is for ("Montreal"), the page's language ("English (US)"). */
+ const PICKER = /(^|[\s_-])(location|locale|language|lang|region|country|city|area)[\s_-]*(picker|switcher|selector|select|chooser|trigger|toggle|menu|button)($|[\s_-])/i;
+@@ -8542,6 +8601,13 @@ function extractAll(): Page {
+     const again = walkPage({ ...newCtx(), articleEl: ctx.articleEl, used, keepAllNav: true, visited: ctx.visited, searchEl: ctx.searchEl, hasByline: ctx.hasByline, byName: ctx.byName, hasDate: ctx.hasDate, titleEl: h1 }, root, scope, beside);
+     if (blocksText(again).length > blocksText(blocks).length) blocks = again;
+   }
++  // The rest of the site's search form (its "Near" box, dates, guests) leads the page when the header holding it is dropped (F1305).
++  const rest = searchRestDropped(root, ctx);
++  if (rest) {
++    const o = new Out();
++    visit(rest, o, ctx);
++    blocks.unshift(...o.done());
++  }
+   const title = h1 ? headingText(h1).slice(0, 200) : pageTitle();
+   dropTitleRepeat(blocks, title);
+   demoteExtraH1(blocks, title);
+diff --git a/src/content/index.ts b/src/content/index.ts
+index 7e9a296..72d3f00 100644
+--- a/src/content/index.ts
++++ b/src/content/index.ts
+@@ -1607,6 +1607,15 @@ function boot() {
+   const thinView = (bs: Block[]) =>
+     blocksText(bs).length < 200 &&
+     bs.every((b) => b.t === "h" || b.t === "p" || b.t === "note" || (bs.length > 3 && (b.t === "ul" || b.t === "actions")));
++  /** Sift shows none of the page's content yet: nothing, or only a title and a line (see thinView). Asked on every change while loading: kept per page read. */
++  const emptyViews = new WeakMap<Page, boolean>();
++  const viewEmpty = () => {
++    const p = store.page;
++    if (!p?.blocks.length) return true;
++    let e = emptyViews.get(p);
++    if (e === undefined) emptyViews.set(p, (e = thinView(p.blocks)));
++    return e;
++  };
+ 
+   /**
+    * Extract again: now (`delay` 0: navigation, after an action), after
+@@ -1626,7 +1635,10 @@ function boot() {
+       // the change (a loading page has no idle moment, and its next long task
+       // would delay a timer), but never back to back.
+       // After a long look (over 300 ms), the pause is three times its length (F1220).
+-      const wait = lastRunAt + (lastDur > 300 ? lastDur * 4 : Math.max(100, lastDur * 3)) - performance.now();
++      // While the HTML still comes in and Sift shows none of its content, a quick look (the page's first bytes)
++      // holds the next back only by three times its length: the first view comes as soon as the content is in (F1300).
++      const soon = document.readyState === "loading" && viewEmpty();
++      const wait = lastRunAt + (lastDur > 300 ? lastDur * 4 : Math.max(soon ? 16 : 100, lastDur * 3)) - performance.now();
+       if (wait <= 0) return run();
+       d = Math.max(16, wait);
+     } else {
+@@ -2303,18 +2315,20 @@ function boot() {
+   /** Whether each shown player showed its own error screen when Sift last read the page. */
+   const errorAt = new WeakMap<Element, boolean>();
+   function run() {
+-    lastRunAt = performance.now();
+     if (pending) clearTimeout(pending);
+     pending = 0;
+     if (idleRun) cancelIdleCallback(idleRun);
+     idleRun = 0;
+     if (store.mode !== "sift" || !document.body) return;
++    // Only a look that read the page counts for spacing the next: one before <body> exists read nothing (F1300).
++    lastRunAt = performance.now();
+     if (checkUrl()) fillTries = lastCount = 0;
+     const s = performance.now();
+     let page: Page;
+     // Until Sift shows this page, a look stops after a moment and shows what it read (a long list's first
+     // part), and the next look reads it all: the first view never waits on the whole page (F1220).
+-    const budget = !firstPaint && !cutLast ? 120 : 0;
++    // Shown means some of its content: while the HTML comes in, a first look that found only a title (its first bytes) is no view yet (F1300).
++    const budget = (!firstPaint || (document.readyState === "loading" && viewEmpty())) && !cutLast ? 50 : 0;
+     try {
+       page = extract(budget);
+       failures = 0;
+diff --git a/src/content/proxy.ts b/src/content/proxy.ts
+index 44a7f37..3fcd2c1 100644
+--- a/src/content/proxy.ts
++++ b/src/content/proxy.ts
+@@ -599,14 +599,24 @@ export function submit(field: Element | null, button: Element | null, form: HTML
+     // just reload the page and lose the query. Hold it and try again once the page has loaded.
+     const t0 = performance.now();
+     const at = location.href.split("#")[0];
++    // Only while the page did nothing with it: a handler that added the item, drew results or took the
++    // text has handled it, and the submission goes on as on the original. Else every retry would replay
++    // its handler again (one Enter, the item added 8 times: F1303).
++    const value = (field as HTMLInputElement | null)?.value;
++    const mo = new MutationObserver(() => {});
++    mo.observe(document, { subtree: true, childList: true, characterData: true });
++    const handled = () =>
++      (field as HTMLInputElement | null)?.value !== value ||
++      mo.takeRecords().some((r) => !(r.target instanceof Element ? r.target : r.target.parentElement)?.closest("sift-root, [data-sift-portal], [role=listbox], [role=option]"));
+     const hold = (e: Event) => {
+-      if (e.target !== f || e.defaultPrevented) return;
++      if (e.target !== f || e.defaultPrevented || handled()) return;
+       e.preventDefault();
+       clearTimeout(heldSubmit);
+       heldSubmit = setTimeout(function retry() {
+         // Not once the page has gone on to another address (the site took it over, or the user went elsewhere).
+         if (leftAt >= t0 || location.href.split("#")[0] !== at || !f.isConnected) return;
+-        if (document.readyState !== "complete") heldSubmit = setTimeout(retry, 500);
++        // Still loading, for a while at most (an image that never ends must not hold it for good).
++        if (document.readyState !== "complete" && holdsSubmit(f)) heldSubmit = setTimeout(retry, 500);
+         else submit(field?.isConnected ? field : null, button, form, via);
+       }, 1000);
+     };
+@@ -615,6 +625,7 @@ export function submit(field: Element | null, button: Element | null, form: HTML
+       return submitNow(field, button, f, via);
+     } finally {
+       removeEventListener("submit", hold);
++      mo.disconnect();
+     }
+   }
+   return submitNow(field, button, form, via);
+@@ -625,13 +636,18 @@ let heldSubmit: ReturnType<typeof setTimeout> | undefined;
+ 
+ /**
+  * Whether a submission of `f` that the page does not take over is held for
+- * now: its action is only a fragment or a script ("#"), and the page is
+- * loading or loaded less than 8 seconds ago.
++ * now: a search box (one field to type in) that posts back to this page ("#"),
++ * and the page is loading (at most 10 seconds after DOMContentLoaded) or loaded
++ * less than 8 seconds ago. Not a script address ("javascript:"), whose
++ * submission does nothing, nor a GET, which keeps its query in the new address
++ * (F1303).
+  */
+ function holdsSubmit(f: HTMLFormElement): boolean {
+-  if (!/^\s*(#|javascript:)/i.test(f.getAttribute("action") ?? "")) return false;
+-  if (document.readyState !== "complete") return true;
++  if (f.method !== "post" || !/^\s*#/.test(f.getAttribute("action") ?? "")) return false;
++  const typed = Array.from(f.elements).filter((e) => e instanceof HTMLTextAreaElement || (e instanceof HTMLInputElement && BLOCKING.has(e.type)));
++  if (typed.length !== 1 || !/^(text|search)$/.test((typed[0] as HTMLInputElement).type)) return false;
+   const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
++  if (document.readyState !== "complete") return !nav?.domContentLoadedEventEnd || performance.now() < nav.domContentLoadedEventEnd + 10000;
+   return !!nav && performance.now() < nav.loadEventEnd + 8000;
+ }
+ 
+diff --git a/src/content/short.ts b/src/content/short.ts
+index 6bf03cd..6b184b1 100644
+--- a/src/content/short.ts
++++ b/src/content/short.ts
+@@ -592,6 +592,9 @@ function blockWords(b: Block): number {
+ /** The Short version as shown, put back parts included, must save at least a quarter of the words, or the full text shows. */
+ const MAX_SHOWN = 0.75;
+ 
++/** A heading of a numbered series, and its number: "2. The company is haemorrhaging cash", "3) Bake". */
++const NUMBERED = /^\s*(\d{1,3})[.)]\s/;
++
+ /**
+  * Puts the model's short text and the article's own blocks together: each
+  * placeholder becomes its block, the source's headings stay and no others,
+@@ -637,7 +640,12 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
+       }
+       if (s > score) [best, score] = [i, s];
+     });
+-    return score >= 0.75 ? best : -1;
++    if (score >= 0.75) return best;
++    // A numbered heading the model reworded ("2. Anthropic is losing money" for
++    // "2. The company is haemorrhaging cash") stands for the page's heading of
++    // that number not placed yet, so its section's text stays under it (F1233).
++    const num = NUMBERED.exec(text.replace(/[*_`]/g, ""))?.[1];
++    return num ? src.units.findIndex((u, i) => u.kind === "h" && !used.has(i) && NUMBERED.exec(u.plain)?.[1] === num) : -1;
+   };
+   for (const raw of out.replace(/\r/g, "").split("\n")) {
+     const parts = raw.split(/(\[\[\s*B\d+\s*\]\])/);
+@@ -859,17 +867,32 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
+     });
+     let hi = segs.findIndex((s, k) => k >= lo && "unit" in s && s.pos > i);
+     if (hi < 0) hi = segs.length;
+-    let at = segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && s.pos !== undefined && s.pos > i);
++    // A heading goes before the first text of its own section, if any: a line
++    // about a later section the model set before it stays above (F1233).
++    const end = u.kind === "h" ? src.units.findIndex((v, j) => j > i && v.kind === "h") : -1;
++    let at = u.kind === "h" ? segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && s.pos !== undefined && s.pos > i && (end < 0 || s.pos < end)) : -1;
++    if (at < 0) at = segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && s.pos !== undefined && s.pos > i);
+     if (at < 0) at = hi;
++    // Right after the model's own heading for that section (kept as a line),
++    // it goes before that line, which is then of its section.
++    const prev = segs[at - 1];
++    if (u.kind === "h" && at > lo && prev && "md" in prev && guesses.has(prev) && !(prev.pos !== undefined && prev.pos < i)) {
++      at--;
++      prev.pos = i;
++    }
+     segs.splice(at, 0, { unit: i, pos: i });
+     used.add(i);
+   }
+ 
+-  // A heading with nothing under it (its text was cut) is dropped.
++  // A heading with nothing under it (its text was cut) is dropped. One of a
++  // numbered series ("1.", "2.", "3.") stays: it is one of the points (F1233).
+   const level = (s: S) => ("unit" in s && src.units[s.unit].kind === "h" ? (src.units[s.unit].block as Extract<Block, { t: "h" }>).level : 0);
++  const series = src.units.filter((u) => u.kind === "h" && NUMBERED.test(u.plain)).length >= 2;
+   for (let i = segs.length - 1; i >= 0; i--) {
+     const l = level(segs[i]);
+     if (!l) continue;
++    const s = segs[i];
++    if (series && "unit" in s && NUMBERED.test(src.units[s.unit].plain)) continue;
+     const next = segs[i + 1];
+     if (!next || (level(next) && level(next) <= l)) segs.splice(i, 1);
+   }
+diff --git a/src/content/ui/markdown.tsx b/src/content/ui/markdown.tsx
+index c2405a5..64a606b 100644
+--- a/src/content/ui/markdown.tsx
++++ b/src/content/ui/markdown.tsx
+@@ -34,7 +34,7 @@ export function Markdown({ text, link }: { text: string; link?: LinkFn }) {
+   const lines = text.replace(/\r/g, "").split("\n");
+   const blocks: any[] = [];
+   let para: string[] = [];
+-  let list: { ordered: boolean; items: string[] } | null = null;
++  let list: { ordered: boolean; items: string[]; start?: number } | null = null;
+   let quote: string[] = [];
+   /** Inside a fenced code block: its fence and lines so far. */
+   let code: { fence: string; lines: string[] } | null = null;
+@@ -55,7 +55,8 @@ export function Markdown({ text, link }: { text: string; link?: LinkFn }) {
+   const flushList = () => {
+     if (!list) return;
+     const items = list.items.map((it, i) => <li key={i}>{inline(it, link)}</li>);
+-    blocks.push(list.ordered ? <ol key={k++}>{items}</ol> : <ul key={k++}>{items}</ul>);
++    // A numbered list keeps the model's first number ("3. It has cash…" is not "1.").
++    blocks.push(list.ordered ? <ol key={k++} start={list.start !== 1 ? list.start : undefined}>{items}</ol> : <ul key={k++}>{items}</ul>);
+     list = null;
+   };
+   const flushCode = () => {
+@@ -118,15 +119,15 @@ export function Markdown({ text, link }: { text: string; link?: LinkFn }) {
+     }
+     if (quote.length) flushPara();
+     const b = /^\s*[-*•]\s+(.*)$/.exec(line);
+-    const n = /^\s*\d+[.)]\s+(.*)$/.exec(line);
++    const n = /^\s*(\d+)[.)]\s+(.*)$/.exec(line);
+     if (b || n) {
+       flushPara();
+       const ordered = !!n;
+       if (!list || list.ordered !== ordered) {
+         flushList();
+-        list = { ordered, items: [] };
++        list = { ordered, items: [], start: n ? Number(n[1]) : undefined };
+       }
+-      list.items.push((b ?? n)![1]);
++      list.items.push(b ? b[1] : n![2]);
+       continue;
+     }
+     if (list && /^\s{2,}/.test(raw)) {
+diff --git a/src/main/index.ts b/src/main/index.ts
+index 6a5a8f0..6e6566a 100644
+--- a/src/main/index.ts
++++ b/src/main/index.ts
+@@ -132,13 +132,35 @@ if (!(window as any).__siftMain) {
+       if (e.hasAttribute("data-sift-portal") || e.localName === "sift-root" || e === document.fullscreenElement || e.matches(":modal")) return true;
+     return false;
+   };
++  // Not only during the click (F1301, F1302): the page often focuses its popup a microtask, a frame or a
++  // timeout later (React, Vue, Headless UI), or after Sift's checkbox or Enter. So while Sift is shown and
++  // holds focus, a page element outside what Sift shows takes no real focus, as on an inert page. Real
++  // focus already on a page element (a shown original, the editor Sift types into) is left as it is.
++  const guarded = (n: Element): boolean => {
++    if (!n.isConnected || shownAt(n)) return false;
++    if (clicking > 0) return true;
++    const a = active?.get ? (active.get.call(document) as Element | null) : null;
++    return (!a || a === document.body || a.localName === "sift-root") && siftShown();
++  };
++  const askFocus = (n: Element) => n.dispatchEvent(new CustomEvent("sift-focus", { bubbles: true, composed: true }));
+   let selField: HTMLInputElement | HTMLTextAreaElement | null = null;
+   for (const fproto of [HTMLInputElement.prototype, HTMLTextAreaElement.prototype] as any[])
+     for (const name of ["select", "setSelectionRange"]) {
+       const orig = fproto[name];
+       if (typeof orig !== "function") continue;
+       fproto[name] = function (this: HTMLInputElement | HTMLTextAreaElement, ...args: unknown[]) {
+-        const r = orig.apply(this, args);
++        // select() focuses the field natively: while guarded (above), select its text without focus.
++        let r: unknown;
++        try {
++          if (name === "select" && guarded(this)) {
++            fproto.setSelectionRange.call(this, 0, this.value.length);
++            askFocus(this);
++            return;
++          }
++        } catch {
++          /* a type with no selection range: the page's own call */
++        }
++        r = orig.apply(this, args);
+         // Only the copy that follows in the same task.
+         const f = (selField = this);
+         setTimeout(() => selField === f && (selField = null));
+@@ -149,7 +171,7 @@ if (!(window as any).__siftMain) {
+     const f = selField;
+     // Never a password: the browser copies none.
+     // Or a field the page could not focus during Sift's click (above): it would copy as nothing.
+-    if (f?.isConnected && (inertAt(f) || (clicking > 0 && !shownAt(f))) && (f as HTMLInputElement).type !== "password") {
++    if (f?.isConnected && (inertAt(f) || guarded(f)) && (f as HTMLInputElement).type !== "password") {
+       try {
+         return f.value.slice(f.selectionStart ?? 0, f.selectionEnd ?? 0);
+       } catch {
+@@ -214,9 +236,9 @@ if (!(window as any).__siftMain) {
+   if (typeof focus === "function") {
+     proto.focus = function (this: HTMLElement, ...args: unknown[]) {
+       try {
+-        // During Sift's click, outside what Sift shows of the page: no real focus (above, F1200).
+-        if (clicking > 0 && this.isConnected && !shownAt(this)) {
+-          this.dispatchEvent(new CustomEvent("sift-focus", { bubbles: true, composed: true }));
++        // Outside what Sift shows of the page, while Sift holds focus: no real focus (above, F1200, F1301).
++        if (guarded(this)) {
++          askFocus(this);
+           return;
+         }
+       } catch {
+@@ -276,6 +298,31 @@ if (!(window as any).__siftMain) {
+   // A modal dialog inside a shadow root is invisible to document.querySelector(":modal")
+   // and sends no toggle event to the document. Tell Sift when one opens and closes.
+   const dproto = HTMLDialogElement.prototype as any;
++  // show() focuses the dialog's first control natively: while guarded (above), it opens without taking
++  // focus (inert for that moment), and Sift follows to its copy of that control (F1301).
++  const show = dproto.show;
++  if (typeof show === "function") {
++    dproto.show = function (this: HTMLDialogElement, ...args: unknown[]) {
++      let hold = false;
++      try {
++        hold = !this.open && !this.inert && guarded(this);
++      } catch {
++        /* never break the page's own call */
++      }
++      if (!hold) return show.apply(this, args);
++      this.inert = true;
++      try {
++        return show.apply(this, args);
++      } finally {
++        this.inert = false;
++        try {
++          askFocus(this.querySelector("[autofocus]") ?? this.querySelector("button, [href], input:not([type=hidden]), select, textarea, [tabindex]:not([tabindex='-1'])") ?? this);
++        } catch {
++          /* never break the page's own call */
++        }
++      }
++    };
++  }
+   const showModal = dproto.showModal;
+   if (typeof showModal === "function") {
+     dproto.showModal = function (this: HTMLDialogElement, ...args: unknown[]) {
+diff --git a/src/shared/ticks.ts b/src/shared/ticks.ts
+index 7e2c778..f46b6d1 100644
+--- a/src/shared/ticks.ts
++++ b/src/shared/ticks.ts
+@@ -10,7 +10,7 @@ const TICKS_CJK = /\d+\s*(?:秒|分|分钟|分鐘|時間|小时|小時|日|天|
+  */
+ const LABEL = new Set(
+   (
+-    "updated update published posted edited modified last read reading time current duration elapsed remaining loaded progress ago just now today yesterday at on by of the a views view comments comment likes shares reads replies votes advertisement advert ad ads sponsored " +
++    "updated update published posted edited modified last read reading time current duration elapsed remaining loaded progress live ago just now today yesterday at on by of the a views view comments comment likes shares reads replies votes advertisement advert ad ads sponsored " +
+     "s sec secs second seconds m min mins minute minutes h hr hrs hour hours d day days w wk week weeks mo month months y yr yrs year years " +
+     "actualizado actualizada actualización publicado publicada editado modificado última lectura leer tiempo de del el la las los en hace hoy ayer ahora vistas visitas comentarios respuestas votos publicidad anuncio patrocinado " +
+     "segundo segundos minuto minutos hora horas día días dia dias semana semanas mes meses año años " +
+@@ -23,6 +23,9 @@ const LABEL = new Set(
+     "назад обновлено опубликовано сегодня вчера секунду секунды секунд минуту минуты минут час часа часов день дня дней неделю недели месяц месяца месяцев год года лет"
+   ).split(" "),
+ );
++/** A count of views, likes or comments ("1,2 M views", "266 comments", "12,400 watching"). */
++const COUNT =
++  "\\d[\\d.,]*\\s*[kmb]?\\s+(?:\\p{L}+\\s+){0,2}(?:views?|viewers?|watching|likes?|comments?|shares?|reads?|vistas?|visitas?|viendo|reproducciones|visualizaciones|comentarios?|vues|commentaires?|aufrufe|kommentare|visualizzazioni|commenti)(?!\\p{L})";
+ /**
+  * A time relative to now ("3hrs ago", "hace 3 horas", "vor 2 Tagen", "3時間前")
+  * or a count of views, likes or comments: it changes on its own between
+@@ -35,7 +38,7 @@ const VOLATILE = new RegExp(
+     "(?<!\\p{L})(?:há|il y a|vor)\\s+(?:\\d+|uma?|une?|einer?|einem)\\s+(?:segundos?|minutos?|horas?|dias?|semanas?|mês|meses|anos?|secondes?|minutes?|heures?|jours?|semaines?|mois|ans?|sekunden?|minuten?|stunden?|tag(?:en)?|wochen?|monat(?:en)?|jahr(?:en)?)(?!\\p{L})",
+     "\\d+\\s+(?:secondi|minuti|ore|giorni|settimane|mesi|anni)\\s+fa(?!\\p{L})",
+     TICKS_CJK.source,
+-    "\\d[\\d.,]*\\s*[kmb]?\\s+(?:\\p{L}+\\s+){0,2}(?:views?|viewers?|watching|likes?|comments?|shares?|reads?|vistas?|visitas?|viendo|reproducciones|visualizaciones|comentarios?|vues|commentaires?|aufrufe|kommentare|visualizzazioni|commenti)(?!\\p{L})",
++    COUNT,
+   ].join("|"),
+   "iu",
+ );
+@@ -51,6 +54,9 @@ const FILLER = new Set(
+ /** Where a byline's parts meet: "BBC·3hrs ago", "Daily Mail · 266 comments", "Reuters | 2 hours ago". */
+ const PART = /\s*[·•|]\s*|\s+[-–—]\s+/;
+ const VOLATILE_ALL = new RegExp(VOLATILE.source, "giu");
++const COUNT_ALL = new RegExp(COUNT, "giu");
++/** A time relative to now ("3 hours ago", "hace 3 horas"), not a count. */
++const relative = (s: string) => VOLATILE.test(s.replace(COUNT_ALL, " "));
+ 
+ /**
+  * Whether a short line only ticks: once the parts `tick` matches (a clock
+@@ -69,5 +75,15 @@ export function onlyTicks(line: string, tick: RegExp): boolean {
+   };
+   if (labelOnly(line)) return true;
+   const parts = line.split(PART);
+-  return parts.length > 1 && parts.some((p) => VOLATILE.test(p) && labelOnly(p));
++  if (parts.length > 1 && parts.some((p) => VOLATILE.test(p) && labelOnly(p))) return true;
++  // A byline whose time relative to now follows a comma or a name ("Posted by
++  // Sam Rivers, 3 hours ago", "Sports desk, updated 3 hours ago", "Jane Doe 3
++  // hours ago") (F1312). A sentence has words of its own ("The fire started 2
++  // hours ago."), and a count after a comma may be what it says ("…, 9
++  // million viewers").
++  if (!relative(line)) return false;
++  const last = line.split(/,\s+/).pop()!;
++  if (last !== line && relative(last) && labelOnly(last)) return true;
++  const rest = line.replace(VOLATILE_ALL, " ").replace(all, " ").replace(TICKS_CJK, " ").match(/\p{L}+/gu) ?? [];
++  return rest.every((w) => LABEL.has(w.toLowerCase()) || /^\p{Lu}/u.test(w));
+ }

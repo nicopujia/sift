@@ -1,0 +1,14 @@
+{
+ "F1403": "Guardian articles lose the lead photo's caption",
+ "F1404": "USA Today home: 14 headlines stay cut off with '\u2026' though the full headline is on the link",
+ "F1405": "USA Today article: page furniture shows up in the article body",
+ "F1409": "Craigslist: on a 3-photo listing, 'Image 3' shows photo 1 in Sift while the original shows photo 3",
+ "F1412": "Rename in place fails when clicked more than about 3 s after load: Sift's focus lands on the next button ('Invite people'), so typing the new name opens the invite popup instead",
+ "F1406": "Infobae at 200%: 'Cuenta' puts the sign-in buttons before itself in the Tab order, so keyboard users skip past them",
+ "F1411": "HN thread: 'next' takes 1.4-2.0 s to move focus and freezes the page with 500-930 ms long tasks; the original starts scrolling in 36 ms",
+ "F1402": "English home: a foreign title still shows with no English line when the model answers in the title's language (F1231 remainder)",
+ "F1408": "GitHub issue #4416 no longer gets a Short version: works.md 110's 'Show full text' toggle is gone",
+ "F1401": "YouTube home and search: Sift's first list entry shows 0.8 to 1.9 s after the original's first entry (1.3x to 1.6x slower)",
+ "F1407": "GitHub (repo, file view, issues list) and a Wikipedia article show their first content 0.3-0.5 s later than the original (1.9-2.9x)",
+ "F1410": "Sift's first content is still 0.1-0.4 s later than the original on most of these pages (F1300's symptom, larger on GOV.UK search, Python docs and Booking)"
+}

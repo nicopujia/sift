@@ -2,13 +2,13 @@
 
 Sift is a Chrome extension that opens every page as a clean, readable, usable view. One switch (Alt+Shift+S, or the Sift button) shows the original page. Install it from https://sift.pujia.ar. The README explains how it works.
 
-This file says how Sift was checked against its spec, what passed, and what is still open. Last updated 2026-10-27, after round 11.
+This file says how Sift was checked against its spec, what passed, and what is still open. Last updated 2026-10-30, during round 14.
 
 ## How it was checked
 
-- Eleven rounds of testing. In each round, six testers used real sites, saved pages and hand-made test pages. Three reviewers read the code. A skeptic then tried to reproduce every reported problem. Only reproduced problems counted.
+- Thirteen rounds of testing. In each round, six testers used real sites, saved pages and hand-made test pages. Three reviewers read the code. A skeptic then tried to reproduce every reported problem. Only reproduced problems counted.
 - Fixers worked in parallel copies of the code. Their changes were merged, type-checked, built and smoke-tested, then published.
-- Rounds 7 to 11 also ran the spec's "done" checks on each target page, with numbers:
+- Rounds 7 to 13 also ran the spec's "done" checks on each target page, with numbers:
   - **speed:** time to first content, Sift against the original page, 3 runs each, medians
   - **actions:** each needed action, and whether it had the same effect as on the original
   - **language:** the language of Sift's text against the page's
@@ -24,13 +24,15 @@ This file says how Sift was checked against its spec, what passed, and what is s
   | 9 | 253 | 281 |
   | 10 | 291 | 316 |
   | 11 | 342 | 357 |
+  | 13 | 262 | 294 |
 
   On the target pages, these passed:
   - round 9: 98 of 113
   - round 10: 113 of 123
   - round 11: 145 of 155
+  - round 13: 119 of 136. Of the 17 failures, 10 are speed (see the round 13 speed section), 3 are content (a Guardian photo caption, cut-off USA Today headlines, page furniture in a USA Today article), and 4 are one each of language, zoom, keyboard and actions.
 
-  Round 11 checked only the target pages and rechecks, with no new sites. Every failure became a problem to fix, and the round 11 fixes are in the published build.
+  Round 11 checked only the target pages and rechecks, with no new sites. Round 13 is the first round whose speed checks used the frame-by-frame script, which fails more pages than the old one (see below). Its testers used the build from before round 13's code fixes. Every failure became a problem to fix in round 14.
 
 ## Done checks on the target pages (round 9)
 
