@@ -2923,8 +2923,9 @@ export function detectItems(el: Element, ctx: Ctx): Set<Element> | null {
   const baseSet = new Set(best[0] ? baseClasses(best[0]) : []);
   // In a list of results every entry counts, whatever class marks its type (Sphinx's "kind-object", "kind-text").
   const anyLi = tag === "li" && resultList(el);
+  const inBest = new Set(best);
   const members = ch.filter(
-    (k) => k.localName === tag && (anyLi || best.includes(k) || baseClasses(k).some((c) => baseSet.has(c)) || (!baseSet.size && !baseClasses(k).length)),
+    (k) => k.localName === tag && (anyLi || inBest.has(k) || baseClasses(k).some((c) => baseSet.has(c)) || (!baseSet.size && !baseClasses(k).length)),
   );
   if (members.length < 3 || members.length < ch.length * 0.6) return null;
   if (tag === "p" || tag === "br" || /^h[1-6]$/.test(tag)) return null;
@@ -2933,7 +2934,9 @@ export function detectItems(el: Element, ctx: Ctx): Set<Element> | null {
   let total = 0;
   let simple = 0;
   let withFields = 0;
-  for (const k of members) {
+  for (const [i, k] of members.entries()) {
+    // Too few can still be named by a link (a grid of thousands of buttons): not cards, without reading the rest (F1300).
+    if (prominent + unnamed.length + members.length - i < members.length * 0.6) return null;
     const links = k.localName === "a" ? [k] : Array.from(k.querySelectorAll("a[href]"));
     const n = tlen(k);
     total += n;
@@ -5334,12 +5337,12 @@ function readingStrip(el: Element, ctx: Ctx): Block | null {
   if (cells.length < 8) return null;
   const tops = new Set(cells.slice(0, 8).map((c) => Math.round(c.getBoundingClientRect().top)));
   if (tops.size > 1) return null;
+  // A row of buttons (dates, showtimes, sizes) stays a row of buttons to press, however long:
+  // a cell that is or holds a control is not a reading. (Checked before reading every cell's text: a grid of thousands of buttons, F1300.)
+  if (cells.some((c) => isControl(c) || hasControl(c) || c.matches("[onclick], [tabindex]:not([tabindex='-1'])") || c.querySelector("[onclick], h1, h2, h3, h4, img"))) return null;
   const texts = cells.map((c) => textIn(c));
   // Readings: short, with a number and a unit or a word ("56°", "3 pm"), not a pager's bare numbers.
   if (texts.some((tx) => !tx || tx.length > 30) || texts.filter((tx) => /\d/.test(tx) && /[^\d\s.,:]/.test(tx)).length < cells.length * 0.75) return null;
-  // A row of buttons (dates, showtimes, sizes) stays a row of buttons to press, however long:
-  // a cell that is or holds a control is not a reading.
-  if (cells.some((c) => isControl(c) || hasControl(c) || c.matches("[onclick], [tabindex]:not([tabindex='-1'])") || c.querySelector("[onclick], h1, h2, h3, h4, img"))) return null;
   const content: Inline[] = [];
   cells.forEach((c, i) => {
     // A reading that is or holds a link (an hour that opens its details, a day's page) keeps it.

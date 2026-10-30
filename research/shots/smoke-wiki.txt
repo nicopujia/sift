@@ -1,0 +1,600 @@
+[button] Skip to content
+  [input:search]  Search Wikipedia
+  [button] Search
+[button] Menu
+[link] Create account
+[link] Log in
+H1 Coeliac disease
+p: From Wikipedia, the free encyclopedia
+  [link] Celiac disease
+  p: SHORTENING…
+  [link] 
+  th: Coeliac disease
+  td: Other names
+  td: Coeliac sprue, nontropical sprue, endemic sprue, gluten enteropathy
+    [link] Endoscopy
+    [link] duodenum
+  td: Pronunciation
+    [link] /ˈsiːliæk/
+    [button] Play audio
+    [link] ⓘ
+    [link] SEE-lee-ak
+    [link] Specialty
+    [link] Gastroenterology
+    [link] internal medicine
+    [link] Symptoms
+    [link] non-specific
+    [link] diarrhoea
+    [link] malabsorption
+    [link] Complications
+    [link] Iron-deficiency anaemia
+    [link] osteoporosis
+    [link] infertility
+    [link] cancers
+  td: Usual onset
+  td: Any age
+  td: Duration
+  td: Lifelong
+    [link] Causes
+    [link] Gluten
+    [link] Risk factors
+    [link] Genetic predisposition
+    [link] Diagnostic method
+    [link] biopsies
+    [link] Differential diagnosis
+    [link] Inflammatory bowel disease
+    [link] intestinal parasites
+    [link] irritable bowel syndrome
+  td: Treatment
+    [link] Gluten-free diet
+  td: Frequency
+  td: Between 1 in 50 and 1 in 200
+    [link] British English
+    [link] American English
+    [link] autoimmune disease
+    [link] small intestine
+    [link] immune system
+    [link] gluten
+    [link] protein
+    [link] wheat
+    [link] barley
+    [link] rye
+    [link] gastrointestinal tract
+    [link] malabsorption
+    [link] weight loss
+    [link] diarrhoea
+    [link] stunted growth
+    [link] bone disease
+    [link] anaemia
+    [link] nutritional deficiencies
+    [link] genetic predisposition
+    [link] inflammation
+    [link] lining
+    [link] blood tests
+    [link] biopsies
+    [link] delay in diagnosis
+    [link] mass screening
+    [link] gluten-free diet
+    [link] quality of life
+  p: Approximately 1 in 200 to 1 in 50 people have coeliac disease. Diagnoses of coeliac disease have increased recently due to increased awareness and availability of blood testing. The disease is still thought to be underdi
+  H2 Terminology and classification
+    [link] British English
+    [link] North American English
+    [link] gluten
+    [link] Gluten-related disorders
+    [link] gluten ataxia
+    [link] wheat allergy
+    [link] dermatitis herpetiformis
+    [link] non-coeliac gluten sensitivity
+    [link] anaemia
+    [link] malnutrition
+    [link] malabsorption
+    [link] diarrhoea
+    [link] small intestine
+    [link] gluten-free diet
+  H2 Signs and symptoms
+    [link] malabsorption
+    [link] diarrhoea
+    [link] weight loss
+    [link] failure to thrive
+    [link] intestine
+  H3 Gastrointestinal
+    [link] Diarrhoea
+    [link] foul in odour
+    [link] abdominal pain
+    [link] bloating
+    [link] abdominal distension
+    [link] mouth ulcers
+    [link] lactose intolerance
+  H3 Extraintestinal manifestations
+  [link] 
+  figcaption: Dysfunctional bone metabolism in coeliac disease
+    [link] headaches
+    [link] fatigue
+    [link] brain fog
+    [link] muscle pain
+    [link] joint pain
+    [link] nutritional deficiencies
+    [link] iron
+    [link] folate
+    [link] zinc
+    [link] vitamin D
+    [link] vitamin B12
+    [link] secondary hyperparathyroidism
+    [link] Hyperoxaluria
+    [link] kidney stones
+    [link] peptides
+    [link] anaemia
+    [link] bone mass density
+    [link] osteopenia
+    [link] osteoporosis
+    [link] autoimmunity
+    [link] hormones
+    [link] delayed periods
+    [link] puberty
+    [link] reproductive disorders
+    [link] infertility
+    [link] intra-uterine growth restriction
+    [link] spontaneous abortion
+    [link] selenium
+    [link] increased transaminase levels
+    [link] transaminases
+    [link] hepatitis
+    [link] autoimmune
+    [link] liver abnormalities
+    [link] allergic rhinitis
+    [link] asthma
+    [link] peripheral neuropathy
+    [link] epilepsy
+    [link] psoriasis
+    [link] recurrent aphthous stomatitis
+    [link] pericardial effusion
+  H2 Causes
+  [link] 
+  figcaption: Factors involved in the pathogenesis of coeliac disease
+    [link] inflammatory
+    [link] gliadins
+    [link] glutenins
+    [link] Triticeae
+    [link] barley
+    [link] rye
+    [link] Aveneae
+    [link] oats
+    [link] spelt
+    [link] durum
+    [link] khorasan wheat
+    [link] triticale
+    [link] oats
+    [link] cross-contamination
+    [link] immunoreactivity
+    [link] genetic variability
+    [link] cultivars
+    [link] clinical guidelines
+    [link] maize
+    [link] millet
+    [link] sorghum
+    [link] teff
+    [link] rice
+    [link] wild rice
+    [link] amaranth
+    [link] quinoa
+    [link] buckwheat
+    [link] carbohydrate
+  H3 Risk modifiers
+    [link] latitude
+    [link] antibiotic
+    [link] intestinal microbiota
+    [link] socioeconomic status
+    [link] breastfeeding
+  H2 Mechanism
+  p: Coeliac disease appears to be multifactorial, both in that more than one genetic factor can cause the disease, and in that more than one factor is necessary for the disease to manifest in a person.
+    [link] HLA-DQ2
+    [link] allele
+    [link] HLA-DQ8
+  [link] 
+  figcaption: Antigen-presenting cells bind peptides and "present" them to T cells, which detect HLA–peptide complexes through T-cell receptors. In coeliac disease, T cells respond to gluten peptides bound to HLA-DQ2 or HLA-DQ8. Glute
+  H3 Genetics
+    [link] HLA-DQ
+    [link] MHC class II antigen-presenting receptor
+    [link] human leukocyte antigen
+    [link] immune system
+    [link] chromosome 6
+    [link] HLA-DQ
+    [link] isoform
+    [link] T lymphocytes
+    [link] haplotype
+    [link] DQ2.5
+    [link] DQB1*0201
+    [link] DQ2.2
+    [link] less common
+    [link] genetically favoured
+    [link] tooth decay
+  H3 Prolamins
+  [link] 
+  figcaption: Small-bowel mucosal TG2 (red)-specific IgA deposits (green). A) Positive staining (arrow) in the mucosal villous of a short-term treated coeliac disease patient (gluten-free diet for three years). B) Negative IgA deposit
+    [link] prolamins
+    [link] proline
+    [link] glutamine
+    [link] alcohols
+    [link] proteases
+    [link] peptidases
+    [link] hordein
+    [link] secalin
+    [link] avenin
+  H3 Tissue transglutaminase
+    [link] peptides
+    [link] deamidation
+    [link] transamidation
+  [link] 
+  figcaption: Schematic representation of intestinal mucosal events involved in coeliac disease pathogenesis
+    [link] cross-linking
+    [link] lysine
+    [link] covalently
+    [link] autoantibody
+    [link] subclinical
+  H3 Villous atrophy and malabsorption
+    [link] T cells
+    [link] nutrients
+    [link] interleukin 15
+    [link] innate immune system
+  H2 Diagnosis
+    [link] diagnosis
+    [link] delay in the diagnosis
+    [link] quality of life
+    [link] biopsies
+    [link] gluten-free diet
+    [link] gluten challenge
+    [link] antibodies
+  H3 Blood tests
+  [link] 
+  figcaption: Immunofluorescence staining pattern of endomysial antibodies on a monkey oesophagus tissue sample
+    [link] medical guidelines
+    [link] immunoglobulin A
+    [link] IgA deficiency
+    [link] immunoglobulin G
+    [link] endomysial antibody
+    [link] Antigliadin antibodies
+    [link] false positive or negative
+    [link] sensitivity
+    [link] inter-observer
+    [link] European Society of Paediatric Gastroenterology
+  H3 Endoscopy
+  [link] 
+  figcaption: Endoscopic still of duodenum of a person with coeliac disease showing scalloping of folds and "cracked-mud" appearance to mucosa
+    [link] upper endoscopy
+    [link] biopsy
+    [link] duodenum
+    [link] duodenal bulb
+    [link] jejunum
+    [link] mosaic
+    [link] mucosa
+    [link] submucosa
+    [link] Capsule endoscopy
+  H3 Pathology
+  [link] 
+  figcaption: Histology of biopsy from the second part of the duodenum, showing villous atrophy
+    [link] pathological
+    [link] Marsh
+    [link] histological
+    [link] intraepithelial lymphocytes
+    [link] crypts of Lieberkuhn
+  th: Type
+  th: Increased intraepithelial lymphocytes
+  th: Crypt hyperplasia
+  th: Villi
+  td: 0 (normal)
+  td: <40 lymphocytes/100 enterocytes
+  td: Normal
+  td: Normal
+  td: 1 (infiltrative)
+  td: >40 lymphocytes/100 enterocytes
+  td: 2 (hyperplastic)
+  td: Increased
+  td: 3a (destructive)
+  td: Mild atrophy
+  td: 3b (destructive)
+  td: Moderate atrophy
+  td: 3c (destructive)
+  td: Complete atrophy
+  H3 Gluten challenge
+    [link] pubertal
+  H3 Differential diagnosis
+    [link] tropical sprue
+    [link] eosinophilic gastroenteritis
+    [link] Crohn's disease
+    [link] Helicobacter pylori
+    [link] azathioprine
+    [link] methotrexate
+    [link] mycophenolate
+    [link] olmesartan
+    [link] colchicinenon
+    [link] non-steroidal anti-inflammatory drugs
+    [link] proton pump inhibitors
+    [link] Whipple's disease
+    [link] giardiasis
+    [link] radiation enteritis
+    [link] tuberculosis
+    [link] Zollinger–Ellison syndrome
+    [link] collagenous sprue
+    [link] common variable immunodeficiency
+    [link] autoimmune enteropathy
+    [link] HIV
+    [link] small intestinal bacterial overgrowth
+    [link] gastrinoma
+    [link] congestive heart failure
+    [link] chronic liver disease
+    [link] hypergammaglobulinemia
+    [link] Non-celiac gluten sensitivity
+    [link] functional disorder
+  H2 Screening
+    [link] screening
+    [link] United States Preventive Services Task Force
+  th: Testing recommended
+  th: Testing considered
+    [link] mouth ulcers
+    [link] Metabolic bone disease
+    [link] bone mineral density
+    [link] osteomalacia
+    [link] peripheral neuropathy
+    [link] ataxia
+    [link] miscarriage
+    [link] liver enzymes
+    [link] Dental enamel
+    [link] Down syndrome
+    [link] Turner syndrome
+  H2 Management
+    [link] gluten-free diet
+    [link] preventative care
+    [link] dietitian
+  H3 Diet
+    [link] Gluten-free diet
+    [link] quality of life
+  p: The GFD can be difficult, requiring significant education and motivation. Additionally, the GFD diet may lead to nutritional deficiencies due to difficulties accessing nutritionally balanced gluten-free food. As such, a 
+  p: The exact amount of gluten that may be tolerable for those with coeliac disease varies, with some people able to consume around 35 mg per day without damage to the intestines, while others can not tolerate more than 10 m
+  H3 Monitoring
+    [link] comorbid
+    [link] complete blood count
+    [link] iron panel
+    [link] thyroid testing
+    [link] liver enzymes
+    [link] vitamin D levels
+    [link] osteoporosis
+    [link] DEXA scan
+  p: Although negative anti-TG2 IgA tests do not always correlate with adherence to a GFD, guidelines recommend routine testing for anti-TG2 IgA, as positive values may indicate gluten intake. The role of repeat biopsies is c
+    [link] routine vaccinations
+    [link] pneumococcal vaccination
+    [link] pneumonia
+  H2 Non-responsive coeliac disease
+  [link] 
+  figcaption: Approach to investigating non-responsive coeliac disease
+  p: Around 20–40% of those with coeliac disease experience non-responsive coeliac disease (NRCD), which is the continuation of symptoms despite elimination of gluten from their diets for at least 6 to 12 months.
+    [link] small intestinal bacterial overgrowth
+    [link] giardiasis
+    [link] disaccharide
+    [link] FODMAP
+    [link] fructose intolerance
+    [link] microscopic colitis
+    [link] pancreatic insufficiency
+    [link] lactose intolerance
+  H3 Refractory coeliac disease
+    [link] mortality
+    [link] duodenitis
+    [link] hypogammaglobulinemia
+    [link] enteritis
+    [link] analysis
+    [link] lymphocytes
+    [link] enteropathy-associated T-cell lymphoma
+    [link] steroids
+    [link] azathioprine
+    [link] budesonide
+    [link] cladribine
+    [link] cyclosporine
+    [link] stem cell transplants
+  H2 Outlook
+    [link] cancer
+    [link] oropharynx
+    [link] oesophagus
+    [link] small intestine
+    [link] lymphoma
+    [link] enteropathy‐associated T‐cell lymphoma
+    [link] mortality
+  H2 Epidemiology
+    [link] Rates
+  p: Diagnoses of coeliac disease have increased dramatically in recent decades due to increased awareness of the disease and the availability of blood testing. However, the disease is still thought to be underdiagnosed, with
+    [link] Down
+    [link] Turner syndromes
+    [link] type 1 diabetes
+    [link] hyperthyroidism
+    [link] thyroid
+    [link] hypothyroidism
+  H2 History
+  H3 Etymology and early history
+    [link] Ancient Greek
+    [link] Aretaeus of Cappadocia
+    [link] Neolithic
+    [link] Fertile Crescent
+    [link] Mamluk
+    [link] Barsbay
+    [link] Qalawun complex
+  H3 Post-1800s
+    [link] Francis Adams
+    [link] Sydenham Society
+    [link] Samuel Gee
+    [link] Hospital for Sick Children, Great Ormond Street
+    [link] starched
+    [link] mussels
+    [link] Christian Archibald Herter
+    [link] infantilism
+    [link] eponym
+    [link] Sidney V. Haas
+    [link] a diet of bananas
+    [link] Willem Karel Dicke
+    [link] Dutch famine of 1944–1945
+    [link] Birmingham
+    [link] gluten sensitivity
+  H2 Society and culture
+  p: May has been designated as "Coeliac Awareness Month" by several coeliac organisations.
+  H3 Dietary challenges
+    [link] Cross-contamination
+    [link] disordered eating
+    [link] anxiety
+    [link] depression
+    [link] stigma
+  p: Accessing gluten-free food can be a burden due to limited availability and variety, as well as higher costs compared to gluten-containing foods. Over the past ten years, the costs of gluten-free food have decreased; howe
+    [link] tapioca
+    [link] fibre
+    [link] carbohydrates
+    [link] federal regulations
+    [link] cosmetics
+  H3 Christian churches and the Eucharist
+    [link] Eucharist
+    [link] sacramental bread
+    [link] United Methodist
+    [link] Christian Reformed
+    [link] Episcopal
+    [link] Anglican
+    [link] Lutheran
+    [link] Catholics
+    [link] chalice
+    [link] Roman Catholic doctrine
+    [link] Mass
+    [link] hosts
+    [link] Vatican
+  H3 Passover
+    [link] Pesach
+    [link] matzah
+    [link] Ashkenazi Jews
+    [link] kosher
+    [link] Potato starch
+  H2 Research directions
+    [link] CD4+ T cells
+    [link] tetramers
+  p: New technologies have been developed to help people follow a GFD in recent years. Food sensors, such as the Nima sensor, could help people measure the amount of gluten in food to prevent accidental gluten consumption. Te
+    [link] transamidation
+    [link] chitosan
+    [link] Aspergillus niger
+    [link] endoprotease
+    [link] Larazotide acetate
+    [link] intestinal permeability
+    [link] immunomodulation
+  H2 References
+      [link] "COELIAC DISEASE | meaning in the Cambridge English Dictionary"
+      [link] "Coeliac vs. Celiac"
+      [link] the original
+      [link] "The Oslo definitions for coeliac disease and related terms"
+      [link] doi
+      [link] 10.1136/gutjnl-2011-301346
+      [link] ISSN
+      [link] 0017-5749
+      [link] PMC
+      [link] 3440559
+      [link] PMID
+      [link] 22345659
+      [link] Gluten-Related Disorders
+      [link] doi
+      [link] 10.1016/b978-0-12-821846-4.00003-6
+      [link] ISBN
+      [link] 978-0-12-821846-4
+      [link] "Uncomplicated Celiac Disease"
+      [link] doi
+      [link] 10.1007/978-3-030-90142-4_2
+      [link] ISBN
+      [link] 978-3-030-90141-7
+      [link] "European Society for the Study of Coeliac Disease (ESsCD) guideline for coeliac disease and other gluten-related disorders"
+      [link] doi
+      [link] 10.1177/2050640619844125
+      [link] ISSN
+      [link] 2050-6406
+      [link] PMC
+      [link] 6545713
+      [link] PMID
+      [link] 31210940
+      [link] Yamada's Textbook of Gastroenterology
+      [link] doi
+      [link] 10.1002/9781119600206.ch56
+      [link] ISBN
+      [link] 978-1-119-60016-9
+      [link] "Coeliac disease"
+      [link] doi
+      [link] 10.1016/S0140-6736(22)00794-2
+      [link] PMID
+      [link] 35691302
+      [link] "The Progression of Celiac Disease, Diagnostic Modalities, and Treatment Options"
+      [link] doi
+      [link] 10.1177/23247096211053702
+      [link] ISSN
+      [link] 2324-7096
+      [link] PMC
+      [link] 8767653
+      [link] PMID
+      [link] 34693776
+      [link] "Epidemiology, Presentation, and Diagnosis of Celiac Disease"
+      [link] doi
+      [link] 10.1053/j.gastro.2020.06.098
+      [link] PMID
+      [link] 32950520
+      [link] "Population-based screening for celiac disease reveals that the majority of patients are undiagnosed and improve on a gluten-free diet"
+      [link] Bibcode
+      [link] 2022NatSR..1212647K
+      [link] doi
+      [link] 10.1038/s41598-022-16705-2
+      [link] ISSN
+      [link] 2045-2322
+      [link] PMC
+      [link] 9314380
+      [link] PMID
+      [link] 35879335
+      [link] doi
+      [link] 10.1016/j.bpg.2015.05.004
+      [link] PMID
+      [link] 26060103
+      [link] "Classical and Non-classical Forms of CD in Paediatrics"
+      [link] doi
+      [link] 10.1007/978-3-030-82401-3_3
+      [link] ISBN
+      [link] 978-3-030-82400-6
+      [link] "Coeliac disease: complications and comorbidities"
+      [link] doi
+      [link] 10.1038/s41575-024-01032-w
+      [link] ISSN
+      [link] 1759-5045
+      [link] PMID
+      [link] 39875649
+      [link] "European Consensus on Malabsorption—UEG & SIGE, LGA, SPG, SRGH, CGS, ESPCG, EAGEN, ESPEN, and ESPGHAN: Part 2: Screening, Special Populations, Nutritional Goals, Supportive Care, Primary Care Perspective"
+      [link] doi
+      [link] 10.1002/ueg2.70011
+      [link] ISSN
+      [link] 2050-6406
+      [link] PMC
+      [link] 12188380
+      [link] PMID
+      [link] 40088199
+      [link] "Review article: Systemic consequences of coeliac disease"
+      [link] doi
+      [link] 10.1111/apt.16912
+      [link] ISSN
+      [link] 0269-2813
+      [link] PMC
+      [link] 9543231
+      [link] PMID
+      [link] 35815828
+      [link] "Extraintestinal complications of celiac disease: treatment considerations"
+      [link] doi
+      [link] 10.1080/17474124.2024.2443053
+      [link] ISSN
+      [link] 1747-4124
+      [link] PMID
+      [link] 39673511
+      [link] "Celiac Disease: Extraintestinal Manifestations and Associated Conditions"
+      [link] doi
+      [link] 10.1097/MCG.0000000000001267
+      [link] ISSN
+      [link] 0192-0790
+      [link] PMC
+      [link] 6895422
+      [link] PMID
+      [link] 31513026
+      [link] "IgE-Dependent Allergy in Patients with Celiac Disease: A Systematic Review"
+      [link] doi
+      [link] 10.3390/nu15040995
+      [link] ISSN

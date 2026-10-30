@@ -1607,6 +1607,15 @@ function boot() {
   const thinView = (bs: Block[]) =>
     blocksText(bs).length < 200 &&
     bs.every((b) => b.t === "h" || b.t === "p" || b.t === "note" || (bs.length > 3 && (b.t === "ul" || b.t === "actions")));
+  /** Sift shows none of the page's content yet: nothing, or only a title and a line (see thinView). Asked on every change while loading: kept per page read. */
+  const emptyViews = new WeakMap<Page, boolean>();
+  const viewEmpty = () => {
+    const p = store.page;
+    if (!p?.blocks.length) return true;
+    let e = emptyViews.get(p);
+    if (e === undefined) emptyViews.set(p, (e = thinView(p.blocks)));
+    return e;
+  };
 
   /**
    * Extract again: now (`delay` 0: navigation, after an action), after
@@ -1626,7 +1635,10 @@ function boot() {
       // the change (a loading page has no idle moment, and its next long task
       // would delay a timer), but never back to back.
       // After a long look (over 300 ms), the pause is three times its length (F1220).
-      const wait = lastRunAt + (lastDur > 300 ? lastDur * 4 : Math.max(100, lastDur * 3)) - performance.now();
+      // While the HTML still comes in and Sift shows none of its content, a quick look (the page's first bytes)
+      // holds the next back only by three times its length: the first view comes as soon as the content is in (F1300).
+      const soon = document.readyState === "loading" && viewEmpty();
+      const wait = lastRunAt + (lastDur > 300 ? lastDur * 4 : Math.max(soon ? 16 : 100, lastDur * 3)) - performance.now();
       if (wait <= 0) return run();
       d = Math.max(16, wait);
     } else {
@@ -2303,18 +2315,20 @@ function boot() {
   /** Whether each shown player showed its own error screen when Sift last read the page. */
   const errorAt = new WeakMap<Element, boolean>();
   function run() {
-    lastRunAt = performance.now();
     if (pending) clearTimeout(pending);
     pending = 0;
     if (idleRun) cancelIdleCallback(idleRun);
     idleRun = 0;
     if (store.mode !== "sift" || !document.body) return;
+    // Only a look that read the page counts for spacing the next: one before <body> exists read nothing (F1300).
+    lastRunAt = performance.now();
     if (checkUrl()) fillTries = lastCount = 0;
     const s = performance.now();
     let page: Page;
     // Until Sift shows this page, a look stops after a moment and shows what it read (a long list's first
     // part), and the next look reads it all: the first view never waits on the whole page (F1220).
-    const budget = !firstPaint && !cutLast ? 120 : 0;
+    // Shown means some of its content: while the HTML comes in, a first look that found only a title (its first bytes) is no view yet (F1300).
+    const budget = (!firstPaint || (document.readyState === "loading" && viewEmpty())) && !cutLast ? 50 : 0;
     try {
       page = extract(budget);
       failures = 0;

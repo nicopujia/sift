@@ -34,7 +34,7 @@ export function Markdown({ text, link }: { text: string; link?: LinkFn }) {
   const lines = text.replace(/\r/g, "").split("\n");
   const blocks: any[] = [];
   let para: string[] = [];
-  let list: { ordered: boolean; items: string[] } | null = null;
+  let list: { ordered: boolean; items: string[]; start?: number } | null = null;
   let quote: string[] = [];
   /** Inside a fenced code block: its fence and lines so far. */
   let code: { fence: string; lines: string[] } | null = null;
@@ -55,7 +55,8 @@ export function Markdown({ text, link }: { text: string; link?: LinkFn }) {
   const flushList = () => {
     if (!list) return;
     const items = list.items.map((it, i) => <li key={i}>{inline(it, link)}</li>);
-    blocks.push(list.ordered ? <ol key={k++}>{items}</ol> : <ul key={k++}>{items}</ul>);
+    // A numbered list keeps the model's first number ("3. It has cash…" is not "1.").
+    blocks.push(list.ordered ? <ol key={k++} start={list.start !== 1 ? list.start : undefined}>{items}</ol> : <ul key={k++}>{items}</ul>);
     list = null;
   };
   const flushCode = () => {
@@ -118,15 +119,15 @@ export function Markdown({ text, link }: { text: string; link?: LinkFn }) {
     }
     if (quote.length) flushPara();
     const b = /^\s*[-*•]\s+(.*)$/.exec(line);
-    const n = /^\s*\d+[.)]\s+(.*)$/.exec(line);
+    const n = /^\s*(\d+)[.)]\s+(.*)$/.exec(line);
     if (b || n) {
       flushPara();
       const ordered = !!n;
       if (!list || list.ordered !== ordered) {
         flushList();
-        list = { ordered, items: [] };
+        list = { ordered, items: [], start: n ? Number(n[1]) : undefined };
       }
-      list.items.push((b ?? n)![1]);
+      list.items.push(b ? b[1] : n![2]);
       continue;
     }
     if (list && /^\s{2,}/.test(raw)) {

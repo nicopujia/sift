@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Club notices</title>
+<style>body { font: 16px sans-serif; margin: 0; } main { max-width: 760px; margin: 0 auto; padding: 16px; }</style>
+</head>
+<body>
+<main><p>Pages: <a href="/fx/r13int7-spacut.html" id="home">Notices</a> and <a href="/fx/r13int7-spacut.html?p=roster" id="roster">Roster</a>.</p><div id="app"></div></main>
+<script>
+function render() {
+  const app = document.getElementById("app");
+  if (location.search.includes("p=roster")) {
+    document.title = "Roster - Club notices";
+    let html = "<h1>Roster</h1><p>Every member of the club, with a button to message each one.</p><div class=row>";
+    for (let i = 0; i < 3000; i++) html += '<button type="button">Member ' + i + "</button> ";
+    html += '</div><h2>Add a member</h2><form id="add" action="/fx/r13int7-spacut.html"><label for="nm">Name</label> <input id="nm" name="nm"><button type="submit">Add</button></form>';
+    app.innerHTML = html;
+  } else {
+    document.title = "Club notices";
+    app.innerHTML = "<h1>Club notices</h1><p>The spring meeting is on Saturday at the community center. Bring a chair and a dish to share. The roster lists every member.</p><p>Dues for the year are due by the end of the month.</p>";
+  }
+}
+for (const a of document.querySelectorAll("main > p a")) a.addEventListener("click", (e) => { e.preventDefault(); history.pushState(null, "", a.href); render(); });
+addEventListener("popstate", render);
+render();
+</script>
+</body>
+</html>

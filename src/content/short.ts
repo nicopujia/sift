@@ -592,6 +592,9 @@ function blockWords(b: Block): number {
 /** The Short version as shown, put back parts included, must save at least a quarter of the words, or the full text shows. */
 const MAX_SHOWN = 0.75;
 
+/** A heading of a numbered series, and its number: "2. The company is haemorrhaging cash", "3) Bake". */
+const NUMBERED = /^\s*(\d{1,3})[.)]\s/;
+
 /**
  * Puts the model's short text and the article's own blocks together: each
  * placeholder becomes its block, the source's headings stay and no others,
@@ -637,7 +640,12 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
       }
       if (s > score) [best, score] = [i, s];
     });
-    return score >= 0.75 ? best : -1;
+    if (score >= 0.75) return best;
+    // A numbered heading the model reworded ("2. Anthropic is losing money" for
+    // "2. The company is haemorrhaging cash") stands for the page's heading of
+    // that number not placed yet, so its section's text stays under it (F1233).
+    const num = NUMBERED.exec(text.replace(/[*_`]/g, ""))?.[1];
+    return num ? src.units.findIndex((u, i) => u.kind === "h" && !used.has(i) && NUMBERED.exec(u.plain)?.[1] === num) : -1;
   };
   for (const raw of out.replace(/\r/g, "").split("\n")) {
     const parts = raw.split(/(\[\[\s*B\d+\s*\]\])/);
@@ -859,17 +867,32 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
     });
     let hi = segs.findIndex((s, k) => k >= lo && "unit" in s && s.pos > i);
     if (hi < 0) hi = segs.length;
-    let at = segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && s.pos !== undefined && s.pos > i);
+    // A heading goes before the first text of its own section, if any: a line
+    // about a later section the model set before it stays above (F1233).
+    const end = u.kind === "h" ? src.units.findIndex((v, j) => j > i && v.kind === "h") : -1;
+    let at = u.kind === "h" ? segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && s.pos !== undefined && s.pos > i && (end < 0 || s.pos < end)) : -1;
+    if (at < 0) at = segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && s.pos !== undefined && s.pos > i);
     if (at < 0) at = hi;
+    // Right after the model's own heading for that section (kept as a line),
+    // it goes before that line, which is then of its section.
+    const prev = segs[at - 1];
+    if (u.kind === "h" && at > lo && prev && "md" in prev && guesses.has(prev) && !(prev.pos !== undefined && prev.pos < i)) {
+      at--;
+      prev.pos = i;
+    }
     segs.splice(at, 0, { unit: i, pos: i });
     used.add(i);
   }
 
-  // A heading with nothing under it (its text was cut) is dropped.
+  // A heading with nothing under it (its text was cut) is dropped. One of a
+  // numbered series ("1.", "2.", "3.") stays: it is one of the points (F1233).
   const level = (s: S) => ("unit" in s && src.units[s.unit].kind === "h" ? (src.units[s.unit].block as Extract<Block, { t: "h" }>).level : 0);
+  const series = src.units.filter((u) => u.kind === "h" && NUMBERED.test(u.plain)).length >= 2;
   for (let i = segs.length - 1; i >= 0; i--) {
     const l = level(segs[i]);
     if (!l) continue;
+    const s = segs[i];
+    if (series && "unit" in s && NUMBERED.test(src.units[s.unit].plain)) continue;
     const next = segs[i + 1];
     if (!next || (level(next) && level(next) <= l)) segs.splice(i, 1);
   }

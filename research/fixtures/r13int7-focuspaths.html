@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Popups opened by a checkbox and a form</title>
+<style>body { font: 16px sans-serif; margin: 0; } main { max-width: 760px; margin: 0 auto; padding: 16px; }</style>
+</head>
+<body>
+<main>
+<h1>Alerts for the creek path</h1>
+<iframe title="Map of the creek path" width="600" height="300" srcdoc="<p style='font:20px sans-serif'>Map of the creek path</p>"></iframe>
+<p>Turn on alerts to choose how often they come. Rename the path to confirm the new name.</p>
+<section>
+<h2>Alerts</h2>
+<label><input type="checkbox" id="alerts"> Send me alerts</label>
+</section>
+<section>
+<h2>Rename</h2>
+<form id="rename" action="/fx/r13int7-focuspaths.html">
+<label for="newname">New name</label> <input id="newname" name="n" type="text" value="Creek path">
+<button type="submit">Rename</button>
+</form>
+</section>
+<p id="log">log:</p>
+</main>
+<script>
+window.__log = [];
+const log = (s) => { window.__log.push(s); document.getElementById("log").textContent = "log: " + window.__log.join(" | "); };
+function popup(id, label, html) {
+  const box = document.createElement("div");
+  box.id = id;
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-label", label);
+  box.style.cssText = "position:fixed;top:30%;left:30%;background:#fff;border:2px solid #333;padding:16px;z-index:5";
+  box.innerHTML = html;
+  document.body.append(box);
+  box.querySelector("button, input").focus();
+  box.addEventListener("focusout", (e) => { if (!box.contains(e.relatedTarget)) setTimeout(() => { if (!box.contains(document.activeElement) && box.isConnected) { box.remove(); log(id + " closed"); } }, 150); });
+  return box;
+}
+document.getElementById("alerts").addEventListener("change", (e) => {
+  if (!e.target.checked) return;
+  popup("freq", "How often", '<p>How often?</p><button type="button">Daily</button> <button type="button">Weekly</button>');
+  log("freq open");
+});
+document.getElementById("rename").addEventListener("submit", (e) => {
+  e.preventDefault();
+  popup("confirm", "Confirm rename", '<p>Rename to ' + document.getElementById("newname").value + '?</p><button type="button">Yes, rename</button> <button type="button">Cancel</button>');
+  log("confirm open");
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Popups that focus right after the click</title>
+<style>
+body { font: 16px sans-serif; margin: 0; }
+main { max-width: 760px; margin: 0 auto; padding: 16px; }
+</style>
+</head>
+<body>
+<header><a href="/fx/r13int7-focusasync-noportal.html">Fixture home</a></header>
+<main>
+<h1>Focus after the click, close on blur</h1>
+<p>Each button opens a share popup appended to the body. The popup focuses its first button a moment after the click (as React, Vue and many menu libraries do) and closes when focus leaves it.</p>
+<section>
+<h2>Sharing</h2>
+<button id="micro" type="button">Share in a microtask</button>
+<button id="frame" type="button">Share in a frame</button>
+<button id="later" type="button">Share after a timeout</button>
+<button id="sel" type="button">Share with the link selected</button>
+<button id="dlg" type="button">Share in a dialog</button>
+</section>
+<p id="log">log:</p>
+</main>
+<script>
+window.__log = [];
+const log = (s) => { window.__log.push(s); document.getElementById("log").textContent = "log: " + window.__log.join(" | "); };
+function open(kind, defer) {
+  if (document.getElementById("sharebox")) return;
+  defer(() => {
+    const box = document.createElement("div");
+    box.id = "sharebox";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-label", "Share " + kind);
+    box.style.cssText = "position:fixed;top:30%;left:30%;background:#fff;border:2px solid #333;padding:16px;z-index:5";
+    box.innerHTML = '<p>Send this link to your friends.</p><button type="button" id="copyurl">Copy link</button> <button type="button" id="closeshare">Close</button>';
+    document.body.append(box);
+    box.querySelector("#copyurl").focus();
+    log("share open " + kind + " focus " + (document.activeElement && document.activeElement.id));
+    box.addEventListener("focusout", (e) => { if (!box.contains(e.relatedTarget)) setTimeout(() => { if (!box.contains(document.activeElement) && box.isConnected) { box.remove(); log("share closed"); } }, 150); });
+    box.querySelector("#closeshare").addEventListener("click", () => { box.remove(); log("share closed by button"); });
+  });
+}
+document.getElementById("micro").addEventListener("click", () => open("micro", (f) => queueMicrotask(f)));
+document.getElementById("frame").addEventListener("click", () => open("frame", (f) => requestAnimationFrame(f)));
+document.getElementById("sel").addEventListener("click", () => {
+  if (document.getElementById("sharebox")) return;
+  const box = document.createElement("div");
+  box.id = "sharebox";
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-label", "Share link");
+  box.style.cssText = "position:fixed;top:30%;left:30%;background:#fff;border:2px solid #333;padding:16px;z-index:5";
+  box.innerHTML = '<label for="url">Link</label> <input id="url" value="https://example.org/creek"> <button type="button" id="closeshare">Close</button>';
+  document.body.append(box);
+  box.querySelector("#url").select();
+  log("share open sel focus " + (document.activeElement && document.activeElement.id));
+  box.addEventListener("focusout", (e) => { if (!box.contains(e.relatedTarget)) setTimeout(() => { if (!box.contains(document.activeElement) && box.isConnected) { box.remove(); log("share closed"); } }, 150); });
+  box.querySelector("#closeshare").addEventListener("click", () => { box.remove(); log("share closed by button"); });
+});
+document.getElementById("dlg").addEventListener("click", () => {
+  if (document.getElementById("sharedlg")) return;
+  const d = document.createElement("dialog");
+  d.id = "sharedlg";
+  d.setAttribute("aria-label", "Share dialog");
+  d.innerHTML = '<p>Send this link to your friends.</p><button type="button" id="dcopy">Copy link</button> <button type="button" id="dclose">Close</button>';
+  document.body.append(d);
+  d.show();
+  log("dialog open focus " + (document.activeElement && document.activeElement.id));
+  d.addEventListener("focusout", (e) => { if (!d.contains(e.relatedTarget)) setTimeout(() => { if (!d.contains(document.activeElement) && d.isConnected) { d.remove(); log("dialog closed"); } }, 150); });
+  d.querySelector("#dclose").addEventListener("click", () => { d.remove(); log("dialog closed by button"); });
+});
+document.getElementById("later").addEventListener("click", () => open("later", (f) => setTimeout(f, 0)));
+</script>
+</body>
+</html>

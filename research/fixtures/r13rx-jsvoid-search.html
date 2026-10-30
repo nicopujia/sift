@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Library catalog</title></head><body>
+<header><a href="/">City Library</a>
+<form action="javascript:void(0)" role="search"><input type="search" name="q" placeholder="Search the catalog"><button type="submit" id="go">Search</button></form></header>
+<main><h1>Catalog</h1><p id="status">Type a title or author and press Search. Results show below without leaving the page.</p><ul id="results"></ul></main>
+<script>
+window.searches = 0;
+document.getElementById('go').addEventListener('click', function () {
+  window.searches++;
+  var q = document.querySelector('input[name=q]').value;
+  document.getElementById('status').textContent = 'Search number ' + window.searches + ' for "' + q + '"';
+  var ul = document.getElementById('results'); ul.innerHTML = '';
+  for (var i = 1; i <= 3; i++) { var li = document.createElement('li'); li.textContent = q + ' result ' + i + ' (search ' + window.searches + ')'; ul.appendChild(li); }
+});
+</script></body></html>

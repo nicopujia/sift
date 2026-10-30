@@ -560,26 +560,32 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
         // In news mode, an empty line means "not a story" (a promo), and a line
         // that fails the checks (see vetLine) is no better: keep the title, as the line.
         let text = vetLine(o.s, m.it, mode);
+        // A line that failed a check, or came in another language (below), is
+        // the model's slip, not the entry's: what stands for it is kept a day
+        // only, so a later visit asks again (F1231).
+        const slip = !text && !!o.s.trim();
         if (mode === "news" && !text) text = m.it.t;
         if (!text && !o.s.trim()) return;
         done.add(String(o.id));
-        // Elsewhere such a line keeps the title, remembered so it is not paid for again.
+        // Elsewhere such a line keeps the title, remembered for a day so it is not paid for on every visit.
         if (!text) {
-          if (useCache) save(pc, req, m.key, KEEP_TITLE);
+          keepTitle(m, DAY);
           return;
         }
         const want = m.lang;
         // Models sometimes ignore the language they were given (an English title
         // came back in German, a Russian one in Persian). A line in another
         // script or clearly in another language is dropped and the original
-        // title stays, remembered so it is not paid for again.
+        // title stays, remembered for a day so it is not paid for on every visit.
         checks.push(lineFits(text, want, m.it.t).then((ok) => {
           if (!ok) {
-            if (useCache) save(pc, req, m.key, KEEP_TITLE);
+            keepTitle(m, DAY);
             return;
           }
           reply({ id: req.id, item: m.it.id, text });
-          if (useCache) save(pc, req, m.key, text);
+          if (!useCache) return;
+          if (slip) cacheSet(m.key, text, Math.min(ttlOf(req, pc) ?? DAY, DAY));
+          else save(pc, req, m.key, text);
         }));
       } catch {
         /* partial or malformed line */

@@ -437,9 +437,35 @@ function digitValues(tok: string, suffix: string): string[] {
   return [...out];
 }
 
+/** A decimal digit of any script but ASCII: Persian "۵", Arabic-Indic "٥", Devanagari "५", full-width "５"… */
+const OTHER_DIGIT = /(?![0-9])\p{Nd}/gu;
+const digitOf = new Map<string, string>();
+/**
+ * A text with every script's digits as ASCII ones, and the Arabic decimal and
+ * thousands marks ("١٫٥", "١٬٠٠٠") as "." and ",", so "5" in a rewrite is the
+ * "۵" of its source (F1231). Unicode assigns decimal digits in runs of ten,
+ * 0 to 9, so a digit's value is its distance from the run's start.
+ */
+function asciiDigits(s: string): string {
+  if (!/(?![0-9])\p{Nd}|[٫٬]/u.test(s)) return s;
+  return s
+    .replace(OTHER_DIGIT, (d) => {
+      let v = digitOf.get(d);
+      if (v === undefined) {
+        const cp = d.codePointAt(0)!;
+        let n = 0;
+        while (/\p{Nd}/u.test(String.fromCodePoint(cp - n - 1))) n++;
+        digitOf.set(d, (v = String(n % 10)));
+      }
+      return v;
+    })
+    .replace(/(?<=\d)٫(?=\d)/g, ".")
+    .replace(/(?<=\d)٬(?=\d)/g, ",");
+}
+
 /** Numbers in digits in a text, each with the values it may stand for. Placeholders and link ids are not numbers of the text. */
 function numbersOf(s: string): string[][] {
-  const text = unlink(s.replace(/\[\[\s*B\d+\s*\]\]/g, " "));
+  const text = unlink(asciiDigits(s).replace(/\[\[\s*B\d+\s*\]\]/g, " "));
   const out: string[][] = [];
   for (const m of text.matchAll(/(?<![\p{L}\d.,])\d{1,3}(?:[    ]\d{3})+(?![\d.,]\d)|\d+(?:[.,:]\d+)*/gu)) {
     const vals = digitValues(m[0], text.slice(m.index! + m[0].length, m.index! + m[0].length + 24)).filter((v) => v !== "0");
@@ -616,15 +642,16 @@ const LISTED = /(?<![\d.,])(\d+)\s+(?:\p{L}+\s+){0,3}?\p{L}+\s*(?:,|;|\s(?:and|y
  * The numbers a source states: in digits or in words, and the sum of two
  * counts it lists together (see LISTED): 17 victims for "3 dead and 14 hurt".
  */
-function sourceNumbers(source: string): Set<string> {
-  if (source === lastSource) return lastNumbers;
+function sourceNumbers(raw: string): Set<string> {
+  if (raw === lastSource) return lastNumbers;
+  const source = asciiDigits(raw);
   const out = new Set<string>();
   for (const vals of numbersOf(source)) for (const v of vals) out.add(v);
   for (const n of wordNumbers(source)) out.add(numKey(n));
   const text = unlink(source.replace(/\[\[\s*B\d+\s*\]\]/g, " "));
   for (const m of text.matchAll(LISTED)) out.add(numKey(Number(m[1]) + Number(m[2])));
   for (const v of convertedNumbers(source)) out.add(v);
-  [lastSource, lastNumbers] = [source, out];
+  [lastSource, lastNumbers] = [raw, out];
   return out;
 }
 
@@ -929,7 +956,8 @@ export function dropUnsupported(md: string, source: string, lang?: string): stri
       lines.push(line);
       continue;
     }
-    const mark = /^\s*(?:[-*•>]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
+    // A list number in any script ("۱.") is a marker, not a number of the text.
+    const mark = /^\s*(?:[-*•>]|\p{Nd}+[.)])\s+/u.exec(line)?.[0] ?? "";
     const all = sentencesOf(line.slice(mark.length));
     // A warning whose only fault is a number in another form ("in 24 hours"
     // for "in a day") stays, in the source's own words.

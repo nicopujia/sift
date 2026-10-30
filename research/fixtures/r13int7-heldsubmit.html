@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Forms that post to a script address</title>
+<style>body { font: 16px sans-serif; margin: 0; } main { max-width: 760px; margin: 0 auto; padding: 16px; }</style>
+</head>
+<body>
+<main>
+<h1>Shopping list</h1>
+<p>Add items to the list. Each form is handled by the page's script; the form's own address is only a placeholder.</p>
+<section>
+<h2>Add an item</h2>
+<form id="add" action="javascript:void(0)">
+<label for="item">Item</label> <input id="item" name="item" type="text">
+<button type="submit">Add item</button>
+</form>
+<ul id="items"></ul>
+</section>
+<section>
+<h2>Add a note</h2>
+<form id="note" action="#">
+<label for="notetext">Note</label> <input id="notetext" name="note" type="text">
+<button type="submit" id="notebtn">Save note</button>
+</form>
+<ul id="notes"></ul>
+</section>
+<section>
+<h2>Filter the list</h2>
+<form id="filter" action="#" method="get">
+<label for="q">Show items with</label> <input id="q" name="q" type="text">
+<button type="submit">Filter</button>
+</form>
+</section>
+<p id="log">log:</p>
+</main>
+<script>
+window.__log = [];
+const log = (s) => { window.__log.push(s); document.getElementById("log").textContent = "log: " + window.__log.join(" | "); };
+// 1. A form whose script handles submit and does not cancel it (its action is a script address that does nothing).
+document.getElementById("add").addEventListener("submit", () => {
+  const v = document.getElementById("item").value;
+  const li = document.createElement("li"); li.textContent = v; document.getElementById("items").append(li);
+  log("added " + v + " at " + Math.round(performance.now()));
+});
+// 2. A form whose button's click handler saves, and the submit is cancelled only by returning false from onsubmit... not here: it uses the click.
+document.getElementById("notebtn").addEventListener("click", (e) => {
+  const v = document.getElementById("notetext").value;
+  const li = document.createElement("li"); li.textContent = v; document.getElementById("notes").append(li);
+  log("note " + v + " at " + Math.round(performance.now()));
+  document.getElementById("notetext").value = "";
+});
+document.getElementById("note").addEventListener("submit", (e) => { e.preventDefault(); });
+</script>
+</body>
+</html>

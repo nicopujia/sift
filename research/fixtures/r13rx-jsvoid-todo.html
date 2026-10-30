@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>My to-do list</title></head><body>
+<main><h1>To-do</h1>
+<form action="javascript:void(0)"><label for="t">New task</label> <input id="t" type="text" name="task"> <button type="submit" id="add">Add</button></form>
+<ul id="list"></ul></main>
+<script>
+document.getElementById('add').addEventListener('click', function () {
+  var v = document.getElementById('t').value.trim(); if (!v) return;
+  var li = document.createElement('li'); li.textContent = v; document.getElementById('list').appendChild(li);
+});
+</script></body></html>

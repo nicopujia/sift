@@ -1,0 +1,1841 @@
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -560,26 +560,32 @@
+         // In news mode, an empty line means "not a story" (a promo), and a line
+         // that fails the checks (see vetLine) is no better: keep the title, as the line.
+         let text = vetLine(o.s, m.it, mode);
++        // A line that failed a check, or came in another language (below), is
++        // the model's slip, not the entry's: what stands for it is kept a day
++        // only, so a later visit asks again (F1231).
++        const slip = !text && !!o.s.trim();
+         if (mode === "news" && !text) text = m.it.t;
+         if (!text && !o.s.trim()) return;
+         done.add(String(o.id));
+-        // Elsewhere such a line keeps the title, remembered so it is not paid for again.
++        // Elsewhere such a line keeps the title, remembered for a day so it is not paid for on every visit.
+         if (!text) {
+-          if (useCache) save(pc, req, m.key, KEEP_TITLE);
++          keepTitle(m, DAY);
+           return;
+         }
+         const want = m.lang;
+         // Models sometimes ignore the language they were given (an English title
+         // came back in German, a Russian one in Persian). A line in another
+         // script or clearly in another language is dropped and the original
+-        // title stays, remembered so it is not paid for again.
++        // title stays, remembered for a day so it is not paid for on every visit.
+         checks.push(lineFits(text, want, m.it.t).then((ok) => {
+           if (!ok) {
+-            if (useCache) save(pc, req, m.key, KEEP_TITLE);
++            keepTitle(m, DAY);
+             return;
+           }
+           reply({ id: req.id, item: m.it.id, text });
+-          if (useCache) save(pc, req, m.key, text);
++          if (!useCache) return;
++          if (slip) cacheSet(m.key, text, Math.min(ttlOf(req, pc) ?? DAY, DAY));
++          else save(pc, req, m.key, text);
+         }));
+       } catch {
+         /* partial or malformed line */
+@@ -892,7 +898,7 @@
+    */
+   function checked(out: string) {
+     // The input's "Title:" field echoed as a line is no part of the text. Nor is a sentence it says twice (F1100).
+-    // Numbers are checked in the text's language: "" (not known) checks none (F1115).
++    // Numbers are checked in every language; in one whose number words Sift does not know ("" when not known), a sentence they fail is put back as the source says it (F1115, F1217).
+     return dropRepeats(keepQuotes(dropUnsupported(stripPreamble(dropTitleLine(out, req.title, req.text), req.text), source, want), source));
+   }
+ 
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -437,9 +437,35 @@
+   return [...out];
+ }
+ 
++/** A decimal digit of any script but ASCII: Persian "۵", Arabic-Indic "٥", Devanagari "५", full-width "５"… */
++const OTHER_DIGIT = /(?![0-9])\p{Nd}/gu;
++const digitOf = new Map<string, string>();
++/**
++ * A text with every script's digits as ASCII ones, and the Arabic decimal and
++ * thousands marks ("١٫٥", "١٬٠٠٠") as "." and ",", so "5" in a rewrite is the
++ * "۵" of its source (F1231). Unicode assigns decimal digits in runs of ten,
++ * 0 to 9, so a digit's value is its distance from the run's start.
++ */
++function asciiDigits(s: string): string {
++  if (!/(?![0-9])\p{Nd}|[٫٬]/u.test(s)) return s;
++  return s
++    .replace(OTHER_DIGIT, (d) => {
++      let v = digitOf.get(d);
++      if (v === undefined) {
++        const cp = d.codePointAt(0)!;
++        let n = 0;
++        while (/\p{Nd}/u.test(String.fromCodePoint(cp - n - 1))) n++;
++        digitOf.set(d, (v = String(n % 10)));
++      }
++      return v;
++    })
++    .replace(/(?<=\d)٫(?=\d)/g, ".")
++    .replace(/(?<=\d)٬(?=\d)/g, ",");
++}
++
+ /** Numbers in digits in a text, each with the values it may stand for. Placeholders and link ids are not numbers of the text. */
+ function numbersOf(s: string): string[][] {
+-  const text = unlink(s.replace(/\[\[\s*B\d+\s*\]\]/g, " "));
++  const text = unlink(asciiDigits(s).replace(/\[\[\s*B\d+\s*\]\]/g, " "));
+   const out: string[][] = [];
+   for (const m of text.matchAll(/(?<![\p{L}\d.,])\d{1,3}(?:[    ]\d{3})+(?![\d.,]\d)|\d+(?:[.,:]\d+)*/gu)) {
+     const vals = digitValues(m[0], text.slice(m.index! + m[0].length, m.index! + m[0].length + 24)).filter((v) => v !== "0");
+@@ -616,15 +642,16 @@
+  * The numbers a source states: in digits or in words, and the sum of two
+  * counts it lists together (see LISTED): 17 victims for "3 dead and 14 hurt".
+  */
+-function sourceNumbers(source: string): Set<string> {
+-  if (source === lastSource) return lastNumbers;
++function sourceNumbers(raw: string): Set<string> {
++  if (raw === lastSource) return lastNumbers;
++  const source = asciiDigits(raw);
+   const out = new Set<string>();
+   for (const vals of numbersOf(source)) for (const v of vals) out.add(v);
+   for (const n of wordNumbers(source)) out.add(numKey(n));
+   const text = unlink(source.replace(/\[\[\s*B\d+\s*\]\]/g, " "));
+   for (const m of text.matchAll(LISTED)) out.add(numKey(Number(m[1]) + Number(m[2])));
+   for (const v of convertedNumbers(source)) out.add(v);
+-  [lastSource, lastNumbers] = [source, out];
++  [lastSource, lastNumbers] = [raw, out];
+   return out;
+ }
+ 
+@@ -769,17 +796,28 @@
+ /** Words before a place, not a person: "in New York", "desde Buenos Aires". */
+ const PLACE_BEFORE = new Set("in at from to into across near of en de desde hacia para por em do da à au aux dans vers aus nach bei von zu nel dal".split(" "));
+ 
++/** Articles: a name after one ("The European Union", "la Casa Rosada") is a body or a place, not a person. */
++const NAME_ARTICLE = new Set("the el la los las le les der die das il lo".split(" "));
++/** Words that make a name a body, not a person ("Ford Motor Company", "Real Madrid", "Banco Central"). */
++const ORG_WORD = new Set(
++  "union company corporation corp inc ltd llc plc group bank house party council ministry department university college school hospital club fc cf united real athletic sporting commission agency court office government parliament congress senate committee police service services airlines airways motors motor association federation league institute foundation fund organization organisation authority board centre center network news times post army navy forces airport church museum unión compañía banco partido ministerio gobierno universidad casa policía federación liga fundación instituto congreso senado tribunal comisión empresa".split(" "),
++);
++
+ /**
+  * Whether a sentence names a person: a role after "the", "a" or a possessive
+  * ("The plant's director", "el ministro"), or a name of two or more
+- * capitalized words not after "in", "from" (a place: "in New York").
++ * capitalized words not after "in", "from" (a place: "in New York"), nor
++ * after or with "the" or a word for a body ("The European Union", "Ford
++ * Motor Company", "Real Madrid": F1216).
+  */
+ function namesPerson(s: string): boolean {
+   for (const m of s.matchAll(/(?<![\p{L}\p{N}])(?:the|a|an|its|his|her|their|el|la|los|las|un|una|su|sus|o|os|um|uma|le|les|der|die|il|lo)\s+(?:[\p{L}'’-]+\s+)?(\p{L}+)/giu)) if (ROLES.has(m[1].toLowerCase())) return true;
+   for (const m of s.matchAll(/(?<![\p{L}\p{N}])\p{Lu}[\p{L}'’-]+(?:\s+\p{Lu}[\p{L}'’-]+)+/gu)) {
+     if (speakerWords(m[0]).length < 2) continue;
++    const words = m[0].toLowerCase().split(/\s+/);
++    if (NAME_ARTICLE.has(words[0]) || words.some((w) => ORG_WORD.has(w))) continue;
+     const before = /(\p{L}+)\s*$/u.exec(s.slice(0, m.index))?.[1]?.toLowerCase();
+-    if (!before || !PLACE_BEFORE.has(before)) return true;
++    if (!before || !(PLACE_BEFORE.has(before) || NAME_ARTICLE.has(before))) return true;
+   }
+   return false;
+ }
+@@ -819,15 +857,13 @@
+  * to it, see speakerNear), "number" (a number in digits the source does not
+  * state in any form), or "" when it states neither. Quotation marks keepQuotes
+  * had to remove are not a fact: the words stay, as the rewrite's own.
+- * `lang`: the language of the source, when known. In one whose number words
+- * Sift does not know, numbers are not checked: a sentence is never dropped
+- * only because its source spells a number out.
++ * Numbers are checked in every language (F1217): the source's digits always,
++ * its number words where Sift knows them (NUMBER_LANGS); dropUnsupported
++ * deals with a source that may spell one out in words Sift does not know.
+  */
+-export function unsupported(raw: string, source: string, lang?: string): string {
++export function unsupported(raw: string, source: string): string {
+   const fixed = keepQuotes(raw, source);
+   for (const q of quotesIn(fixed)) if (!speakerNear(fixed, q, source)) return "speaker";
+-  // A number the source may spell out in words Sift does not know ("dwudziestu" for 20) is not one it lacks (F1115).
+-  if (lang !== undefined && !NUMBER_LANGS.has(base(lang))) return "";
+   const have = sourceNumbers(source);
+   if (numbersOf(fixed).some((vals) => !vals.some((v) => have.has(v)))) return "number";
+   return "";
+@@ -868,18 +904,30 @@
+ const WARNING =
+   /(?<![\p{L}\p{N}])(?:never|do not|don['’]t|must not|mustn['’]t|should not|shouldn['’]t|no more than|not more than|at most|maximum|warning|danger|dangerous|avoid|overdose|nunca|no (?:tome|tomes|tomar|debe|deben|supere|superar|exceda|exceder|use|usar|dé|dar)|máximo|máxima|peligro|peligroso|evite|evitar|advertencia|jamais|niemals|nicht mehr als|non (?:superare|assumere|dare))(?![\p{L}\p{N}])/iu;
+ 
+-/** The source's own sentence a rewritten warning stands for: a warning too, with at least half of its words (three or more); null when none. */
+-function warningOf(s: string, source: string, used: Set<string>): string | null {
+-  const want = ctokens(s);
++/** A sentence's words for matching it to the source's; pairs of letters in a script written without spaces. */
++function matchTokens(s: string): Set<string> {
++  if (!SPACELESS.test(s)) return ctokens(s);
++  const out = new Set<string>();
++  for (const run of qwords(s)) for (let i = 0; i + 1 < run.length; i++) out.add(run.slice(i, i + 2));
++  return out;
++}
++
++/**
++ * The source's own sentence a rewritten one stands for: with at least half of
++ * its words (three or more), and a warning too unless `anySentence`; null
++ * when none.
++ */
++function warningOf(s: string, source: string, used: Set<string>, anySentence = false): string | null {
++  const want = matchTokens(s);
+   let best: string | null = null;
+   let most = 0;
+   for (const line of source.split("\n")) {
+     if (/^\s*#{1,6}\s|^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line)) continue;
+     for (const t of sentencesOf(line.replace(/^\s*(?:[-*•>]|\d+[.)])\s+/, ""))) {
+-      const have = ctokens(t);
++      const have = matchTokens(t);
+       let n = 0;
+       for (const w of want) if (have.has(w)) n++;
+-      if (n > most && !used.has(t) && WARNING.test(t)) [best, most] = [t, n];
++      if (n > most && !used.has(t) && (anySentence || WARNING.test(t))) [best, most] = [t, n];
+     }
+   }
+   if (!best || most < 3 || most < want.size * 0.5) return null;
+@@ -892,10 +940,15 @@
+  * state a number, its source does not (see unsupported). A sentence whose
+  * only fault is a quote the source does not have stays: keepQuotes takes its
+  * quotation marks off. A warning whose only fault is a number is put back as
+- * the source says it (see warningOf). Headings and [[B…]] lines stay; a list item keeps its
+- * marker; a line left with no sentence goes.
++ * the source says it (see warningOf). So is any sentence whose only fault is
++ * a number when `lang` (the source's language, "" when not known) is one
++ * whose number words Sift does not know: the source may spell the number out
++ * ("dwudziestu" for 20, F1115), and its own sentence states it right
++ * (F1217). Headings and [[B…]] lines stay; a list item keeps its marker; a
++ * line left with no sentence goes.
+  */
+ export function dropUnsupported(md: string, source: string, lang?: string): string {
++  const spelled = lang !== undefined && !NUMBER_LANGS.has(base(lang));
+   const lines: string[] = [];
+   const used = new Set<string>();
+   for (const line of md.split("\n")) {
+@@ -903,61 +956,37 @@
+       lines.push(line);
+       continue;
+     }
+-    const mark = /^\s*(?:[-*•>]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
++    // A list number in any script ("۱.") is a marker, not a number of the text.
++    const mark = /^\s*(?:[-*•>]|\p{Nd}+[.)])\s+/u.exec(line)?.[0] ?? "";
+     const all = sentencesOf(line.slice(mark.length));
+     // A warning whose only fault is a number in another form ("in 24 hours"
+     // for "in a day") stays, in the source's own words.
+-    const kept = all.map((s) => (unsupported(s, source, lang) === "number" && WARNING.test(s) ? warningOf(s, source, used) ?? s : s)).filter((s) => !unsupported(s, source, lang));
++    const kept = all.map((s) => (unsupported(s, source) === "number" && (spelled || WARNING.test(s)) ? warningOf(s, source, used, spelled) ?? s : s)).filter((s) => !unsupported(s, source));
+     if (kept.length === all.length && kept.every((s, i) => s === all[i])) lines.push(line);
+-    else if (kept.length) lines.push(mark + kept.join(" "));
++    // "。" ends a sentence with no space after it.
++    else if (kept.length) lines.push(mark + kept.join(" ").replace(/(?<=[。！？])\s+/gu, ""));
+   }
+   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+ }
+ 
+-/** Words in which two sentences differ (in order, as an edit distance on words); Infinity past `max`. */
+-function wordEdits(a: string[], b: string[], max: number): number {
+-  if (Math.abs(a.length - b.length) > max) return Infinity;
+-  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+-  for (let i = 1; i <= a.length; i++) {
+-    const cur = [i];
+-    let low = i;
+-    for (let j = 1; j <= b.length; j++) {
+-      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+-      low = Math.min(low, cur[j]);
+-    }
+-    if (low > max) return Infinity;
+-    prev = cur;
+-  }
+-  return prev[b.length];
+-}
+-
+ /**
+  * A Short version that never says the same thing twice (F1100): a sentence of
+- * four words or more that repeats an earlier one, word for word or all but a
+- * word or two in ten (never a "not", never a number), goes, and so does a
+- * paragraph left empty. A list item is held only against the items of its own
+- * list: two lists (two recipes) may well share one ("200 g de harina").
++ * four words or more that repeats an earlier one of its section word for word
++ * (case, spacing and punctuation aside) goes, and so does a paragraph left
++ * empty. A sentence that differs by any word ("the south district", "Senator
++ * Jones", "in the evening") is no repeat (F1215), and a heading starts a new
++ * section: the same advice under two headings stays under both. A list item
++ * is held only against the items of its own list: two lists (two recipes) may
++ * well share one ("200 g de harina").
+  */
+ export function dropRepeats(md: string): string {
+-  type Said = { words: string[]; set: Set<string>; key: string; nums: string };
+-  const prose: Said[] = [];
+-  let list: Said[] = [];
+-  const seen = new Set<string>();
+-  const nearOf = (s: Said, earlier: Said[]) =>
+-    s.words.length >= 6 &&
+-    earlier.some((o) => {
+-      if (o.nums !== s.nums || o.words.length < 6) return false;
+-      const max = Math.floor(Math.max(o.words.length, s.words.length) / 10) || 1;
+-      // Each word one has and the other lacks takes an edit: most pairs stop here.
+-      const only = s.words.filter((w) => !o.set.has(w));
+-      if (only.length > max || wordEdits(o.words, s.words, max) > max) return false;
+-      // "is safe" and "is not safe" are no repeat.
+-      return ![...only, ...o.words.filter((w) => !s.set.has(w))].some((w) => NEGATION.test(w));
+-    });
++  let seen = new Set<string>();
++  let list = new Set<string>();
+   const lines: string[] = [];
+   for (const line of md.split("\n")) {
+     const mark = /^\s*(?:[-*•]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
+-    if (!mark) list = [];
++    if (!mark) list = new Set();
++    if (/^\s*#{1,6}\s/.test(line)) seen = new Set();
+     if (/^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line) || !line.trim()) {
+       lines.push(line);
+       continue;
+@@ -967,12 +996,10 @@
+       const words = qwords(sentence.replace(/\*\*|__/g, ""));
+       // A placeholder's block is put back by the page, wherever its sentence went: never dropped here.
+       if (words.length < 4 || /\[\[\s*B\d+\s*\]\]/.test(sentence)) return true;
+-      const s: Said = { words, set: new Set(words), key: words.join(" "), nums: words.filter((w) => /\d/.test(w)).sort().join(" ") };
+-      const earlier = mark ? list : prose;
+-      const again = mark ? list.some((o) => o.key === s.key) : seen.has(s.key);
+-      if (again || nearOf(s, earlier)) return false;
+-      earlier.push(s);
+-      if (!mark) seen.add(s.key);
++      const key = words.join(" ");
++      const earlier = mark ? list : seen;
++      if (earlier.has(key)) return false;
++      earlier.add(key);
+       return true;
+     });
+     if (kept.length === all.length) lines.push(line);
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -228,6 +228,17 @@
+   return alone ? list : { t: "section", key: "shorts", title: title || "Shorts", collapsed: true, blocks: [list] };
+ }
+ 
++/**
++ * A feed and its Shorts: the section stands where the original's first Shorts shelf does (`at` entries in),
++ * never after the endless list, where reaching it loads more above it and moves it away (F1230).
++ */
++function feedBlocks(key: string, items: Item[], shorts: Item[], at: number, title: string): Block[] {
++  const list = (k: string, its: Item[]): Block[] => (its.length ? [{ t: "items", key: k, items: its, rewrite: "oneliner" }] : []);
++  if (!shorts.length) return list(key, items);
++  const cut = Math.max(0, Math.min(at, items.length));
++  return [...list(key + "-top", items.slice(0, cut)), shortsBlock(shorts, !items.length, title), ...list(key, items.slice(cut))];
++}
++
+ /** A Shorts shelf's own title ("Shorts"), in the page's language. */
+ function shelfTitle(root: ParentNode): string {
+   const h = q("grid-shelf-view-model h2, ytd-rich-shelf-renderer #title, ytd-reel-shelf-renderer #title, yt-section-header-view-model h2, h2", root);
+@@ -350,6 +361,7 @@
+   const shorts: Item[] = [];
+   const seen = new Set<string>();
+   let shelf = "";
++  let at = -1;
+   if (grid) {
+     for (const child of Array.from(grid.children)) {
+       if (child.localName === "ytd-rich-item-renderer") {
+@@ -360,7 +372,10 @@
+       } else if (child.localName === "ytd-rich-section-renderer") {
+         const n = shorts.length;
+         shortsIn(child, seen, shorts);
+-        if (shorts.length > n) shelf ||= shelfTitle(child);
++        if (shorts.length > n) {
++          shelf ||= shelfTitle(child);
++          if (at < 0) at = items.length;
++        }
+         // A shelf of videos ("New to you", "Top music videos in your region"): its videos join the feed where the shelf stands.
+         for (const ri of qa("ytd-rich-item-renderer", child)) {
+           const lock = q("yt-lockup-view-model", ri);
+@@ -371,8 +386,7 @@
+       }
+     }
+   }
+-  if (items.length) blocks.push({ t: "items", key: "feed", items, rewrite: "oneliner" });
+-  if (shorts.length) blocks.push(shortsBlock(shorts, !items.length, shelf));
++  blocks.push(...feedBlocks("feed", items, shorts, at, shelf));
+   const title = clean(document.title.replace(/\s*-\s*YouTube$/, "")) || "YouTube";
+   // The home feed, named as YouTube's own guide names it ("Home", "Inicio").
+   const homeName = () =>
+@@ -424,6 +438,7 @@
+   // Rows of a kind this adapter does not know: if nothing else could be read, the generic extractor reads them.
+   let unknown = 0;
+   let shelf = "";
++  let at = -1;
+   for (const sec of qa("ytd-section-list-renderer > #contents > ytd-item-section-renderer #contents", page)) {
+     for (const child of Array.from(sec.children)) {
+       if (!visible(child) || child.localName === "ytd-continuation-item-renderer") continue;
+@@ -458,7 +473,10 @@
+       } else if (tag === "grid-shelf-view-model" || tag === "ytd-reel-shelf-renderer") {
+         const n = shorts.length;
+         shortsIn(child, seen, shorts);
+-        if (shorts.length > n) shelf ||= shelfTitle(child);
++        if (shorts.length > n) {
++          shelf ||= shelfTitle(child);
++          if (at < 0) at = items.length;
++        }
+       } else if (tag === "ytd-background-promo-renderer" || tag === "ytd-message-renderer") {
+         // "No results found. Try different keywords or remove search filters."
+         const msg = qa("#title, #body, #text, #subtext", child).map((e) => textIn(e)).filter(Boolean);
+@@ -469,8 +487,7 @@
+   }
+   // Rows were drawn but none could be read: a layout this adapter does not know.
+   if (!items.length && !shorts.length && !notes.length && unknown) return null;
+-  if (items.length) blocks.push({ t: "items", key: "results", items, rewrite: "oneliner" });
+-  if (shorts.length) blocks.push(shortsBlock(shorts, !items.length, shelf));
++  blocks.push(...feedBlocks("results", items, shorts, at, shelf));
+   blocks.push(...notes);
+   const query = new URL(location.href).searchParams.get("search_query") ?? "";
+   const out = base(blocks, query ? `${t("search")}: ${query}` : "YouTube");
+@@ -912,7 +929,8 @@
+     }
+   }
+   const seen = new Set<string>();
+-  for (const b of qa("#more-replies button, #more-replies-sub-thread button, #less-replies button, ytd-continuation-item-renderer button", rr)) {
++  // The threaded layout's "Hide replies" is #less-replies-sub-thread; #less-replies stays hidden there (F1214).
++  for (const b of qa("#more-replies button, #more-replies-sub-thread button, #less-replies button, #less-replies-sub-thread button, ytd-continuation-item-renderer button", rr)) {
+     const label = textIn(b) || clean(b.getAttribute("aria-label"));
+     if (!mine(b) || !label || seen.has(label) || !visible(b)) continue;
+     seen.add(label);
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -220,11 +220,20 @@
+     labels.some((l) => SIGN_OUT.test(l)) ||
+     !!document.querySelector(
+       'a[href*="logout" i], a[href*="signout" i], a[href*="sign_out" i], a[href*="sign-out" i], a[href*="log_out" i], a[href*="log-out" i], form[action*="logout" i], form[action*="signout" i]',
+-    );
++    ) ||
++    signOutButton();
+   if (is) privateFor = page.url;
+   return is;
+ }
+ 
++/** A sign-out button ("<button>Log out</button>"), wherever it is (F1219). By tag first: one selector list over a big page costs more. */
++function signOutButton(): boolean {
++  const label = (b: Element) => (b instanceof HTMLInputElement ? b.value : (b.textContent ?? "").trim() || b.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
++  for (const list of [document.getElementsByTagName("button"), document.querySelectorAll("[role=button]"), document.querySelectorAll("input[type=submit]")])
++    for (let i = 0; i < list.length && i < 400; i++) if (SIGN_OUT.test(label(list[i]))) return true;
++  return false;
++}
++
+ /** The port already told that this page is signed-in. */
+ let privateTold: chrome.runtime.Port | null = null;
+ /** Tells the worker, once, that this page is signed-in, so what it saved before is kept for the short time only. */
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -695,16 +695,29 @@
+   const t = textIn(l);
+   if (!t || !l.querySelector("[role=img][aria-label], img[alt]:not([alt=''])")) return t;
+   // Only pictures that add meaning: not a product photo (an img bigger than an icon) or a swatch named by the words beside it (F1132).
++  // A brand's logo stays: a short wordmark (wider than tall, a short name), or one of any size that tells
++  // options apart ("Afterpay" and "Klarna" over the same "Pay in 4", F1212).
++  let twin: boolean | undefined;
+   const adds = (pic: Element, name: string) => {
+     if (pic instanceof HTMLImageElement) {
+       const w = pic.width || pic.getBoundingClientRect().width, h = pic.height || pic.getBoundingClientRect().height;
+-      if (!w || !h || w > 32 || h > 32) return false;
++      const logo = h <= 48 && w >= h * 1.5 && name.split(/\s+/).length <= 3;
++      if (!w || !h || ((w > 32 || h > 32) && !logo && !(twin ??= sameWordsAsPeer(l, t)))) return false;
+     }
+     return pictureAdds(name, t);
+   };
+   return contentName(l, true, adds) || t;
+ }
+ 
++/** Another option of the same group (a radio or checkbox beside it) whose label says the same words. */
++function sameWordsAsPeer(l: Element, t: string): boolean {
++  const c = (l as HTMLLabelElement).control;
++  if (!(c instanceof HTMLInputElement) || !/^(radio|checkbox)$/.test(c.type)) return false;
++  const group = c.closest("fieldset, [role=radiogroup], [role=group]") ?? c.form ?? document.body;
++  const peers = Array.from(group.querySelectorAll(`input[type=${c.type}]`)).slice(0, 60) as HTMLInputElement[];
++  return peers.some((p) => p !== c && (c.type !== "radio" || p.name === c.name) && Array.from(p.labels ?? []).some((pl) => textIn(pl) === t));
++}
++
+ /** What an element without words says through its tooltip or picture (a label holding only an icon). */
+ function pictureName(el: Element): string {
+   const pic = el.querySelector("[role=img][aria-label], img[alt]:not([alt='']), [aria-label], svg title, [title]");
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -221,6 +221,25 @@
+ const BUDGET = 25000;
+ 
+ /**
++ * Sift's first look at a page stops at this moment (performance.now()) and shows what it read so far,
++ * as a partial page that the next look completes, so its first view never waits on the whole page (F1220).
++ */
++let deadline = Infinity;
++/** The look under way ran out of time. */
++let timeCut = false;
++let lastCut = false;
++/** Whether the last generic look stopped at its time budget. */
++export const cutShort = () => lastCut;
++/**
++ * The look is out of time, checked every 32 elements read (`n`). It reads at least a screenful (256 elements)
++ * first, however long finding the page's bars and menus took.
++ */
++function pastDeadline(n: number, min = 256, every = 32): boolean {
++  if (!timeCut && n >= min && n % every === 0 && performance.now() > deadline) timeCut = true;
++  return timeCut;
++}
++
++/**
+  * MediaWiki's tools around an article (Wikipedia and other wikis): the
+  * Article/Talk and Read/Edit tabs, the protection badge, navboxes (folded
+  * grids of links to other articles) and authority control identifiers.
+@@ -3991,9 +4010,16 @@
+     for (let c: Element | null = e, i = 0; c && i < 4; c = c.parentElement, i++) if (/marquee|ticker/i.test(c.getAttribute("class") ?? "")) return true;
+     return false;
+   };
++  // Off screen inside a box that clips it (a belt or marquee). A cell past the edge of a row that scrolls sideways,
++  // or of a page wider than the window, shows when scrolled: a pricing row at 640 px is not a marquee (F1211).
+   const offscreen = (e: Element) => {
+     const r = e.getBoundingClientRect();
+-    return r.width > 0 && (r.left >= innerWidth || r.right <= 0);
++    if (!(r.width > 0 && (r.left >= innerWidth || r.right <= 0))) return false;
++    for (let a = e.parentElement; a; a = a.parentElement) {
++      const o = getComputedStyle(a).overflowX;
++      if (o !== "visible") return o === "hidden" || o === "clip";
++    }
++    return false;
+   };
+   let out: Set<Element> | null = null;
+   for (const c of copies) {
+@@ -4220,6 +4246,7 @@
+   const acts: Action[] = [];
+   const seen = new Set<string>();
+   for (const a of links) {
++    if (pastDeadline(acts.length + 1)) break;
+     const label = labelOf(a);
+     if (!usefulControl(a, label) || label.length > 80) continue;
+     // A picture link named only "icon" or "logo" beside its labelled twin (a portal's emblem).
+@@ -4289,6 +4316,7 @@
+ 
+ function visitEl(el: Element, out: Out, ctx: Ctx) {
+   if (ctx.count > BUDGET) return budgetCut(out, ctx);
++  if (timeCut) return;
+   const tag = el.localName;
+   if (SKIP.has(tag) || ctx.used.has(el)) return;
+   // Inside a player shown as a portal, through its shadow roots (its controls are the portal's).
+@@ -4314,6 +4342,7 @@
+   if (!visible(el)) return;
+   // Only elements that show count toward the budget: hidden menus and scripts cost little.
+   if (++ctx.count > BUDGET) return budgetCut(out, ctx);
++  if (pastDeadline(ctx.count)) return;
+   if (tag === "slot") return walk(el, out, ctx);
+   if (isAd(el) || ctx.drop?.(el)) return;
+   if (el.classList.contains("cnx-main-container") && sitePlaylist(el)) return;
+@@ -5500,6 +5529,7 @@
+   let made = 0;
+   for (const k of kids(el)) {
+     if (members.has(k)) {
++      if (pastDeadline(made, 24, 8)) break;
+       const it = toItem(k, ctx);
+       if (it) {
+         // Two comments by one author are two posts, not one card repeated.
+@@ -6009,7 +6039,11 @@
+     const x = inlineOf(c, ctx, true);
+     return shown.size ? x.filter((p) => !(typeof p === "object" && "a" in p && p.ref && shown.has(p.ref))) : x;
+   };
+-  let data = body.slice(0, MAX_ROWS).map((r) => Array.from(r.cells).map(cell));
++  let data: Inline[][][] = [];
++  for (const r of body.slice(0, MAX_ROWS)) {
++    if (pastDeadline(data.length, 40, 8)) break;
++    data.push(Array.from(r.cells).map(cell));
++  }
+   if (!data.length) return;
+   // A column with no header and nothing in it (file icons, checkboxes Sift does not show) is dropped.
+   const cols2 = Math.max(head.length, ...data.map((r) => r.length));
+@@ -6580,6 +6614,23 @@
+   "input[type=search], input[role=searchbox], [role=search] input, input[name=q], input[name=query], input[name=search], input[name=search_query], input[name=field-keywords], input[aria-label*=search i], input[placeholder*=search i], input[aria-label*=buscar i], input[placeholder*=buscar i], input[aria-label*=busc i], input[placeholder*=busc i]";
+ const SEARCH_PLACE = "header,#header,[role=banner],nav,[role=search]";
+ 
++/**
++ * Where the search box's own buttons are: its form, unless that form wraps the page (ASP.NET WebForms puts one
++ * <form> around everything). Such a form is not a search form, so only the smallest box around the search box
++ * that holds a button counts, and Add to cart or Subscribe stay where they are (F1210). Null: no such box.
++ */
++function searchHome(pick: HTMLInputElement, form: HTMLFormElement): Element | null {
++  if (!form.querySelector("main, [role=main], article, h1") && tlen(form) < 2000) return form;
++  for (let a = pick.parentElement; a && a !== form; a = a.parentElement) {
++    if (Array.from(a.querySelectorAll("button, input[type=submit], input[type=image], [role=button]")).some((b) => b !== pick && visible(b))) {
++      // A box that also holds another field to type in (a quantity, an email) is a form of its own.
++      const other = Array.from(a.querySelectorAll("input, textarea")).some((i) => i !== pick && !/^(hidden|submit|button|image|reset|checkbox|radio)$/.test((i as HTMLInputElement).type) && visible(i));
++      return other ? null : a;
++    }
++  }
++  return null;
++}
++
+ export function findSearch(ctx: Ctx): Field | undefined {
+   const cands = (Array.from(document.querySelectorAll(SEARCH_SEL)) as HTMLInputElement[]).filter(
+     (i) => !["hidden", "submit", "checkbox", "radio", "button"].includes(i.type) && !i.disabled && (i.matches(STRONG_SEARCH) || !!i.closest(SEARCH_PLACE)),
+@@ -6609,7 +6660,7 @@
+   let btn: Element | null = null;
+   // The form's own button: one that says search, else its submit button.
+   if (pick.form) {
+-    const own = Array.from(pick.form.querySelectorAll("button, input[type=submit], input[type=image], [role=button]")).filter((b) => b !== pick && visible(b));
++    const own = Array.from(searchHome(pick, pick.form)?.querySelectorAll("button, input[type=submit], input[type=image], [role=button]") ?? []).filter((b) => b !== pick && visible(b));
+     // Not a button that is something else by its role (a date picker's "Calendar" tab, a toggle), though a <button> with no type submits.
+     const plain = own.filter((b) => !b.matches("[role=tab], [role=option], [role=menuitem], [role=switch], [role=checkbox], [role=radio], [aria-pressed], [aria-selected]"));
+     // Its id counts as a name too, so the role check comes first (Booking's tab id "calendar-searchboxdatepicker-tab-trigger").
+@@ -6785,9 +6836,9 @@
+   return [...visibleLinks, ...hiddenLinks].slice(0, 150);
+ }
+ 
+-/** Account and cart controls the top bar keeps, in English, Spanish and Portuguese (G1's "Entrar com Conta Globo", F926). */
++/** Account and cart controls the top bar keeps, in English, Spanish, Portuguese (G1's "Entrar com Conta Globo", F926), Italian, French and German (Corriere's "Accedi", F1232), and a way to sign out (F1219). */
+ const TOP_LABEL =
+-  /\b(cart|basket|bag|carrito|cesta|bolsa|sign ?in|log ?in|sign ?up|register|create account|account|my account|orders|iniciar sesi[oó]n|ingres(a|ar)|reg[ií]strate|registrarse|crear cuenta|mi cuenta|cuenta|pedidos|notifications|registrarme|entrar|fazer login|cadastr(e-se|ar)|criar conta|minha conta|conta|carrinho|sacola)\b/i;
++  /\b(cart|basket|bag|carrito|cesta|bolsa|sign ?in|log ?in|sign ?up|register|create account|account|my account|orders|iniciar sesi[oó]n|ingres(a|ar)|reg[ií]strate|registrarse|crear cuenta|mi cuenta|cuenta|pedidos|notifications|registrarme|entrar|fazer login|cadastr(e-se|ar)|criar conta|minha conta|conta|carrinho|sacola|sign ?out|log ?out|log ?off|cerrar sesi[oó]n|salir|sair|terminar sess[aã]o|abmelden|se d[ée]connecter|d[ée]connexion|esci|disconnetti|accedi|registrati|il mio account|carrello|se connecter|connexion|s['’](identifier|inscrire)|mon compte|panier|anmelden|einloggen|registrieren|mein konto|konto|warenkorb)\b/i;
+ 
+ /** An icon-only account or profile button, by its coded name or its classes. */
+ const ACCOUNT_ICON = /(^|[\s_-])(my ?account|account|avatar|profile|user)(?=$|[\s_-])/i;
+@@ -7622,7 +7673,10 @@
+     // A date split over spans ("<span>Oct 26</span>, <span>2026</span>") reads whole in its box.
+     // (tlen is measured once per pass: the box's own text, built for every dated entry of a long list, was quadratic: F1136.)
+     const box = p.parentElement && tlen(p.parentElement) < 200 ? p.parentElement : p;
+-    if (re.test(s) || re.test(box.textContent ?? "")) return "this";
++    // In a big box (3000 <br>-separated references in one <p>), the node with its neighbors, not the whole box per node (F1213).
++    const side = (x: ChildNode | null) => (x && (x.nodeType === 3 || (x.nodeType === 1 && tlen(x as Element) < 200)) ? x.textContent ?? "" : "");
++    const near = box !== p || tlen(p) < 200 ? box.textContent ?? "" : side(n.previousSibling) + s + side(n.nextSibling);
++    if (re.test(s) || re.test(near)) return "this";
+     if (/\b(19|20)\d\d\b/.test(s)) other = true;
+   }
+   if (dm) {
+@@ -8434,7 +8488,21 @@
+   return out;
+ }
+ 
+-export function extractGeneric(): Page {
++export function extractGeneric(budget = 0): Page {
++  deadline = budget > 0 ? performance.now() + budget : Infinity;
++  timeCut = false;
++  try {
++    const page = extractAll();
++    if (timeCut) page.partial = true;
++    return page;
++  } finally {
++    lastCut = timeCut;
++    deadline = Infinity;
++    timeCut = false;
++  }
++}
++
++function extractAll(): Page {
+   const ctx = newCtx({ visited: new WeakSet(), bars: new WeakSet() });
+   const search = findSearch(ctx);
+   const top = findTop();
+@@ -8488,10 +8556,20 @@
+     const i = blocks.findIndex((b) => b.t === "h" && b.level === 1);
+     blocks.splice(i >= 0 ? i + 1 : 0, 0, { t: "p", key: "byline", content: [by], small: true });
+   }
++  // A dialog over the page is read whole, even by a look cut short: it is small, and it is what the reader sees first.
++  const cut = timeCut;
++  const due = deadline;
++  timeCut = false;
++  deadline = Infinity;
+   const dialog = findDialog(ctx, blocks);
++  timeCut = cut;
++  deadline = due;
+   // Popups are told from page layout by what the page view showed before the user's action (see findPopup).
+-  if (ctx.visited) lastShown = ctx.visited;
+-  lastBars = ctx.bars ?? new WeakSet();
++  // A look cut short saw only part of the page view: it is not that view.
++  if (!timeCut) {
++    if (ctx.visited) lastShown = ctx.visited;
++    lastBars = ctx.bars ?? new WeakSet();
++  }
+   return {
+     url: location.href,
+     title,
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -22,7 +22,8 @@
+   return new URL(location.href);
+ }
+ 
+-export function extract(): Page {
++/** `budget`: ms the generic extractor may take before it returns a partial page (Sift's first view, F1220). */
++export function extract(budget = 0): Page {
+   resetCaches();
+   const url = pageUrl();
+   current = adapters.find((a) => a.match(url)) ?? null;
+@@ -38,7 +39,7 @@
+       return p;
+     }
+   }
+-  const g = extractGeneric();
++  const g = extractGeneric(budget);
+   try {
+     current?.fallback?.(g);
+   } catch (e) {
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -310,7 +310,8 @@
+   consentClick: "O site pede uma escolha sobre cookies antes de responder aos cliques. Escolha e tente de novo.",
+ };
+ 
+-const fr: Table = {
++const fr: Strings = {
++  sift: "Sift",
+   siftView: "Vue Sift",
+   original: "Page d'origine",
+   toOriginal: "Voir la page d'origine",
+@@ -318,6 +319,7 @@
+   search: "Rechercher",
+   menu: "Menu",
+   account: "Compte",
++  closeMenu: "Fermer le menu",
+   comments: "Commentaires",
+   like: "J'aime",
+   nLikes: "{n} j'aime",
+@@ -340,23 +342,78 @@
+   soldBy: "Vendu par",
+   moreLinks: "Plus de liens",
+   otherLanguages: "Dans d’autres langues",
++  incidents: "Incidents : {days}",
++  major: "majeur",
+   details: "Détails",
+   loading: "Chargement…",
+   showFull: "Voir le texte complet",
+   showShort: "Voir la version courte",
+   shortVersion: "Version courte",
+-  shortLinks: "Liens du texte complet",
+   fullText: "Texte complet",
++  shortening: "Raccourcissement…",
++  shortReady: "La version courte est prête.",
+   play: "Lire",
+   pause: "Pause",
+   captions: "Sous-titres",
+   fullscreen: "Plein écran",
++  mute: "Couper le son",
++  unmute: "Réactiver le son",
++  back10: "Reculer de 10 s",
++  fwd10: "Avancer de 10 s",
++  prevVideo: "Vidéo précédente",
++  nextVideo: "Vidéo suivante",
++  position: "Position dans la vidéo",
++  skip: "Aller au contenu",
++  enterToUse: "Appuyez sur Entrée pour l'utiliser, Échap pour revenir.",
++  openImage: "Ouvrir l'image",
+   loadMore: "Charger plus",
+   close: "Fermer",
++  nothing: "Rien à afficher pour l'instant.",
+   video: "Vidéo",
++  interactive: "Zone interactive de la page d'origine",
++  submit: "Envoyer",
++  go: "OK",
++  newItems: "{n} nouveaux éléments",
++  originalTitle: "Titre d'origine",
++  error: "Sift n'a pas pu lire cette page. Voici la page d'origine.",
++  noKey: "Ajoutez une clé d'API dans les options de Sift pour obtenir des textes raccourcis.",
++  aiUnavailable: "Impossible de raccourcir le texte pour le moment : le service d'IA n'a plus de crédit ou a refusé la clé. Vous voyez le texte complet.",
++  shortPartial: "Cette version courte ne couvre que la première partie de l'article. Affichez le texte complet pour la suite.",
++  shortLinks: "Liens du texte complet",
++  unread: "Non lu",
++  enterToUseFrame: "Appuyez sur Entrée pour l'utiliser, Tab pour en sortir.",
++  suggestions: "Suggestions",
++  nSuggestions: "{n} suggestions",
++  audio: "Audio",
++  moreRows: "{n} lignes de plus sur la page d'origine.",
++  moreCols: "{n} colonnes de plus sont sur le côté. Faites défiler le tableau sur le côté pour les voir.",
++  selectAll: "Tout sélectionner",
++  pageCut: "La suite de cette page est trop longue pour être affichée ici. Passez à la page d'origine pour la lire.",
++  upvote: "Voter pour",
++  searchLanguage: "Langue de recherche",
++  nComments: "{n} commentaires",
++  answer: "Réponse",
++  answerBy: "Réponse de {name}",
++  votes: "{n} votes",
++  accepted: "Acceptée",
++  interactiveInFull: "Les parties interactives de cette page sont dans le texte complet.",
++  map: "Carte",
++  editor: "Éditeur",
++  example: "Exemple",
++  openedAbove: "{title} s'est ouvert au-dessus.",
++  openedBelow: "{title} s'est ouvert en dessous.",
++  removed: "Supprimé : {title}.",
++  collapse: "Réduire",
++  next: "Suivante",
++  previous: "Précédente",
++  firstPage: "Première page",
++  lastPage: "Dernière page",
++  consentFirst: "Le site demande un choix sur les cookies avant de lire cette vidéo.",
++  consentClick: "Le site demande un choix sur les cookies avant de répondre aux clics. Faites votre choix, puis réessayez.",
+ };
+ 
+-const de: Table = {
++const de: Strings = {
++  sift: "Sift",
+   siftView: "Sift-Ansicht",
+   original: "Originalseite",
+   toOriginal: "Originalseite zeigen",
+@@ -364,6 +421,7 @@
+   search: "Suchen",
+   menu: "Menü",
+   account: "Konto",
++  closeMenu: "Menü schließen",
+   comments: "Kommentare",
+   like: "Mag ich",
+   nLikes: "{n} „Mag ich“",
+@@ -386,22 +444,78 @@
+   soldBy: "Verkauf durch",
+   moreLinks: "Weitere Links",
+   otherLanguages: "In anderen Sprachen",
++  incidents: "Störungen: {days}",
++  major: "schwer",
+   details: "Details",
+   loading: "Wird geladen…",
+   showFull: "Ganzen Text zeigen",
+   showShort: "Kurzfassung zeigen",
+   shortVersion: "Kurzfassung",
+-  shortLinks: "Links im ganzen Text",
+   fullText: "Ganzer Text",
++  shortening: "Wird gekürzt…",
++  shortReady: "Eine Kurzfassung ist fertig.",
+   play: "Abspielen",
+   pause: "Pause",
+   captions: "Untertitel",
+   fullscreen: "Vollbild",
++  mute: "Stummschalten",
++  unmute: "Ton an",
++  back10: "10 s zurück",
++  fwd10: "10 s vor",
++  prevVideo: "Vorheriges Video",
++  nextVideo: "Nächstes Video",
++  position: "Position im Video",
++  skip: "Zum Inhalt springen",
++  enterToUse: "Drücke die Eingabetaste, um ihn zu nutzen, und Escape, um zurückzukehren.",
++  openImage: "Bild öffnen",
+   loadMore: "Mehr laden",
+   close: "Schließen",
++  nothing: "Noch nichts zu zeigen.",
++  video: "Video",
++  interactive: "Interaktiver Bereich der Originalseite",
++  submit: "Senden",
++  go: "Los",
++  newItems: "{n} neue Einträge",
++  originalTitle: "Originaltitel",
++  error: "Sift konnte diese Seite nicht lesen. Hier ist die Originalseite.",
++  noKey: "Füge in den Optionen von Sift einen API-Schlüssel hinzu, um gekürzte Texte zu erhalten.",
++  aiUnavailable: "Kürzen ist gerade nicht möglich: Der KI-Dienst hat kein Guthaben mehr oder hat den Schlüssel abgelehnt. Du siehst den ganzen Text.",
++  shortPartial: "Diese Kurzfassung umfasst nur den ersten Teil des Artikels. Zeige den ganzen Text für den Rest.",
++  shortLinks: "Links im ganzen Text",
++  unread: "Ungelesen",
++  enterToUseFrame: "Drücke die Eingabetaste, um ihn zu nutzen, und Tab, um ihn zu verlassen.",
++  suggestions: "Vorschläge",
++  nSuggestions: "{n} Vorschläge",
++  audio: "Audio",
++  moreRows: "{n} weitere Zeilen auf der Originalseite.",
++  moreCols: "{n} weitere Spalten liegen seitlich außerhalb. Scrolle die Tabelle zur Seite, um sie zu sehen.",
++  selectAll: "Alle auswählen",
++  pageCut: "Der Rest dieser Seite ist zu lang, um ihn hier zu zeigen. Wechsle zur Originalseite, um ihn zu lesen.",
++  upvote: "Positiv bewerten",
++  searchLanguage: "Suchsprache",
++  nComments: "{n} Kommentare",
++  answer: "Antwort",
++  answerBy: "Antwort von {name}",
++  votes: "{n} Stimmen",
++  accepted: "Akzeptiert",
++  interactiveInFull: "Die interaktiven Teile dieser Seite sind im ganzen Text.",
++  map: "Karte",
++  editor: "Editor",
++  example: "Beispiel",
++  openedAbove: "{title} wurde oben geöffnet.",
++  openedBelow: "{title} wurde unten geöffnet.",
++  removed: "Entfernt: {title}.",
++  collapse: "Einklappen",
++  next: "Weiter",
++  previous: "Zurück",
++  firstPage: "Erste Seite",
++  lastPage: "Letzte Seite",
++  consentFirst: "Die Website verlangt eine Cookie-Auswahl, bevor sie dieses Video abspielt.",
++  consentClick: "Die Website verlangt eine Cookie-Auswahl, bevor sie auf Klicks reagiert. Triff eine Wahl und versuche es dann erneut.",
+ };
+ 
+-const it: Table = {
++const it: Strings = {
++  sift: "Sift",
+   siftView: "Vista Sift",
+   original: "Pagina originale",
+   toOriginal: "Mostra la pagina originale",
+@@ -409,6 +523,7 @@
+   search: "Cerca",
+   menu: "Menu",
+   account: "Account",
++  closeMenu: "Chiudi menu",
+   comments: "Commenti",
+   like: "Mi piace",
+   nLikes: "{n} Mi piace",
+@@ -431,19 +546,74 @@
+   soldBy: "Venduto da",
+   moreLinks: "Altri link",
+   otherLanguages: "In altre lingue",
++  incidents: "Incidenti: {days}",
++  major: "grave",
+   details: "Dettagli",
+   loading: "Caricamento…",
+   showFull: "Mostra testo completo",
+   showShort: "Mostra versione breve",
+   shortVersion: "Versione breve",
+-  shortLinks: "Link del testo completo",
+   fullText: "Testo completo",
++  shortening: "Accorciamento in corso…",
++  shortReady: "La versione breve è pronta.",
+   play: "Riproduci",
+   pause: "Pausa",
+   captions: "Sottotitoli",
+   fullscreen: "Schermo intero",
++  mute: "Disattiva audio",
++  unmute: "Attiva audio",
++  back10: "Indietro di 10 s",
++  fwd10: "Avanti di 10 s",
++  prevVideo: "Video precedente",
++  nextVideo: "Video successivo",
++  position: "Posizione nel video",
++  skip: "Vai al contenuto",
++  enterToUse: "Premi Invio per usarla, Esc per tornare.",
++  openImage: "Apri immagine",
+   loadMore: "Carica altro",
+   close: "Chiudi",
++  nothing: "Ancora niente da mostrare.",
++  video: "Video",
++  interactive: "Area interattiva della pagina originale",
++  submit: "Invia",
++  go: "Vai",
++  newItems: "{n} nuovi elementi",
++  originalTitle: "Titolo originale",
++  error: "Sift non è riuscito a leggere questa pagina. Ecco la pagina originale.",
++  noKey: "Aggiungi una chiave API nelle opzioni di Sift per avere testi accorciati.",
++  aiUnavailable: "Ora non è possibile accorciare il testo: il servizio di IA ha finito il credito o ha rifiutato la chiave. Vedi il testo completo.",
++  shortPartial: "Questa versione breve copre solo la prima parte dell'articolo. Mostra il testo completo per il resto.",
++  shortLinks: "Link del testo completo",
++  unread: "Non letto",
++  enterToUseFrame: "Premi Invio per usarla, Tab per uscire.",
++  suggestions: "Suggerimenti",
++  nSuggestions: "{n} suggerimenti",
++  audio: "Audio",
++  moreRows: "{n} righe in più nella pagina originale.",
++  moreCols: "{n} colonne in più sono fuori schermo, di lato. Scorri la tabella di lato per vederle.",
++  selectAll: "Seleziona tutto",
++  pageCut: "Il resto di questa pagina è troppo lungo per mostrarlo qui. Passa alla pagina originale per leggerlo.",
++  upvote: "Voto positivo",
++  searchLanguage: "Lingua di ricerca",
++  nComments: "{n} commenti",
++  answer: "Risposta",
++  answerBy: "Risposta di {name}",
++  votes: "{n} voti",
++  accepted: "Accettata",
++  interactiveInFull: "Le parti interattive di questa pagina sono nel testo completo.",
++  map: "Mappa",
++  editor: "Editor",
++  example: "Esempio",
++  openedAbove: "{title} si è aperto sopra.",
++  openedBelow: "{title} si è aperto sotto.",
++  removed: "Rimosso: {title}.",
++  collapse: "Comprimi",
++  next: "Successiva",
++  previous: "Precedente",
++  firstPage: "Prima pagina",
++  lastPage: "Ultima pagina",
++  consentFirst: "Il sito chiede una scelta sui cookie prima di riprodurre questo video.",
++  consentClick: "Il sito chiede una scelta sui cookie prima di rispondere ai clic. Scegli, poi riprova.",
+ };
+ 
+ const ar: Strings = {
+@@ -948,6 +1118,9 @@
+   en: { nSuggestions: { one: "{n} suggestion" }, newItems: { one: "{n} new item" }, nComments: { one: "{n} comment" }, votes: { one: "{n} vote" }, nLikes: { one: "{n} like" }, moreRows: { one: "{n} more row on the original page." }, moreCols: { one: "{n} more column is off to the side. Scroll the table sideways to see it." } },
+   es: { nSuggestions: { one: "{n} sugerencia" }, newItems: { one: "{n} elemento nuevo" }, nComments: { one: "{n} comentario" }, votes: { one: "{n} voto" }, moreRows: { one: "{n} fila más en la página original." }, moreCols: { one: "Hay {n} columna más al costado. Desplazá la tabla de lado para verla." } },
+   pt: { nSuggestions: { one: "{n} sugestão" }, newItems: { one: "{n} item novo" }, nComments: { one: "{n} comentário" }, votes: { one: "{n} voto" }, nLikes: { one: "{n} curtida" }, moreRows: { one: "Mais {n} linha na página original." }, moreCols: { one: "Mais {n} coluna está fora da tela, ao lado. Role a tabela para o lado para vê-la." } },
++  fr: { nSuggestions: { one: "{n} suggestion" }, newItems: { one: "{n} nouvel élément" }, nComments: { one: "{n} commentaire" }, votes: { one: "{n} vote" }, moreRows: { one: "{n} ligne de plus sur la page d'origine." }, moreCols: { one: "{n} colonne de plus est sur le côté. Faites défiler le tableau sur le côté pour la voir." } },
++  de: { nSuggestions: { one: "{n} Vorschlag" }, newItems: { one: "{n} neuer Eintrag" }, nComments: { one: "{n} Kommentar" }, votes: { one: "{n} Stimme" }, moreRows: { one: "{n} weitere Zeile auf der Originalseite." }, moreCols: { one: "{n} weitere Spalte liegt seitlich außerhalb. Scrolle die Tabelle zur Seite, um sie zu sehen." } },
++  it: { nSuggestions: { one: "{n} suggerimento" }, newItems: { one: "{n} nuovo elemento" }, nComments: { one: "{n} commento" }, votes: { one: "{n} voto" }, moreRows: { one: "{n} riga in più nella pagina originale." }, moreCols: { one: "{n} colonna in più è fuori schermo, di lato. Scorri la tabella di lato per vederla." } },
+   ar: { newItems: { one: "عنصر جديد واحد", two: "عنصران جديدان", few: "{n} عناصر جديدة", many: "{n} عنصرًا جديدًا" } },
+   nl: { newItems: { one: "{n} nieuw item" } },
+ };
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -24,7 +24,7 @@
+ import { processAi, resetAi, setAiReady } from "./ai";
+ import { setLang, t } from "./i18n";
+ import { armRecent, noteMutations, clearRecent, noteEntered } from "./recent";
+-import { askConsent, consentWallUp, findToast } from "./extract/generic";
++import { askConsent, consentWallUp, cutShort, findToast } from "./extract/generic";
+ 
+ const MODE_KEY = "sift:mode";
+ const isHtml = document.contentType === "text/html" && document.documentElement?.localName === "html";
+@@ -1564,6 +1564,8 @@
+   let failures = 0;
+   let lastUrl: string | null = null;
+   let firstPaint = 0;
++  /** The last look stopped at its time budget (see run): the next reads the whole page (F1220). */
++  let cutLast = false;
+   const t0 = performance.now();
+   /** Dismissed dialog keys and their elements, to know when they are really gone. */
+   const dismissedRefs = new Map<string, string | undefined>();
+@@ -1623,7 +1625,8 @@
+       // when a map or a player appears), keep up with it: right after
+       // the change (a loading page has no idle moment, and its next long task
+       // would delay a timer), but never back to back.
+-      const wait = lastRunAt + Math.max(100, lastDur * 3) - performance.now();
++      // After a long look (over 300 ms), the pause is three times its length (F1220).
++      const wait = lastRunAt + (lastDur > 300 ? lastDur * 4 : Math.max(100, lastDur * 3)) - performance.now();
+       if (wait <= 0) return run();
+       d = Math.max(16, wait);
+     } else {
+@@ -2309,8 +2312,11 @@
+     if (checkUrl()) fillTries = lastCount = 0;
+     const s = performance.now();
+     let page: Page;
++    // Until Sift shows this page, a look stops after a moment and shows what it read (a long list's first
++    // part), and the next look reads it all: the first view never waits on the whole page (F1220).
++    const budget = !firstPaint && !cutLast ? 120 : 0;
+     try {
+-      page = extract();
++      page = extract(budget);
+       failures = 0;
+     } catch (err) {
+       console.warn("[sift] extraction failed", err);
+@@ -2323,6 +2329,9 @@
+     }
+     lastDur = performance.now() - s;
+     host.dataset.ms = String(Math.round(lastDur));
++    cutLast = budget > 0 && page.source === "generic" && cutShort();
++    // The rest of the page is read once this first part has shown, spaced like any look while the page loads.
++    if (cutLast) schedule(Math.max(16, lastRunAt + Math.max(100, lastDur * 3) - performance.now()));
+     watchShadows();
+     const runs = +(host.dataset.runs ?? 0) + 1;
+     host.dataset.runs = String(runs);
+@@ -2475,7 +2484,8 @@
+     layout();
+     if (held && focusLost()) portalFocus = { el: held, at: Date.now() };
+     restorePortalFocus();
+-    processAi(page);
++    // A page read in part is read whole in a moment: its text is shortened then, once (F1220).
++    if (!cutLast) processAi(page);
+     fillScreen(page);
+     openAtPost();
+     toEnd();
+@@ -2693,11 +2703,18 @@
+   addEventListener("pageshow", (e) => {
+     if ((e as PageTransitionEvent).persisted) schedule(0);
+   });
++  /**
++   * The page finished loading (its HTML, then its images): read it again now, unless the last look took long
++   * (over 300 ms) or stopped at its budget: then two looks would freeze the page back to back, and the next
++   * waits as any look while the page loads does (F1220).
++   */
++  const loadedAgain = () =>
++    schedule(Math.max(0, lastDur > 300 ? lastRunAt + lastDur * 4 - performance.now() : cutLast ? lastRunAt + Math.max(100, lastDur * 3) - performance.now() : 0));
+   document.addEventListener("DOMContentLoaded", () => {
+     attach();
+-    schedule(0);
++    loadedAgain();
+   });
+-  addEventListener("load", () => schedule(0));
++  addEventListener("load", loadedAgain);
+   // Inputs change without DOM mutations; catch up after the user acts.
+   host.addEventListener("click", () => setTimeout(() => schedule(0), 120));
+ 
+@@ -2736,6 +2753,8 @@
+   );
+ 
+   let nudgeTimer = 0;
++  /** A long list Sift draws a part at a time is not all drawn yet (aria-busy, see useSlice in app.tsx). */
++  const listsDrawing = () => !!shadow.querySelector("[aria-busy=true]");
+   /**
+    * Sift's view is near its end: the page loads more. One the 1500 ms gate drops (a fast flick reaches the new
+    * end within it, and from there no scroll event comes) is checked again once the gate expires (F1060).
+@@ -2756,6 +2775,8 @@
+     if (tabAt > userScrollAt && !tabInLastList()) return;
+     // A list in an open section counts too (a watch page's comments).
+     if (!shownItems(store.page.blocks)) return;
++    // The end of a long list's part drawn so far is not the list's end: the rest follows (F1220).
++    if (listsDrawing()) return;
+     // A thread that unloads its posts loads more as it is scrolled (stepWith), never by a jump to its end.
+     if (cloakedPosts()) return;
+     lastNudge = Date.now();
+@@ -2931,6 +2952,8 @@
+   let fillTries = 0;
+   let lastCount = 0;
+   function fillScreen(page: Page) {
++    // A page read in part, or a long list still being drawn, is not short (F1220).
++    if (cutLast || listsDrawing()) return;
+     // Lists only: a table that fits the screen is all there is.
+     const count = shownItems(page.blocks, false);
+     if (!count) return;
+@@ -3429,7 +3452,15 @@
+           // turned editable, a popup's button) fails and Sift follows it, without blurring what the page
+           // focused, which closes menus and ends edits (F1102). A Copy button that copies with execCommand
+           // still copies: the page-world helper gives the copy the text the page selected (F1040).
+-          const swallowed = clickSwallowed(el, () => proxy.click(el));
++          // With a shown original <body> is not inert as a whole, and a popup the page appends to it is
++          // not inert yet: the page-world helper fails such a focus() while it knows Sift's click runs (F1200).
++          document.dispatchEvent(new CustomEvent("sift-click", { detail: "start" }));
++          let swallowed = false;
++          try {
++            swallowed = clickSwallowed(el, () => proxy.click(el));
++          } finally {
++            document.dispatchEvent(new CustomEvent("sift-click", { detail: "end" }));
++          }
+           const wall = swallowed && store.mode === "sift" ? consentWallUp() : null;
+           if (wall) showConsent(wall, "click");
+           flushBlur();
+@@ -3710,7 +3741,7 @@
+     }
+     fontSize();
+     setAiReady();
+-    if (store.page) processAi(store.page);
++    if (store.page && !cutLast) processAi(store.page);
+   })();
+   loadFont();
+ 
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -400,8 +400,13 @@
+ 
+ // When a navigation last started, to tell whether Enter in a field did anything.
+ let navAt = 0;
+-(window as any).navigation?.addEventListener?.("navigate", () => (navAt = performance.now()));
+-addEventListener("beforeunload", () => (navAt = performance.now()));
++// And when the page last started to leave for another document (a held submit then stays dropped).
++let leftAt = -1;
++(window as any).navigation?.addEventListener?.("navigate", (e: any) => {
++  navAt = performance.now();
++  if (e.destination?.sameDocument === false) leftAt = navAt;
++});
++addEventListener("beforeunload", () => (navAt = leftAt = performance.now()));
+ 
+ /**
+  * A button that opens or shows a search box rather than searching ("Ir al
+@@ -586,6 +591,51 @@
+  * a validation message when the browser would refuse to submit.
+  */
+ export function submit(field: Element | null, button: Element | null, form: HTMLFormElement | null, via: "enter" | "button" = "button"): string {
++  clearTimeout(heldSubmit);
++  const f = form ?? (field as HTMLInputElement | null)?.form ?? null;
++  if (f && holdsSubmit(f)) {
++    // A form that only posts back to this page ("#"), submitted while the page still loads: its script
++    // that searches binds late (Corriere's burger search, F1235), and the browser's own submission would
++    // just reload the page and lose the query. Hold it and try again once the page has loaded.
++    const t0 = performance.now();
++    const at = location.href.split("#")[0];
++    const hold = (e: Event) => {
++      if (e.target !== f || e.defaultPrevented) return;
++      e.preventDefault();
++      clearTimeout(heldSubmit);
++      heldSubmit = setTimeout(function retry() {
++        // Not once the page has gone on to another address (the site took it over, or the user went elsewhere).
++        if (leftAt >= t0 || location.href.split("#")[0] !== at || !f.isConnected) return;
++        if (document.readyState !== "complete") heldSubmit = setTimeout(retry, 500);
++        else submit(field?.isConnected ? field : null, button, form, via);
++      }, 1000);
++    };
++    addEventListener("submit", hold);
++    try {
++      return submitNow(field, button, f, via);
++    } finally {
++      removeEventListener("submit", hold);
++    }
++  }
++  return submitNow(field, button, form, via);
++}
++
++/** The retry of a submission held while the page loads. */
++let heldSubmit: ReturnType<typeof setTimeout> | undefined;
++
++/**
++ * Whether a submission of `f` that the page does not take over is held for
++ * now: its action is only a fragment or a script ("#"), and the page is
++ * loading or loaded less than 8 seconds ago.
++ */
++function holdsSubmit(f: HTMLFormElement): boolean {
++  if (!/^\s*(#|javascript:)/i.test(f.getAttribute("action") ?? "")) return false;
++  if (document.readyState !== "complete") return true;
++  const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
++  return !!nav && performance.now() < nav.loadEventEnd + 8000;
++}
++
++function submitNow(field: Element | null, button: Element | null, form: HTMLFormElement | null, via: "enter" | "button"): string {
+   const f = form ?? (field as HTMLInputElement | null)?.form ?? null;
+   if (!f) {
+     const real = !!button && !opensSearch(button);
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -592,6 +592,9 @@
+ /** The Short version as shown, put back parts included, must save at least a quarter of the words, or the full text shows. */
+ const MAX_SHOWN = 0.75;
+ 
++/** A heading of a numbered series, and its number: "2. The company is haemorrhaging cash", "3) Bake". */
++const NUMBERED = /^\s*(\d{1,3})[.)]\s/;
++
+ /**
+  * Puts the model's short text and the article's own blocks together: each
+  * placeholder becomes its block, the source's headings stay and no others,
+@@ -637,7 +640,12 @@
+       }
+       if (s > score) [best, score] = [i, s];
+     });
+-    return score >= 0.75 ? best : -1;
++    if (score >= 0.75) return best;
++    // A numbered heading the model reworded ("2. Anthropic is losing money" for
++    // "2. The company is haemorrhaging cash") stands for the page's heading of
++    // that number not placed yet, so its section's text stays under it (F1233).
++    const num = NUMBERED.exec(text.replace(/[*_`]/g, ""))?.[1];
++    return num ? src.units.findIndex((u, i) => u.kind === "h" && !used.has(i) && NUMBERED.exec(u.plain)?.[1] === num) : -1;
+   };
+   for (const raw of out.replace(/\r/g, "").split("\n")) {
+     const parts = raw.split(/(\[\[\s*B\d+\s*\]\])/);
+@@ -859,17 +867,32 @@
+     });
+     let hi = segs.findIndex((s, k) => k >= lo && "unit" in s && s.pos > i);
+     if (hi < 0) hi = segs.length;
+-    let at = segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && s.pos !== undefined && s.pos > i);
++    // A heading goes before the first text of its own section, if any: a line
++    // about a later section the model set before it stays above (F1233).
++    const end = u.kind === "h" ? src.units.findIndex((v, j) => j > i && v.kind === "h") : -1;
++    let at = u.kind === "h" ? segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && s.pos !== undefined && s.pos > i && (end < 0 || s.pos < end)) : -1;
++    if (at < 0) at = segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && s.pos !== undefined && s.pos > i);
+     if (at < 0) at = hi;
++    // Right after the model's own heading for that section (kept as a line),
++    // it goes before that line, which is then of its section.
++    const prev = segs[at - 1];
++    if (u.kind === "h" && at > lo && prev && "md" in prev && guesses.has(prev) && !(prev.pos !== undefined && prev.pos < i)) {
++      at--;
++      prev.pos = i;
++    }
+     segs.splice(at, 0, { unit: i, pos: i });
+     used.add(i);
+   }
+ 
+-  // A heading with nothing under it (its text was cut) is dropped.
++  // A heading with nothing under it (its text was cut) is dropped. One of a
++  // numbered series ("1.", "2.", "3.") stays: it is one of the points (F1233).
+   const level = (s: S) => ("unit" in s && src.units[s.unit].kind === "h" ? (src.units[s.unit].block as Extract<Block, { t: "h" }>).level : 0);
++  const series = src.units.filter((u) => u.kind === "h" && NUMBERED.test(u.plain)).length >= 2;
+   for (let i = segs.length - 1; i >= 0; i--) {
+     const l = level(segs[i]);
+     if (!l) continue;
++    const s = segs[i];
++    if (series && "unit" in s && NUMBERED.test(src.units[s.unit].plain)) continue;
+     const next = segs[i + 1];
+     if (!next || (level(next) && level(next) <= l)) segs.splice(i, 1);
+   }
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -515,6 +515,37 @@
+   return root;
+ }
+ 
++/** Entries of a long list drawn at once, and added per idle moment after (see useSlice). */
++const SLICE = 300;
++
++/**
++ * How many of a list's `n` entries to draw now. A long list (thousands of buttons or links) draws its first
++ * screens at once and the rest a slice per idle moment, so Sift's first view never waits on drawing all of
++ * it (F1220). Entries drawn stay drawn; a few new ones (a feed's next page) are drawn at once. Until all are
++ * drawn the list says it is busy (aria-busy), and Sift does not take its drawn end for the list's end.
++ */
++function useSlice(n: number, slice = SLICE): number {
++  const had = useRef(0);
++  // One slice waits at a time, kept across redraws (an AI line coming in redraws the view often).
++  const idle = useRef(0);
++  const [, bump] = useState(0);
++  const cur = Math.min(n, n - had.current <= 2 * slice ? n : Math.max(had.current, slice));
++  had.current = cur;
++  useEffect(() => {
++    if (cur >= n || idle.current) return;
++    idle.current = requestIdleCallback(
++      () => {
++        idle.current = 0;
++        had.current += slice;
++        bump((x) => x + 1);
++      },
++      { timeout: 300 },
++    );
++  });
++  useEffect(() => () => cancelIdleCallback(idle.current), []);
++  return cur;
++}
++
+ function ItemsView({ b }: { b: Extract<Block, { t: "items" }> }) {
+   // A thread: replies are lists nested in the entry they answer, so screen readers say the level.
+   const row = (n: Nest) => (
+@@ -522,11 +553,14 @@
+       {n.kids.length > 0 && <ol class="items replies">{n.kids.map(row)}</ol>}
+     </ItemView>
+   );
++  // An entry holds a title, a line and its controls: fewer to a slice.
++  const shown = useSlice(b.items.length, 100);
++  const items = shown < b.items.length ? b.items.slice(0, shown) : b.items;
+   return (
+     <>
+       {b.title && <h2>{b.title}</h2>}
+-      <ol class="items" aria-label={b.title}>
+-        {b.items.some((it) => it.depth) ? nestItems(b.items).map(row) : b.items.map((it) => <ItemView key={it.key} it={it} thumbs={b.thumbs} rewrite={b.rewrite} />)}
++      <ol class="items" aria-label={b.title} aria-busy={shown < b.items.length || undefined}>
++        {items.some((it) => it.depth) ? nestItems(items).map(row) : items.map((it) => <ItemView key={it.key} it={it} thumbs={b.thumbs} rewrite={b.rewrite} />)}
+       </ol>
+       {b.more && (
+         <p class="more">
+@@ -781,6 +815,8 @@
+ function TableView({ b }: { b: Extract<Block, { t: "table" }> }) {
+   const wrap = useRef<HTMLDivElement>(null);
+   const [off, setOff] = useState(0);
++  // A row holds several cells: fewer rows to a slice.
++  const shown = useSlice(b.rows.length, 60);
+   const cells = b.rows.slice(0, 20).flat();
+   const compact = b.head.length >= 7 && cells.length > 0 && cells.reduce((n, c) => n + textOf(c).length, 0) / cells.length <= 14;
+   useEffect(() => {
+@@ -848,13 +884,31 @@
+                 </tr>
+               </thead>
+             )}
+-            <tbody>{b.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}><Inl c={c} /></td>)}</tr>)}</tbody>
++            <tbody aria-busy={shown < b.rows.length || undefined}>{(shown < b.rows.length ? b.rows.slice(0, shown) : b.rows).map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}><Inl c={c} /></td>)}</tr>)}</tbody>
+           </table>
+         </div>
+     </>
+   );
+ }
+ 
++function ListView({ b }: { b: Extract<Block, { t: "ul" | "ol" }> }) {
++  const L = b.t;
++  const isLinks = b.items.every((it) => it.length === 1 && typeof it[0] === "object" && "a" in it[0]);
++  const shown = useSlice(b.items.length);
++  return (
++    <L class={isLinks ? "links" : undefined} aria-label={b.label} data-scroll-end={b.scrollEnd} aria-busy={shown < b.items.length || undefined}>
++      {(shown < b.items.length ? b.items.slice(0, shown) : b.items).map((it, i) => <li key={i} aria-current={b.current?.at === i ? (b.current.as as "step") : undefined}><Inl c={it} /></li>)}
++    </L>
++  );
++}
++
++function ActionsView({ b }: { b: Extract<Block, { t: "actions" }> }) {
++  const shown = useSlice(b.actions.length);
++  const row = (shown < b.actions.length ? b.actions.slice(0, shown) : b.actions).map((a) => <Btn key={a.key} a={a} />);
++  const busy = shown < b.actions.length || undefined;
++  return b.nav ? <nav class="row actions" aria-label={b.nav} aria-busy={busy}>{row}</nav> : <div class="row actions" aria-busy={busy}>{row}</div>;
++}
++
+ export function BlockView({ b }: { b: Block }) {
+   switch (b.t) {
+     case "h":
+@@ -862,15 +916,8 @@
+     case "p":
+       return <p class={b.small ? "small" : undefined} data-scroll-end={b.scrollEnd}><Inl c={b.content} /></p>;
+     case "ul":
+-    case "ol": {
+-      const L = b.t;
+-      const isLinks = b.items.every((it) => it.length === 1 && typeof it[0] === "object" && "a" in it[0]);
+-      return (
+-        <L class={isLinks ? "links" : undefined} aria-label={b.label} data-scroll-end={b.scrollEnd}>
+-          {b.items.map((it, i) => <li key={i} aria-current={b.current?.at === i ? (b.current.as as "step") : undefined}><Inl c={it} /></li>)}
+-        </L>
+-      );
+-    }
++    case "ol":
++      return <ListView b={b} />;
+     case "quote":
+       return <blockquote><Inl c={b.content} /></blockquote>;
+     case "pre":
+@@ -901,10 +948,8 @@
+       return <ItemsView b={b} />;
+     case "form":
+       return <FormView b={b} />;
+-    case "actions": {
+-      const row = b.actions.map((a) => <Btn key={a.key} a={a} />);
+-      return b.nav ? <nav class="row actions" aria-label={b.nav}>{row}</nav> : <div class="row actions">{row}</div>;
+-    }
++    case "actions":
++      return <ActionsView b={b} />;
+     case "facts":
+       return (
+         // Several short readings ("Humidity 67%", "Wind Speed 5 MPH") sit two to a row on a wide screen (F636).
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -34,7 +34,7 @@
+   const lines = text.replace(/\r/g, "").split("\n");
+   const blocks: any[] = [];
+   let para: string[] = [];
+-  let list: { ordered: boolean; items: string[] } | null = null;
++  let list: { ordered: boolean; items: string[]; start?: number } | null = null;
+   let quote: string[] = [];
+   /** Inside a fenced code block: its fence and lines so far. */
+   let code: { fence: string; lines: string[] } | null = null;
+@@ -55,7 +55,8 @@
+   const flushList = () => {
+     if (!list) return;
+     const items = list.items.map((it, i) => <li key={i}>{inline(it, link)}</li>);
+-    blocks.push(list.ordered ? <ol key={k++}>{items}</ol> : <ul key={k++}>{items}</ul>);
++    // A numbered list keeps the model's first number ("3. It has cash…" is not "1.").
++    blocks.push(list.ordered ? <ol key={k++} start={list.start !== 1 ? list.start : undefined}>{items}</ol> : <ul key={k++}>{items}</ul>);
+     list = null;
+   };
+   const flushCode = () => {
+@@ -118,15 +119,15 @@
+     }
+     if (quote.length) flushPara();
+     const b = /^\s*[-*•]\s+(.*)$/.exec(line);
+-    const n = /^\s*\d+[.)]\s+(.*)$/.exec(line);
++    const n = /^\s*(\d+)[.)]\s+(.*)$/.exec(line);
+     if (b || n) {
+       flushPara();
+       const ordered = !!n;
+       if (!list || list.ordered !== ordered) {
+         flushList();
+-        list = { ordered, items: [] };
++        list = { ordered, items: [], start: n ? Number(n[1]) : undefined };
+       }
+-      list.items.push((b ?? n)![1]);
++      list.items.push(b ? b[1] : n![2]);
+       continue;
+     }
+     if (list && /^\s{2,}/.test(raw)) {
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -112,6 +112,26 @@
+       if (e.hasAttribute("data-sift-inert")) return true;
+     return false;
+   };
++  // Sift's click on a page element is running (H.act, F1200). With a shown original (a video, a map, a
++  // frame) <body> is not inert as a whole, so a popup the page appends to it during the click is not inert
++  // yet, and the page's focus() there would take focus out of Sift; Sift's shield makes it inert right
++  // after, which blurs it, and a popup that closes on blur closes. While the click runs, a focus() outside
++  // what the user answers directly (a shown original, a page modal dialog, full screen) fails as on an
++  // inert page, and Sift follows it to its copy.
++  let clicking = 0;
++  document.addEventListener(
++    "sift-click",
++    (e) => {
++      clicking = (e as CustomEvent).detail === "start" ? clicking + 1 : Math.max(0, clicking - 1);
++      e.stopImmediatePropagation();
++    },
++    true,
++  );
++  const shownAt = (n: Element): boolean => {
++    for (let e: Element | null = n; e; e = e.parentElement ?? ((e.getRootNode() as ShadowRoot).host ?? null))
++      if (e.hasAttribute("data-sift-portal") || e.localName === "sift-root" || e === document.fullscreenElement || e.matches(":modal")) return true;
++    return false;
++  };
+   let selField: HTMLInputElement | HTMLTextAreaElement | null = null;
+   for (const fproto of [HTMLInputElement.prototype, HTMLTextAreaElement.prototype] as any[])
+     for (const name of ["select", "setSelectionRange"]) {
+@@ -128,7 +148,8 @@
+   const copied = (): string => {
+     const f = selField;
+     // Never a password: the browser copies none.
+-    if (f?.isConnected && inertAt(f) && (f as HTMLInputElement).type !== "password") {
++    // Or a field the page could not focus during Sift's click (above): it would copy as nothing.
++    if (f?.isConnected && (inertAt(f) || (clicking > 0 && !shownAt(f))) && (f as HTMLInputElement).type !== "password") {
+       try {
+         return f.value.slice(f.selectionStart ?? 0, f.selectionEnd ?? 0);
+       } catch {
+@@ -192,6 +213,15 @@
+   const focus = proto.focus;
+   if (typeof focus === "function") {
+     proto.focus = function (this: HTMLElement, ...args: unknown[]) {
++      try {
++        // During Sift's click, outside what Sift shows of the page: no real focus (above, F1200).
++        if (clicking > 0 && this.isConnected && !shownAt(this)) {
++          this.dispatchEvent(new CustomEvent("sift-focus", { bubbles: true, composed: true }));
++          return;
++        }
++      } catch {
++        /* never break the page's own call */
++      }
+       const r = focus.apply(this, args);
+       try {
+         const root = this.getRootNode() as Document | ShadowRoot;
+diff -ruN --label pre/src --label now/src pre/src now/src
+--- pre/src
++++ now/src
+@@ -41,14 +41,33 @@
+ );
+ 
+ /**
+- * Whether a short line only ticks: it has a time relative to now or a count
+- * (see VOLATILE), or it is only a label once the parts `tick` matches (a
+- * clock time, a duration) and its numbers are gone: "Updated 10:32",
+- * "Comentarios (12)". "Doors open at 19:30." and "Pool: closed" say something.
++ * Words of LABEL that go with a time or a date without labeling it: "Today at
++ * 18:00" and "Hoy a las 18:00" say when something happens. With a real label
++ * ("Updated today at 10:32", "Actualizado hoy a las 18:00") they only tick.
++ */
++const FILLER = new Set(
++  "today yesterday at on by of the a de del el la las los en hoy ayer ahora do da em às hoje ontem agora il y aujourd hui hier le du des heute gestern um am oggi ieri alle vandaag gisteren dzisiaj wczoraj сегодня вчера".split(" "),
++);
++/** Where a byline's parts meet: "BBC·3hrs ago", "Daily Mail · 266 comments", "Reuters | 2 hours ago". */
++const PART = /\s*[·•|]\s*|\s+[-–—]\s+/;
++const VOLATILE_ALL = new RegExp(VOLATILE.source, "giu");
++
++/**
++ * Whether a short line only ticks: once the parts `tick` matches (a clock
++ * time, a duration, a count) and its numbers are gone, it is only a label
++ * ("Updated 10:32", "5 min ago", "Comentarios (12)"); or it is a byline with a
++ * part of its own that ticks (a time relative to now, a count of views or
++ * comments: see VOLATILE). A sentence that states a count or a time says
++ * something, as do "Today at 18:00", "Doors open at 19:30." and "Pool: closed"
++ * (F1218): "The final drew 9 million viewers."
+  */
+ export function onlyTicks(line: string, tick: RegExp): boolean {
+-  if (VOLATILE.test(line)) return true;
+   const all = new RegExp(tick.source, tick.flags.includes("g") ? tick.flags : tick.flags + "g");
+-  const rest = line.replace(all, " ").replace(TICKS_CJK, " ").toLowerCase().match(/\p{L}+/gu) ?? [];
+-  return rest.every((w) => LABEL.has(w));
++  const labelOnly = (s: string) => {
++    const rest = s.replace(VOLATILE_ALL, " ").replace(all, " ").replace(TICKS_CJK, " ").toLowerCase().match(/\p{L}+/gu) ?? [];
++    return rest.every((w) => LABEL.has(w)) && (!rest.length || rest.some((w) => !FILLER.has(w)));
++  };
++  if (labelOnly(line)) return true;
++  const parts = line.split(PART);
++  return parts.length > 1 && parts.some((p) => VOLATILE.test(p) && labelOnly(p));
+ }
+diff -ruN --label pre/scripts --label now/scripts pre/scripts now/scripts
+--- pre/scripts
++++ now/scripts
+@@ -32,7 +32,7 @@
+       mkdir -p .chrome
+       # The old log still says "chrome up"; drop it so the wait below sees this launch.
+       rm -f "$log"
+-      tmux new-window -d -t sift -n "$win" -c "$PWD" "SIFT_PORT=${SIFT_PORT:-9444} SIFT_OUT=${SIFT_OUT:-dist} bun scripts/launch.ts 2>&1 | tee $log"
++      tmux new-window -d -t sift -n "$win" -c "$PWD" "SIFT_PORT=${SIFT_PORT:-9444} SIFT_OUT=${SIFT_OUT:-dist} SIFT_BLOCK_EXTRA='${SIFT_BLOCK_EXTRA:-}' bun scripts/launch.ts 2>&1 | tee $log"
+       up=
+       for i in $(seq 1 60); do grep -q "chrome up" "$log" 2>/dev/null && { tail -1 "$log"; up=1; break; }; sleep 0.25; done
+       [ -n "$up" ] || { echo "did not start"; tail -20 "$log"; exit 1; }
+diff -ruN --label pre/scripts --label now/scripts pre/scripts now/scripts
+--- pre/scripts
++++ now/scripts
+@@ -1,26 +1,264 @@
+-// Usage: bun scripts/firstpaint.ts <url> <origSelector> [runs]
+-// Compares when the original page first shows content (origSelector visible) with when Sift does.
++// Usage: bun scripts/firstpaint.ts <url> <origSelector> [runs] [--sift css] [--wait ms] [--block amazon|<patterns>] [--json]
++//
++// Time to first content: the original page with Sift switched off, against Sift.
++// `runs` is per side (default 3), plus one warm-up load that is not counted.
++//
++// Method (F1221: polling from Node after DOMContentLoaded stalls while Sift's
++// long task runs, so it recorded when that task ended and called pages "equal"):
++// - A probe is injected before the page's own scripts and Sift's content
++//   scripts (Page.addScriptToEvaluateOnNewDocument). From the page's start it
++//   checks every animation frame and records, in page time (ms since
++//   navigation start, performance.now() in the frame):
++//     original: the first frame where `origSelector` matches an element with height
++//     sift:     the first frame where Sift's view shows content: more than 20
++//               characters and no "Loading" line, or, with --sift <css>, an
++//               element in Sift's view that matches css and has text (use
++//               `--sift li.item` where the original selector is a list entry:
++//               a YouTube adapter page shows its title and a "Loading…" line
++//               before the list, which the default counts as content)
++//     loading:  the first frame where Sift's view shows anything, its "Loading"
++//               line or more
++//   plus long tasks (PerformanceObserver), first-contentful-paint,
++//   DOMContentLoaded and load. The values are read after load, so a busy main
++//   thread delays only the reading, never the numbers.
++// - Runs alternate Sift off and Sift on in the same tab (ABBA order: off on,
++//   on off, ...). The probe switches Sift per run through its tab-and-site
++//   setting (sessionStorage "sift:mode", the one Alt+Shift+S sets) before
++//   Sift starts, then the script puts the setting back as it was. A run where
++//   Sift did not end in the asked mode is reported and left out.
++// - It prints each run, then medians: the original's selector frame with Sift
++//   off, Sift's first content and its "Loading" line with Sift on, and FCP for both.
++// - --block fails matching requests in this tab (Fetch domain, comma-separated
++//   wildcard URL patterns; only matching requests are paused, so others keep
++//   their timing). `--block amazon` blocks Amazon's hosts: use it for the
++//   Amazon snapshots and fixtures, which must never reach Amazon. It prints how
++//   many requests it blocked and any that got through.
+ import { connect, sleep, tab } from "./lib";
+-const [url, sel, runsArg] = process.argv.slice(2);
++
++const args = process.argv.slice(2);
++const pos = args.filter((a, i) => !a.startsWith("--") && !(i > 0 && ["--wait", "--block", "--sift"].includes(args[i - 1])));
++const [url, sel, runsArg] = pos;
++if (!url || !sel) {
++  console.log("Usage: bun scripts/firstpaint.ts <url> <origSelector> [runs] [--sift css] [--wait ms] [--block amazon|<patterns>] [--json]");
++  process.exit(2);
++}
++const runs = Math.max(1, Number(runsArg ?? 3));
++const wi = args.indexOf("--wait");
++const wait = wi >= 0 ? Number(args[wi + 1]) : 15000;
++const MODE_KEY = "sift:mode";
++const AMAZON = ["amazon.*", "*.amazon.*", "*.media-amazon.com", "*.ssl-images-amazon.com", "*.images-amazon.com", "*.amazon-adsystem.com", "*.cloudfront.net"].map((h) => `*://${h}/*`);
++const bi = args.indexOf("--block");
++const si = args.indexOf("--sift");
++const siftSel = si >= 0 ? (args[si + 1] ?? "") : "";
++const block = bi < 0 ? [] : args[bi + 1] === "amazon" ? AMAZON : (args[bi + 1] ?? "").split(",").filter(Boolean);
++
++type Mode = "on" | "off";
++type Probe = {
++  mode: Mode;
++  prev: string | null;
++  orig: number;
++  sift: number;
++  loading: number;
++  first: string;
++  shown: string;
++  fcp: number;
++  dcl: number;
++  load: number;
++  long: number[][];
++  url: string;
++};
++
+ const browser = await connect();
+ const page = await tab(browser);
+ await page.setViewport({ width: 1280, height: 900 });
+-for (let r = 0; r < Number(runsArg ?? 3); r++) {
+-  const t0 = Date.now();
+-  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 }).catch(() => {});
+-  let orig = -1, sift = -1;
+-  while (Date.now() - t0 < 15000 && (orig < 0 || sift < 0)) {
+-    const [o, s] = await page.evaluate((sel) => {
+-      const e = document.querySelector(sel) as HTMLElement | null;
+-      const o = !!e && e.getBoundingClientRect().height > 0;
++const blocked = { n: 0, leaked: [] as string[] };
++if (block.length) {
++  const cdp = await page.createCDPSession();
++  cdp.on("Fetch.requestPaused", (e) => {
++    blocked.n++;
++    cdp.send("Fetch.failRequest", { requestId: e.requestId, errorReason: "BlockedByClient" }).catch(() => {});
++  });
++  await cdp.send("Fetch.enable", { patterns: block.map((urlPattern) => ({ urlPattern })) });
++  const re = new RegExp("^(" + block.map((p) => p.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".")).join("|") + ")$");
++  page.on("response", (r) => {
++    if (re.test(r.url())) blocked.leaked.push(r.url());
++  });
++}
++
++/** Runs in the page before any of its scripts: switch Sift for this load, then watch every frame. */
++function probe(mode: Mode, sel: string, key: string, siftSel: string) {
++  if (window !== window.top) return;
++  const w = window as any;
++  let prev: string | null = null;
++  try {
++    prev = sessionStorage.getItem(key);
++    if (mode === "off") sessionStorage.setItem(key, "original");
++    else sessionStorage.removeItem(key);
++  } catch {
++    /* storage blocked */
++  }
++  const fp = (w.__siftFP = { mode, prev, orig: -1, sift: -1, loading: -1, first: "", long: [] as number[][] });
++  try {
++    new PerformanceObserver((l) => {
++      for (const e of l.getEntries()) fp.long.push([Math.round(e.startTime), Math.round(e.duration)]);
++    }).observe({ type: "longtask", buffered: true } as PerformanceObserverInit);
++  } catch {
++    /* no long task timing */
++  }
++  const tick = () => {
++    const now = Math.round(performance.now());
++    if (fp.orig < 0) {
++      const e = document.querySelector(sel);
++      if (e && e.getBoundingClientRect().height > 0) fp.orig = now;
++    }
++    if (mode === "on" && fp.sift < 0) {
+       const m = document.querySelector("sift-root")?.shadowRoot?.querySelector("main") as HTMLElement | null;
+-      const s = !!m && !m.querySelector(".loading") && m.innerText.trim().length > 20;
+-      return [o, s];
+-    }, sel).catch(() => [false, false]);
+-    if (o && orig < 0) orig = Date.now() - t0;
+-    if (s && sift < 0) sift = Date.now() - t0;
+-    await sleep(100);
++      if (m && (m.textContent ?? "").trim()) {
++        if (fp.loading < 0 && m.innerText.trim()) fp.loading = now;
++        const hit = siftSel
++          ? Array.from(m.querySelectorAll<HTMLElement>(siftSel)).some((e) => e.innerText.trim().length > 0)
++          : !m.querySelector(".loading") && (m.textContent ?? "").trim().length > 20 && m.innerText.trim().length > 20;
++        if (hit) {
++          fp.sift = now;
++          fp.first = m.innerText.replace(/\s+/g, " ").trim().slice(0, 100);
++        }
++      }
++    }
++    const done = fp.orig >= 0 && (mode === "off" || fp.sift >= 0);
++    if (!done && now < 120000) requestAnimationFrame(tick);
++  };
++  requestAnimationFrame(tick);
++}
++
++/** The probe's results, once the page has loaded. */
++const read = () =>
++  page.evaluate(() => {
++    const w = window as any;
++    const fp = w.__siftFP;
++    if (!fp) return null;
++    const n = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
++    const fcp = performance.getEntriesByName("first-contentful-paint")[0];
++    const host = document.querySelector("sift-root");
++    const style = host?.getAttribute("style") ?? "";
++    return {
++      ...fp,
++      long: fp.long.slice(),
++      shown: !host ? "none" : /inset: 0/.test(style) ? "sift" : "original",
++      fcp: fcp ? Math.round(fcp.startTime) : -1,
++      dcl: n ? Math.round(n.domContentLoadedEventStart) : -1,
++      load: n ? Math.round(n.loadEventStart) : -1,
++      url: location.href,
++    };
++  }) as Promise<Probe | null>;
++
++let restoreTo: { prev: string | null; url: string } | null = null;
++/** Put the tab's Sift setting for this site back as it was before the first run. */
++async function restore() {
++  if (!restoreTo) return;
++  const { prev } = restoreTo;
++  restoreTo = null;
++  await page
++    .evaluate(
++      (key, prev) => {
++        if (prev === null) sessionStorage.removeItem(key);
++        else sessionStorage.setItem(key, prev);
++      },
++      MODE_KEY,
++      prev,
++    )
++    .catch(() => console.log("could not restore the Sift setting for", page.url()));
++}
++for (const sig of ["SIGINT", "SIGTERM"] as const)
++  process.on(sig, async () => {
++    await restore();
++    process.exit(130);
++  });
++
++async function load(mode: Mode): Promise<Probe | null> {
++  const { identifier } = await page.evaluateOnNewDocument(probe, mode, sel, MODE_KEY, siftSel);
++  const t0 = Date.now();
++  try {
++    await page.goto(url, { waitUntil: "load", timeout: 45000 }).catch((e) => console.log("goto:", String(e.message ?? e).slice(0, 100)));
++  } finally {
++    await page.removeScriptToEvaluateOnNewDocument(identifier).catch(() => {});
++  }
++  let r: Probe | null = null;
++  while (Date.now() - t0 < wait) {
++    r = await read().catch(() => null);
++    if (r && r.orig >= 0 && (mode === "off" || r.sift >= 0)) break;
++    await sleep(250);
++  }
++  // Long tasks are reported a little after they end.
++  await sleep(300);
++  return (await read().catch(() => null)) ?? r;
++}
++
++const long = (r: Probe, until: number) => {
++  const before = r.long.filter(([s]) => until < 0 || s < until);
++  return { n: before.length, total: before.reduce((a, [, d]) => a + d, 0), max: before.reduce((a, [, d]) => Math.max(a, d), 0) };
++};
++const fmt = (ms: number) => (ms < 0 ? "-" : `${ms} ms`);
++
++const warm = await load("on");
++if (warm) restoreTo = { prev: warm.prev, url: warm.url };
++console.log(`warm-up (not counted): ${warm ? `Sift ${warm.shown}, original ${fmt(warm.orig)}, sift ${fmt(warm.sift)}` : "no probe result"}`);
++
++const order: Mode[] = [];
++for (let i = 0; order.length < runs * 2; i++) order.push(...((i % 2 ? ["on", "off"] : ["off", "on"]) as Mode[]));
++const res: Record<Mode, Probe[]> = { on: [], off: [] };
++try {
++  for (const [i, mode] of order.entries()) {
++    const r = await load(mode);
++    if (!r) {
++      console.log(`run ${i + 1} ${mode}: no probe result (page did not load?)`);
++      continue;
++    }
++    const want = mode === "on" ? "sift" : "original";
++    const lt = long(r, mode === "on" ? r.sift : r.orig);
++    const tail = `fcp ${fmt(r.fcp)}, dcl ${fmt(r.dcl)}, load ${fmt(r.load)}, long tasks before it ${lt.n} (${lt.total} ms, longest ${lt.max} ms)`;
++    if (r.shown !== want && !(mode === "off" && r.shown === "none")) {
++      console.log(`run ${i + 1} ${mode}: SKIPPED, Sift showed "${r.shown}" instead of "${want}"`);
++      continue;
++    }
++    res[mode].push(r);
++    if (mode === "off") console.log(`run ${i + 1} off: original ${fmt(r.orig)}; ${tail}`);
++    else console.log(`run ${i + 1} on:  sift ${fmt(r.sift)}, loading ${fmt(r.loading)} (original under Sift ${fmt(r.orig)}); ${tail}`);
+   }
+-  console.log(`run ${r + 1}: original ${orig} ms, sift ${sift} ms`);
++} finally {
++  await restore();
+ }
++
++const median = (xs: number[]) => {
++  const v = xs.filter((x) => x >= 0).sort((a, b) => a - b);
++  if (!v.length) return -1;
++  const m = v.length >> 1;
++  return v.length % 2 ? v[m] : Math.round((v[m - 1] + v[m]) / 2);
++};
++const miss = (xs: number[]) => xs.filter((x) => x < 0).length;
++const off = res.off, on = res.on;
++const s = {
++  url,
++  selector: sel,
++  siftSelector: siftSel || null,
++  runs: { off: off.length, on: on.length },
++  original: median(off.map((r) => r.orig)),
++  originalFcp: median(off.map((r) => r.fcp)),
++  sift: median(on.map((r) => r.sift)),
++  siftLoading: median(on.map((r) => r.loading)),
++  siftFcp: median(on.map((r) => r.fcp)),
++  missing: { original: miss(off.map((r) => r.orig)), sift: miss(on.map((r) => r.sift)) },
++  range: {
++    original: [Math.min(...off.map((r) => r.orig)), Math.max(...off.map((r) => r.orig))],
++    sift: [Math.min(...on.map((r) => r.sift)), Math.max(...on.map((r) => r.sift))],
++  },
++};
++const diff = s.original >= 0 && s.sift >= 0 ? ` Sift - original: ${s.sift - s.original} ms (${(s.sift / Math.max(1, s.original)).toFixed(1)}x).` : "";
++console.log(
++  `medians (${off.length} off, ${on.length} on): original ${fmt(s.original)} (fcp ${fmt(s.originalFcp)}${s.missing.original ? `, ${s.missing.original} never matched` : ""}); ` +
++    `Sift ${fmt(s.sift)}, loading ${fmt(s.siftLoading)} (fcp ${fmt(s.siftFcp)}${s.missing.sift ? `, ${s.missing.sift} never showed content` : ""}).${diff}`,
++);
++if (on.length) console.log(`Sift's first content (last run on): "${on[on.length - 1].first}"`);
++if (block.length) console.log(`blocked ${blocked.n} requests; got through: ${blocked.leaked.length ? blocked.leaked.slice(0, 5).join(" ") : "none"}`);
++if (args.includes("--json")) console.log(JSON.stringify(s));
++browser.disconnect();
+ process.exit(0);
+diff -ruN --label pre/scripts --label now/scripts pre/scripts now/scripts
+--- pre/scripts
++++ now/scripts
+@@ -11,6 +11,16 @@
+ mkdirSync(profile, { recursive: true });
+ await Bun.write(root + ".chrome/launch" + sfx + ".pid", String(process.pid));
+ 
++// Amazon forbids automated agents, so the test Chrome can never reach it, even when a saved
++// Amazon page's own form or link tries (round 12). Names Amazon serves from fail to resolve.
++// SIFT_BLOCK_EXTRA adds rules, only to check that blocking works (on a harmless host).
++const AMAZON_RULES = [
++  "amazon.*", "*.amazon.*", "amzn.*", "*.amzn.*", "a.co",
++  "*.media-amazon.com", "*.ssl-images-amazon.com", "*.images-amazon.com",
++  "*.amazon-adsystem.com", "*.amazontrust.com",
++].map((h) => `MAP ${h} ~NOTFOUND`);
++const blockRules = [...AMAZON_RULES, ...(process.env.SIFT_BLOCK_EXTRA ? [process.env.SIFT_BLOCK_EXTRA] : [])].join(", ");
++
+ const browser = await puppeteer.launch({
+   executablePath: "/usr/bin/google-chrome",
+   headless: true,
+@@ -31,6 +41,7 @@
+     "--disable-background-timer-throttling",
+     "--disable-renderer-backgrounding",
+     "--disable-backgrounding-occluded-windows",
++    "--host-resolver-rules=" + blockRules,
+   ],
+ });
+ let id = await browser.installExtension(dist);
+--- sift-r12-base/README.md	2026-10-25 00:14:54.125511750 +0000
++++ sift/README.md	2026-10-27 09:18:53.564031466 +0000
+@@ -39,6 +39,7 @@
+ - `bun scripts/a11y.ts <url>`: axe-core audit of Sift's view.
+ - `bun scripts/tabwalk.ts <url>`: where keyboard focus goes.
+ - `bun scripts/profile.ts <url>`: CPU profile of extraction.
++- `bun scripts/firstpaint.ts <url> <selector> [runs] [--sift css] [--block amazon]`: time to first content, the original (Sift off) against Sift, `runs` per side, in alternating loads of one tab. A probe injected before the page's scripts checks every animation frame, so a busy main thread cannot hide time; it prints each run (with FCP and long tasks) and the medians, and puts the tab's Sift setting back as it was. `--sift li.item` waits for Sift's list where the selector is a list entry. `--block amazon` keeps the Amazon snapshots and fixtures from reaching Amazon.
+ - `bun scripts/serve.ts`: serves saved snapshots and fixtures on http://127.0.0.1:8799.
+ 
+ For local development, put `{"apiKey": "..."}` in `local-key.json` (gitignored). It is copied into `dist/` and never into the published zip.

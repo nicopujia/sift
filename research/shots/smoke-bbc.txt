@@ -1,0 +1,124 @@
+[button] Skip to content
+[button] Menu
+[button] Search
+[link] Sign In
+H1 Breaking news, video and the latest top stories from the U.S. and around the world
+    [link] US Secret Service says it is helping to track funds stolen from crypto firm Binance in $6.3bn hack
+    p: The world's biggest crypto exchange says it has identified multiple "points of breach" after it was hit by the largest known hack in history.
+    p: LIVE
+    [link] US inmate Christa Pike says she woke up 'confused and in pain' after failed execution
+    p: It is Pike's first public statement since she survived an execution attempt by lethal injection in September.
+    p: 53 mins ago
+    [link] 'I made the wrong decision,' Hyrox athlete who soiled herself in race tells BBC
+    p: In her first interview since the incident, Joanna Wietrzyk told the BBC she takes responsibility for it but did not deserve such a severe backlash.
+    p: 11 hrs ago World
+    [link] US tech stocks see sharp falls over AI cost fears
+    p: Shares in Intel continue to fall while the tech-heavy Nasdaq opens at its lowest level in more than two months.
+    p: 1 hr ago Business
+    [link] Sir Ian McKellen leads tributes to 'beloved actor' Sir Patrick Stewart after his death at 86
+    p: The actor died in Los Angeles following a "a brief and poignant journey" with Alzheimer's Disease and Lewy Body Dementia.
+    p: 4 hrs ago Culture
+    [link] Watch: Iconic moments from Sir Patrick Stewart's career
+    p: The renowned British actor died after "a brief and poignant journey" with Alzheimer's disease and Lewy Body Dementia, his spokesperson says.
+    p: 8 hrs ago US & Canada
+    [link] Democrats have an identity crisis - it won't be easy to fix
+    p: Whatever the result of the midterm elections, the party is facing tough questions over what they stand for and who should represent them.
+    p: 15 hrs ago BBC InDepth
+    [link] What's at stake for Trump in the US midterms?
+    p: Anthony Zurcher explains how the results of the midterm elections could reshape the rest of Trump's presidency.
+    p: 7 hrs ago US & Canada
+    [link] Alaska Senate candidate denies knowing about alleged plot to put two Dan Sullivans on ballot
+    [link] Pope Leo XIV becomes first pontiff to vote in a US election
+    [link] Police in Scotland carrying out 'active inquiries' into Andrew and Epstein visits to royal castle
+    [link] Ceasefire allows evacuation from devastated Russian-occupied Oleshky
+    [link] Prominent Russian newspaper shuts down under pressure from authorities
+H2 Sir Patrick Stewart
+    [link] A life in pictures
+    p: His career on stages and screens spanned seven decades but came to be defined by his roles on some of the most popular sci-fi franchises in history.
+    [link] From watching Star Trek to knighthood - memorable BBC moments
+    p: The actor was a familiar face across the BBC over the years, appearing on programmes like The Graham Norton Show and HARDTalk.
+    [link] An actor who moved effortlessly between Star Trek and Shakespeare
+    p: The English actor began his career on stage before finding fame as the captain of the USS Enterprise.
+H2 More to explore
+    [link] We went on holiday with our neighbours and swapped families - it tore us apart
+    p: Rachel Stone tells how her parents swapped partners, the chaos it caused and how she came to forgive them.
+    p: 11 hrs ago UK
+    [link] What we know about Binance's $6.3bn hack
+    p: Cyber correspondent Joe Tidy explains more about what is suspected to be the biggest hack in history.
+    p: 4 hrs ago Business
+    [link] I didn't know I was lacking in vitamin D until I collapsed at work
+    p: Doctors are finding vitamin D deficiency is increasingly widespread in the UK, especially in young people. But the symptoms are difficult to spot and can be missed.
+    p: 16 hrs ago Health
+    [link] How Kenyans got caught in $130m US ghost student scam
+    p: The alleged scheme used stolen identities to claim US student aid, with Kenyans among those charged.
+    p: 8 hrs ago Africa
+    [link] Many Cubans voted for Trump - now they're turning on Republican immigration policies
+    p: President Trump's fellow Republicans might feel the brunt of frustration among Cubans at the ballot box, writes the BBC's Will Grant.
+    p: 16 hrs ago US & Canada
+    [link] You could be missing out on some fibre in fruits and vegetables, experts say
+    p: Chomping on vegtable skins, seeds and stalks could give us vital fibre, say food scientists.
+    p: 16 hrs ago Health
+    [link] Weekly quiz: What was wrong with the Spotify listing of Dolly Parton's Jolene?
+    p: How much attention did you pay to what happened in the world over the past seven days?
+    p: 23 hrs ago Culture
+H2 Most watched
+    [link] 1 What's at stake for Trump in the US midterms?
+    [link] 2 Sir Patrick Stewart: The life of an iconic actor
+    [link] 3 Voter voices: Which issues matter most to Americans?
+    [link] 4 'I made the wrong decision,' Hyrox athlete who soiled herself in race tells BBC
+    [link] 5 What we know about Binance's $6.3bn hack
+H2 Also in news
+    [link] Six dead after helicopter crashes in northern Indian state
+    p: The aircraft reportedly took off from the Hindu pilgrimage site of Badrinath on Friday afternoon before losing contact.
+    p: 2 hrs ago India
+    [link] Footage of Seoul crush to be removed from Call of Duty after backlash
+    p: Bereaved families say they were appalled to see footage of the Itaewon disaster included in Modern Warfare 4.
+    p: 5 hrs ago Newsbeat
+    [link] Russia's international ice hockey ban overturned
+    p: The Court of Arbitration for Sport overturns the ban on Russia by ice hockey's global governing body.
+    p: 5 hrs ago Ice Hockey
+    [link] Democratic senator blames Egypt press crackdown on US military aid decision
+    p: Chris Murphy said waiving a human rights condition on aid paved the way for arrests of journalists.
+    p: 2 hrs ago World
+    [link] China denies allegations of spy operation targeting Nvidia CEO
+    p: US intelligence officials believe a Chinese businesswoman was gathering information for Beijing on the US chip-making giant, The New York Times reports.
+    p: 5 hrs ago Asia
+    [link] Police watchdog to investigate Met over letter about Meghan's father
+    p: The police force faces probe over its handling of a letter containing allegations about Meghan's father.
+    p: 2 hrs ago UK
+    [link] Ronaldo closes in on 1,000th goal with hat-trick
+    p: Cristiano Ronaldo scores the 67th hat-trick of his career in Al-Nassr's 5-3 win against Al-Kholood in the Saudi Pro League.
+    p: 6 hrs ago Football
+H2 Most read
+    [link] US inmate Christa Pike says she woke up 'confused and in pain' after failed execution
+    [link] 'I made the wrong decision,' Hyrox athlete who soiled herself in race tells BBC
+    [link] Sir Ian McKellen leads tributes to 'beloved actor' Sir Patrick Stewart after his death at 86
+    [link] We went on holiday with our neighbours and swapped families - it tore us apart
+    [link] Google value plunges by $500bn as its own AI search hits ad sales
+    [link] Pope Leo XIV becomes first pontiff to vote in a US election
+    [link] Police Scotland carrying out 'active inquiries' into Andrew and Epstein Balmoral visits
+    [link] US tech stocks see sharp falls over AI cost fears
+    [link] Heartbroken bride visited Dad in hospital on wedding day
+    [link] Democrats have an identity crisis - it won't be an easy fix
+H2 Sport
+    [link] What Howe could bring to Man Utd - and what are the challenges?
+    p: Eddie Howe is being linked with the Manchester United job, but what are some of the considerations for him and the club?
+    p: 25 mins ago Man Utd
+    [link] Arteta warns Dowman 'we are not in Disneyland' after red card
+    p: Mikel Arteta says "we are not in Disneyland" and that he will hold Max Dowman to the same standards as other first-team players after the teenager's red card against Fleetwood.
+    p: 1 hr ago Arsenal
+    [link] From Barbie doll to bench - how Ellie Kildunne slipped from Red Roses' XV
+    p: Ellie Kildunne has been the Red Roses' figurehead throughout their rise to world champions, so why is she on the bench for Friday night's Test against the USA?
+    p: 29 mins ago England
+    [link] F1 has never had anyone like me - Hamilton
+    p: Lewis Hamilton says he is unlike any driver Formula 1 has seen before and reaffirms a determination to keep racing into his mid-forties.
+    p: 9 hrs ago Formula 1
+    [link] Britain's first £100m man facing defining moment
+    p: Is it 'now or never' for Jack Grealish after he was dropped by Everton for a breach of club discipline, asks chief football writer Phil McNulty?
+    p: 3 hrs ago Premier League
+    [link] South Africa show defiance to set Australia 288 to win third Test
+    p: Follow live text updates as South Africa face Australia in the series-deciding third Test at Newlands in Cape Town.
+    [link] Set up to fail? Where England's World Cup campaign went wrong
+    p: England's men and women endured different types of disappointment at the Rugby League World Cup on Friday - and the inquests have already begun.
+    p: 2 hrs ago Rugby League
+[button] Sift
