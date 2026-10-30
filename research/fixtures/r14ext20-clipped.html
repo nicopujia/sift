@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clipped headlines fixture (F1404)</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  main { width: 900px; margin: 0 auto; }
+  .sb { display: inline-block; vertical-align: top; width: 280px; margin-right: 10px; }
+  .sb a { display: block; padding: 6px 0; }
+  .sb img { width: 280px; height: 160px; display: block; }
+</style>
+</head>
+<body>
+<header><a href="/">Example News</a> <a href="/fx/news">News</a> <a href="/fx/sports">Sports</a></header>
+<main>
+<h1>Example News</h1>
+<!-- F1404: the site cuts each headline short in the page and keeps it whole in the link's title. -->
+<div class="sb">
+  <h2>Graphics</h2>
+  <a href="/fx/story/candy" title="Love or hate candy corn? See your state’s favorite Halloween treat">Love or hate candy corn? See your state’s favorite… <img src="https://picsum.photos/id/1080/280/160?r14d" alt=""></a>
+  <a href="/fx/story/trains" title="How did high-speed passenger trains collide? Nearly 70 dead in Spain crash">How did high-speed passenger trains collide? Nearly 70…</a>
+  <a href="/fx/story/houdini" title="Teller explains why Houdini fascinates us 100 years after his death">Teller explains why Houdini fascinates us 100 years after…</a>
+  <a href="/fx/story/horror" title="A super-fan's guide to horror's most obscure and disturbing finds">A super-fan's guide to horror's most obscure and…</a>
+</div>
+<div class="sb">
+  <h2>News in Pictures</h2>
+  <a href="/fx/story/koenig" title="Walter Koenig, who played Chekov on original Star Trek, has died at 90">Walter Koenig, who played Chekov on original Star Trek… <img src="https://picsum.photos/id/1081/280/160?r14e" alt=""></a>
+  <a href="/fx/story/brewers" title="Milwaukee fans line streets for Brewers celebration. See the moment">Milwaukee fans line streets for Brewers celebration. See…</a>
+  <a href="/fx/story/redcarpet" title="Ciara, Amy Poehler, Dua Lipa, more shine on red carpet at WSJ Awards">Ciara, Amy Poehler, Dua Lipa, more shine on red carpet at…</a>
+  <a href="/fx/story/other" title="A different headline">Arizona reports first New World screwworm case in…</a>
+</div>
+</main>
+</body>
+</html>

@@ -41,8 +41,18 @@ export function churned(n: Node, t: number, ms = 5000): boolean {
   return !!at && at.filter((x) => x < t && t - x < ms).length >= 2;
 }
 
+/** When the page itself last changed: not Sift's marks on it, nor its root and Sift's host. */
+let pageChanged = -Infinity;
+export const pageChangedAt = () => pageChanged;
+
 export function noteMutations(records: MutationRecord[]) {
   const now = performance.now();
+  for (const r of records) {
+    const t = r.target as Element;
+    if (t === document.documentElement || t.localName === "sift-root" || (r.type === "attributes" && (r.attributeName === "inert" || !!r.attributeName?.startsWith("data-sift")))) continue;
+    pageChanged = now;
+    break;
+  }
   // Not the parser building the page.
   if (document.readyState !== "loading") {
     for (const r of records) {

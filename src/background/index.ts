@@ -6,7 +6,7 @@ import type { AiReply, AiRequest, LineInput, ModelCfg, RuntimeMsg, Settings } fr
 import { mergeSettings } from "../shared/messages";
 import { cacheClear, cacheGet, cacheSet, cacheShorten } from "./cache";
 import { bump, flushStats } from "./stats";
-import { addsLink, addsSpeaker, claimsNoAnswer, dropRepeats, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, movesKicker, proseLang, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, swapsPerson, swapsRole, unquoted, unsupported } from "./text";
+import { addsLink, addsSpeaker, claimsNoAnswer, dropRepeats, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, movesKicker, proseLang, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, scriptShare, swapsPerson, swapsRole, unquoted, unsupported } from "./text";
 
 // ---------- settings ----------
 
@@ -543,10 +543,13 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
   const lineChars = mode === "about" ? 100 : 140;
   type Miss = (typeof misses)[number];
   /** One call for some of the entries: the error it ended in, if any, and the entries it gave no line for. */
-  const ask = async (part: Miss[], chain: ModelCfg[], tried?: { m: ModelCfg; e?: unknown }[]): Promise<{ err: unknown; left: Miss[] }> => {
+  // `firm`: asking again for lines that came back in another language, with the language spelled out.
+  const ask = async (part: Miss[], chain: ModelCfg[], tried?: { m: ModelCfg; e?: unknown }[], firm = false): Promise<{ err: unknown; left: Miss[] }> => {
     // Short ids keep the prompt small; map them back afterwards.
     const byShort = new Map(part.map((m, i) => [String(i + 1), m]));
-    const input = part.map((m, i) => ({ id: String(i + 1), lang: m.lang || undefined, title: m.it.t, context: m.it.c || undefined }));
+    const input = part.map((m, i) => ({ id: String(i + 1), lang: (firm && m.lang ? langName(m.lang) : m.lang) || undefined, title: m.it.t, context: m.it.c || undefined }));
+    const names = [...new Set(part.map((m) => m.lang && langName(m.lang)).filter(Boolean))].join(" or ");
+    const note = firm && names ? `Write every line in ${names}, the entry's "lang", even when its title and context are in another language: translate them. Lines in the title's language are wrong.\n\n` : "";
     let buf = "";
     const done = new Set<string>();
     const checks: Promise<void>[] = [];
@@ -575,11 +578,13 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
         const want = m.lang;
         // Models sometimes ignore the language they were given (an English title
         // came back in German, a Russian one in Persian). A line in another
-        // script or clearly in another language is dropped and the original
-        // title stays, remembered for a day so it is not paid for on every visit.
+        // script or clearly in another language is dropped and asked for once
+        // more, with the language spelled out (below); a second miss keeps the
+        // original title, remembered for a day so it is not paid for on every visit.
         checks.push(lineFits(text, want, m.it.t).then((ok) => {
           if (!ok) {
-            keepTitle(m, DAY);
+            if (!firm && want) wrong.push(m);
+            else keepTitle(m, DAY);
             return;
           }
           reply({ id: req.id, item: m.it.id, text });
@@ -601,7 +606,7 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
       chain,
       {
         system: mode === "gist" ? GIST_SYSTEM : mode === "news" ? NEWS_SYSTEM : LINES_SYSTEM,
-        user: JSON.stringify(input),
+        user: note + JSON.stringify(input),
         maxTokens: 120 + budget,
         minTokens: 60 + Math.round(budget / 2),
         signal,
@@ -643,6 +648,8 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
   let batchCalls = 0;
   const spent = () => pc.lineRetries ?? 0;
   const keepTitle = (m: Miss, ms: number) => useCache && cacheSet(m.key, KEEP_TITLE, Math.min(ttlOf(req, pc) ?? ms, ms));
+  /** Entries whose line came back in another language: asked for again once, after the rest (F1402). */
+  const wrong: Miss[] = [];
   // Larger parts first, so the calls the cap allows settle the most entries.
   const queue: { part: Miss[]; why?: unknown }[] = [{ part: misses }];
   for (let q = queue.shift(); q; q = queue.shift()) {
@@ -658,7 +665,10 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
     if (filtered) pc.lineRetries = spent() + tried.length;
     else if (why !== undefined) batchCalls += tried.length;
     if (!r.err) continue;
-    if (!finalIncomplete(r.err) || signal.aborted) throw r.err;
+    if (!finalIncomplete(r.err) || signal.aborted) {
+      for (const m of wrong) keepTitle(m, DAY);
+      throw r.err;
+    }
     if (!r.left.length) continue;
     if (why === undefined) one = [tried.find((t) => finalIncomplete(t.e))?.m ?? chain[0]];
     if (part.length === 1) {
@@ -683,6 +693,15 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
     }
     keepTitle(m, DAY);
   }
+  // Lines that came back in another language (the title's, often, when its context is long) are asked
+  // for once more, in one call, with the language named; those that miss again keep their titles (F1402, F1231).
+  let missed = wrong;
+  if (wrong.length && !signal.aborted && spent() < MAX_LINE_CALLS) {
+    const tried: { m: ModelCfg; e?: unknown }[] = [];
+    missed = (await ask(wrong, chain, tried, true)).left;
+    pc.lineRetries = spent() + tried.length;
+  }
+  for (const m of missed) keepTitle(m, DAY);
   if (unsettled) throw unsettled;
   reply({ id: req.id, done: true });
 }
@@ -695,6 +714,10 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
 async function lineFits(text: string, want: string, title: string): Promise<boolean> {
   if (!scriptFits(text, want ? langScript(want) : scriptOf(title), title)) return false;
   if (!want) return true;
+  // A line for a Latin-script language that is half in its title's own script
+  // ("تغییرات آپدیت Samsung One UI 6.0" on an English page) kept the title's language around its names.
+  const own = scriptOf(title);
+  if (own && own !== "latin" && langScript(want) === "latin" && scriptShare(text, own) >= 0.4) return false;
   const got = await entryLang(text, want, detect, true);
   return !got || got === want;
 }

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Round 14 ext20 fixture (F1403, F1405, F1409)</title>
+<meta name="author" content="Jane Doe and John Roe">
+<meta property="article:published_time" content="2026-10-30T16:52:00Z">
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  main { width: 760px; margin: 0 auto; }
+  article p { line-height: 1.6; }
+  /* F1409: Craigslist's gallery: the frame is 602 px, the clipping slider 600 px; photo 1 waits at the slider's right edge. */
+  figure.iw { width: 602px; margin: 0; }
+  .swipe { position: relative; width: 600px; height: 450px; overflow: hidden; }
+  .slide { position: absolute; top: 0; width: 600px; height: 450px; }
+  .slide img { width: 600px; height: 450px; display: block; }
+  #thumbs a { display: inline-block; }
+  #thumbs img { width: 50px; height: 50px; }
+  .hidden-cap { display: none; }
+</style>
+</head>
+<body>
+<header><a href="/">Example News</a></header>
+<main>
+<article class="story">
+  <!-- F1405: the topic row and byline box inside the story, before and after its title. -->
+  <div class="lbw"><div class="lbl"><a href="/fx/">NEWS</a></div><div class="fyt"><div>Riverside parks</div><div><button type="button">Add Topic</button></div></div></div>
+  <h1>City council approves the new riverside park after a long debate</h1>
+  <div class="by"><a href="/staff/jane-doe/">Jane Doe</a> <a href="/staff/john-roe/">John Roe</a><div>EXAMPLE NEWS</div></div>
+  <div class="dt">Updated Oct. 30, 2026, 2:04 p.m. ET</div>
+  <!-- F1403: the lead figure holds a hidden caption, then the shown one. -->
+  <figure class="lead">
+    <img src="https://picsum.photos/id/1015/700/420?r14ext20" width="700" height="420" alt="The old rail yards">
+    <div class="hidden-cap"><figcaption>The old rail yards by the river. Photograph: Jane Doe</figcaption></div>
+    <span><figcaption>The old rail yards by the river, where the park will go. Photograph: Jane Doe</figcaption></span>
+  </figure>
+  <p>The city council voted on Monday to approve a new riverside park on the old rail yards, ending a debate that lasted almost two years and split the neighborhood into two loud camps.</p>
+  <p>Supporters said the park would bring shade, a playground and a path along the water. Opponents worried about the cost, which the city puts at 42 million dollars over five years.</p>
+  <p>The first phase starts in spring. It covers the path and the playground. The second phase adds a boat launch and a small market hall, if the budget allows it.</p>
+  <figure class="iw multiimage">
+    <div class="swipe">
+      <div class="slide" style="left:600px"><img src="https://picsum.photos/id/1011/600/450?r14a" alt="Bike 1"></div>
+      <div class="slide" style="left:-600px"><img src="https://picsum.photos/id/1012/600/450?r14b" alt="Bike 2"></div>
+      <div class="slide" style="left:0"><img src="https://picsum.photos/id/1013/600/450?r14c" alt="Bike 3"></div>
+    </div>
+    <div id="thumbs">
+      <a href="#1"><img src="https://picsum.photos/id/1011/50/50?r14a" alt="Bike 1 thumbnail"></a>
+      <a href="#2"><img src="https://picsum.photos/id/1012/50/50?r14b" alt="Bike 2 thumbnail"></a>
+      <a href="#3"><img src="https://picsum.photos/id/1013/50/50?r14c" alt="Bike 3 thumbnail"></a>
+    </div>
+  </figure>
+  <p>The park opens to the public in two years, the council said, once the path and the playground are done and the soil on the old rail yards is clean.</p>
+</article>
+</main>
+</body>
+</html>

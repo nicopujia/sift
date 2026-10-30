@@ -94,6 +94,18 @@ export function scriptFits(text: string, script: string, source?: string): boole
   return !all || (third < 2 && mine / all >= (script === "latin" ? 0.5 : 0.3));
 }
 
+/** The share of a text's letters written in `script`: 0 when it has no letters. */
+export function scriptShare(text: string, script: string): number {
+  let all = 0;
+  let mine = 0;
+  for (const [name, re] of SCRIPTS) {
+    const n = text.match(re)?.length ?? 0;
+    all += n;
+    if (name === script) mine += n;
+  }
+  return all ? mine / all : 0;
+}
+
 // ---------- per-entry language ----------
 
 // Frequent short words per language. Language detection on a short title is

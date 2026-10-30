@@ -23,7 +23,7 @@ import { CSS } from "./ui/styles";
 import { H, changed, local, onEnter, onKeys, setRenderer, store } from "./ui/store";
 import { processAi, resetAi, setAiReady } from "./ai";
 import { setLang, t } from "./i18n";
-import { armRecent, noteMutations, clearRecent, noteEntered } from "./recent";
+import { armRecent, noteMutations, clearRecent, noteEntered, pageChangedAt } from "./recent";
 import { askConsent, consentWallUp, cutShort, findToast } from "./extract/generic";
 
 const MODE_KEY = "sift:mode";
@@ -533,7 +533,8 @@ function boot() {
       rescuing = false;
       if (done) return;
     }
-    refocus(spot, heads);
+    // The page focused what the control became (a name turned editable as Rename was pressed): there, not the next control (F1412).
+    if (!(pageFocusTo && followPageFocus())) refocus(spot, heads);
     if (searchOpener) searchWait = { at: Date.now(), el: shadow.activeElement };
     // The user's action removed the entry focus was in (Delete, Archive): say so, since
     // focus now sits on the same button of the next one. Not when it opened another
@@ -2730,7 +2731,11 @@ function boot() {
   });
   addEventListener("load", loadedAgain);
   // Inputs change without DOM mutations; catch up after the user acts.
-  host.addEventListener("click", () => setTimeout(() => schedule(0), 120));
+  // Not after a link to a place in the page that changed nothing there (F1411; afterAct looks once it does).
+  host.addEventListener("click", () => {
+    const jump = performance.now() - jumpAt < 50;
+    setTimeout(() => (!jump || pageChangedAt() >= jumpAt) && schedule(0), 120);
+  });
 
   // ---------- infinite lists: scrolling Sift near the end loads more ----------
   let lastNudge = 0;
@@ -3188,12 +3193,19 @@ function boot() {
     flushBlur();
   }
 
-  /** `keep`: the action was inside the popup Sift shows (a box checked there): what opened it stays found. */
-  const afterAct = (keep = false) => {
-    actedAt = performance.now();
+  /**
+   * `keep`: the action was inside the popup Sift shows (a box checked there): what opened it stays found.
+   * `jump`: a link to a place in the page, which often changes nothing there (HN's "next"): a look, most
+   * of a second on a long thread, only once the page did change (F1411).
+   */
+  const afterAct = (keep = false, jump = false) => {
+    const at = (actedAt = performance.now());
     armRecent(2500, keep);
-    for (const d of [60, 400, 1200]) setTimeout(() => schedule(0), d);
+    if (jump) jumpAt = at;
+    for (const d of [60, 400, 1200]) setTimeout(() => (!jump || pageChangedAt() >= at) && schedule(0), d);
   };
+  /** When the user last followed a link to a place in the page. */
+  let jumpAt = -Infinity;
   /** `el` is inside the page popup or dialog Sift shows as a sheet. */
   const inShownDialog = (el: Element | null) => {
     const d = store.page?.dialog;
@@ -3246,28 +3258,37 @@ function boot() {
    * A same-page link ("22 comments" to #commentsFeed): after the page handled
    * it, show that place in Sift as the browser would in the page. The block
    * holding the target (or the first after it), with every closed section
-   * around it opened, is scrolled to and focused.
+   * around it opened, is scrolled to and focused. True when the place is in
+   * the page already (a jump, not a link that builds it).
    */
-  function followAnchor(href: string | undefined) {
+  function followAnchor(href: string | undefined): boolean {
     let u: URL;
     try {
       u = new URL(href ?? "", location.href);
     } catch {
-      return;
+      return false;
     }
-    if (u.hash.length < 2 || u.href.split("#")[0] !== location.href.split("#")[0]) return;
+    if (u.hash.length < 2 || u.href.split("#")[0] !== location.href.split("#")[0]) return false;
     let id = u.hash.slice(1);
     try {
       id = decodeURIComponent(id);
     } catch {
       /* not encoded */
     }
+    const find = () => document.getElementById(id) ?? document.getElementsByName(id)[0];
+    const at = performance.now();
+    const there = !!find();
     // The page may build or open the target on the click (a comments feed).
-    setTimeout(() => {
-      const target = document.getElementById(id) ?? document.getElementsByName(id)[0];
+    const show = () => {
+      const target = find();
       // The page moved focus there itself (an error link to its field): Sift followed it already.
       if (target && performance.now() - pageFocusAt > 1000) showPlace(target);
-    }, 150);
+    };
+    // A place already there that the click changed nothing around (HN's "next"): shown at once,
+    // before Sift's next look at the page, as the page starts scrolling there (F1411).
+    if (there) setTimeout(() => (pageChangedAt() >= at ? setTimeout(show, 150) : show()), 0);
+    else setTimeout(show, 150);
+    return there;
   }
 
   /**
@@ -3391,29 +3412,37 @@ function boot() {
     // Not a page focusing things on its own (an autofocus on load).
     if (Date.now() - store.actAt > 2000 && performance.now() - actedAt > 2000) return;
     pageFocusTo = { el, at: performance.now() };
-    setTimeout(followPageFocus, 0);
+    setTimeout(() => followPageFocus(true), 0);
   });
-  function followPageFocus() {
+  /** True when it put focus on Sift's control for that place. `early`: before Sift's next look at the page. */
+  function followPageFocus(early = false): boolean {
     const to = pageFocusTo;
-    if (!to || store.mode !== "sift") return;
+    if (!to || store.mode !== "sift") return false;
     if (performance.now() - to.at > 2500 || !to.el.isConnected) {
       pageFocusTo = null;
-      return;
+      return false;
     }
     // Sift's control for it, in the open sheet if there is one.
     const layer = shadow.querySelector(".layer");
     const ref = window.CSS.escape(refOf(to.el));
-    const ctl = Array.from((layer ?? shadow).querySelectorAll<HTMLElement>(`[data-ref="${ref}"]`)).find((c) => c.matches(FOCUSABLE) && c.getClientRects().length > 0);
+    const ctls = Array.from((layer ?? shadow).querySelectorAll<HTMLElement>(`[data-ref="${ref}"]`)).filter((c) => c.matches(FOCUSABLE) && c.getClientRects().length > 0);
+    // The page made the element a field as it focused it (a name renamed in place): Sift's field for it,
+    // which the next render shows; not the button still there for it, where typing presses other controls (F1412).
+    const typable = (to.el as HTMLElement).isContentEditable || to.el.matches("textarea, input:not([type=button], [type=submit], [type=reset], [type=image], [type=checkbox], [type=radio])");
+    const isField = (c: Element) => c.matches("input, textarea, select, [contenteditable]");
+    // Before the next look (`early`), only that field; a look that still shows a button for it: the button.
+    const ctl = typable ? ctls.find(isField) ?? (early ? undefined : ctls[0]) : ctls[0];
+    if (!ctl && ctls.length) return false;
     // A search opened from Sift's bar starts in its box, though the site's panel focuses a button
     // (BBC's menu focuses its "Search" button). A box the page has not enabled yet is waited for.
     if (ctl && layer && performance.now() - searchOpenedAt < 4000 && !ctl.matches("input, textarea")) {
       const box = layer.querySelector<HTMLInputElement>("input[type=search], input[type=text], input:not([type])");
       if (box) {
-        if (box.disabled) return;
+        if (box.disabled) return false;
         pageFocusTo = null;
         pageFocusAt = performance.now();
         if (shadow.activeElement !== box) box.focus();
-        return;
+        return true;
       }
     }
     if (ctl || (!layer && !shadow.querySelector(".suggest") && showPlace(to.el, false))) {
@@ -3430,8 +3459,24 @@ function boot() {
           } catch {
             /* a type with no selection */
           }
+        // An element the page made editable: the caret where the page's selection is in it, else at the
+        // end, where a click on the name puts it; not at the start, before the old text (F1412).
+        else if ((to.el as HTMLElement).isContentEditable && ctl.localName === "textarea") {
+          const f = ctl as HTMLTextAreaElement;
+          const s = getSelection();
+          let at = f.value.length;
+          if (s?.rangeCount && to.el.contains(s.anchorNode)) {
+            const r = document.createRange();
+            r.selectNodeContents(to.el);
+            r.setEnd(s.anchorNode!, s.anchorOffset);
+            at = Math.min(at, r.toString().length);
+          }
+          f.setSelectionRange(at, at);
+        }
       }
+      return !!ctl;
     }
+    return false;
   }
 
   Object.assign(H, {
@@ -3482,8 +3527,7 @@ function boot() {
             notify(problem);
             focusInvalid((el as HTMLButtonElement).form);
           }
-          afterAct(keep);
-          if (el.localName === "a") followAnchor((el as HTMLAnchorElement).href);
+          afterAct(keep, el.localName === "a" && followAnchor((el as HTMLAnchorElement).href));
         };
         go();
       } else if (href) {

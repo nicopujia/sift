@@ -109,7 +109,7 @@ function dateLine(text: string): boolean {
   if (!text || text.length > 120 || !/\d/.test(text)) return false;
   const rest = text
     .replace(/\d{1,2}(\s+de)?\s+[\p{L}.]+(\s+de)?\s+\d{4}|[\p{L}.]+\s+\d{1,2},?\s+\d{4}|\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{2}-\d{2}/giu, "")
-    .replace(/\d{1,2}:\d{2}(\s?[ap]\.?m\.?)?(\s?hs?\.?)?|\b[A-Z]{2,4}T\b/g, "")
+    .replace(/\d{1,2}:\d{2}(\s?[ap]\.?m\.?)?(\s?hs?\.?)?|\b([A-Z]{2,4}|[ECMP])T\b/g, "")
     .replace(/(hace\s+)?\d+\s+(seconds?|segundos?|minutes?|minutos?|mins?|hours?|horas?|hrs?|days?|d[ií]as?|weeks?|semanas?|months?|meses|years?|años?)\b(\s+ago)?/giu, "")
     .replace(/\d+\s*['’′]?\s*(min(utos?)?\.?|minutes?)(\s+(de lectura|read|reading))?|(tiempo de )?lectura:?|updated:?|actualizado:?|published:?|publicado:?|\b(on|el|at|a las|de lectura|read)\b/gi, "")
     // Reading time in minutes drawn as "6'" (La Nación on a narrow screen).
@@ -1346,7 +1346,7 @@ export function inlineNodes(nodes: Node[], ctx: Ctx | null = null, buttons = fal
         // (A heading's own anchor, "Permalink: Install" or "Direct link to Install", goes nowhere in Sift.)
         const iconCtl = !textIn(e) && e.hasAttribute("aria-label") && e.getAttribute("aria-disabled") !== "true" && !BACKLINK.test(clean(e.getAttribute("aria-label"))) && !ANCHOR_NAME.test(clean(e.getAttribute("aria-label"))) && inPage(e) && usefulControl(e, labelOf(e), ctx);
         if (inPage(e) && !iconCtl && (!textIn(e) || BACKLINK.test(textIn(e)) || BACKLINK.test(clean(e.getAttribute("aria-label"))) || (textIn(e).length <= 3 && !!e.parentElement && /^(\^|↑|jump up)/i.test(textIn(e.parentElement))))) continue;
-        let label = textIn(e) || accName(e);
+        let label = unclipped(e, textIn(e)) || accName(e);
         // A pager's arrow ("›", ">>") says where it goes.
         if (label.length <= 3 && /^[<>‹›«»←→\s]+$/.test(label)) label = pagerLabel(e, label);
         // A link that is only a logo ("Wikibooks logo") says nothing in a sentence,
@@ -3277,6 +3277,8 @@ export function toItem(el: Element, ctx: Ctx): Item | null {
   if (!title) title = textLines(el)[0] ?? "";
   title = clean(title);
   if (!title) return null;
+  // A headline the site cut short ("… Nearly 70…") that its link holds in full in its title (USA Today, F1404).
+  if (main && (titleFromLink || (heading && (heading.contains(main) || main.contains(heading))))) title = unclipped(main, title);
   // A heading or link that holds the entry's name and then a snippet in smaller type
   // (a search result): the first line is the name, the rest its snippet.
   let snippet = "";
@@ -4515,6 +4517,10 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
   if (ctx.hasByline && BYLINE_TOKEN.test(tk) && tlen(el) < 300 && bylineZone(el, ctx, 2)) return;
   // The author's name alone over the story, already said in Sift's byline (La Nación's long-form "Guido Bovone" link, F827).
   if (ctx.byName && tlen(el) < 80 && !heading(el) && norm(textIn(el)) === norm(ctx.byName) && bylineZone(el, ctx, 2)) return;
+  // The site's byline box under another name (USA Today's div.gnt_ar_by): links to the authors Sift's byline names and the outlet's name (F1405).
+  if (ctx.byName && tlen(el) < 120 && !heading(el) && authorsBox(el, ctx.byName) && bylineZone(el, ctx, 2)) return;
+  // A topic to follow over the story ("U.S. Immigration and Customs Enforcement" and "Add Topic", USA Today): the reader's feed, not the story (F1405).
+  if (ctx.hasByline && tlen(el) < 120 && !heading(el) && followTopic(el) && bylineZone(el, ctx, 2)) return;
   // A count over the story ("108" on La Nación's comments button): a number is not an action to offer (F827).
   if (ctx.hasByline && el.matches("button, [role=button]") && /^\d[\d.,]*\s*[kKmM]?$/.test(textIn(el)) && bylineZone(el, ctx, 2)) return;
   // Sift shows the date in its own byline; the site's date and reading-time line goes.
@@ -4880,7 +4886,7 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
         out.push({ t: "img", key: "img:" + refOf(shot.img), img: shot.im, href, ref: refOf(el) });
         return;
       }
-      const label = labelOf(el);
+      const label = unclipped(el, labelOf(el));
       if (!usefulControl(el, label, ctx) || isFragment(label)) return;
       // A long link to "#" in a story (a key point a script scrolls to) goes nowhere in Sift: it reads as text.
       // Elsewhere it is kept: a script may handle it in place (a question that opens its answer).
@@ -5074,6 +5080,26 @@ function controlSentence(el: Element, ctx: Ctx): Inline[] | null {
   if (isPromo(content, ctx.inArticle)) return null;
   // Words around the controls, not a toolbar of buttons with a count beside them.
   return content.some((x) => typeof x === "string" && /\p{L}{2}/u.test(x)) ? content : null;
+}
+
+/** A box of links to the authors Sift's byline already names, with at most the outlet's name beside them ("USA TODAY"). */
+function authorsBox(el: Element, byName: string): boolean {
+  const links = Array.from(el.querySelectorAll("a[href]")).filter((a) => textIn(a));
+  if (!links.length || el.querySelector("figure, video, iframe, input, select, textarea")) return false;
+  const by = norm(byName);
+  if (!links.every((a) => by.includes(norm(textIn(a))))) return false;
+  return textExcept(el, new Set(links)).replace(/\b(by|and|por|y|de|von|par|et)\b|[,&·|]/gi, "").trim().length <= 30;
+}
+
+/** A "follow this topic" button. */
+const FOLLOW_TOPIC = /^\+?\s*((add|follow|unfollow|remove)( this)? (topic|tag)|(seguir|agregar|dejar de seguir) (el |este )?tema|suivre (ce |le )?sujet)$/i;
+
+/** A topic's name and the button to follow it, with no link: a feed setting, not the story. */
+function followTopic(el: Element): boolean {
+  const btns = Array.from(el.querySelectorAll("button, [role=button]"));
+  if (btns.length !== 1 || el.querySelector("a[href], input, select, textarea, img, figure, video, iframe")) return false;
+  const lab = labelOf(btns[0]) || textIn(btns[0]);
+  return FOLLOW_TOPIC.test(lab) && textIn(el).length - lab.length <= 80;
 }
 
 /** A story's header: after its title comes a standfirst (a paragraph of its own words), not menus and a logo. */
@@ -5746,7 +5772,8 @@ export function proseArticle(blocks: Block[]): boolean {
           break;
         }
         case "form":
-          if (b.fields.length) fields = true;
+          // Reaction pills under a post ("👍 2 reactions") are toggles, not a form to fill (F1408).
+          if (b.fields.some((f) => !(f.kind === "checkbox" && REACTION.test(`${f.label} ${f.desc ?? ""}`)))) fields = true;
           actions += b.actions.length;
           break;
         case "actions":
@@ -5782,6 +5809,9 @@ export function proseArticle(blocks: Block[]): boolean {
   // A long story may carry a few more buttons (listen, key points, summary) than a short one.
   return !fields && !surface && answers < 2 && terms < 4 && sections < 4 && actions <= 6 + Math.floor(prose / 1500) && itemText < total * 0.2 && prose >= total * 0.6 && links < total * 0.35;
 }
+
+/** A post's reaction toggle: "👍 2 reactions", "React with 👍". */
+const REACTION = /\breactions?\b|\breact with\b|\breacci[oó]n(es)?\b|\brea[cç](ão|ões)\b/i;
 
 /** Buttons that open a story's photos: a gallery, a bigger view. */
 const PHOTO_ACTION = /gallery|galer[ií]a|enlarge|zoom|ampliar|(view|open|see) (photo|image|picture)s?|ver (foto|imagen)|abrir imagen|open image/i;
@@ -6286,6 +6316,17 @@ function rowListInto(rows: HTMLTableRowElement[], out: Out, ctx: Ctx): boolean {
   return true;
 }
 
+/**
+ * A link's words that the site cut short with an ellipsis ("How did high-speed passenger trains collide? Nearly 70…"),
+ * in full from the link's title when that starts with them (USA Today's headline lists, F1404).
+ */
+function unclipped(a: Element, text: string): string {
+  const m = /^([\s\S]{10,}?)\s*(…|\.\.\.)$/.exec(text);
+  if (!m || !a.hasAttribute("title")) return text;
+  const full = clean(a.getAttribute("title"));
+  return full.length > m[1].length + 1 && full.startsWith(m[1]) ? full : text;
+}
+
 /** An element's visible text without the words of some of its links, with their separators tidied. */
 function textExcept(el: Element, skip: Set<Element>): string {
   let s = "";
@@ -6346,6 +6387,14 @@ function figureImage(el: Element): HTMLImageElement | null {
     return r.width > 0 && r.left < fr.right - 1 && r.right > fr.left + 1 && r.top < fr.bottom - 1 && r.bottom > fr.top + 1;
   });
   if (framed.length) imgs = framed;
+  // The next slide waiting at the frame's edge shows only a sliver of itself: the photo shown is the one
+  // most inside the frame (Craigslist's 3-photo gallery: photo 1 waits 2 px inside while photo 3 is shown, F1409).
+  const inside = (im: HTMLImageElement) => {
+    const r = im.getBoundingClientRect();
+    return Math.max(0, Math.min(r.right, fr.right) - Math.max(r.left, fr.left)) * Math.max(0, Math.min(r.bottom, fr.bottom) - Math.max(r.top, fr.top));
+  };
+  const most = framed.length > 1 ? Math.max(...framed.map(inside)) : 0;
+  if (most > 0) imgs = imgs.filter((im) => inside(im) >= most / 2);
   let best: HTMLImageElement | null = null;
   let bestW = -1;
   for (const im of imgs) {
@@ -6371,14 +6420,14 @@ function figure(el: Element, out: Out, ctx: Ctx) {
       out.push(b);
       // The player stands for the figure: its poster image is not shown again.
       if (!(el.localName === "figure" && el.querySelector("table, pre, blockquote, p"))) {
-        const c = el.querySelector("figcaption");
+        const c = shownCaption(el);
         const tx = c ? textIn(c) : "";
         if (tx) out.push({ t: "p", key: "p:" + refOf(c!), content: [tx], small: true });
         return;
       }
     }
   }
-  let cap: Element | null = el.localName === "img" ? null : el.querySelector("figcaption");
+  let cap: Element | null = el.localName === "img" ? null : shownCaption(el);
   const rich = el.localName === "figure" && !!el.querySelector("table, pre, blockquote, p");
   // A figure that holds a table, code, or a quote: read its content normally.
   // The caption and a link around the photo go with the image block instead.
@@ -6519,6 +6568,15 @@ function bgPicture(a: Element): Img | null {
     return { src: m[1], alt: "", w: Math.round(er.width), h: Math.round(er.height) };
   }
   return null;
+}
+
+/**
+ * A figure's caption: the first one shown, not a hidden copy before it (The Guardian's lead photo
+ * holds a hidden figcaption, then the shown one, F1403). The first one when none is shown.
+ */
+function shownCaption(el: Element): Element | null {
+  const caps = Array.from(el.querySelectorAll("figcaption"));
+  return caps.length > 1 ? caps.find((c) => textIn(c)) ?? caps[0] : caps[0] ?? null;
 }
 
 /** Caption text, with the photo credit kept apart from the caption ("… Karina Milei · Fabian Marelli"). */
@@ -6922,6 +6980,10 @@ export function findTop(): Action[] {
   // A way to sign out takes a slot only when one is left: it never pushes the cart or account into the Menu (F1307).
   const leave: Action[] = [];
   const seen = new Set<string>();
+  // In the page's order, as Tab goes there: the sign-in buttons of a panel the account button opened
+  // (Infobae's nav#right-panel, found before its div header) come after that button (F1406).
+  const at = new Map<Action, Element>();
+  const inOrder = (a: Action[]) => a.sort((x, y) => (at.get(x)!.compareDocumentPosition(at.get(y)!) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
   for (const r of roots) {
     for (const el of Array.from(r.querySelectorAll("a[href],button,span,div"))) {
       // A plain span a script makes clickable ("Sign In" on TOI, no role or link): one with no boxes inside, that says it signs in (F823).
@@ -6948,11 +7010,13 @@ export function findTop(): Action[] {
         leave.push(toAction(el, label));
         continue;
       }
-      out.push(toAction(el, label));
-      if (out.length >= 4) return withPicker(out, roots);
+      const a = toAction(el, label);
+      at.set(a, el);
+      out.push(a);
+      if (out.length >= 4) return withPicker(inOrder(out), roots);
     }
   }
-  return withPicker([...out, ...leave].slice(0, 4), roots);
+  return withPicker([...inOrder(out), ...leave].slice(0, 4), roots);
 }
 const SIGN_OUT = /\b(sign ?out|log ?out|log ?off|cerrar sesi[oó]n|salir|sair|terminar sess[aã]o|abmelden|se d[ée]connecter|d[ée]connexion|esci|disconnetti)\b/i;
 
@@ -8338,15 +8402,23 @@ function dropTitleRepeat(blocks: Block[], title: string) {
  */
 function dropKicker(blocks: Block[]) {
   const h = blocks.findIndex((b) => b.t === "h" && b.level === 1);
-  const at = h > 0 ? h - 1 : h < 0 && blocks[1]?.t === "article" ? 0 : -1;
-  const b = blocks[at];
+  let at = h > 0 ? h - 1 : h < 0 && blocks[1]?.t === "article" ? 0 : -1;
+  let list = blocks;
+  // Or first in the story's own box, over the title Sift showed above it (USA Today's "NATION", F1405).
+  const art = at < 0 ? blocks[h + 1] : undefined;
+  if (art?.t === "article") {
+    list = art.blocks;
+    at = 0;
+  }
+  const b = list[at];
   if (!b || b.t !== "ul" || b.items.length !== 1 || b.items[0].length !== 1) return;
   const x = b.items[0][0];
   if (typeof x !== "object" || !("a" in x) || !x.href || x.a.length > 30) return;
   try {
     const u = new URL(x.href, document.baseURI);
     const path = u.pathname.replace(/\/+$/, "");
-    if (u.host === location.host && path.length > 1 && location.pathname.startsWith(path + "/") && location.pathname.length > path.length + 1) blocks.splice(at, 1);
+    // A parent of this page's address, or its sections inside it ("/news/nation" in "/story/news/nation/2026/…").
+    if (u.host === location.host && path.length > 1 && location.pathname.includes(path + "/") && location.pathname.length > path.length + 1) list.splice(at, 1);
   } catch {
     // Not a URL.
   }

@@ -1,0 +1,179 @@
+{
+  "summary": "Sift fixers, each in its own copy, fix the round 14 findings for their group",
+  "agentCount": 3,
+  "logs": [],
+  "result": [
+    {
+      "g": "ext20",
+      "findings": [
+        {
+          "id": "F1409",
+          "status": "fixed",
+          "change": "figureImage now compares the framed photos by how much of each lies inside the figure's box and drops any with less than half the largest share, so the 2 px edge of the next slide no longer wins on DOM order; after that the widest photo still wins, as before.",
+          "verified": "Live 3-photo Craigslist listing: Image 1/2/3 show 00t0t/00N0N/00c0c with the right aria-pressed each time (before the fix, Image 3 showed 00t0t). The 5-photo listing still matches the original on Image 3, 5 and 1. New fixture fx/r14ext20-furniture.html shows Bike 3 (the baseline build showed Bike 1)."
+        },
+        {
+          "id": "F1403",
+          "status": "fixed",
+          "change": "New shownCaption(el) picks the first figcaption with visible text instead of the first one in the DOM. figure() uses it in both the player branch and the photo branch.",
+          "verified": "Live Guardian Dolomites and Pope Leo articles: the lead photo now has its caption in both the Short version and the full text, and later captions are unchanged. The fixture's lead figure has its shown caption (the baseline had none)."
+        },
+        {
+          "id": "F1404",
+          "status": "fixed",
+          "change": "New unclipped(a, text) uses the link's title attribute when the visible text ends in '…' or '...' and the title starts with that text and is longer. It is applied to toItem titles taken from a link or a heading's link, to inline links in inlineNodes, and to plain links in visit's anchor branch (label = unclipped(el, labelOf(el))).",
+          "verified": "Live USA Today home: clipped links went from 16 to 2, and both remaining ones have no title attribute (only a data-sc-br brief), so there is nothing to restore from. Before/after outline diff of usahome shows only headlines made whole (for example 'Nearly 70 dead in Spain crash'). New fixture fx/r14ext20-clipped.html is restored in full, and a title that does not match is left alone."
+        },
+        {
+          "id": "F1405",
+          "status": "fixed",
+          "change": "Four small changes in visit and its helpers: authorsBox skips a box of author links whose names are all in Sift's byline, plus the outlet's name. followTopic skips a topic name with its single 'Add/Follow topic' button. dateLine now accepts US zone abbreviations ET/CT/MT/PT. dropKicker also checks the first block of the story and accepts a section path found inside the page path ('/news/nation' within '/story/news/nation/…').",
+          "verified": "Live USA Today ICE article: the Short version and the full text both start straight with story text. NATION, the topic, Add Topic, the author links, USA TODAY and the 'Updated … ET' line are all gone (before/after outline diff shows only those 7 lines removed). The fixture shows the same, and the baseline still showed them."
+        }
+      ],
+      "files": [
+        "src/content/extract/generic.ts"
+      ],
+      "notes": "All edits are in src/content/extract/generic.ts. I did not touch index.ts. New helpers, all local to generic.ts: unclipped (beside textExcept), shownCaption (beside captionText), authorsBox, FOLLOW_TOPIC and followTopic (beside storyHeader). Two shared functions changed behavior. dateLine now also treats ET/CT/MT/PT as time zones, which widens what counts as a date line everywhere it is used. dropKicker can now also remove a lone section link that is the story's first block, and it matches a section path anywhere inside the page path, not only as a prefix. The new visit rules sit right after the existing byName rule (about line 4519), so look there first if the merge with other generic.ts groups conflicts. No model fields, CSS or CustomEvents were added. New fixtures: /home/nico/projects/sift/research/fixtures/r14ext20-furniture.html (F1403, F1405, F1409; served at fx/r14ext20-furniture.html) and /home/nico/projects/sift/research/fixtures/r14ext20-clipped.html (F1404). The baseline build fails both fixtures and this build passes them. Regression check: I compared full outlines before and after (main's generic.ts against mine, same Chrome) on BBC article and home, Guardian home and Dolomites article, YouTube watch (live) plus home and search snapshots, amazon-search, amazon-product-blocked, the amazon-product and amazon-cart fixtures, the Gmail fixture, Daily Mail article and home, Infobae article and byline snapshots, a Craigslist listing, and USA Today home and article. Structure is identical everywhere except the intended changes. The other text differences are model one-liners and live counters. I made 1 to 2 model calls in all, for new Short versions on the USA Today article. Not done: on USA Today home, 2 of 12 cut-off headlines stay cut off because the page holds no full headline for them. Chrome on port 9481 is stopped. I started no servers."
+    },
+    {
+      "g": "int17",
+      "findings": [
+        {
+          "id": "F1412",
+          "status": "fixed",
+          "change": "index.ts: followPageFocus(early) waits for the next render when the page made the element editable but Sift still shows a button for it; paint() calls followPageFocus() before refocus() so focus goes straight to the new textarea and not to the next control; the caret goes where the page's selection is, else at the end.",
+          "verified": "Both fixtures (r11int-focusclose, r12int-focusportal). Mouse click at 300 ms, 1.5 s and 5 s, then typing ' and bread' and Tab, logs 'edit ended: Groceries and bread'. The keyboard path (Enter, XY, Tab) logs 'edit ended: GroceriesXY'. A focusin trace shows no stop on 'Invite people'. Before the fix the copy gave ['editing','share open']."
+        },
+        {
+          "id": "F1102",
+          "status": "fixed",
+          "change": "Same change as F1412: the rename case no longer depends on when the click comes.",
+          "verified": "At 5 s on both fixtures: Rename passes by mouse and by keyboard. Account still gives ['menu open'] with focus on Account. Invite people still gives ['share open'] with focus on 'Copy invite link'."
+        },
+        {
+          "id": "F1411",
+          "status": "fixed",
+          "change": "index.ts: for a same-page link whose target already exists, followAnchor shows the place at 0 ms when the click changed nothing in the page (otherwise the old 150 ms path). afterAct's 60/400/1200 ms looks and the host-click look then run only once the page actually changes, read from recent.ts's new pageChangedAt().",
+          "verified": "Live HN item 50224463 (677 comments). Baseline on my copy: focus at 2542 ms, long tasks 1526/117/769/696 ms. After the fix: focus at 127 ms, one 83 ms task. next, next, next, prev land on fwlr, ttul, jstanley, ttul at y=74. parent, root, parent and prev links each land on their href's comment. HN then started rate-limiting, so I did no more runs."
+        },
+        {
+          "id": "F1406",
+          "status": "fixed",
+          "change": "generic.ts findTop: the chosen top-bar actions are sorted by document position before returning. The selection and the cap of 4 are unchanged.",
+          "verified": "Live Infobae at 640x450@2. After Enter on Cuenta, the bar reads Menú, Buscar, Cuenta, REGISTRARME, INICIAR SESIÓN. Focus stays on Cuenta, and Tab goes to REGISTRARME, then INICIAR SESIÓN. Enter there opens the dialog with focus in the email input, and Escape returns. Before the fix, Tab went to the first headline."
+        }
+      ],
+      "files": [
+        "src/content/index.ts",
+        "src/content/recent.ts",
+        "src/content/extract/generic.ts"
+      ],
+      "notes": "Status: all four findings are fixed, and bun run typecheck and bun run build are clean. Chrome on port 9482 is stopped. I added no fixtures.\n\nNew things other groups should know:\n- recent.ts exports a new pageChangedAt(): when the page itself last changed. It skips Sift's host, the html element, inert and data-sift-* attributes. It is set in noteMutations.\n- followPageFocus now returns a boolean and takes an optional `early` argument. The sift-focus listener passes true.\n- afterAct takes a second optional `jump` argument.\n- followAnchor now returns a boolean (true when the target already exists).\n- I added no new model fields and no new CustomEvent names.\n\nEdits in index.ts (none in schedule(), run() or fillScreen):\n- paint(): one line before refocus(), which now runs as `if (!(pageFocusTo && followPageFocus())) refocus(spot, heads);`.\n- The host click listener near the 'Inputs change without DOM mutations' comment is gated for jumps.\n- afterAct, followAnchor, followPageFocus, and the link line in H.act's go().\n\ngeneric.ts (not my file, small change): findTop sorts the actions it picked by document position (F1406). Only the order changes, so the tab order now matches the page's DOM. Checked bars: BBC is Menu|Search|Sign In, Infobae at 1280 is REGISTRARME|INICIAR SESION, Guardian and La Nación look the same as before. The Amazon, YouTube and Gmail adapters have their own top bars and are not affected.\n\nRegression checks, all as works.md lists:\n- Pinch of Yum anchors #watch, #faq, #comments and #respond (y = 71 or 72).\n- Python docs 'pure paths' lands on the H2 at y=73.\n- r10-review error links focus Sift's Title field and first star.\n- r6-inlineedit: Edit selects the text, and saving logs and returns focus to Edit.\n- Gmail fixture: mouse compose sends correctly, and Delete says 'Removed: …'.\n- Amazon cart fixture: + changes the item count, and the Amazon search snapshot shows 16 items.\n- YouTube home, search (34 items) and watch (1 portal) render.\n- A BBC article shows its H1 and paragraphs.\n\nLeft undone: the F1411 speedup only applies when the page stays still after the click. On pages whose ads or other parts keep changing (Pinch of Yum), the gated looks still run after an anchor jump. Focus there still lands right away, but the 600-800 ms looks after it remain. Making each look cheaper is the speed fixer's job."
+    },
+    {
+      "g": "ai21",
+      "findings": [
+        {
+          "id": "F1402",
+          "status": "fixed",
+          "change": "In doLines (src/background/index.ts), a line dropped for the wrong language now goes into a list. After the other calls, those entries are asked for again in one call that names the language ('Write every line in English…' with lang given as 'English'). The title is kept for a day only if that second answer also fails. The retry counts toward the existing per-page MAX_LINE_CALLS cap. lineFits also rejects a line for a Latin-script language when 40% or more of its letters are in the title's own non-Latin script (the 'تغییرات آپدیت Samsung One UI 6.0' case). This uses a new helper, scriptShare, in text.ts.",
+          "verified": "Mock fetch in the worker. Before: one call, then keep-title for 24 h. After: Persian then English gives the English line, cached normally. Persian twice gives 2 calls, then keep-title for 24 h. A mixed-script line gets retried. An English reply gets no retry. Live on YouTube search 'بررسی آپدیت سامسونگ' (page lang en): gpt-6-luna answered in Persian for 4+2+2+1 entries, and each firm retry came back in English and was shown."
+        },
+        {
+          "id": "F1231",
+          "status": "fixed",
+          "change": "Same defect and the same change as F1402: one firm retry in the page's language before the title is kept for a day (src/background/index.ts doLines, plus lineFits and scriptShare).",
+          "verified": "Same as F1402: mock scenarios and the live Persian YouTube search with captured model calls. The rows that were Persian-only became English one-liners after the firm retry."
+        },
+        {
+          "id": "F1408",
+          "status": "fixed",
+          "change": "In proseArticle (src/content/extract/generic.ts), a form whose fields are all reaction checkboxes ('👍 2 reactions', 'React with') no longer sets the fields flag. GitHub's new reaction pill was the only thing making the issue article non-prose. Other forms and checkboxes count as before, so tool pages and short pages stay ineligible.",
+          "verified": "Extractor bundle on the live #4416 with Sift off: prose went from false to true. Live load: 'Show full text' is back, with only the issue body condensed. Comment action buttons 11/11 in both modes (same as baseline), pre 3/3, blockquote 6/6. Enter toggles 'Show short version' / 'Show full text' with focus kept. #1899 makes no article block (unchanged). BBC Lula still shows 'Show full text'."
+        }
+      ],
+      "files": [
+        "src/background/index.ts",
+        "src/background/text.ts",
+        "src/content/extract/generic.ts"
+      ],
+      "notes": "Shared helpers. I added one exported helper, scriptShare(text, script), to src/background/text.ts. No existing helper changed. The ask() closure in doLines has a new optional 4th parameter, firm. The firm retry's user message starts with \"Write every line in <Language>…\" and gives lang as the language's English name. No new model fields, no new CustomEvent names, no change to PROMPT_VERSION or the cache keys.\n\nCost. A batch that had wrong-language lines makes one extra call. The extra call counts toward pc.lineRetries, which is capped by MAX_LINE_CALLS (12) per page. On the live Persian search, that meant about 4 firm calls across about 12 small batches.\n\ngeneric.ts. The F1408 change is 2 lines inside proseArticle's \"form\" case, plus a new const REACTION just after proseArticle. findArticle is untouched. I tried stopping its climb at GitHub's comments container. That made the issue body an item in the thread instead of an article, because GitHub's 'commentBorder' class matches COMMENTS_TOKEN, so I reverted it.\n\nKnown remainder, not in my findings (for whoever owns the line filters in text.ts). One Persian row on the live search still kept its title. The firm retry did answer in English ('…from starting after an update'), but addsLink rejected the line. ORDER/CAUSE match English 'after' in the line but do not know the Persian 'بعد از' in the source. So cross-language lines with 'after', 'before' or 'because' are dropped as invented order. In GitHub's Short version the timeline event 'changed the title …' is rewritten as 'Changed the title on June 20, 2024.', which drops the new title text. This is minor and the full text is one click away.\n\nNot checked: YouTube home (this fresh profile has an empty home feed, the same as the original), YouTube watch, the Amazon snapshots and the Gmail fixture. My changes touch only wrong-language lines and reaction-checkbox forms. bun run typecheck is clean and bun run build passed. Chrome on 9483 is stopped. Test scripts are in /tmp/claude-1001/-home-nico/aac11194-acaf-4dad-a334-0620115b1898/scratchpad/ai21/ (mock.ts, capture.ts)."
+    }
+  ],
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Fix"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "fix:ext20",
+      "phaseIndex": 1,
+      "phaseTitle": "Fix",
+      "agentId": "a1ccd97298cd682c0",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1793390175339,
+      "queuedAt": 1793390175278,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "All edits are in src/content/extract/generic.ts. I did not …",
+      "promptPreview": "You are the \"ext20\" fixer for Sift, a Chrome extension (reader mode on steroids) at /home/nico/projects/sift.\n\nRead these first, in order:\n1. /home/nico/projects/sift/research/round14/RULES.md (the owner's spec, your copy, testing, hard rules, report).\n2. /home/nico/projects/sift/README.md (architecture).\n3. /home/nico/projects/sift/research/round14/ext20.md (your findings, each reproduced by a sk…",
+      "promptFramed": true,
+      "lastProgressAt": 1793391408702,
+      "tokens": 178284,
+      "toolCalls": 74,
+      "durationMs": 1233362,
+      "resultPreview": "{\"findings\":[{\"id\":\"F1409\",\"status\":\"fixed\",\"change\":\"figureImage now compares the framed photos by how much of each lies inside the figure's box and drops any with less than half the largest share, so the 2 px edge of the next slide no longer wins on DOM order; after that the widest photo still wins, as before.\",\"verified\":\"Live 3-photo Craigslist listing: Image 1/2/3 show 00t0t/00N0N/00c0c with …"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "fix:int17",
+      "phaseIndex": 1,
+      "phaseTitle": "Fix",
+      "agentId": "a8b42432554875ec7",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1793390175339,
+      "queuedAt": 1793390175279,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Status: all four findings are fixed, and bun run typecheck …",
+      "promptPreview": "You are the \"int17\" fixer for Sift, a Chrome extension (reader mode on steroids) at /home/nico/projects/sift.\n\nRead these first, in order:\n1. /home/nico/projects/sift/research/round14/RULES.md (the owner's spec, your copy, testing, hard rules, report).\n2. /home/nico/projects/sift/README.md (architecture).\n3. /home/nico/projects/sift/research/round14/int17.md (your findings, each reproduced by a sk…",
+      "promptFramed": true,
+      "lastProgressAt": 1793391448894,
+      "tokens": 192552,
+      "toolCalls": 89,
+      "durationMs": 1272955,
+      "resultPreview": "{\"findings\":[{\"id\":\"F1412\",\"status\":\"fixed\",\"change\":\"index.ts: followPageFocus(early) waits for the next render when the page made the element editable but Sift still shows a button for it; paint() calls followPageFocus() before refocus() so focus goes straight to the new textarea and not to the next control; the caret goes where the page's selection is, else at the end.\",\"verified\":\"Both fixture…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "fix:ai21",
+      "phaseIndex": 1,
+      "phaseTitle": "Fix",
+      "agentId": "aa181b6cf0c3effa0",
+      "model": "claude-opus-5-5",
+      "state": "done",
+      "startedAt": 1793390175339,
+      "queuedAt": 1793390175279,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Shared helpers. I added one exported helper, scriptShare(te…",
+      "promptPreview": "You are the \"ai21\" fixer for Sift, a Chrome extension (reader mode on steroids) at /home/nico/projects/sift.\n\nRead these first, in order:\n1. /home/nico/projects/sift/research/round14/RULES.md (the owner's spec, your copy, testing, hard rules, report).\n2. /home/nico/projects/sift/README.md (architecture).\n3. /home/nico/projects/sift/research/round14/ai21.md (your findings, each reproduced by a skep…",
+      "promptFramed": true,
+      "lastProgressAt": 1793391173928,
+      "tokens": 196541,
+      "toolCalls": 77,
+      "durationMs": 997988,
+      "resultPreview": "{\"findings\":[{\"id\":\"F1402\",\"status\":\"fixed\",\"change\":\"In doLines (src/background/index.ts), a line dropped for the wrong language now goes into a list. After the other calls, those entries are asked for again in one call that names the language ('Write every line in English…' with lang given as 'English'). The title is kept for a day only if that second answer also fails. The retry counts toward t…"
+    }
+  ],
+  "totalTokens": 567377,
+  "totalToolCalls": 240
+}
