@@ -147,7 +147,7 @@ function boot() {
     host.setAttribute(
       "style",
       mode === "sift"
-        ? base + "inset: 0 !important; width: 100% !important; height: 100% !important; overflow: auto !important; overscroll-behavior: contain !important; background: #fff !important;"
+        ? base + "inset: 0 !important; width: 100% !important; height: 100% !important; overflow: auto !important; overscroll-behavior: contain !important; background: light-dark(#fff, #121212) !important; color-scheme: light dark !important;"
         : base + "inset: auto 0 0 auto !important; width: 0 !important; height: 0 !important; overflow: visible !important; background: transparent !important;",
     );
   };

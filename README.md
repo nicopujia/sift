@@ -15,6 +15,7 @@ A BBC article, original and sifted:
 ## What it does
 
 - Every page opens already sifted. One switch (bottom right corner, the toolbar button, or `Alt+Shift+S`) shows the original page. Switching to the original lasts for the rest of the tab's visit to that site.
+- Dark mode follows your system setting.
 - Removes ads, popups, banners, navigation clutter, share buttons, promos, and decoration.
 - Shortens text: long articles get a "Short version" written by a language model, with the full text one click away. Lists get a plain one-line description per entry (YouTube videos, Amazon products, long headlines), while names (channels, playlists) stay as they are; emails get a one-line gist.
 - Keeps everything you need to act: search, links, buttons, forms, video. Every action is replayed on the original page, so it has the same effect.
