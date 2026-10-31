@@ -11,6 +11,8 @@ cd "$(dirname "$0")/.."
 cmd=${1:-start}
 # A non-default SIFT_OUT gets its own pid file, log, and profile.
 sfx="${SIFT_OUT:+-$SIFT_OUT}"
+# So does a non-default port: `SIFT_PORT=9445 ... stop` once killed the 9444 Chrome of the same tree.
+[ "${SIFT_PORT:-9444}" = 9444 ] || sfx="$sfx-$SIFT_PORT"
 log=.chrome/launch${sfx}.log
 pid() { local p; p=$(cat .chrome/launch${sfx}.pid 2>/dev/null || true); [ -n "$p" ] && kill -0 "$p" 2>/dev/null && echo "$p" || true; }
 check() { bun scripts/lib.ts worker "$(grep -oE '(extension|reinstalled) [a-p]{32}' "$log" | tail -1 | cut -d' ' -f2)"; }

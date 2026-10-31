@@ -1,0 +1,1822 @@
+diff --git a/src/background/cache.ts b/src/background/cache.ts
+index fffe575..4e51bc4 100644
+--- a/src/background/cache.ts
++++ b/src/background/cache.ts
+@@ -71,6 +71,26 @@ export async function cacheSet(key: string, v: string, ttl?: number): Promise<vo
+   }
+ }
+ 
++/**
++ * Keeps a saved entry at most `ttl` (ms) more, never longer than it would
++ * have been kept: a page found to be signed-in after it saved or read it.
++ */
++export async function cacheShorten(key: string, ttl: number): Promise<void> {
++  try {
++    const d = await db();
++    const s = d.transaction(STORE, "readwrite").objectStore(STORE);
++    const q = s.get(key);
++    q.onsuccess = () => {
++      const e = q.result as Entry | undefined;
++      if (!fresh(e)) return;
++      const exp = Math.min(e!.exp ?? e!.ts + MAX_AGE, Date.now() + ttl);
++      if (exp !== e!.exp) s.put({ ...e!, exp }, key);
++    };
++  } catch {
++    /* cache is best effort */
++  }
++}
++
+ function prune(d: IDBDatabase) {
+   const tx = d.transaction(STORE, "readwrite");
+   const s = tx.objectStore(STORE);
+diff --git a/src/background/index.ts b/src/background/index.ts
+index 0c125a1..8e2ce94 100644
+--- a/src/background/index.ts
++++ b/src/background/index.ts
+@@ -4,9 +4,9 @@
+ 
+ import type { AiReply, AiRequest, LineInput, ModelCfg, RuntimeMsg, Settings } from "../shared/messages";
+ import { mergeSettings } from "../shared/messages";
+-import { cacheClear, cacheGet, cacheSet } from "./cache";
++import { cacheClear, cacheGet, cacheSet, cacheShorten } from "./cache";
+ import { bump, flushStats } from "./stats";
+-import { addsLink, addsSpeaker, claimsNoAnswer, dropRepeats, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, movesKicker, proseLang, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, swapsPerson, swapsRole, unquoted, unsupported } from "./text";
++import { addsLink, addsSpeaker, claimsNoAnswer, dropRepeats, dropTitleLine, dropUnsupported, entryLang, estTokens, heldBack, keepQuotes, langScript, listLang, movesKicker, proseLang, quoteAsFact, reuseShort, scriptFits, scriptOf, splitText, stableContext, stableText, stripPreamble, scriptShare, swapsPerson, swapsRole, unquoted, unsupported } from "./text";
+ 
+ // ---------- settings ----------
+ 
+@@ -543,10 +543,13 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
+   const lineChars = mode === "about" ? 100 : 140;
+   type Miss = (typeof misses)[number];
+   /** One call for some of the entries: the error it ended in, if any, and the entries it gave no line for. */
+-  const ask = async (part: Miss[], chain: ModelCfg[], tried?: { m: ModelCfg; e?: unknown }[]): Promise<{ err: unknown; left: Miss[] }> => {
++  // `firm`: asking again for lines that came back in another language, with the language spelled out.
++  const ask = async (part: Miss[], chain: ModelCfg[], tried?: { m: ModelCfg; e?: unknown }[], firm = false): Promise<{ err: unknown; left: Miss[] }> => {
+     // Short ids keep the prompt small; map them back afterwards.
+     const byShort = new Map(part.map((m, i) => [String(i + 1), m]));
+-    const input = part.map((m, i) => ({ id: String(i + 1), lang: m.lang || undefined, title: m.it.t, context: m.it.c || undefined }));
++    const input = part.map((m, i) => ({ id: String(i + 1), lang: (firm && m.lang ? langName(m.lang) : m.lang) || undefined, title: m.it.t, context: m.it.c || undefined }));
++    const names = [...new Set(part.map((m) => m.lang && langName(m.lang)).filter(Boolean))].join(" or ");
++    const note = firm && names ? `Write every line in ${names}, the entry's "lang", even when its title and context are in another language: translate them. Lines in the title's language are wrong.\n\n` : "";
+     let buf = "";
+     const done = new Set<string>();
+     const checks: Promise<void>[] = [];
+@@ -560,26 +563,34 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
+         // In news mode, an empty line means "not a story" (a promo), and a line
+         // that fails the checks (see vetLine) is no better: keep the title, as the line.
+         let text = vetLine(o.s, m.it, mode);
++        // A line that failed a check, or came in another language (below), is
++        // the model's slip, not the entry's: what stands for it is kept a day
++        // only, so a later visit asks again (F1231).
++        const slip = !text && !!o.s.trim();
+         if (mode === "news" && !text) text = m.it.t;
+         if (!text && !o.s.trim()) return;
+         done.add(String(o.id));
+-        // Elsewhere such a line keeps the title, remembered so it is not paid for again.
++        // Elsewhere such a line keeps the title, remembered for a day so it is not paid for on every visit.
+         if (!text) {
+-          if (useCache) save(pc, req, m.key, KEEP_TITLE);
++          keepTitle(m, DAY);
+           return;
+         }
+         const want = m.lang;
+         // Models sometimes ignore the language they were given (an English title
+         // came back in German, a Russian one in Persian). A line in another
+-        // script or clearly in another language is dropped and the original
+-        // title stays, remembered so it is not paid for again.
++        // script or clearly in another language is dropped and asked for once
++        // more, with the language spelled out (below); a second miss keeps the
++        // original title, remembered for a day so it is not paid for on every visit.
+         checks.push(lineFits(text, want, m.it.t).then((ok) => {
+           if (!ok) {
+-            if (useCache) save(pc, req, m.key, KEEP_TITLE);
++            if (!firm && want) wrong.push(m);
++            else keepTitle(m, DAY);
+             return;
+           }
+           reply({ id: req.id, item: m.it.id, text });
+-          if (useCache) save(pc, req, m.key, text);
++          if (!useCache) return;
++          if (slip) cacheSet(m.key, text, Math.min(ttlOf(req, pc) ?? DAY, DAY));
++          else save(pc, req, m.key, text);
+         }));
+       } catch {
+         /* partial or malformed line */
+@@ -595,7 +606,7 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
+       chain,
+       {
+         system: mode === "gist" ? GIST_SYSTEM : mode === "news" ? NEWS_SYSTEM : LINES_SYSTEM,
+-        user: JSON.stringify(input),
++        user: note + JSON.stringify(input),
+         maxTokens: 120 + budget,
+         minTokens: 60 + Math.round(budget / 2),
+         signal,
+@@ -637,6 +648,8 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
+   let batchCalls = 0;
+   const spent = () => pc.lineRetries ?? 0;
+   const keepTitle = (m: Miss, ms: number) => useCache && cacheSet(m.key, KEEP_TITLE, Math.min(ttlOf(req, pc) ?? ms, ms));
++  /** Entries whose line came back in another language: asked for again once, after the rest (F1402). */
++  const wrong: Miss[] = [];
+   // Larger parts first, so the calls the cap allows settle the most entries.
+   const queue: { part: Miss[]; why?: unknown }[] = [{ part: misses }];
+   for (let q = queue.shift(); q; q = queue.shift()) {
+@@ -652,7 +665,10 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
+     if (filtered) pc.lineRetries = spent() + tried.length;
+     else if (why !== undefined) batchCalls += tried.length;
+     if (!r.err) continue;
+-    if (!finalIncomplete(r.err) || signal.aborted) throw r.err;
++    if (!finalIncomplete(r.err) || signal.aborted) {
++      for (const m of wrong) keepTitle(m, DAY);
++      throw r.err;
++    }
+     if (!r.left.length) continue;
+     if (why === undefined) one = [tried.find((t) => finalIncomplete(t.e))?.m ?? chain[0]];
+     if (part.length === 1) {
+@@ -677,6 +693,15 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
+     }
+     keepTitle(m, DAY);
+   }
++  // Lines that came back in another language (the title's, often, when its context is long) are asked
++  // for once more, in one call, with the language named; those that miss again keep their titles (F1402, F1231).
++  let missed = wrong;
++  if (wrong.length && !signal.aborted && spent() < MAX_LINE_CALLS) {
++    const tried: { m: ModelCfg; e?: unknown }[] = [];
++    missed = (await ask(wrong, chain, tried, true)).left;
++    pc.lineRetries = spent() + tried.length;
++  }
++  for (const m of missed) keepTitle(m, DAY);
+   if (unsettled) throw unsettled;
+   reply({ id: req.id, done: true });
+ }
+@@ -689,6 +714,10 @@ async function doLines(req: Extract<AiRequest, { task: "lines" }>, reply: Reply,
+ async function lineFits(text: string, want: string, title: string): Promise<boolean> {
+   if (!scriptFits(text, want ? langScript(want) : scriptOf(title), title)) return false;
+   if (!want) return true;
++  // A line for a Latin-script language that is half in its title's own script
++  // ("تغییرات آپدیت Samsung One UI 6.0" on an English page) kept the title's language around its names.
++  const own = scriptOf(title);
++  if (own && own !== "latin" && langScript(want) === "latin" && scriptShare(text, own) >= 0.4) return false;
+   const got = await entryLang(text, want, detect, true);
+   return !got || got === want;
+ }
+@@ -963,9 +992,10 @@ chrome.runtime.onConnect.addListener((port) => {
+   port.onMessage.addListener(async (req: AiRequest) => {
+     if (req.task === "private") {
+       // The page turned out to be signed-in (its header came late): what it
+-      // already saved is saved again for the short time only.
++      // already saved or read is kept for the short time only, and never
++      // longer than before: a day-long "no Short version" stays a day (F1313).
+       pc.private = true;
+-      for (const [key, v] of pc.saved) cacheSet(key, v, PRIVATE_TTL);
++      for (const key of pc.saved.keys()) cacheShorten(key, PRIVATE_TTL);
+       pc.saved.clear();
+       return;
+     }
+diff --git a/src/background/stats.ts b/src/background/stats.ts
+index 05eff71..9f310b3 100644
+--- a/src/background/stats.ts
++++ b/src/background/stats.ts
+@@ -52,18 +52,38 @@ async function save() {
+   flushStats();
+ }
+ 
+-export async function flushStats() {
+-  const { stats = {}, sent = {}, settings = {}, reportIds = {} } = (await chrome.storage.local.get(["stats", "sent", "settings", "reportIds"])) as {
++/**
++ * After a report fails, none is tried again for this long, so a day's report
++ * stays one request (tried a few times a day at most), not one per page shown
++ * while the endpoint is down (F1314). The counts wait in storage.
++ */
++const RETRY = 4 * 60 * 60_000;
++let flushing: Promise<void> | undefined;
++
++/** Sends the reports of past days not sent yet; one run at a time. */
++export function flushStats(): Promise<void> {
++  return (flushing ??= flush().finally(() => (flushing = undefined)));
++}
++
++async function flush() {
++  const { stats = {}, sent = {}, settings = {}, reportIds = {}, reportRetry = 0 } = (await chrome.storage.local.get(["stats", "sent", "settings", "reportIds", "reportRetry"])) as {
+     stats?: Record<string, Day>;
+     sent?: Record<string, boolean>;
+     settings?: { analytics?: boolean };
+     reportIds?: Record<string, string>;
++    /** When a report may be tried again, after one failed. */
++    reportRetry?: number;
+   };
+   // Older versions kept one id for the life of the install.
+   chrome.storage.local.remove("installId").catch(() => {});
+   if (settings.analytics === false) return;
++  // A retry time further off than RETRY was set by a clock that was wrong since.
++  const wait = reportRetry - Date.now();
++  if (wait > 0 && wait <= RETRY) return;
+   const now = today();
++  let failed = false;
+   for (const [day, counts] of Object.entries(stats as Record<string, Day>)) {
++    if (failed) break;
+     if (day >= now || sent[day]) continue;
+     // A fresh random id per day's report, only so a retried report is not
+     // counted twice. Nothing links one day's report to another's.
+@@ -76,12 +96,12 @@ export async function flushStats() {
+       if (r.ok || r.status === 204) {
+         sent[day] = true;
+         delete reportIds[day];
+-      }
++      } else failed = true;
+     } catch {
+-      break;
++      failed = true;
+     }
+   }
+   // Forget sent days that are no longer kept in the counts.
+   for (const day of Object.keys(sent)) if (!stats[day]) delete sent[day];
+-  await chrome.storage.local.set({ sent, reportIds });
++  await chrome.storage.local.set({ sent, reportIds, reportRetry: failed ? Date.now() + RETRY : 0 });
+ }
+diff --git a/src/background/text.ts b/src/background/text.ts
+index f820383..817de9b 100644
+--- a/src/background/text.ts
++++ b/src/background/text.ts
+@@ -94,6 +94,18 @@ export function scriptFits(text: string, script: string, source?: string): boole
+   return !all || (third < 2 && mine / all >= (script === "latin" ? 0.5 : 0.3));
+ }
+ 
++/** The share of a text's letters written in `script`: 0 when it has no letters. */
++export function scriptShare(text: string, script: string): number {
++  let all = 0;
++  let mine = 0;
++  for (const [name, re] of SCRIPTS) {
++    const n = text.match(re)?.length ?? 0;
++    all += n;
++    if (name === script) mine += n;
++  }
++  return all ? mine / all : 0;
++}
++
+ // ---------- per-entry language ----------
+ 
+ // Frequent short words per language. Language detection on a short title is
+@@ -437,9 +449,35 @@ function digitValues(tok: string, suffix: string): string[] {
+   return [...out];
+ }
+ 
++/** A decimal digit of any script but ASCII: Persian "۵", Arabic-Indic "٥", Devanagari "५", full-width "５"… */
++const OTHER_DIGIT = /(?![0-9])\p{Nd}/gu;
++const digitOf = new Map<string, string>();
++/**
++ * A text with every script's digits as ASCII ones, and the Arabic decimal and
++ * thousands marks ("١٫٥", "١٬٠٠٠") as "." and ",", so "5" in a rewrite is the
++ * "۵" of its source (F1231). Unicode assigns decimal digits in runs of ten,
++ * 0 to 9, so a digit's value is its distance from the run's start.
++ */
++function asciiDigits(s: string): string {
++  if (!/(?![0-9])\p{Nd}|[٫٬]/u.test(s)) return s;
++  return s
++    .replace(OTHER_DIGIT, (d) => {
++      let v = digitOf.get(d);
++      if (v === undefined) {
++        const cp = d.codePointAt(0)!;
++        let n = 0;
++        while (/\p{Nd}/u.test(String.fromCodePoint(cp - n - 1))) n++;
++        digitOf.set(d, (v = String(n % 10)));
++      }
++      return v;
++    })
++    .replace(/(?<=\d)٫(?=\d)/g, ".")
++    .replace(/(?<=\d)٬(?=\d)/g, ",");
++}
++
+ /** Numbers in digits in a text, each with the values it may stand for. Placeholders and link ids are not numbers of the text. */
+ function numbersOf(s: string): string[][] {
+-  const text = unlink(s.replace(/\[\[\s*B\d+\s*\]\]/g, " "));
++  const text = unlink(asciiDigits(s).replace(/\[\[\s*B\d+\s*\]\]/g, " "));
+   const out: string[][] = [];
+   for (const m of text.matchAll(/(?<![\p{L}\d.,])\d{1,3}(?:[    ]\d{3})+(?![\d.,]\d)|\d+(?:[.,:]\d+)*/gu)) {
+     const vals = digitValues(m[0], text.slice(m.index! + m[0].length, m.index! + m[0].length + 24)).filter((v) => v !== "0");
+@@ -616,15 +654,16 @@ const LISTED = /(?<![\d.,])(\d+)\s+(?:\p{L}+\s+){0,3}?\p{L}+\s*(?:,|;|\s(?:and|y
+  * The numbers a source states: in digits or in words, and the sum of two
+  * counts it lists together (see LISTED): 17 victims for "3 dead and 14 hurt".
+  */
+-function sourceNumbers(source: string): Set<string> {
+-  if (source === lastSource) return lastNumbers;
++function sourceNumbers(raw: string): Set<string> {
++  if (raw === lastSource) return lastNumbers;
++  const source = asciiDigits(raw);
+   const out = new Set<string>();
+   for (const vals of numbersOf(source)) for (const v of vals) out.add(v);
+   for (const n of wordNumbers(source)) out.add(numKey(n));
+   const text = unlink(source.replace(/\[\[\s*B\d+\s*\]\]/g, " "));
+   for (const m of text.matchAll(LISTED)) out.add(numKey(Number(m[1]) + Number(m[2])));
+   for (const v of convertedNumbers(source)) out.add(v);
+-  [lastSource, lastNumbers] = [source, out];
++  [lastSource, lastNumbers] = [raw, out];
+   return out;
+ }
+ 
+@@ -929,7 +968,8 @@ export function dropUnsupported(md: string, source: string, lang?: string): stri
+       lines.push(line);
+       continue;
+     }
+-    const mark = /^\s*(?:[-*•>]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
++    // A list number in any script ("۱.") is a marker, not a number of the text.
++    const mark = /^\s*(?:[-*•>]|\p{Nd}+[.)])\s+/u.exec(line)?.[0] ?? "";
+     const all = sentencesOf(line.slice(mark.length));
+     // A warning whose only fault is a number in another form ("in 24 hours"
+     // for "in a day") stays, in the source's own words.
+@@ -942,40 +982,52 @@ export function dropUnsupported(md: string, source: string, lang?: string): stri
+ }
+ 
+ /**
+- * A Short version that never says the same thing twice (F1100): a sentence of
+- * four words or more that repeats an earlier one of its section word for word
+- * (case, spacing and punctuation aside) goes, and so does a paragraph left
+- * empty. A sentence that differs by any word ("the south district", "Senator
+- * Jones", "in the evening") is no repeat (F1215), and a heading starts a new
+- * section: the same advice under two headings stays under both. A list item
+- * is held only against the items of its own list: two lists (two recipes) may
+- * well share one ("200 g de harina").
++ * A Short version that never says the same thing twice in a row (F1100): a
++ * sentence of four words or more that repeats the one right before it word for
++ * word (case, spacing and punctuation aside) goes, and so does a paragraph
++ * that repeats the one before it, or is left empty. A sentence that differs by
++ * any word ("the south district", "Senator Jones", "in the evening") is no
++ * repeat (F1215). A repeat further on is a step or an answer of its own ("Can
++ * I bring a cat? Yes, you can bring a pet on the train."), and a list item is
++ * never dropped: a step may well say what an earlier one said ("4. Click Next
++ * to continue.") (F1311). A heading, a list, or a placeholder ends what came
++ * before it.
+  */
+ export function dropRepeats(md: string): string {
+-  let seen = new Set<string>();
+-  let list = new Set<string>();
++  /** The last sentence and paragraph kept, by their words. */
++  let prev = "";
++  let prevPara = "";
+   const lines: string[] = [];
+   for (const line of md.split("\n")) {
+-    const mark = /^\s*(?:[-*•]|\d+[.)])\s+/.exec(line)?.[0] ?? "";
+-    if (!mark) list = new Set();
+-    if (/^\s*#{1,6}\s/.test(line)) seen = new Set();
+-    if (/^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line) || !line.trim()) {
++    if (!line.trim()) {
+       lines.push(line);
+       continue;
+     }
+-    const all = sentencesOf(line.slice(mark.length));
+-    const kept = all.filter((sentence) => {
+-      const words = qwords(sentence.replace(/\*\*|__/g, ""));
+-      // A placeholder's block is put back by the page, wherever its sentence went: never dropped here.
+-      if (words.length < 4 || /\[\[\s*B\d+\s*\]\]/.test(sentence)) return true;
++    if (/^\s*(?:[-*•]|\d+[.)])\s+/.test(line) || /^\s*#{1,6}\s/.test(line) || /^\s*\[\[\s*B\d+\s*\]\]\s*$/.test(line)) {
++      prev = prevPara = "";
++      lines.push(line);
++      continue;
++    }
++    const all = sentencesOf(line);
++    const keys = all.map((sentence) => qwords(sentence.replace(/\*\*|__/g, "")));
++    // A placeholder's block is put back by the page, wherever its sentence went: never dropped here.
++    const held = /\[\[\s*B\d+\s*\]\]/.test(line);
++    const para = keys.map((w) => w.join(" ")).join("\n");
++    if (!held && para === prevPara && keys.flat().length >= 4) continue;
++    prevPara = para;
++    const kept = all.filter((sentence, i) => {
++      const words = keys[i];
++      if (words.length < 4 || /\[\[\s*B\d+\s*\]\]/.test(sentence)) {
++        prev = "";
++        return true;
++      }
+       const key = words.join(" ");
+-      const earlier = mark ? list : seen;
+-      if (earlier.has(key)) return false;
+-      earlier.add(key);
++      if (key === prev) return false;
++      prev = key;
+       return true;
+     });
+     if (kept.length === all.length) lines.push(line);
+-    else if (kept.length) lines.push(mark + kept.join(" "));
++    else if (kept.length) lines.push(kept.join(" "));
+   }
+   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+ }
+diff --git a/src/content/adapters/amazon.ts b/src/content/adapters/amazon.ts
+index 94ae845..8b15aef 100644
+--- a/src/content/adapters/amazon.ts
++++ b/src/content/adapters/amazon.ts
+@@ -516,6 +516,8 @@ export const amazon: Adapter = {
+     try {
+       const p = u.pathname;
+       let page: Page | null = null;
++      // While the HTML of a results page comes in, before its results: only the header, not a full generic read of half a page (perf16).
++      if ((p === "/s" || p.startsWith("/s/")) && document.readyState === "loading" && !q(".s-main-slot")) return { ...base([], document.title), partial: true };
+       if (p === "/s" || p.startsWith("/s/")) page = results();
+       else if (/\/(dp|gp\/product|gp\/aw\/d)\//.test(p)) page = product();
+       else if (p.startsWith("/gp/cart") || p.startsWith("/cart")) page = cart();
+@@ -536,4 +538,5 @@ export const amazon: Adapter = {
+     }
+   },
+   quiet: () => qa("#nav-flyout-anchor, .a-popover-preload"),
++  contentSel: (u) => (u.pathname === "/s" || u.pathname.startsWith("/s/") ? '[data-component-type="s-search-result"]' : null),
+ };
+diff --git a/src/content/adapters/index.ts b/src/content/adapters/index.ts
+index 02d2562..754d86c 100644
+--- a/src/content/adapters/index.ts
++++ b/src/content/adapters/index.ts
+@@ -22,6 +22,11 @@ export interface Adapter {
+    * the generic page, such as the site's own top bar controls.
+    */
+   fallback?(page: Page): void;
++  /**
++   * The selector of the page's content (a results page's entries), or null: while the page loads and Sift shows
++   * none of it, the look that shows it runs as soon as one comes in (Sift's content gate). Pages without one keep their pace.
++   */
++  contentSel?(url: URL): string | null;
+ }
+ 
+ import { amazon } from "./amazon";
+diff --git a/src/content/extract/generic.ts b/src/content/extract/generic.ts
+index c28ac73..1241407 100644
+--- a/src/content/extract/generic.ts
++++ b/src/content/extract/generic.ts
+@@ -109,7 +109,7 @@ function dateLine(text: string): boolean {
+   if (!text || text.length > 120 || !/\d/.test(text)) return false;
+   const rest = text
+     .replace(/\d{1,2}(\s+de)?\s+[\p{L}.]+(\s+de)?\s+\d{4}|[\p{L}.]+\s+\d{1,2},?\s+\d{4}|\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{2}-\d{2}/giu, "")
+-    .replace(/\d{1,2}:\d{2}(\s?[ap]\.?m\.?)?(\s?hs?\.?)?|\b[A-Z]{2,4}T\b/g, "")
++    .replace(/\d{1,2}:\d{2}(\s?[ap]\.?m\.?)?(\s?hs?\.?)?|\b([A-Z]{2,4}|[ECMP])T\b/g, "")
+     .replace(/(hace\s+)?\d+\s+(seconds?|segundos?|minutes?|minutos?|mins?|hours?|horas?|hrs?|days?|d[ií]as?|weeks?|semanas?|months?|meses|years?|años?)\b(\s+ago)?/giu, "")
+     .replace(/\d+\s*['’′]?\s*(min(utos?)?\.?|minutes?)(\s+(de lectura|read|reading))?|(tiempo de )?lectura:?|updated:?|actualizado:?|published:?|publicado:?|\b(on|el|at|a las|de lectura|read)\b/gi, "")
+     // Reading time in minutes drawn as "6'" (La Nación on a narrow screen).
+@@ -235,9 +235,17 @@ export const cutShort = () => lastCut;
+  * first, however long finding the page's bars and menus took.
+  */
+ function pastDeadline(n: number, min = 256, every = 32): boolean {
+-  if (!timeCut && n >= min && n % every === 0 && performance.now() > deadline) timeCut = true;
++  if (!timeCut && (firstText >= 3000 || firstRich > 0 || firstItems >= 8 ? n % 8 === 0 : n >= min && n % every === 0) && performance.now() > deadline) timeCut = true;
+   return timeCut;
+ }
++/**
++ * What a look with a time budget has read of the page's content: article text, a table or code, entries.
++ * Once it has some, a look past its time stops a moment later, not a screenful of other parts later (perf16).
++ */
++let firstText = 0;
++let firstRich = 0;
++let firstItems = 0;
++const FIRST_TEXT = new Set(["p", "li", "dd", "dt", "blockquote", "pre", "figcaption", "h1", "h2", "h3", "h4", "h5", "h6"]);
+ 
+ /**
+  * MediaWiki's tools around an article (Wikipedia and other wikis): the
+@@ -293,11 +301,13 @@ export class Out {
+ 
+   push(b: Block) {
+     this.adds++;
++    if (deadline < Infinity && ((b.t === "table" && b.rows.length >= 3) || (b.t === "pre" && b.text.length >= 200))) firstRich++;
+     this.flush();
+     this.blocks.push(b);
+   }
+   item(it: Item) {
+     this.adds++;
++    if (deadline < Infinity) firstItems++;
+     if (this.links.length) this.flushLinks();
+     if (this.fields.length || this.actions.length) this.flushControls();
+     if (!this.items.length) this.itemsKey = "ci:" + it.key;
+@@ -1346,7 +1356,7 @@ export function inlineNodes(nodes: Node[], ctx: Ctx | null = null, buttons = fal
+         // (A heading's own anchor, "Permalink: Install" or "Direct link to Install", goes nowhere in Sift.)
+         const iconCtl = !textIn(e) && e.hasAttribute("aria-label") && e.getAttribute("aria-disabled") !== "true" && !BACKLINK.test(clean(e.getAttribute("aria-label"))) && !ANCHOR_NAME.test(clean(e.getAttribute("aria-label"))) && inPage(e) && usefulControl(e, labelOf(e), ctx);
+         if (inPage(e) && !iconCtl && (!textIn(e) || BACKLINK.test(textIn(e)) || BACKLINK.test(clean(e.getAttribute("aria-label"))) || (textIn(e).length <= 3 && !!e.parentElement && /^(\^|↑|jump up)/i.test(textIn(e.parentElement))))) continue;
+-        let label = textIn(e) || accName(e);
++        let label = unclipped(e, textIn(e)) || accName(e);
+         // A pager's arrow ("›", ">>") says where it goes.
+         if (label.length <= 3 && /^[<>‹›«»←→\s]+$/.test(label)) label = pagerLabel(e, label);
+         // A link that is only a logo ("Wikibooks logo") says nothing in a sentence,
+@@ -2923,8 +2933,9 @@ export function detectItems(el: Element, ctx: Ctx): Set<Element> | null {
+   const baseSet = new Set(best[0] ? baseClasses(best[0]) : []);
+   // In a list of results every entry counts, whatever class marks its type (Sphinx's "kind-object", "kind-text").
+   const anyLi = tag === "li" && resultList(el);
++  const inBest = new Set(best);
+   const members = ch.filter(
+-    (k) => k.localName === tag && (anyLi || best.includes(k) || baseClasses(k).some((c) => baseSet.has(c)) || (!baseSet.size && !baseClasses(k).length)),
++    (k) => k.localName === tag && (anyLi || inBest.has(k) || baseClasses(k).some((c) => baseSet.has(c)) || (!baseSet.size && !baseClasses(k).length)),
+   );
+   if (members.length < 3 || members.length < ch.length * 0.6) return null;
+   if (tag === "p" || tag === "br" || /^h[1-6]$/.test(tag)) return null;
+@@ -2933,7 +2944,9 @@ export function detectItems(el: Element, ctx: Ctx): Set<Element> | null {
+   let total = 0;
+   let simple = 0;
+   let withFields = 0;
+-  for (const k of members) {
++  for (const [i, k] of members.entries()) {
++    // Too few can still be named by a link (a grid of thousands of buttons): not cards, without reading the rest (F1300).
++    if (prominent + unnamed.length + members.length - i < members.length * 0.6) return null;
+     const links = k.localName === "a" ? [k] : Array.from(k.querySelectorAll("a[href]"));
+     const n = tlen(k);
+     total += n;
+@@ -3274,6 +3287,8 @@ export function toItem(el: Element, ctx: Ctx): Item | null {
+   if (!title) title = textLines(el)[0] ?? "";
+   title = clean(title);
+   if (!title) return null;
++  // A headline the site cut short ("… Nearly 70…") that its link holds in full in its title (USA Today, F1404).
++  if (main && (titleFromLink || (heading && (heading.contains(main) || main.contains(heading))))) title = unclipped(main, title);
+   // A heading or link that holds the entry's name and then a snippet in smaller type
+   // (a search result): the first line is the name, the rest its snippet.
+   let snippet = "";
+@@ -4279,9 +4294,11 @@ let skipWarned = -1;
+  * to scroll to the end of before Agree enables). Sift shows its text in full.
+  */
+ function scrollBox(el: Element): boolean {
++  // The style first: reading the size of text in a closed <details> lays it out, once per element (F1310).
++  if (el === document.body || el === document.documentElement || !/auto|scroll/.test(getComputedStyle(el).overflowY)) return false;
+   const h = el.clientHeight;
+-  if (!h || el.scrollHeight <= h + 8 || h > innerHeight * 0.6 || el === document.body || el === document.documentElement) return false;
+-  return /auto|scroll/.test(getComputedStyle(el).overflowY) && tlen(el) >= 200;
++  if (!h || el.scrollHeight <= h + 8 || h > innerHeight * 0.6) return false;
++  return tlen(el) >= 200;
+ }
+ 
+ /**
+@@ -4292,11 +4309,11 @@ function scrollBox(el: Element): boolean {
+ export function visit(el: Element, out: Out, ctx: Ctx) {
+   try {
+     const at = out.blocks.length;
+-    const box = scrollBox(el);
+     visitEl(el, out, ctx);
+     // Its last text block marks the box's end: reaching it in Sift scrolls the page's box to its end too.
+-    const last = box && out.blocks.length > at ? out.blocks[out.blocks.length - 1] : null;
+-    if (last && (last.t === "p" || last.t === "ul" || last.t === "ol")) last.scrollEnd = refOf(el);
++    // Only a box that gave text is measured (F1310).
++    const last = out.blocks.length > at ? out.blocks[out.blocks.length - 1] : null;
++    if (last && (last.t === "p" || last.t === "ul" || last.t === "ol") && scrollBox(el)) last.scrollEnd = refOf(el);
+   } catch (err) {
+     if (skipWarned !== passNo()) {
+       skipWarned = passNo();
+@@ -4343,6 +4360,7 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
+   // Only elements that show count toward the budget: hidden menus and scripts cost little.
+   if (++ctx.count > BUDGET) return budgetCut(out, ctx);
+   if (pastDeadline(ctx.count)) return;
++  if (deadline < Infinity && ctx.inArticle && FIRST_TEXT.has(tag)) firstText += tlen(el);
+   if (tag === "slot") return walk(el, out, ctx);
+   if (isAd(el) || ctx.drop?.(el)) return;
+   if (el.classList.contains("cnx-main-container") && sitePlaylist(el)) return;
+@@ -4510,6 +4528,10 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
+   if (ctx.hasByline && BYLINE_TOKEN.test(tk) && tlen(el) < 300 && bylineZone(el, ctx, 2)) return;
+   // The author's name alone over the story, already said in Sift's byline (La Nación's long-form "Guido Bovone" link, F827).
+   if (ctx.byName && tlen(el) < 80 && !heading(el) && norm(textIn(el)) === norm(ctx.byName) && bylineZone(el, ctx, 2)) return;
++  // The site's byline box under another name (USA Today's div.gnt_ar_by): links to the authors Sift's byline names and the outlet's name (F1405).
++  if (ctx.byName && tlen(el) < 120 && !heading(el) && authorsBox(el, ctx.byName) && bylineZone(el, ctx, 2)) return;
++  // A topic to follow over the story ("U.S. Immigration and Customs Enforcement" and "Add Topic", USA Today): the reader's feed, not the story (F1405).
++  if (ctx.hasByline && tlen(el) < 120 && !heading(el) && followTopic(el) && bylineZone(el, ctx, 2)) return;
+   // A count over the story ("108" on La Nación's comments button): a number is not an action to offer (F827).
+   if (ctx.hasByline && el.matches("button, [role=button]") && /^\d[\d.,]*\s*[kKmM]?$/.test(textIn(el)) && bylineZone(el, ctx, 2)) return;
+   // Sift shows the date in its own byline; the site's date and reading-time line goes.
+@@ -4875,7 +4897,7 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
+         out.push({ t: "img", key: "img:" + refOf(shot.img), img: shot.im, href, ref: refOf(el) });
+         return;
+       }
+-      const label = labelOf(el);
++      const label = unclipped(el, labelOf(el));
+       if (!usefulControl(el, label, ctx) || isFragment(label)) return;
+       // A long link to "#" in a story (a key point a script scrolls to) goes nowhere in Sift: it reads as text.
+       // Elsewhere it is kept: a script may handle it in place (a question that opens its answer).
+@@ -5071,6 +5093,26 @@ function controlSentence(el: Element, ctx: Ctx): Inline[] | null {
+   return content.some((x) => typeof x === "string" && /\p{L}{2}/u.test(x)) ? content : null;
+ }
+ 
++/** A box of links to the authors Sift's byline already names, with at most the outlet's name beside them ("USA TODAY"). */
++function authorsBox(el: Element, byName: string): boolean {
++  const links = Array.from(el.querySelectorAll("a[href]")).filter((a) => textIn(a));
++  if (!links.length || el.querySelector("figure, video, iframe, input, select, textarea")) return false;
++  const by = norm(byName);
++  if (!links.every((a) => by.includes(norm(textIn(a))))) return false;
++  return textExcept(el, new Set(links)).replace(/\b(by|and|por|y|de|von|par|et)\b|[,&·|]/gi, "").trim().length <= 30;
++}
++
++/** A "follow this topic" button. */
++const FOLLOW_TOPIC = /^\+?\s*((add|follow|unfollow|remove)( this)? (topic|tag)|(seguir|agregar|dejar de seguir) (el |este )?tema|suivre (ce |le )?sujet)$/i;
++
++/** A topic's name and the button to follow it, with no link: a feed setting, not the story. */
++function followTopic(el: Element): boolean {
++  const btns = Array.from(el.querySelectorAll("button, [role=button]"));
++  if (btns.length !== 1 || el.querySelector("a[href], input, select, textarea, img, figure, video, iframe")) return false;
++  const lab = labelOf(btns[0]) || textIn(btns[0]);
++  return FOLLOW_TOPIC.test(lab) && textIn(el).length - lab.length <= 80;
++}
++
+ /** A story's header: after its title comes a standfirst (a paragraph of its own words), not menus and a logo. */
+ function storyHeader(el: Element, title: Element): boolean {
+   return Array.from(el.querySelectorAll("p")).some((p) => {
+@@ -5334,12 +5376,12 @@ function readingStrip(el: Element, ctx: Ctx): Block | null {
+   if (cells.length < 8) return null;
+   const tops = new Set(cells.slice(0, 8).map((c) => Math.round(c.getBoundingClientRect().top)));
+   if (tops.size > 1) return null;
++  // A row of buttons (dates, showtimes, sizes) stays a row of buttons to press, however long:
++  // a cell that is or holds a control is not a reading. (Checked before reading every cell's text: a grid of thousands of buttons, F1300.)
++  if (cells.some((c) => isControl(c) || hasControl(c) || c.matches("[onclick], [tabindex]:not([tabindex='-1'])") || c.querySelector("[onclick], h1, h2, h3, h4, img"))) return null;
+   const texts = cells.map((c) => textIn(c));
+   // Readings: short, with a number and a unit or a word ("56°", "3 pm"), not a pager's bare numbers.
+   if (texts.some((tx) => !tx || tx.length > 30) || texts.filter((tx) => /\d/.test(tx) && /[^\d\s.,:]/.test(tx)).length < cells.length * 0.75) return null;
+-  // A row of buttons (dates, showtimes, sizes) stays a row of buttons to press, however long:
+-  // a cell that is or holds a control is not a reading.
+-  if (cells.some((c) => isControl(c) || hasControl(c) || c.matches("[onclick], [tabindex]:not([tabindex='-1'])") || c.querySelector("[onclick], h1, h2, h3, h4, img"))) return null;
+   const content: Inline[] = [];
+   cells.forEach((c, i) => {
+     // A reading that is or holds a link (an hour that opens its details, a day's page) keeps it.
+@@ -5741,7 +5783,8 @@ export function proseArticle(blocks: Block[]): boolean {
+           break;
+         }
+         case "form":
+-          if (b.fields.length) fields = true;
++          // Reaction pills under a post ("👍 2 reactions") are toggles, not a form to fill (F1408).
++          if (b.fields.some((f) => !(f.kind === "checkbox" && REACTION.test(`${f.label} ${f.desc ?? ""}`)))) fields = true;
+           actions += b.actions.length;
+           break;
+         case "actions":
+@@ -5778,6 +5821,9 @@ export function proseArticle(blocks: Block[]): boolean {
+   return !fields && !surface && answers < 2 && terms < 4 && sections < 4 && actions <= 6 + Math.floor(prose / 1500) && itemText < total * 0.2 && prose >= total * 0.6 && links < total * 0.35;
+ }
+ 
++/** A post's reaction toggle: "👍 2 reactions", "React with 👍". */
++const REACTION = /\breactions?\b|\breact with\b|\breacci[oó]n(es)?\b|\brea[cç](ão|ões)\b/i;
++
+ /** Buttons that open a story's photos: a gallery, a bigger view. */
+ const PHOTO_ACTION = /gallery|galer[ií]a|enlarge|zoom|ampliar|(view|open|see) (photo|image|picture)s?|ver (foto|imagen)|abrir imagen|open image/i;
+ 
+@@ -5932,25 +5978,32 @@ function defs(el: Element, out: Out, ctx: Ctx) {
+   // small buttons ("Change email") stay in place as clickable words.
+   // A value that is text of its own (an API entry's paragraphs and code examples,
+   // a glossary's definition) is read as blocks under its term, not squeezed into a cell.
+-  const add = (k: string, dd: Element) => {
+-    const blocky = !!dd.querySelector("pre, table, dl, ul, ol, blockquote, " + HEADING_SEL) || dd.querySelectorAll("p").length >= 2 || tlen(dd) > 250;
++  // A term with links of its own (arXiv's "arXiv:2610.35868 [pdf, html, other]") keeps them: it is said as a line
++  // of its own over its value, never squeezed into a plain key (F1306).
++  const add = (k: string, dd: Element, dt?: Element | null) => {
++    const linked = !!dt && Array.from(dt.querySelectorAll("a[href]")).some((a) => !inPage(a) && visible(a));
++    const blocky = linked || !!dd.querySelector("pre, table, dl, ul, ol, blockquote, " + HEADING_SEL) || dd.querySelectorAll("p").length >= 2 || tlen(dd) > 250;
+     if (blocky || dd.querySelector("input:not([type=hidden]), select, textarea, [contenteditable=''], [contenteditable=true], [role=textbox], [role=combobox]")) {
+       flush();
+-      if (k) out.push({ t: "p", key: "dt:" + refOf(dd), content: [{ b: k }] });
++      if (linked) out.push({ t: "p", key: "dt:" + refOf(dd), content: inlineOf(dt!, ctx) });
++      else if (k) out.push({ t: "p", key: "dt:" + refOf(dd), content: [{ b: k }] });
+       walk(dd, out, ctx);
+       return;
+     }
+     rows.push({ k, v: inlineOf(dd, ctx, true) });
+   };
+   let k = "";
++  let term: Element | null = null;
+   for (const c of kids(el)) {
+     if (!visible(c)) continue;
+-    if (c.localName === "dt") k = textIn(c);
+-    else if (c.localName === "dd") add(k, c);
++    if (c.localName === "dt") {
++      k = textIn(c);
++      term = c;
++    } else if (c.localName === "dd") add(k, c, term);
+     else if (c.localName === "div") {
+       const dt = c.querySelector("dt");
+       const dd = c.querySelector("dd");
+-      if (dt && dd) add(textIn(dt), dd);
++      if (dt && dd) add(textIn(dt), dd, dt);
+     }
+   }
+   flush();
+@@ -6274,6 +6327,17 @@ function rowListInto(rows: HTMLTableRowElement[], out: Out, ctx: Ctx): boolean {
+   return true;
+ }
+ 
++/**
++ * A link's words that the site cut short with an ellipsis ("How did high-speed passenger trains collide? Nearly 70…"),
++ * in full from the link's title when that starts with them (USA Today's headline lists, F1404).
++ */
++function unclipped(a: Element, text: string): string {
++  const m = /^([\s\S]{10,}?)\s*(…|\.\.\.)$/.exec(text);
++  if (!m || !a.hasAttribute("title")) return text;
++  const full = clean(a.getAttribute("title"));
++  return full.length > m[1].length + 1 && full.startsWith(m[1]) ? full : text;
++}
++
+ /** An element's visible text without the words of some of its links, with their separators tidied. */
+ function textExcept(el: Element, skip: Set<Element>): string {
+   let s = "";
+@@ -6334,6 +6398,14 @@ function figureImage(el: Element): HTMLImageElement | null {
+     return r.width > 0 && r.left < fr.right - 1 && r.right > fr.left + 1 && r.top < fr.bottom - 1 && r.bottom > fr.top + 1;
+   });
+   if (framed.length) imgs = framed;
++  // The next slide waiting at the frame's edge shows only a sliver of itself: the photo shown is the one
++  // most inside the frame (Craigslist's 3-photo gallery: photo 1 waits 2 px inside while photo 3 is shown, F1409).
++  const inside = (im: HTMLImageElement) => {
++    const r = im.getBoundingClientRect();
++    return Math.max(0, Math.min(r.right, fr.right) - Math.max(r.left, fr.left)) * Math.max(0, Math.min(r.bottom, fr.bottom) - Math.max(r.top, fr.top));
++  };
++  const most = framed.length > 1 ? Math.max(...framed.map(inside)) : 0;
++  if (most > 0) imgs = imgs.filter((im) => inside(im) >= most / 2);
+   let best: HTMLImageElement | null = null;
+   let bestW = -1;
+   for (const im of imgs) {
+@@ -6359,14 +6431,14 @@ function figure(el: Element, out: Out, ctx: Ctx) {
+       out.push(b);
+       // The player stands for the figure: its poster image is not shown again.
+       if (!(el.localName === "figure" && el.querySelector("table, pre, blockquote, p"))) {
+-        const c = el.querySelector("figcaption");
++        const c = shownCaption(el);
+         const tx = c ? textIn(c) : "";
+         if (tx) out.push({ t: "p", key: "p:" + refOf(c!), content: [tx], small: true });
+         return;
+       }
+     }
+   }
+-  let cap: Element | null = el.localName === "img" ? null : el.querySelector("figcaption");
++  let cap: Element | null = el.localName === "img" ? null : shownCaption(el);
+   const rich = el.localName === "figure" && !!el.querySelector("table, pre, blockquote, p");
+   // A figure that holds a table, code, or a quote: read its content normally.
+   // The caption and a link around the photo go with the image block instead.
+@@ -6509,6 +6581,15 @@ function bgPicture(a: Element): Img | null {
+   return null;
+ }
+ 
++/**
++ * A figure's caption: the first one shown, not a hidden copy before it (The Guardian's lead photo
++ * holds a hidden figcaption, then the shown one, F1403). The first one when none is shown.
++ */
++function shownCaption(el: Element): Element | null {
++  const caps = Array.from(el.querySelectorAll("figcaption"));
++  return caps.length > 1 ? caps.find((c) => textIn(c)) ?? caps[0] : caps[0] ?? null;
++}
++
+ /** Caption text, with the photo credit kept apart from the caption ("… Karina Milei · Fabian Marelli"). */
+ function captionText(cap: Element): string {
+   const parts = Array.from(cap.children).filter((c) => visible(c) && textIn(c));
+@@ -6620,7 +6701,7 @@ const SEARCH_PLACE = "header,#header,[role=banner],nav,[role=search]";
+  * that holds a button counts, and Add to cart or Subscribe stay where they are (F1210). Null: no such box.
+  */
+ function searchHome(pick: HTMLInputElement, form: HTMLFormElement): Element | null {
+-  if (!form.querySelector("main, [role=main], article, h1") && tlen(form) < 2000) return form;
++  if (!form.querySelector("main, [role=main], article, h1") && tlen(form) < 2000 && !pageWide(form)) return form;
+   for (let a = pick.parentElement; a && a !== form; a = a.parentElement) {
+     if (Array.from(a.querySelectorAll("button, input[type=submit], input[type=image], [role=button]")).some((b) => b !== pick && visible(b))) {
+       // A box that also holds another field to type in (a quantity, an email) is a form of its own.
+@@ -6632,6 +6713,7 @@ function searchHome(pick: HTMLInputElement, form: HTMLFormElement): Element | nu
+ }
+ 
+ export function findSearch(ctx: Ctx): Field | undefined {
++  searchRest = null;
+   const cands = (Array.from(document.querySelectorAll(SEARCH_SEL)) as HTMLInputElement[]).filter(
+     (i) => !["hidden", "submit", "checkbox", "radio", "button"].includes(i.type) && !i.disabled && (i.matches(STRONG_SEARCH) || !!i.closest(SEARCH_PLACE)),
+   );
+@@ -6658,9 +6740,14 @@ export function findSearch(ctx: Ctx): Field | undefined {
+   ctx.searchEl = pick;
+   const named = (b: Element) => SEARCH_BUTTON.test(accName(b)) || SEARCH_BUTTON.test(b.id);
+   let btn: Element | null = null;
++  // The search's own box: its form, or inside a form that wraps the page, the box around it with its button.
++  // A bar there with a second field ("City or ZIP") is still the search's own, with its own button (F1309).
++  let home = pick.form ? searchHome(pick, pick.form) : null;
++  const wide = !!pick.form && home !== pick.form;
++  if (wide && !home) home = searchBar(pick);
+   // The form's own button: one that says search, else its submit button.
+   if (pick.form) {
+-    const own = Array.from(searchHome(pick, pick.form)?.querySelectorAll("button, input[type=submit], input[type=image], [role=button]") ?? []).filter((b) => b !== pick && visible(b));
++    const own = Array.from(home?.querySelectorAll("button, input[type=submit], input[type=image], [role=button]") ?? []).filter((b) => b !== pick && visible(b));
+     // Not a button that is something else by its role (a date picker's "Calendar" tab, a toggle), though a <button> with no type submits.
+     const plain = own.filter((b) => !b.matches("[role=tab], [role=option], [role=menuitem], [role=switch], [role=checkbox], [role=radio], [aria-pressed], [aria-selected]"));
+     // Its id counts as a name too, so the role check comes first (Booking's tab id "calendar-searchboxdatepicker-tab-trigger").
+@@ -6676,8 +6763,9 @@ export function findSearch(ctx: Ctx): Field | undefined {
+     }
+   }
+   // No button in the form, or no form: a nearby button that says search
+-  // (Google Maps keeps it outside the form). Never just any button nearby.
+-  for (let scope: Element | null = (pick.form ?? pick).parentElement, i = 0; !btn && scope && i < 3; scope = scope.parentElement, i++) {
++  // (Google Maps keeps it outside the form). Never just any button nearby,
++  // and in a form that wraps the page, never one outside the search's own part of it (F1309).
++  for (let scope: Element | null = wide ? pick.parentElement : (pick.form ?? pick).parentElement, i = 0; !btn && scope && scope !== pick.form && i < 3; scope = scope.parentElement, i++) {
+     btn = Array.from(scope.querySelectorAll("button, input[type=submit], [role=button]")).find((b) => b !== pick && visible(b) && named(b)) ?? null;
+     if (scope.matches(SEARCH_PLACE)) break;
+   }
+@@ -6688,9 +6776,42 @@ export function findSearch(ctx: Ctx): Field | undefined {
+     const said = btn instanceof HTMLInputElement ? (btn.type === "submit" ? clean(btn.value) : "") : textIn(btn);
+     if (said && said.length <= 30 && /\p{L}/u.test(said)) f.submitLabel = said;
+   }
++  if (home && searchMore(home, pick, ctx)) searchRest = home;
+   return f;
+ }
+ 
++/**
++ * The search's own form or box when it holds more to fill in than the box: a "Near" field, dates, guests
++ * (Yelp, USAJOBS, Airbnb). Only the box and its button go to the bar; when the site's header holding the
++ * rest is dropped, the rest is read at the top of the page (F1305).
++ */
++let searchRest: Element | null = null;
++
++/** A small search form or bar with another field, or a picker that opens one (Airbnb's "When", "Who"). A category select alone does not count. */
++function searchMore(box: Element, pick: Element, ctx: Ctx): boolean {
++  if (tlen(box) > 1000 || box.querySelector("nav, [role=navigation], main, [role=main], article, h1") || box.querySelectorAll("a[href]").length > 8) return false;
++  const sel = "input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=image]):not([type=reset]), textarea, [role=combobox], [role=textbox], [aria-expanded]:not(a), [aria-haspopup]:not(a)";
++  return Array.from(box.querySelectorAll(sel)).some((c) => c !== pick && !c.contains(pick) && !pick.contains(c) && !ctx.used.has(c) && visible(c) && c.getBoundingClientRect().width > 0);
++}
++
++/** In a form that wraps the page, the search bar in the site's header around the box: the smallest box with a button, if it is small (F1309). */
++function searchBar(pick: HTMLInputElement): Element | null {
++  for (let a = pick.parentElement; a && a !== pick.form && a !== document.body; a = a.parentElement) {
++    if (a.matches("header, #header, [role=banner], nav")) return null;
++    if (Array.from(a.querySelectorAll("button, input[type=submit], input[type=image], [role=button]")).some((b) => b !== pick && visible(b))) return a.closest(SEARCH_PLACE) && tlen(a) <= 300 ? a : null;
++  }
++  return null;
++}
++
++/** The search's own form or bar left in a part of the page the walk drops (the site's header), or null. */
++function searchRestDropped(root: Element, ctx: Ctx): Element | null {
++  const box = searchRest;
++  if (!box || !box.isConnected) return null;
++  if (!root.contains(box)) return box.contains(root) ? null : box;
++  for (let a: Element | null = box; a && a !== root; a = a.parentElement) if (isChrome(a, ctx)) return box;
++  return null;
++}
++
+ /**
+  * A lone text box at the top of the page whose form's button says it searches
+  * (weather.gov's location box: "Go", named btnSearch): the site's own lookup,
+@@ -6867,7 +6988,13 @@ export function findTop(): Action[] {
+     if (r.height > 0 && Math.min(r.top + scrollY, r.top) < 300) roots.push(n);
+   }
+   const out: Action[] = [];
++  // A way to sign out takes a slot only when one is left: it never pushes the cart or account into the Menu (F1307).
++  const leave: Action[] = [];
+   const seen = new Set<string>();
++  // In the page's order, as Tab goes there: the sign-in buttons of a panel the account button opened
++  // (Infobae's nav#right-panel, found before its div header) come after that button (F1406).
++  const at = new Map<Action, Element>();
++  const inOrder = (a: Action[]) => a.sort((x, y) => (at.get(x)!.compareDocumentPosition(at.get(y)!) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+   for (const r of roots) {
+     for (const el of Array.from(r.querySelectorAll("a[href],button,span,div"))) {
+       // A plain span a script makes clickable ("Sign In" on TOI, no role or link): one with no boxes inside, that says it signs in (F823).
+@@ -6890,12 +7017,19 @@ export function findTop(): Action[] {
+       const k = label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+       if (seen.has(k)) continue;
+       seen.add(k);
+-      out.push(toAction(el, label));
+-      if (out.length >= 4) return withPicker(out, roots);
++      if (SIGN_OUT.test(label)) {
++        leave.push(toAction(el, label));
++        continue;
++      }
++      const a = toAction(el, label);
++      at.set(a, el);
++      out.push(a);
++      if (out.length >= 4) return withPicker(inOrder(out), roots);
+     }
+   }
+-  return withPicker(out, roots);
++  return withPicker([...inOrder(out), ...leave].slice(0, 4), roots);
+ }
++const SIGN_OUT = /\b(sign ?out|log ?out|log ?off|cerrar sesi[oó]n|salir|sair|terminar sess[aã]o|abmelden|se d[ée]connecter|d[ée]connexion|esci|disconnetti)\b/i;
+ 
+ /** A site-wide picker: the place a forecast is for ("Montreal"), the page's language ("English (US)"). */
+ const PICKER = /(^|[\s_-])(location|locale|language|lang|region|country|city|area)[\s_-]*(picker|switcher|selector|select|chooser|trigger|toggle|menu|button)($|[\s_-])/i;
+@@ -8117,14 +8251,22 @@ function articleScope(root: Element, articleEl: Element, h1: Element | null): El
+   // to fill in, or a section of its own text (a recipe's method, a pricing table,
+   // the ticket form beside an event), keeps the scope that wide.
+   let scope: Element = lca;
++  // While the HTML still comes in, what shows the story is part of more (a repository's About beside its README)
++  // may not be in yet: a table before it (the repository's files) keeps the scope that wide, as it will be (perf16).
++  const loading = document.readyState === "loading";
+   for (let a: Element = lca; a !== root && a.parentElement; a = a.parentElement) {
+     const p: Element = a.parentElement;
+-    if (Array.from(p.children).some((c) => c !== a && contentBeside(c))) scope = p;
++    if (Array.from(p.children).some((c) => c !== a && (contentBeside(c) || (loading && tableBefore(c, a))))) scope = p;
+     if (p === root) break;
+   }
+   return scope;
+ }
+ 
++/** A table of three rows or more shown before the story (see articleScope). */
++function tableBefore(c: Element, story: Element): boolean {
++  return !!(c.compareDocumentPosition(story) & Node.DOCUMENT_POSITION_FOLLOWING) && Array.from(c.querySelectorAll("table")).some((t) => (t as HTMLTableElement).rows.length >= 3 && visible(t));
++}
++
+ /** A part beside the story that is content, not a rail: a form to fill in, or a headed section of its own text. */
+ function contentBeside(c: Element): boolean {
+   if (SKIP.has(c.localName) || /^(nav|aside|footer|header)$/.test(c.localName) || /^(navigation|complementary|contentinfo|banner|search)$/.test(c.getAttribute("role") ?? "")) return false;
+@@ -8279,15 +8421,23 @@ function dropTitleRepeat(blocks: Block[], title: string) {
+  */
+ function dropKicker(blocks: Block[]) {
+   const h = blocks.findIndex((b) => b.t === "h" && b.level === 1);
+-  const at = h > 0 ? h - 1 : h < 0 && blocks[1]?.t === "article" ? 0 : -1;
+-  const b = blocks[at];
++  let at = h > 0 ? h - 1 : h < 0 && blocks[1]?.t === "article" ? 0 : -1;
++  let list = blocks;
++  // Or first in the story's own box, over the title Sift showed above it (USA Today's "NATION", F1405).
++  const art = at < 0 ? blocks[h + 1] : undefined;
++  if (art?.t === "article") {
++    list = art.blocks;
++    at = 0;
++  }
++  const b = list[at];
+   if (!b || b.t !== "ul" || b.items.length !== 1 || b.items[0].length !== 1) return;
+   const x = b.items[0][0];
+   if (typeof x !== "object" || !("a" in x) || !x.href || x.a.length > 30) return;
+   try {
+     const u = new URL(x.href, document.baseURI);
+     const path = u.pathname.replace(/\/+$/, "");
+-    if (u.host === location.host && path.length > 1 && location.pathname.startsWith(path + "/") && location.pathname.length > path.length + 1) blocks.splice(at, 1);
++    // A parent of this page's address, or its sections inside it ("/news/nation" in "/story/news/nation/2026/…").
++    if (u.host === location.host && path.length > 1 && location.pathname.includes(path + "/") && location.pathname.length > path.length + 1) list.splice(at, 1);
+   } catch {
+     // Not a URL.
+   }
+@@ -8491,6 +8641,7 @@ function commentsBeside(root: Element, scope: Element): Element[] {
+ export function extractGeneric(budget = 0): Page {
+   deadline = budget > 0 ? performance.now() + budget : Infinity;
+   timeCut = false;
++  firstText = firstRich = firstItems = 0;
+   try {
+     const page = extractAll();
+     if (timeCut) page.partial = true;
+@@ -8506,8 +8657,10 @@ function extractAll(): Page {
+   const ctx = newCtx({ visited: new WeakSet(), bars: new WeakSet() });
+   const search = findSearch(ctx);
+   const top = findTop();
++  // A look with a time budget while the HTML still comes in leaves the menu to the look at its end (perf16).
++  const lean = deadline < Infinity && document.readyState === "loading";
+   // A menu entry that repeats a top-bar action ("Sign in") is said once, in the bar.
+-  const nav = findNav(ctx).filter((n) => !top.some((a) => a.ref === n.ref || (!!a.href && a.href === n.href)));
++  const nav = lean ? [] : findNav(ctx).filter((n) => !top.some((a) => a.ref === n.ref || (!!a.href && a.href === n.href)));
+   if (!search) {
+     const trig = searchTrigger();
+     if (trig && !top.some((a) => a.ref === trig.ref)) top.unshift(trig);
+@@ -8532,7 +8685,7 @@ function extractAll(): Page {
+   let blocks = walkPage(ctx, root, scope, beside);
+   // Pages that are mostly navigation (portals, language pickers): keep their navs
+   // as content. Lists, tables, forms and players are content already.
+-  if (blocksText(blocks).length < 200 && !hasRichBlocks(blocks)) {
++  if (!lean && blocksText(blocks).length < 200 && !hasRichBlocks(blocks)) {
+     // A fresh pass: only the search box and its button stay taken, so players found in pass one come back.
+     const used = new WeakSet<Element>();
+     if (ctx.searchEl) used.add(ctx.searchEl);
+@@ -8542,6 +8695,13 @@ function extractAll(): Page {
+     const again = walkPage({ ...newCtx(), articleEl: ctx.articleEl, used, keepAllNav: true, visited: ctx.visited, searchEl: ctx.searchEl, hasByline: ctx.hasByline, byName: ctx.byName, hasDate: ctx.hasDate, titleEl: h1 }, root, scope, beside);
+     if (blocksText(again).length > blocksText(blocks).length) blocks = again;
+   }
++  // The rest of the site's search form (its "Near" box, dates, guests) leads the page when the header holding it is dropped (F1305).
++  const rest = searchRestDropped(root, ctx);
++  if (rest) {
++    const o = new Out();
++    visit(rest, o, ctx);
++    blocks.unshift(...o.done());
++  }
+   const title = h1 ? headingText(h1).slice(0, 200) : pageTitle();
+   dropTitleRepeat(blocks, title);
+   demoteExtraH1(blocks, title);
+diff --git a/src/content/index.ts b/src/content/index.ts
+index 7e9a296..42de423 100644
+--- a/src/content/index.ts
++++ b/src/content/index.ts
+@@ -23,13 +23,16 @@ import { CSS } from "./ui/styles";
+ import { H, changed, local, onEnter, onKeys, setRenderer, store } from "./ui/store";
+ import { processAi, resetAi, setAiReady } from "./ai";
+ import { setLang, t } from "./i18n";
+-import { armRecent, noteMutations, clearRecent, noteEntered } from "./recent";
++import { armRecent, noteMutations, clearRecent, noteEntered, pageChangedAt } from "./recent";
+ import { askConsent, consentWallUp, cutShort, findToast } from "./extract/generic";
++import { pageUrl as siteUrl } from "./extract";
+ 
+ const MODE_KEY = "sift:mode";
+ const isHtml = document.contentType === "text/html" && document.documentElement?.localName === "html";
+ 
+ type PortalBlock = Extract<Block, { t: "portal" }>;
++/** A page's bars, menus and hidden parts (a folded filter's options), whose text is not its content (the content gate, perf16). */
++const GATE_CHROME = "nav, [role=navigation], [role=banner], [role=contentinfo], [role=complementary], [role=menu], [role=menubar], [role=dialog], dialog, [hidden], template, noscript, script, style, select, details:not([open]) > :not(summary)";
+ 
+ if (isHtml && window.top === window && !(window as any).__siftLoaded) {
+   (window as any).__siftLoaded = true;
+@@ -184,6 +187,32 @@ function boot() {
+   hostStyle(mode);
+   attach();
+ 
++  // A fresh YouTube list (search, home, a feed) has nothing for Sift to show before YouTube draws it. A look before
++  // YouTube's own first paint (its layout of the half-parsed page) let Chrome draw a frame just before YouTube's
++  // long startup task, and YouTube's results (so Sift's list) then came 300-900 ms later. Looks wait for that
++  // paint, a switch, or 4 s (perf16).
++  let ytHold = mode === "sift" && /(^|\.)youtube\.com$/.test(location.hostname) && location.hostname !== "music.youtube.com" && /^\/(results|feed\/.*)?$/.test(location.pathname);
++  let ytRelease = () => {};
++  if (ytHold) {
++    let po: PerformanceObserver | null = null;
++    const holdTimer = setTimeout(() => ytRelease(), 4000);
++    ytRelease = () => {
++      ytRelease = () => {};
++      ytHold = false;
++      po?.disconnect();
++      clearTimeout(holdTimer);
++      schedule(0);
++    };
++    try {
++      po = new PerformanceObserver((l) => {
++        if (l.getEntries().some((e) => e.name === "first-contentful-paint")) ytRelease();
++      });
++      po.observe({ type: "paint", buffered: true });
++    } catch {
++      ytHold = false;
++    }
++  }
++
+   let scale = 1.125;
+   const fontSize = () => {
+     // `medium` resolves to the user's default font size in Chrome settings.
+@@ -533,7 +562,8 @@ function boot() {
+       rescuing = false;
+       if (done) return;
+     }
+-    refocus(spot, heads);
++    // The page focused what the control became (a name turned editable as Rename was pressed): there, not the next control (F1412).
++    if (!(pageFocusTo && followPageFocus())) refocus(spot, heads);
+     if (searchOpener) searchWait = { at: Date.now(), el: shadow.activeElement };
+     // The user's action removed the entry focus was in (Delete, Archive): say so, since
+     // focus now sits on the same button of the next one. Not when it opened another
+@@ -1578,6 +1608,17 @@ function boot() {
+ 
+   /** When the pending run is due, so a sooner request can move it earlier. */
+   let pendingDue = 0;
++  /**
++   * The content gate: while the page loads and Sift shows none of its content, the text the page added
++   * outside its bars since the last look. Once it reaches gateMin, the look runs at once, in the change
++   * that brought the content: no wait behind a look that found only the page's header (perf16).
++   */
++  let contentAdded = 0;
++  let gateMin = 200;
++  /** The look under way was started by the gate. */
++  let byGate = false;
++  /** How the gate sees content: "" by its text (a page with no adapter), an adapter's selector for its entries, null not at all (other adapter pages). */
++  let gateSel: string | null = "";
+   /** A run waiting for an idle moment. */
+   let idleRun = 0;
+   /** When this page started loading (or the last single-page navigation). */
+@@ -1607,6 +1648,47 @@ function boot() {
+   const thinView = (bs: Block[]) =>
+     blocksText(bs).length < 200 &&
+     bs.every((b) => b.t === "h" || b.t === "p" || b.t === "note" || (bs.length > 3 && (b.t === "ul" || b.t === "actions")));
++  /**
++   * None of the page's content: no entries, table, code, facts, picture, player, article text or grid of
++   * controls (a picker's 3000 buttons), and under 200 characters outside folded sections (a title with its
++   * sort and count, a repository's header and tabs, perf16).
++   */
++  const noContent = (bs: Block[]): boolean => {
++    const rich = (xs: Block[]): boolean =>
++      xs.some((b) => (b.t === "items" && b.items.length > 0) || (b.t === "actions" && b.actions.length >= 40) || b.t === "table" || b.t === "pre" || b.t === "portal" || b.t === "facts" || b.t === "img" || (b.t === "article" && blocksText(b.blocks).length >= 100) || (b.t === "section" && !b.collapsed && rich(b.blocks)));
++    return !rich(bs) && blocksText(bs.filter((b) => !(b.t === "section" && b.collapsed))).length < 200;
++  };
++  /** Sift shows none of the page's content yet: nothing, or only a title and a line (see thinView). Asked on every change while loading: kept per page read. */
++  const emptyViews = new WeakMap<Page, boolean>();
++  const viewEmpty = () => {
++    const p = store.page;
++    if (!p?.blocks.length) return true;
++    let e = emptyViews.get(p);
++    if (e === undefined) emptyViews.set(p, (e = thinView(p.blocks) || (gateSel !== null && noContent(p.blocks))));
++    return e;
++  };
++  /** The gate is open: a page it sees content on, still loading, with none of its content shown (perf16). */
++  const gateOpen = () => gateSel !== null && document.readyState !== "complete" && viewEmpty();
++  /** A view that fills the screen (a screenful of text, entries, a table or code): while the HTML comes in, read again less often (perf16). */
++  const fullViews = new WeakMap<Page, boolean>();
++  const fullView = (p: Page | null) => {
++    if (!p) return false;
++    let f = fullViews.get(p);
++    if (f === undefined) {
++      let n = 0;
++      let rich = false;
++      const walk = (bs: Block[]) => {
++        for (const b of bs) {
++          if (b.t === "items") n += b.items.length;
++          else if (b.t === "table" || b.t === "pre") rich = true;
++          else if (b.t === "section" || b.t === "article") walk(b.blocks);
++        }
++      };
++      walk(p.blocks);
++      fullViews.set(p, (f = rich || n >= 8 || blocksText(p.blocks).length >= 1500));
++    }
++    return f;
++  };
+ 
+   /**
+    * Extract again: now (`delay` 0: navigation, after an action), after
+@@ -1615,6 +1697,11 @@ function boot() {
+    */
+   const schedule = (delay?: number, minor = false, grew = false) => {
+     if (store.mode !== "sift") return;
++    // The page's content came in while Sift shows none of it: the look that shows it runs now (perf16).
++    if (delay === undefined && contentAdded >= gateMin && gateOpen()) {
++      byGate = true;
++      return run();
++    }
+     let d: number;
+     let idle = false;
+     if (delay !== undefined) d = delay;
+@@ -1626,7 +1713,13 @@ function boot() {
+       // the change (a loading page has no idle moment, and its next long task
+       // would delay a timer), but never back to back.
+       // After a long look (over 300 ms), the pause is three times its length (F1220).
+-      const wait = lastRunAt + (lastDur > 300 ? lastDur * 4 : Math.max(100, lastDur * 3)) - performance.now();
++      // While the HTML still comes in and Sift shows none of its content, a quick look (the page's first bytes)
++      // holds the next back only by three times its length: the first view comes as soon as the content is in (F1300).
++      // Where the gate sees the content come in, a look at the page's header waits longer: the gate runs the next (perf16).
++      // A view that already fills the screen is read again less often while the HTML comes in: each look holds up the page's parser (perf16).
++      const soon = document.readyState === "loading" && viewEmpty();
++      const full = !activeAdapter() && document.readyState === "loading" && fullView(store.page);
++      const wait = lastRunAt + (full ? Math.max(300, lastDur * 4) : lastDur > 300 ? lastDur * 4 : Math.max(soon ? (gateSel !== null ? 300 : 16) : 100, lastDur * 3)) - performance.now();
+       if (wait <= 0) return run();
+       d = Math.max(16, wait);
+     } else {
+@@ -2303,18 +2396,23 @@ function boot() {
+   /** Whether each shown player showed its own error screen when Sift last read the page. */
+   const errorAt = new WeakMap<Element, boolean>();
+   function run() {
+-    lastRunAt = performance.now();
+     if (pending) clearTimeout(pending);
+     pending = 0;
+     if (idleRun) cancelIdleCallback(idleRun);
+     idleRun = 0;
+-    if (store.mode !== "sift" || !document.body) return;
++    if (store.mode !== "sift" || !document.body || ytHold) return;
++    // Only a look that read the page counts for spacing the next: one before <body> exists read nothing (F1300).
++    lastRunAt = performance.now();
++    const gated = byGate;
++    byGate = false;
++    contentAdded = 0;
+     if (checkUrl()) fillTries = lastCount = 0;
+     const s = performance.now();
+     let page: Page;
+     // Until Sift shows this page, a look stops after a moment and shows what it read (a long list's first
+     // part), and the next look reads it all: the first view never waits on the whole page (F1220).
+-    const budget = !firstPaint && !cutLast ? 120 : 0;
++    // Shown means some of its content: while the HTML comes in, a first look that found only a title (its first bytes) is no view yet (F1300).
++    const budget = (!firstPaint || (document.readyState !== "complete" && viewEmpty())) && !cutLast ? 50 : 0;
+     try {
+       page = extract(budget);
+       failures = 0;
+@@ -2330,8 +2428,13 @@ function boot() {
+     lastDur = performance.now() - s;
+     host.dataset.ms = String(Math.round(lastDur));
+     cutLast = budget > 0 && page.source === "generic" && cutShort();
+-    // The rest of the page is read once this first part has shown, spaced like any look while the page loads.
+-    if (cutLast) schedule(Math.max(16, lastRunAt + Math.max(100, lastDur * 3) - performance.now()));
++    const ad = activeAdapter();
++    gateSel = !ad ? "" : (ad.contentSel?.(siteUrl()) ?? null);
++    // The gate opened on text that was not the content (a menu, a title alone): it waits for more next time.
++    if (gated && noContent(page.blocks)) gateMin = Math.min(gateMin * 2, 3200);
++    // The rest of the page is read once this first part has shown, spaced like any look while the page loads
++    // (a first part that fills the screen while the HTML comes in: as any look at a full view then, perf16).
++    if (cutLast) schedule(Math.max(16, lastRunAt + (!ad && document.readyState === "loading" && fullView(page) ? Math.max(300, lastDur * 4) : Math.max(100, lastDur * 3)) - performance.now()));
+     watchShadows();
+     const runs = +(host.dataset.runs ?? 0) + 1;
+     host.dataset.runs = String(runs);
+@@ -2339,6 +2442,9 @@ function boot() {
+     if (runs % 50 === 0) sweepRefs();
+     // An adapter can say its page is still loading (YouTube renders lists late).
+     page.partial = page.partial || document.readyState === "loading";
++    // A fresh YouTube page shows only its loading line at first: drawn before YouTube's own first paint, it put
++    // YouTube's results off by about half a second. Sift's boot line stays until entries, a player or a dialog come (perf16).
++    if (!store.page && !firstPaint && page.source === "youtube" && page.partial && !page.dialog && performance.now() - loadStart < 4000 && ytWaiting(page.blocks)) return;
+     updateToast();
+     // The list a field the user types in controls (Google Maps' suggestions grid).
+     // It wins over a popup found around that field (Maps' directions panel, which
+@@ -2485,9 +2591,25 @@ function boot() {
+     if (held && focusLost()) portalFocus = { el: held, at: Date.now() };
+     restorePortalFocus();
+     // A page read in part is read whole in a moment: its text is shortened then, once (F1220).
+-    if (!cutLast) processAi(page);
+-    fillScreen(page);
+-    openAtPost();
++    // While the page loads, the view's reads of its own size wait for the frame, before its paint, and its text
++    // to shorten waits until after it: the first view is drawn first (perf16).
++    if (document.readyState !== "complete") {
++      const cut = cutLast;
++      afterFrame(
++        () => {
++          if (store.page !== page) return;
++          fillScreen(page);
++          openAtPost();
++        },
++        () => {
++          if (!cut && store.page === page) processAi(page);
++        },
++      );
++    } else {
++      if (!cutLast) processAi(page);
++      fillScreen(page);
++      openAtPost();
++    }
+     toEnd();
+     if (!firstPaint && page.blocks.length) {
+       firstPaint = performance.now() - t0;
+@@ -2499,6 +2621,34 @@ function boot() {
+     }
+   }
+ 
++  /** Runs `inFrame` in the next frame, before its paint, and `after` once that frame is drawn; a timer stands in for a hidden tab's frames. */
++  function afterFrame(inFrame: () => void, after: () => void) {
++    let done = false;
++    const go = () => {
++      if (done) return;
++      done = true;
++      clearTimeout(timer);
++      inFrame();
++      setTimeout(after, 0);
++    };
++    const timer = window.setTimeout(go, 100);
++    requestAnimationFrame(go);
++  }
++  /** YouTube's view has only its loading line (and its chips): no entries, player or panel yet (perf16). */
++  function ytWaiting(bs: Block[]): boolean {
++    let loading = false;
++    let real = false;
++    const walk = (xs: Block[]) => {
++      for (const b of xs) {
++        if (b.key === "yt-loading") loading = true;
++        if ((b.t === "items" && b.items.length > 0) || b.t === "portal") real = true;
++        if (b.t === "section" || b.t === "article") walk(b.blocks);
++      }
++    };
++    walk(bs);
++    return loading && !real;
++  }
++
+   /** Kinds of history changes since the last check (the Navigation API tells push from replace). */
+   const navKinds = new Set<string>();
+   /** Whether each hash seen is an app route (decided once, when the page has loaded). */
+@@ -2573,6 +2723,7 @@ function boot() {
+     host.scrollTop = 0;
+     sweepRefs();
+     firstPaint = 0;
++    gateMin = 200;
+     loadStart = performance.now();
+     // What the reader last had: the next page is not named by it, however long the page keeps it.
+     if (!navPending) titleFrom = { title: store.page?.title ?? "", head: headOf(store.page) };
+@@ -2651,8 +2802,41 @@ function boot() {
+         grew += (n.textContent ?? "").length;
+         if (grew >= 400) break;
+       }
++    if (contentAdded < gateMin && gateOpen()) countContent(added);
+     schedule(undefined, minor, grew >= 400);
+   });
++  /**
++   * Adds the page's new content to contentAdded (see the gate): the text of each new element's own text nodes,
++   * outside the page's bars, menus and hidden parts; a new h1 opens the gate. On an adapter's page, its entries.
++   */
++  function countContent(added: Node[]) {
++    const memo = new Map<Element, boolean>();
++    const bar = (el: Element | null): boolean => {
++      if (!el || el === document.body || el === document.documentElement) return false;
++      let c = memo.get(el);
++      if (c === undefined) {
++        c = el.matches(GATE_CHROME) || (el.matches("header, footer, aside") && !el.closest("main, article, [role=main]")) || bar(el.parentElement);
++        memo.set(el, c);
++      }
++      return c;
++    };
++    let n = 0;
++    for (const x of added) {
++      if (++n > 3000 || contentAdded >= gateMin) break;
++      const el = x as Element;
++      if (gateSel) {
++        if (el.matches(gateSel) || el.querySelector(gateSel)) contentAdded = gateMin;
++        continue;
++      }
++      if (bar(el)) continue;
++      // A title inside a form is a search page's, over its filters and results (GOV.UK): its text counts as any.
++      if (el.localName === "h1" && !el.closest("form")) {
++        contentAdded += gateMin;
++        continue;
++      }
++      for (let c = el.firstChild; c; c = c.nextSibling) if (c.nodeType === 3) contentAdded += (c.nodeValue ?? "").trim().length;
++    }
++  }
+   let listTimer = 0;
+   /**
+    * The page changed while the user types in a field with suggestions: its new list shows
+@@ -2696,7 +2880,8 @@ function boot() {
+   mo.observe(document, moOpts);
+   observeRoot = (r) => mo.observe(r, moOpts);
+   const nav = (window as any).navigation;
+-  nav?.addEventListener?.("navigatesuccess", () => schedule(0));
++  // The page wrote its own address again (GitHub's replaceState as it loads): read at the pace of its changes (perf16).
++  nav?.addEventListener?.("navigatesuccess", () => schedule(pageUrl() === lastUrl ? undefined : 0));
+   nav?.addEventListener?.("navigate", (e: any) => navKinds.add(String(e.navigationType)));
+   addEventListener("popstate", () => schedule(0));
+   // Back/forward cache restores the page without any DOM change.
+@@ -2712,11 +2897,17 @@ function boot() {
+     schedule(Math.max(0, lastDur > 300 ? lastRunAt + lastDur * 4 - performance.now() : cutLast ? lastRunAt + Math.max(100, lastDur * 3) - performance.now() : 0));
+   document.addEventListener("DOMContentLoaded", () => {
+     attach();
+-    loadedAgain();
++    // A page whose content the gate did not see (in pictures, in a bar) is read now, not after a timer its own scripts hold up (perf16).
++    if (gateOpen() && !cutLast && lastDur <= 300) run();
++    else loadedAgain();
+   });
+   addEventListener("load", loadedAgain);
+   // Inputs change without DOM mutations; catch up after the user acts.
+-  host.addEventListener("click", () => setTimeout(() => schedule(0), 120));
++  // Not after a link to a place in the page that changed nothing there (F1411; afterAct looks once it does).
++  host.addEventListener("click", () => {
++    const jump = performance.now() - jumpAt < 50;
++    setTimeout(() => (!jump || pageChangedAt() >= jumpAt) && schedule(0), 120);
++  });
+ 
+   // ---------- infinite lists: scrolling Sift near the end loads more ----------
+   let lastNudge = 0;
+@@ -2980,6 +3171,7 @@ function boot() {
+ 
+   // ---------- mode switching ----------
+   function setMode(next: "sift" | "original", remember = true) {
++    ytRelease();
+     // Leaving Sift: what the user typed in a rich editor's Sift field reaches the
+     // page now. Kept for later, it would overwrite what they type in the original.
+     if (next === "original" && store.mode === "sift") {
+@@ -3174,12 +3366,19 @@ function boot() {
+     flushBlur();
+   }
+ 
+-  /** `keep`: the action was inside the popup Sift shows (a box checked there): what opened it stays found. */
+-  const afterAct = (keep = false) => {
+-    actedAt = performance.now();
++  /**
++   * `keep`: the action was inside the popup Sift shows (a box checked there): what opened it stays found.
++   * `jump`: a link to a place in the page, which often changes nothing there (HN's "next"): a look, most
++   * of a second on a long thread, only once the page did change (F1411).
++   */
++  const afterAct = (keep = false, jump = false) => {
++    const at = (actedAt = performance.now());
+     armRecent(2500, keep);
+-    for (const d of [60, 400, 1200]) setTimeout(() => schedule(0), d);
++    if (jump) jumpAt = at;
++    for (const d of [60, 400, 1200]) setTimeout(() => (!jump || pageChangedAt() >= at) && schedule(0), d);
+   };
++  /** When the user last followed a link to a place in the page. */
++  let jumpAt = -Infinity;
+   /** `el` is inside the page popup or dialog Sift shows as a sheet. */
+   const inShownDialog = (el: Element | null) => {
+     const d = store.page?.dialog;
+@@ -3232,28 +3431,37 @@ function boot() {
+    * A same-page link ("22 comments" to #commentsFeed): after the page handled
+    * it, show that place in Sift as the browser would in the page. The block
+    * holding the target (or the first after it), with every closed section
+-   * around it opened, is scrolled to and focused.
++   * around it opened, is scrolled to and focused. True when the place is in
++   * the page already (a jump, not a link that builds it).
+    */
+-  function followAnchor(href: string | undefined) {
++  function followAnchor(href: string | undefined): boolean {
+     let u: URL;
+     try {
+       u = new URL(href ?? "", location.href);
+     } catch {
+-      return;
++      return false;
+     }
+-    if (u.hash.length < 2 || u.href.split("#")[0] !== location.href.split("#")[0]) return;
++    if (u.hash.length < 2 || u.href.split("#")[0] !== location.href.split("#")[0]) return false;
+     let id = u.hash.slice(1);
+     try {
+       id = decodeURIComponent(id);
+     } catch {
+       /* not encoded */
+     }
++    const find = () => document.getElementById(id) ?? document.getElementsByName(id)[0];
++    const at = performance.now();
++    const there = !!find();
+     // The page may build or open the target on the click (a comments feed).
+-    setTimeout(() => {
+-      const target = document.getElementById(id) ?? document.getElementsByName(id)[0];
++    const show = () => {
++      const target = find();
+       // The page moved focus there itself (an error link to its field): Sift followed it already.
+       if (target && performance.now() - pageFocusAt > 1000) showPlace(target);
+-    }, 150);
++    };
++    // A place already there that the click changed nothing around (HN's "next"): shown at once,
++    // before Sift's next look at the page, as the page starts scrolling there (F1411).
++    if (there) setTimeout(() => (pageChangedAt() >= at ? setTimeout(show, 150) : show()), 0);
++    else setTimeout(show, 150);
++    return there;
+   }
+ 
+   /**
+@@ -3377,29 +3585,37 @@ function boot() {
+     // Not a page focusing things on its own (an autofocus on load).
+     if (Date.now() - store.actAt > 2000 && performance.now() - actedAt > 2000) return;
+     pageFocusTo = { el, at: performance.now() };
+-    setTimeout(followPageFocus, 0);
++    setTimeout(() => followPageFocus(true), 0);
+   });
+-  function followPageFocus() {
++  /** True when it put focus on Sift's control for that place. `early`: before Sift's next look at the page. */
++  function followPageFocus(early = false): boolean {
+     const to = pageFocusTo;
+-    if (!to || store.mode !== "sift") return;
++    if (!to || store.mode !== "sift") return false;
+     if (performance.now() - to.at > 2500 || !to.el.isConnected) {
+       pageFocusTo = null;
+-      return;
++      return false;
+     }
+     // Sift's control for it, in the open sheet if there is one.
+     const layer = shadow.querySelector(".layer");
+     const ref = window.CSS.escape(refOf(to.el));
+-    const ctl = Array.from((layer ?? shadow).querySelectorAll<HTMLElement>(`[data-ref="${ref}"]`)).find((c) => c.matches(FOCUSABLE) && c.getClientRects().length > 0);
++    const ctls = Array.from((layer ?? shadow).querySelectorAll<HTMLElement>(`[data-ref="${ref}"]`)).filter((c) => c.matches(FOCUSABLE) && c.getClientRects().length > 0);
++    // The page made the element a field as it focused it (a name renamed in place): Sift's field for it,
++    // which the next render shows; not the button still there for it, where typing presses other controls (F1412).
++    const typable = (to.el as HTMLElement).isContentEditable || to.el.matches("textarea, input:not([type=button], [type=submit], [type=reset], [type=image], [type=checkbox], [type=radio])");
++    const isField = (c: Element) => c.matches("input, textarea, select, [contenteditable]");
++    // Before the next look (`early`), only that field; a look that still shows a button for it: the button.
++    const ctl = typable ? ctls.find(isField) ?? (early ? undefined : ctls[0]) : ctls[0];
++    if (!ctl && ctls.length) return false;
+     // A search opened from Sift's bar starts in its box, though the site's panel focuses a button
+     // (BBC's menu focuses its "Search" button). A box the page has not enabled yet is waited for.
+     if (ctl && layer && performance.now() - searchOpenedAt < 4000 && !ctl.matches("input, textarea")) {
+       const box = layer.querySelector<HTMLInputElement>("input[type=search], input[type=text], input:not([type])");
+       if (box) {
+-        if (box.disabled) return;
++        if (box.disabled) return false;
+         pageFocusTo = null;
+         pageFocusAt = performance.now();
+         if (shadow.activeElement !== box) box.focus();
+-        return;
++        return true;
+       }
+     }
+     if (ctl || (!layer && !shadow.querySelector(".suggest") && showPlace(to.el, false))) {
+@@ -3416,8 +3632,24 @@ function boot() {
+           } catch {
+             /* a type with no selection */
+           }
++        // An element the page made editable: the caret where the page's selection is in it, else at the
++        // end, where a click on the name puts it; not at the start, before the old text (F1412).
++        else if ((to.el as HTMLElement).isContentEditable && ctl.localName === "textarea") {
++          const f = ctl as HTMLTextAreaElement;
++          const s = getSelection();
++          let at = f.value.length;
++          if (s?.rangeCount && to.el.contains(s.anchorNode)) {
++            const r = document.createRange();
++            r.selectNodeContents(to.el);
++            r.setEnd(s.anchorNode!, s.anchorOffset);
++            at = Math.min(at, r.toString().length);
++          }
++          f.setSelectionRange(at, at);
++        }
+       }
++      return !!ctl;
+     }
++    return false;
+   }
+ 
+   Object.assign(H, {
+@@ -3468,8 +3700,7 @@ function boot() {
+             notify(problem);
+             focusInvalid((el as HTMLButtonElement).form);
+           }
+-          afterAct(keep);
+-          if (el.localName === "a") followAnchor((el as HTMLAnchorElement).href);
++          afterAct(keep, el.localName === "a" && followAnchor((el as HTMLAnchorElement).href));
+         };
+         go();
+       } else if (href) {
+diff --git a/src/content/proxy.ts b/src/content/proxy.ts
+index 44a7f37..3fcd2c1 100644
+--- a/src/content/proxy.ts
++++ b/src/content/proxy.ts
+@@ -599,14 +599,24 @@ export function submit(field: Element | null, button: Element | null, form: HTML
+     // just reload the page and lose the query. Hold it and try again once the page has loaded.
+     const t0 = performance.now();
+     const at = location.href.split("#")[0];
++    // Only while the page did nothing with it: a handler that added the item, drew results or took the
++    // text has handled it, and the submission goes on as on the original. Else every retry would replay
++    // its handler again (one Enter, the item added 8 times: F1303).
++    const value = (field as HTMLInputElement | null)?.value;
++    const mo = new MutationObserver(() => {});
++    mo.observe(document, { subtree: true, childList: true, characterData: true });
++    const handled = () =>
++      (field as HTMLInputElement | null)?.value !== value ||
++      mo.takeRecords().some((r) => !(r.target instanceof Element ? r.target : r.target.parentElement)?.closest("sift-root, [data-sift-portal], [role=listbox], [role=option]"));
+     const hold = (e: Event) => {
+-      if (e.target !== f || e.defaultPrevented) return;
++      if (e.target !== f || e.defaultPrevented || handled()) return;
+       e.preventDefault();
+       clearTimeout(heldSubmit);
+       heldSubmit = setTimeout(function retry() {
+         // Not once the page has gone on to another address (the site took it over, or the user went elsewhere).
+         if (leftAt >= t0 || location.href.split("#")[0] !== at || !f.isConnected) return;
+-        if (document.readyState !== "complete") heldSubmit = setTimeout(retry, 500);
++        // Still loading, for a while at most (an image that never ends must not hold it for good).
++        if (document.readyState !== "complete" && holdsSubmit(f)) heldSubmit = setTimeout(retry, 500);
+         else submit(field?.isConnected ? field : null, button, form, via);
+       }, 1000);
+     };
+@@ -615,6 +625,7 @@ export function submit(field: Element | null, button: Element | null, form: HTML
+       return submitNow(field, button, f, via);
+     } finally {
+       removeEventListener("submit", hold);
++      mo.disconnect();
+     }
+   }
+   return submitNow(field, button, form, via);
+@@ -625,13 +636,18 @@ let heldSubmit: ReturnType<typeof setTimeout> | undefined;
+ 
+ /**
+  * Whether a submission of `f` that the page does not take over is held for
+- * now: its action is only a fragment or a script ("#"), and the page is
+- * loading or loaded less than 8 seconds ago.
++ * now: a search box (one field to type in) that posts back to this page ("#"),
++ * and the page is loading (at most 10 seconds after DOMContentLoaded) or loaded
++ * less than 8 seconds ago. Not a script address ("javascript:"), whose
++ * submission does nothing, nor a GET, which keeps its query in the new address
++ * (F1303).
+  */
+ function holdsSubmit(f: HTMLFormElement): boolean {
+-  if (!/^\s*(#|javascript:)/i.test(f.getAttribute("action") ?? "")) return false;
+-  if (document.readyState !== "complete") return true;
++  if (f.method !== "post" || !/^\s*#/.test(f.getAttribute("action") ?? "")) return false;
++  const typed = Array.from(f.elements).filter((e) => e instanceof HTMLTextAreaElement || (e instanceof HTMLInputElement && BLOCKING.has(e.type)));
++  if (typed.length !== 1 || !/^(text|search)$/.test((typed[0] as HTMLInputElement).type)) return false;
+   const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
++  if (document.readyState !== "complete") return !nav?.domContentLoadedEventEnd || performance.now() < nav.domContentLoadedEventEnd + 10000;
+   return !!nav && performance.now() < nav.loadEventEnd + 8000;
+ }
+ 
+diff --git a/src/content/recent.ts b/src/content/recent.ts
+index ef6fa4e..bf3bfe1 100644
+--- a/src/content/recent.ts
++++ b/src/content/recent.ts
+@@ -41,8 +41,18 @@ export function churned(n: Node, t: number, ms = 5000): boolean {
+   return !!at && at.filter((x) => x < t && t - x < ms).length >= 2;
+ }
+ 
++/** When the page itself last changed: not Sift's marks on it, nor its root and Sift's host. */
++let pageChanged = -Infinity;
++export const pageChangedAt = () => pageChanged;
++
+ export function noteMutations(records: MutationRecord[]) {
+   const now = performance.now();
++  for (const r of records) {
++    const t = r.target as Element;
++    if (t === document.documentElement || t.localName === "sift-root" || (r.type === "attributes" && (r.attributeName === "inert" || !!r.attributeName?.startsWith("data-sift")))) continue;
++    pageChanged = now;
++    break;
++  }
+   // Not the parser building the page.
+   if (document.readyState !== "loading") {
+     for (const r of records) {
+diff --git a/src/content/short.ts b/src/content/short.ts
+index 6bf03cd..6b184b1 100644
+--- a/src/content/short.ts
++++ b/src/content/short.ts
+@@ -592,6 +592,9 @@ function blockWords(b: Block): number {
+ /** The Short version as shown, put back parts included, must save at least a quarter of the words, or the full text shows. */
+ const MAX_SHOWN = 0.75;
+ 
++/** A heading of a numbered series, and its number: "2. The company is haemorrhaging cash", "3) Bake". */
++const NUMBERED = /^\s*(\d{1,3})[.)]\s/;
++
+ /**
+  * Puts the model's short text and the article's own blocks together: each
+  * placeholder becomes its block, the source's headings stay and no others,
+@@ -637,7 +640,12 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
+       }
+       if (s > score) [best, score] = [i, s];
+     });
+-    return score >= 0.75 ? best : -1;
++    if (score >= 0.75) return best;
++    // A numbered heading the model reworded ("2. Anthropic is losing money" for
++    // "2. The company is haemorrhaging cash") stands for the page's heading of
++    // that number not placed yet, so its section's text stays under it (F1233).
++    const num = NUMBERED.exec(text.replace(/[*_`]/g, ""))?.[1];
++    return num ? src.units.findIndex((u, i) => u.kind === "h" && !used.has(i) && NUMBERED.exec(u.plain)?.[1] === num) : -1;
+   };
+   for (const raw of out.replace(/\r/g, "").split("\n")) {
+     const parts = raw.split(/(\[\[\s*B\d+\s*\]\])/);
+@@ -859,17 +867,32 @@ export function planShort(out: string, meta: ShortMeta, src: ShortSource): Short
+     });
+     let hi = segs.findIndex((s, k) => k >= lo && "unit" in s && s.pos > i);
+     if (hi < 0) hi = segs.length;
+-    let at = segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && s.pos !== undefined && s.pos > i);
++    // A heading goes before the first text of its own section, if any: a line
++    // about a later section the model set before it stays above (F1233).
++    const end = u.kind === "h" ? src.units.findIndex((v, j) => j > i && v.kind === "h") : -1;
++    let at = u.kind === "h" ? segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && s.pos !== undefined && s.pos > i && (end < 0 || s.pos < end)) : -1;
++    if (at < 0) at = segs.findIndex((s, k) => k >= lo && k < hi && "md" in s && s.pos !== undefined && s.pos > i);
+     if (at < 0) at = hi;
++    // Right after the model's own heading for that section (kept as a line),
++    // it goes before that line, which is then of its section.
++    const prev = segs[at - 1];
++    if (u.kind === "h" && at > lo && prev && "md" in prev && guesses.has(prev) && !(prev.pos !== undefined && prev.pos < i)) {
++      at--;
++      prev.pos = i;
++    }
+     segs.splice(at, 0, { unit: i, pos: i });
+     used.add(i);
+   }
+ 
+-  // A heading with nothing under it (its text was cut) is dropped.
++  // A heading with nothing under it (its text was cut) is dropped. One of a
++  // numbered series ("1.", "2.", "3.") stays: it is one of the points (F1233).
+   const level = (s: S) => ("unit" in s && src.units[s.unit].kind === "h" ? (src.units[s.unit].block as Extract<Block, { t: "h" }>).level : 0);
++  const series = src.units.filter((u) => u.kind === "h" && NUMBERED.test(u.plain)).length >= 2;
+   for (let i = segs.length - 1; i >= 0; i--) {
+     const l = level(segs[i]);
+     if (!l) continue;
++    const s = segs[i];
++    if (series && "unit" in s && NUMBERED.test(src.units[s.unit].plain)) continue;
+     const next = segs[i + 1];
+     if (!next || (level(next) && level(next) <= l)) segs.splice(i, 1);
+   }
+diff --git a/src/content/ui/markdown.tsx b/src/content/ui/markdown.tsx
+index c2405a5..64a606b 100644
+--- a/src/content/ui/markdown.tsx
++++ b/src/content/ui/markdown.tsx
+@@ -34,7 +34,7 @@ export function Markdown({ text, link }: { text: string; link?: LinkFn }) {
+   const lines = text.replace(/\r/g, "").split("\n");
+   const blocks: any[] = [];
+   let para: string[] = [];
+-  let list: { ordered: boolean; items: string[] } | null = null;
++  let list: { ordered: boolean; items: string[]; start?: number } | null = null;
+   let quote: string[] = [];
+   /** Inside a fenced code block: its fence and lines so far. */
+   let code: { fence: string; lines: string[] } | null = null;
+@@ -55,7 +55,8 @@ export function Markdown({ text, link }: { text: string; link?: LinkFn }) {
+   const flushList = () => {
+     if (!list) return;
+     const items = list.items.map((it, i) => <li key={i}>{inline(it, link)}</li>);
+-    blocks.push(list.ordered ? <ol key={k++}>{items}</ol> : <ul key={k++}>{items}</ul>);
++    // A numbered list keeps the model's first number ("3. It has cash…" is not "1.").
++    blocks.push(list.ordered ? <ol key={k++} start={list.start !== 1 ? list.start : undefined}>{items}</ol> : <ul key={k++}>{items}</ul>);
+     list = null;
+   };
+   const flushCode = () => {
+@@ -118,15 +119,15 @@ export function Markdown({ text, link }: { text: string; link?: LinkFn }) {
+     }
+     if (quote.length) flushPara();
+     const b = /^\s*[-*•]\s+(.*)$/.exec(line);
+-    const n = /^\s*\d+[.)]\s+(.*)$/.exec(line);
++    const n = /^\s*(\d+)[.)]\s+(.*)$/.exec(line);
+     if (b || n) {
+       flushPara();
+       const ordered = !!n;
+       if (!list || list.ordered !== ordered) {
+         flushList();
+-        list = { ordered, items: [] };
++        list = { ordered, items: [], start: n ? Number(n[1]) : undefined };
+       }
+-      list.items.push((b ?? n)![1]);
++      list.items.push(b ? b[1] : n![2]);
+       continue;
+     }
+     if (list && /^\s{2,}/.test(raw)) {
+diff --git a/src/main/index.ts b/src/main/index.ts
+index 6a5a8f0..6e6566a 100644
+--- a/src/main/index.ts
++++ b/src/main/index.ts
+@@ -132,13 +132,35 @@ if (!(window as any).__siftMain) {
+       if (e.hasAttribute("data-sift-portal") || e.localName === "sift-root" || e === document.fullscreenElement || e.matches(":modal")) return true;
+     return false;
+   };
++  // Not only during the click (F1301, F1302): the page often focuses its popup a microtask, a frame or a
++  // timeout later (React, Vue, Headless UI), or after Sift's checkbox or Enter. So while Sift is shown and
++  // holds focus, a page element outside what Sift shows takes no real focus, as on an inert page. Real
++  // focus already on a page element (a shown original, the editor Sift types into) is left as it is.
++  const guarded = (n: Element): boolean => {
++    if (!n.isConnected || shownAt(n)) return false;
++    if (clicking > 0) return true;
++    const a = active?.get ? (active.get.call(document) as Element | null) : null;
++    return (!a || a === document.body || a.localName === "sift-root") && siftShown();
++  };
++  const askFocus = (n: Element) => n.dispatchEvent(new CustomEvent("sift-focus", { bubbles: true, composed: true }));
+   let selField: HTMLInputElement | HTMLTextAreaElement | null = null;
+   for (const fproto of [HTMLInputElement.prototype, HTMLTextAreaElement.prototype] as any[])
+     for (const name of ["select", "setSelectionRange"]) {
+       const orig = fproto[name];
+       if (typeof orig !== "function") continue;
+       fproto[name] = function (this: HTMLInputElement | HTMLTextAreaElement, ...args: unknown[]) {
+-        const r = orig.apply(this, args);
++        // select() focuses the field natively: while guarded (above), select its text without focus.
++        let r: unknown;
++        try {
++          if (name === "select" && guarded(this)) {
++            fproto.setSelectionRange.call(this, 0, this.value.length);
++            askFocus(this);
++            return;
++          }
++        } catch {
++          /* a type with no selection range: the page's own call */
++        }
++        r = orig.apply(this, args);
+         // Only the copy that follows in the same task.
+         const f = (selField = this);
+         setTimeout(() => selField === f && (selField = null));
+@@ -149,7 +171,7 @@ if (!(window as any).__siftMain) {
+     const f = selField;
+     // Never a password: the browser copies none.
+     // Or a field the page could not focus during Sift's click (above): it would copy as nothing.
+-    if (f?.isConnected && (inertAt(f) || (clicking > 0 && !shownAt(f))) && (f as HTMLInputElement).type !== "password") {
++    if (f?.isConnected && (inertAt(f) || guarded(f)) && (f as HTMLInputElement).type !== "password") {
+       try {
+         return f.value.slice(f.selectionStart ?? 0, f.selectionEnd ?? 0);
+       } catch {
+@@ -214,9 +236,9 @@ if (!(window as any).__siftMain) {
+   if (typeof focus === "function") {
+     proto.focus = function (this: HTMLElement, ...args: unknown[]) {
+       try {
+-        // During Sift's click, outside what Sift shows of the page: no real focus (above, F1200).
+-        if (clicking > 0 && this.isConnected && !shownAt(this)) {
+-          this.dispatchEvent(new CustomEvent("sift-focus", { bubbles: true, composed: true }));
++        // Outside what Sift shows of the page, while Sift holds focus: no real focus (above, F1200, F1301).
++        if (guarded(this)) {
++          askFocus(this);
+           return;
+         }
+       } catch {
+@@ -276,6 +298,31 @@ if (!(window as any).__siftMain) {
+   // A modal dialog inside a shadow root is invisible to document.querySelector(":modal")
+   // and sends no toggle event to the document. Tell Sift when one opens and closes.
+   const dproto = HTMLDialogElement.prototype as any;
++  // show() focuses the dialog's first control natively: while guarded (above), it opens without taking
++  // focus (inert for that moment), and Sift follows to its copy of that control (F1301).
++  const show = dproto.show;
++  if (typeof show === "function") {
++    dproto.show = function (this: HTMLDialogElement, ...args: unknown[]) {
++      let hold = false;
++      try {
++        hold = !this.open && !this.inert && guarded(this);
++      } catch {
++        /* never break the page's own call */
++      }
++      if (!hold) return show.apply(this, args);
++      this.inert = true;
++      try {
++        return show.apply(this, args);
++      } finally {
++        this.inert = false;
++        try {
++          askFocus(this.querySelector("[autofocus]") ?? this.querySelector("button, [href], input:not([type=hidden]), select, textarea, [tabindex]:not([tabindex='-1'])") ?? this);
++        } catch {
++          /* never break the page's own call */
++        }
++      }
++    };
++  }
+   const showModal = dproto.showModal;
+   if (typeof showModal === "function") {
+     dproto.showModal = function (this: HTMLDialogElement, ...args: unknown[]) {
+diff --git a/src/shared/ticks.ts b/src/shared/ticks.ts
+index 7e2c778..f46b6d1 100644
+--- a/src/shared/ticks.ts
++++ b/src/shared/ticks.ts
+@@ -10,7 +10,7 @@ const TICKS_CJK = /\d+\s*(?:秒|分|分钟|分鐘|時間|小时|小時|日|天|
+  */
+ const LABEL = new Set(
+   (
+-    "updated update published posted edited modified last read reading time current duration elapsed remaining loaded progress ago just now today yesterday at on by of the a views view comments comment likes shares reads replies votes advertisement advert ad ads sponsored " +
++    "updated update published posted edited modified last read reading time current duration elapsed remaining loaded progress live ago just now today yesterday at on by of the a views view comments comment likes shares reads replies votes advertisement advert ad ads sponsored " +
+     "s sec secs second seconds m min mins minute minutes h hr hrs hour hours d day days w wk week weeks mo month months y yr yrs year years " +
+     "actualizado actualizada actualización publicado publicada editado modificado última lectura leer tiempo de del el la las los en hace hoy ayer ahora vistas visitas comentarios respuestas votos publicidad anuncio patrocinado " +
+     "segundo segundos minuto minutos hora horas día días dia dias semana semanas mes meses año años " +
+@@ -23,6 +23,9 @@ const LABEL = new Set(
+     "назад обновлено опубликовано сегодня вчера секунду секунды секунд минуту минуты минут час часа часов день дня дней неделю недели месяц месяца месяцев год года лет"
+   ).split(" "),
+ );
++/** A count of views, likes or comments ("1,2 M views", "266 comments", "12,400 watching"). */
++const COUNT =
++  "\\d[\\d.,]*\\s*[kmb]?\\s+(?:\\p{L}+\\s+){0,2}(?:views?|viewers?|watching|likes?|comments?|shares?|reads?|vistas?|visitas?|viendo|reproducciones|visualizaciones|comentarios?|vues|commentaires?|aufrufe|kommentare|visualizzazioni|commenti)(?!\\p{L})";
+ /**
+  * A time relative to now ("3hrs ago", "hace 3 horas", "vor 2 Tagen", "3時間前")
+  * or a count of views, likes or comments: it changes on its own between
+@@ -35,7 +38,7 @@ const VOLATILE = new RegExp(
+     "(?<!\\p{L})(?:há|il y a|vor)\\s+(?:\\d+|uma?|une?|einer?|einem)\\s+(?:segundos?|minutos?|horas?|dias?|semanas?|mês|meses|anos?|secondes?|minutes?|heures?|jours?|semaines?|mois|ans?|sekunden?|minuten?|stunden?|tag(?:en)?|wochen?|monat(?:en)?|jahr(?:en)?)(?!\\p{L})",
+     "\\d+\\s+(?:secondi|minuti|ore|giorni|settimane|mesi|anni)\\s+fa(?!\\p{L})",
+     TICKS_CJK.source,
+-    "\\d[\\d.,]*\\s*[kmb]?\\s+(?:\\p{L}+\\s+){0,2}(?:views?|viewers?|watching|likes?|comments?|shares?|reads?|vistas?|visitas?|viendo|reproducciones|visualizaciones|comentarios?|vues|commentaires?|aufrufe|kommentare|visualizzazioni|commenti)(?!\\p{L})",
++    COUNT,
+   ].join("|"),
+   "iu",
+ );
+@@ -51,6 +54,9 @@ const FILLER = new Set(
+ /** Where a byline's parts meet: "BBC·3hrs ago", "Daily Mail · 266 comments", "Reuters | 2 hours ago". */
+ const PART = /\s*[·•|]\s*|\s+[-–—]\s+/;
+ const VOLATILE_ALL = new RegExp(VOLATILE.source, "giu");
++const COUNT_ALL = new RegExp(COUNT, "giu");
++/** A time relative to now ("3 hours ago", "hace 3 horas"), not a count. */
++const relative = (s: string) => VOLATILE.test(s.replace(COUNT_ALL, " "));
+ 
+ /**
+  * Whether a short line only ticks: once the parts `tick` matches (a clock
+@@ -69,5 +75,15 @@ export function onlyTicks(line: string, tick: RegExp): boolean {
+   };
+   if (labelOnly(line)) return true;
+   const parts = line.split(PART);
+-  return parts.length > 1 && parts.some((p) => VOLATILE.test(p) && labelOnly(p));
++  if (parts.length > 1 && parts.some((p) => VOLATILE.test(p) && labelOnly(p))) return true;
++  // A byline whose time relative to now follows a comma or a name ("Posted by
++  // Sam Rivers, 3 hours ago", "Sports desk, updated 3 hours ago", "Jane Doe 3
++  // hours ago") (F1312). A sentence has words of its own ("The fire started 2
++  // hours ago."), and a count after a comma may be what it says ("…, 9
++  // million viewers").
++  if (!relative(line)) return false;
++  const last = line.split(/,\s+/).pop()!;
++  if (last !== line && relative(last) && labelOnly(last)) return true;
++  const rest = line.replace(VOLATILE_ALL, " ").replace(all, " ").replace(TICKS_CJK, " ").match(/\p{L}+/gu) ?? [];
++  return rest.every((w) => LABEL.has(w.toLowerCase()) || /^\p{Lu}/u.test(w));
+ }

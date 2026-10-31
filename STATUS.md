@@ -2,7 +2,7 @@
 
 Sift is a Chrome extension that opens every page as a clean, readable, usable view. One switch (Alt+Shift+S, or the Sift button) shows the original page. Install it from https://sift.pujia.ar. The README explains how it works.
 
-This file says how Sift was checked against its spec, what passed, and what is still open. Last updated 2026-10-30, during round 14.
+This file says how Sift was checked against its spec, what passed, and what is still open. Last updated 2026-10-31, after round 14.
 
 ## How it was checked
 
@@ -134,9 +134,46 @@ Measured on 2026-10-30 on the build published that day (round 12 plus the first 
 
 Commands, all with 5 runs: YouTube home `ytd-rich-item-renderer --sift li.item`, search (`gluten free bread`) `ytd-video-renderer --sift li.item`, watch (dQw4w9WgXcQ) `'ytd-watch-metadata h1'`; amazon-search `'[data-component-type=s-search-result]' --sift li.item --block amazon`; fixtures amazon-product `'#productTitle' --block amazon`, amazon-cart `.sc-list-item --sift li.item --block amazon`, gmail `tr.zA --sift li.item`; BBC home `'main h2'`, BBC article cq62yg6rggj0o `h1`; Infobae home `'main h2'`; dailymail-home `h2`; core-buttons3000 `h1`. On the Amazon pages, `--block amazon` failed every request to an Amazon host (1189 on amazon-search), and none got through.
 
+## Speed, checked frame by frame (round 14)
+
+Round 14 changed when Sift reads a loading page. Before, each look waited on a timer set by the cost of the last look, so an empty early look could hold the real one back by 0.1 to 0.2 s. Now a look runs when the page's parser adds real content. On YouTube's home, search and feed pages, Sift also waits for YouTube's own first paint, so it does not slow YouTube down.
+
+Measured on 2026-10-31 on the published build, same method and commands as round 13. Load average 0.5 to 5; the test Chrome itself causes most of it. Times are medians of 5 loads in ms. Raw output: research/round14/speed-r14.txt.
+
+| Page | Original | Sift | Loading | Sift minus original | Round 13 |
+|---|---|---|---|---|---|
+| BBC home (live) | 228 | 258 | 167 | +30 | +50 |
+| Infobae home (live) | 163 | 222 | 151 | +59 | +75 |
+| core-buttons3000 (test page) | 99 | 221 | 221 | +122 | +125 |
+| BBC article (live) | 222 | 250 | 226 | +28 | +53 |
+| YouTube home (live) | 2429 | 2337 | 1752 | -92 | +315 |
+| YouTube search (live) | 2239 | 2398 | 1354 | +159 | +317 |
+| YouTube watch (live), title | 3724 | 754 | 754 | -2970 | -3037 |
+| Amazon search (saved page) | 206 | 249 | 125 | +43 | +185 |
+| Amazon product (test page) | 49 | 74 | 56 | +25 | +28 |
+| Amazon cart (test page) | 49 | 63 | 52 | +14 | +26 |
+| Gmail (test page) | 52 | 67 | 48 | +15 | +19 |
+| Daily Mail home (saved page) | 252 | 264 | 264 | +12 | +10 |
+
+Pages from round 13's tester reports, measured the same way:
+
+| Page | Original | Sift | Sift minus original |
+|---|---|---|---|
+| Wikipedia article (Bread) | 172 | 333 | +161 |
+| GitHub repo (file table) | 233 | 404 | +171 |
+| GitHub issues list | 378 | 430 | +52 |
+| Guardian article | 141 | 230 | +89 |
+| Python docs (pathlib) | 88 | 198 | +110 |
+| GOV.UK search | 66 | 154 | +88 |
+
+- An independent check before the merge ran 3 sets per page against the round 13 build. GitHub, the Guardian, YouTube search, Amazon search, BBC home, Python docs and Booking got faster. No page got slower in a way that held up. Wikipedia and GOV.UK search did not change.
+- YouTube home and search no longer delay YouTube's own list.
+- Commands for the new pages: Wikipedia `'#firstHeading'`; GitHub repo `'table[aria-labelledby=folders-and-files]' --sift table`; issues `'a[data-testid=issue-listitem-title-link]' --sift li.item`; Guardian article `h1`; Python docs `h1`; GOV.UK search (`council tax`) `.gem-c-document-list__item --sift li.item`.
+
 ## Still open
 
-- Speed: YouTube home and search show Sift's list about 0.3 s after the original's, and Amazon search about 0.2 s after (round 13 section above). News front pages are now within 0.1 s.
+- Speed: the target pages are within 0.1 s of the original, except YouTube search (+0.16 s; round 14 section above). Wikipedia, a GitHub repo, Python docs, GOV.UK search and the 3000-button test page are still 0.1 to 0.17 s behind.
+- A GitHub repo page with the AI on shows the README's Short version but not the file list or the Code, Issues and Pull requests tabs. Round 15 checks it.
 - Amazon was tested only on saved pages and hand-made test pages. Amazon forbids automated agents. Check it by hand in your own Chrome.
 - Gmail was tested only on a test page, because testers may not sign in. Check it in your own Chrome: load the extension and paste your OpenRouter key in Options.
 - AI wording:

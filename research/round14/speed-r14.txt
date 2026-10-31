@@ -1,0 +1,181 @@
+== https://www.bbc.com/ | main h2 | 5
+ 02:23:58 up 113 days, 16:48,  6 users,  load average: 0.47, 1.05, 1.66
+run 5 off: original 183 ms; fcp 248 ms, dcl 374 ms, load 2689 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 293 ms, loading 191 ms (original under Sift 293 ms); fcp 212 ms, dcl 815 ms, load 4041 ms, long tasks before it 2 (131 ms, longest 80 ms)
+run 7 on:  sift 251 ms, loading 167 ms (original under Sift 251 ms); fcp 196 ms, dcl 599 ms, load 807 ms, long tasks before it 1 (74 ms, longest 74 ms)
+run 8 off: original 228 ms; fcp 296 ms, dcl 355 ms, load 512 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 260 ms; fcp 264 ms, dcl 409 ms, load 3141 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 246 ms, loading 159 ms (original under Sift 246 ms); fcp 176 ms, dcl 582 ms, load 3907 ms, long tasks before it 1 (76 ms, longest 76 ms)
+medians (5 off, 5 on): original 228 ms (fcp 264 ms); Sift 258 ms, loading 167 ms (fcp 196 ms). Sift - original: 30 ms (1.1x).
+Sift's first content (last run on): "bbc.com US approves sale of 500 Patriot missiles to Ukraine The American-made interceptors are the o"
+== https://www.infobae.com/ | main h2 | 5
+ 02:24:39 up 113 days, 16:49,  6 users,  load average: 2.14, 1.40, 1.75
+run 5 off: original 151 ms; fcp 124 ms, dcl 232 ms, load 1159 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 222 ms, loading 120 ms (original under Sift 222 ms); fcp 140 ms, dcl 399 ms, load 1872 ms, long tasks before it 1 (71 ms, longest 71 ms)
+run 7 on:  sift 193 ms, loading 132 ms (original under Sift 193 ms); fcp 160 ms, dcl 441 ms, load 2163 ms, long tasks before it 1 (54 ms, longest 54 ms)
+run 8 off: original 126 ms; fcp 184 ms, dcl 283 ms, load 1383 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 240 ms; fcp 244 ms, dcl 411 ms, load 1802 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 232 ms, loading 151 ms (original under Sift 232 ms); fcp 168 ms, dcl 608 ms, load 2418 ms, long tasks before it 1 (74 ms, longest 74 ms)
+medians (5 off, 5 on): original 163 ms (fcp 184 ms); Sift 222 ms, loading 151 ms (fcp 168 ms). Sift - original: 59 ms (1.4x).
+Sift's first content (last run on): "Infobae América Tras el triunfo de Lula, la Bolsa de São Paulo tuvo su peor semana desde 2020 y el r"
+== http://127.0.0.1:8799/fx/core-buttons3000 | h1 | 5
+ 02:25:06 up 113 days, 16:49,  6 users,  load average: 3.25, 1.74, 1.86
+run 5 off: original 58 ms; fcp 220 ms, dcl 177 ms, load 180 ms, long tasks before it 1 (118 ms, longest 118 ms)
+run 6 on:  sift 232 ms, loading 232 ms (original under Sift 232 ms); fcp 316 ms, dcl 265 ms, load 275 ms, long tasks before it 1 (174 ms, longest 174 ms)
+run 7 on:  sift 221 ms, loading 221 ms (original under Sift 221 ms); fcp 328 ms, dcl 312 ms, load 323 ms, long tasks before it 1 (130 ms, longest 130 ms)
+run 8 off: original 99 ms; fcp 200 ms, dcl 158 ms, load 170 ms, long tasks before it 1 (51 ms, longest 51 ms)
+run 9 off: original 71 ms; fcp 196 ms, dcl 164 ms, load 169 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 218 ms, loading 68 ms (original under Sift 218 ms); fcp 88 ms, dcl 247 ms, load 271 ms, long tasks before it 1 (144 ms, longest 144 ms)
+medians (5 off, 5 on): original 99 ms (fcp 220 ms); Sift 221 ms, loading 221 ms (fcp 316 ms). Sift - original: 122 ms (2.2x).
+Sift's first content (last run on): "Picker e0 e1 e2 e3 e4 e5 e6 e7 e8 e9 e10 e11 e12 e13 e14 e15 e16 e17 e18 e19 e20 e21 e22 e23 e24 e25"
+== https://www.bbc.com/news/articles/cq62yg6rggj0o | h1 | 5
+ 02:25:15 up 113 days, 16:49,  6 users,  load average: 3.27, 1.80, 1.87
+run 5 off: original 222 ms; fcp 164 ms, dcl 198 ms, load 337 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 220 ms, loading 220 ms (original under Sift 220 ms); fcp 280 ms, dcl 278 ms, load 2832 ms, long tasks before it 1 (77 ms, longest 77 ms)
+run 7 on:  sift 250 ms, loading 250 ms (original under Sift 250 ms); fcp 328 ms, dcl 303 ms, load 2553 ms, long tasks before it 1 (87 ms, longest 87 ms)
+run 8 off: original 173 ms; fcp 248 ms, dcl 243 ms, load 2236 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 264 ms; fcp 176 ms, dcl 235 ms, load 1982 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 296 ms, loading 184 ms (original under Sift 296 ms); fcp 208 ms, dcl 365 ms, load 2551 ms, long tasks before it 1 (96 ms, longest 96 ms)
+medians (5 off, 5 on): original 222 ms (fcp 200 ms); Sift 250 ms, loading 226 ms (fcp 280 ms). Sift - original: 28 ms (1.1x).
+Sift's first content (last run on): "Lula's comeback in Brazil dents Trump's ambitions for Latin America Ione Wells · 27 Oct 2026 Getty I"
+== https://www.youtube.com/ | ytd-rich-item-renderer | 5 --sift li.item
+ 02:25:47 up 113 days, 16:50,  6 users,  load average: 4.98, 2.33, 2.05
+run 5 off: original 2496 ms; fcp 1724 ms, dcl 1843 ms, load 1930 ms, long tasks before it 5 (1072 ms, longest 484 ms)
+run 6 on:  sift 2960 ms, loading 2095 ms (original under Sift 2960 ms); fcp 2244 ms, dcl 2270 ms, load 2379 ms, long tasks before it 5 (1107 ms, longest 533 ms)
+run 7 on:  sift 2251 ms, loading 1408 ms (original under Sift 2251 ms); fcp 1484 ms, dcl 1571 ms, load 1720 ms, long tasks before it 4 (1018 ms, longest 496 ms)
+run 8 off: original 2319 ms; fcp 1760 ms, dcl 1810 ms, load 1903 ms, long tasks before it 4 (835 ms, longest 394 ms)
+run 9 off: original 2200 ms; fcp 1604 ms, dcl 1654 ms, load 1741 ms, long tasks before it 4 (923 ms, longest 462 ms)
+run 10 on:  sift 2608 ms, loading 1836 ms (original under Sift 2608 ms); fcp 1900 ms, dcl 1970 ms, load 2108 ms, long tasks before it 5 (1011 ms, longest 437 ms)
+medians (5 off, 5 on): original 2429 ms (fcp 1760 ms); Sift 2337 ms, loading 1752 ms (fcp 1832 ms). Sift - original: -92 ms (1.0x).
+Sift's first content (last run on): "YouTube Topics Mix - Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster) Toto, Cynd"
+== https://www.youtube.com/results?search_query=gluten+free+bread | ytd-video-renderer | 5 --sift li.item
+ 02:26:23 up 113 days, 16:50,  6 users,  load average: 4.33, 2.44, 2.10
+run 5 off: original 2192 ms; fcp 1280 ms, dcl 1432 ms, load 1501 ms, long tasks before it 5 (1254 ms, longest 560 ms)
+run 6 on:  sift 2398 ms, loading 1354 ms (original under Sift 2398 ms); fcp 1416 ms, dcl 1534 ms, load 1629 ms, long tasks before it 4 (1325 ms, longest 606 ms)
+run 7 on:  sift 2773 ms, loading 1621 ms (original under Sift 2773 ms); fcp 1680 ms, dcl 1838 ms, load 1920 ms, long tasks before it 5 (1318 ms, longest 613 ms)
+run 8 off: original 2353 ms; fcp 1540 ms, dcl 1647 ms, load 1716 ms, long tasks before it 5 (1168 ms, longest 548 ms)
+run 9 off: original 2239 ms; fcp 1508 ms, dcl 1610 ms, load 1676 ms, long tasks before it 4 (1072 ms, longest 542 ms)
+run 10 on:  sift 2060 ms, loading 1165 ms (original under Sift 2060 ms); fcp 1216 ms, dcl 1314 ms, load 1386 ms, long tasks before it 4 (1118 ms, longest 527 ms)
+medians (5 off, 5 on): original 2239 ms (fcp 1392 ms); Sift 2398 ms, loading 1354 ms (fcp 1408 ms). Sift - original: 159 ms (1.1x).
+Sift's first content (last run on): "Search: gluten free bread All Shorts Unwatched Videos Recently uploaded Live Filters Make the softes"
+== https://www.youtube.com/watch?v=dQw4w9WgXcQ | ytd-watch-metadata h1 | 5
+ 02:26:56 up 113 days, 16:51,  6 users,  load average: 3.75, 2.49, 2.12
+run 5 off: original 3935 ms; fcp 900 ms, dcl 2068 ms, load 2426 ms, long tasks before it 8 (2107 ms, longest 799 ms)
+run 6 on:  sift 747 ms, loading 747 ms (original under Sift 3951 ms); fcp 772 ms, dcl 1970 ms, load 2535 ms, long tasks before it 1 (81 ms, longest 81 ms)
+run 7 on:  sift 1003 ms, loading 1003 ms (original under Sift 4193 ms); fcp 1044 ms, dcl 2190 ms, load 2718 ms, long tasks before it 1 (66 ms, longest 66 ms)
+run 8 off: original 3724 ms; fcp 928 ms, dcl 2025 ms, load 2433 ms, long tasks before it 7 (1868 ms, longest 685 ms)
+run 9 off: original 3722 ms; fcp 896 ms, dcl 1906 ms, load 2613 ms, long tasks before it 7 (1845 ms, longest 796 ms)
+run 10 on:  sift 638 ms, loading 638 ms (original under Sift 3738 ms); fcp 664 ms, dcl 1922 ms, load 2452 ms, long tasks before it 1 (76 ms, longest 76 ms)
+medians (5 off, 5 on): original 3724 ms (fcp 928 ms); Sift 754 ms, loading 754 ms (fcp 776 ms). Sift - original: -2970 ms (0.2x).
+Sift's first content (last run on): "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster) Loading…"
+== http://127.0.0.1:8799/amazon-search | [data-component-type=s-search-result] | 5 --sift li.item --block amazon
+ 02:27:48 up 113 days, 16:52,  6 users,  load average: 3.18, 2.56, 2.17
+run 6 on:  sift 275 ms, loading 144 ms (original under Sift 275 ms); fcp 180 ms, dcl 1064 ms, load 1264 ms, long tasks before it 1 (57 ms, longest 57 ms)
+run 7 on:  sift 230 ms, loading 124 ms (original under Sift 230 ms); fcp 152 ms, dcl 1263 ms, load 1621 ms, long tasks before it 1 (67 ms, longest 67 ms)
+run 8 off: original 254 ms; fcp 212 ms, dcl 1181 ms, load 1277 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 221 ms; fcp 192 ms, dcl 613 ms, load 700 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 177 ms, loading 123 ms (original under Sift 177 ms); fcp 148 ms, dcl 973 ms, load 1167 ms, long tasks before it 0 (0 ms, longest 0 ms)
+medians (5 off, 5 on): original 206 ms (fcp 176 ms); Sift 249 ms, loading 125 ms (fcp 156 ms). Sift - original: 43 ms (1.2x).
+Sift's first content (last run on): "Search: wireless headphones Sort by Featured Price: Low to High Price: High to Low Avg. Customer Rev"
+blocked 1206 requests; got through: none
+== http://127.0.0.1:8799/fx/amazon-product | #productTitle | 5 --block amazon
+ 02:28:05 up 113 days, 16:52,  6 users,  load average: 3.33, 2.62, 2.20
+run 6 on:  sift 67 ms, loading 44 ms (original under Sift 53 ms); fcp 60 ms, dcl 49 ms, load 67 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 7 on:  sift 78 ms, loading 45 ms (original under Sift 57 ms); fcp 72 ms, dcl 52 ms, load 84 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 8 off: original 49 ms; fcp 60 ms, dcl 45 ms, load 54 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 46 ms; fcp 48 ms, dcl 40 ms, load 48 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 64 ms, loading 64 ms (original under Sift 64 ms); fcp 116 ms, dcl 49 ms, load 71 ms, long tasks before it 0 (0 ms, longest 0 ms)
+medians (5 off, 5 on): original 49 ms (fcp 60 ms); Sift 74 ms, loading 56 ms (fcp 72 ms). Sift - original: 25 ms (1.5x).
+Sift's first content (last run on): "soundcore by Anker Q20i Hybrid Active Noise Cancelling Headphones, Wireless Over-Ear Bluetooth, 40H "
+blocked 0 requests; got through: none
+== http://127.0.0.1:8799/fx/amazon-cart | .sc-list-item | 5 --sift li.item --block amazon
+ 02:28:10 up 113 days, 16:52,  6 users,  load average: 3.06, 2.58, 2.19
+run 6 on:  sift 63 ms, loading 43 ms (original under Sift 63 ms); fcp 56 ms, dcl 47 ms, load 50 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 7 on:  sift 59 ms, loading 59 ms (original under Sift 59 ms); fcp 84 ms, dcl 50 ms, load 64 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 8 off: original 49 ms; fcp 64 ms, dcl 46 ms, load 48 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 63 ms; fcp 84 ms, dcl 61 ms, load 67 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 71 ms, loading 52 ms (original under Sift 52 ms); fcp 72 ms, dcl 50 ms, load 61 ms, long tasks before it 0 (0 ms, longest 0 ms)
+medians (5 off, 5 on): original 49 ms (fcp 64 ms); Sift 63 ms, loading 52 ms (fcp 72 ms). Sift - original: 14 ms (1.3x).
+Sift's first content (last run on): "Shopping Cart soundcore by Anker Q20i Hybrid Active Noise Cancelling Headphones $39.97 · Qty 2 · In "
+blocked 0 requests; got through: none
+== http://127.0.0.1:8799/fx/gmail | tr.zA | 5 --sift li.item
+ 02:28:15 up 113 days, 16:52,  6 users,  load average: 3.30, 2.64, 2.21
+run 5 off: original 52 ms; fcp 72 ms, dcl 43 ms, load 45 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 65 ms, loading 65 ms (original under Sift 65 ms); fcp 96 ms, dcl 49 ms, load 52 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 7 on:  sift 69 ms, loading 40 ms (original under Sift 52 ms); fcp 56 ms, dcl 49 ms, load 52 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 8 off: original 52 ms; fcp 72 ms, dcl 41 ms, load 44 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 56 ms; fcp 80 ms, dcl 49 ms, load 52 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 66 ms, loading 66 ms (original under Sift 66 ms); fcp 116 ms, dcl 52 ms, load 55 ms, long tasks before it 0 (0 ms, longest 0 ms)
+medians (5 off, 5 on): original 52 ms (fcp 72 ms); Sift 67 ms, loading 48 ms (fcp 68 ms). Sift - original: 15 ms (1.3x).
+Sift's first content (last run on): "Inbox Primary Promotions UNREADMinerva UniversityYour class schedule for next week Here is your upda"
+== http://127.0.0.1:8799/dailymail-home | h2 | 5
+ 02:28:20 up 113 days, 16:52,  6 users,  load average: 3.35, 2.66, 2.22
+run 5 off: original 278 ms; fcp 388 ms, dcl 381 ms, load 442 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 264 ms, loading 264 ms (original under Sift 264 ms); fcp 420 ms, dcl 991 ms, load 1035 ms, long tasks before it 1 (69 ms, longest 69 ms)
+run 7 on:  sift 252 ms, loading 252 ms (original under Sift 252 ms); fcp 372 ms, dcl 785 ms, load 851 ms, long tasks before it 1 (61 ms, longest 61 ms)
+run 8 off: original 238 ms; fcp 336 ms, dcl 311 ms, load 364 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 247 ms; fcp 344 ms, dcl 332 ms, load 394 ms, long tasks before it 1 (50 ms, longest 50 ms)
+run 10 on:  sift 270 ms, loading 270 ms (original under Sift 270 ms); fcp 408 ms, dcl 919 ms, load 1005 ms, long tasks before it 2 (125 ms, longest 67 ms)
+medians (5 off, 5 on): original 252 ms (fcp 344 ms); Sift 264 ms, loading 264 ms (fcp 372 ms). Sift - original: 12 ms (1.0x).
+Sift's first content (last run on): "US Home Chilling US intelligence memo warns Iran's plots to assassinate American officials are in 'a"
+== https://en.wikipedia.org/wiki/Bread | #firstHeading | 5
+ 02:28:32 up 113 days, 16:52,  6 users,  load average: 3.07, 2.62, 2.21
+run 5 off: original 173 ms; fcp 156 ms, dcl 475 ms, load 482 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 341 ms, loading 134 ms (original under Sift 238 ms); fcp 168 ms, dcl 961 ms, load 1014 ms, long tasks before it 2 (148 ms, longest 75 ms)
+run 7 on:  sift 498 ms, loading 391 ms (original under Sift 498 ms); fcp 412 ms, dcl 1041 ms, load 1193 ms, long tasks before it 1 (84 ms, longest 84 ms)
+run 8 off: original 170 ms; fcp 160 ms, dcl 359 ms, load 438 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 155 ms; fcp 228 ms, dcl 426 ms, load 476 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 246 ms, loading 144 ms (original under Sift 246 ms); fcp 164 ms, dcl 842 ms, load 847 ms, long tasks before it 1 (78 ms, longest 78 ms)
+medians (5 off, 5 on): original 172 ms (fcp 168 ms); Sift 333 ms, loading 134 ms (fcp 164 ms). Sift - original: 161 ms (1.9x).
+Sift's first content (last run on): "Bread From Wikipedia, the free encyclopedia For other uses, see Bread (disambiguation). Bread"
+== https://github.com/facebook/react | table[aria-labelledby=folders-and-files] | 5 --sift table
+ 02:28:47 up 113 days, 16:53,  6 users,  load average: 2.91, 2.61, 2.21
+run 5 off: original 233 ms; fcp 252 ms, dcl 525 ms, load 748 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 346 ms, loading 172 ms (original under Sift 346 ms); fcp 228 ms, dcl 467 ms, load 790 ms, long tasks before it 1 (142 ms, longest 142 ms)
+run 7 on:  sift 404 ms, loading 225 ms (original under Sift 404 ms); fcp 260 ms, dcl 792 ms, load 1068 ms, long tasks before it 1 (120 ms, longest 120 ms)
+run 8 off: original 261 ms; fcp 208 ms, dcl 507 ms, load 756 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 184 ms; fcp 416 ms, dcl 440 ms, load 667 ms, long tasks before it 1 (120 ms, longest 120 ms)
+run 10 on:  sift 404 ms, loading 198 ms (original under Sift 404 ms); fcp 276 ms, dcl 531 ms, load 851 ms, long tasks before it 1 (164 ms, longest 164 ms)
+medians (5 off, 5 on): original 233 ms (fcp 252 ms); Sift 404 ms, loading 198 ms (fcp 260 ms). Sift - original: 171 ms (1.7x).
+Sift's first content (last run on): "react/react: The library for web and native user interfaces. Repository navigation Code Issues 845 P"
+== https://github.com/facebook/react/issues | a[data-testid=issue-listitem-title-link] | 5 --sift li.item
+ 02:29:06 up 113 days, 16:53,  6 users,  load average: 3.22, 2.70, 2.25
+run 5 off: original 304 ms; fcp 452 ms, dcl 551 ms, load 788 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 430 ms, loading 279 ms (original under Sift 430 ms); fcp 304 ms, dcl 723 ms, load 923 ms, long tasks before it 2 (146 ms, longest 96 ms)
+run 7 on:  sift 406 ms, loading 203 ms (original under Sift 406 ms); fcp 228 ms, dcl 551 ms, load 818 ms, long tasks before it 1 (143 ms, longest 143 ms)
+run 8 off: original 348 ms; fcp 292 ms, dcl 667 ms, load 767 ms, long tasks before it 1 (59 ms, longest 59 ms)
+run 9 off: original 409 ms; fcp 384 ms, dcl 667 ms, load 709 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 417 ms, loading 267 ms (original under Sift 417 ms); fcp 320 ms, dcl 580 ms, load 832 ms, long tasks before it 1 (111 ms, longest 111 ms)
+medians (5 off, 5 on): original 378 ms (fcp 412 ms); Sift 430 ms, loading 279 ms (fcp 320 ms). Sift - original: 52 ms (1.1x).
+Sift's first content (last run on): "Repository navigation Code Issues 845 Pull requests 636 Actions Security and quality 10 Insights Iss"
+== https://www.theguardian.com/world/2026/oct/26/brazil-lula-vow-democracy-always-election-win | h1 | 5
+ 02:29:24 up 113 days, 16:53,  6 users,  load average: 2.81, 2.64, 2.24
+run 5 off: original 149 ms; fcp 228 ms, dcl 226 ms, load 656 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 270 ms, loading 270 ms (original under Sift 270 ms); fcp 336 ms, dcl 331 ms, load 1455 ms, long tasks before it 2 (163 ms, longest 107 ms)
+run 7 on:  sift 230 ms, loading 230 ms (original under Sift 230 ms); fcp 304 ms, dcl 299 ms, load 866 ms, long tasks before it 2 (144 ms, longest 84 ms)
+run 8 off: original 118 ms; fcp 220 ms, dcl 204 ms, load 642 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 242 ms; fcp 244 ms, dcl 342 ms, load 943 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 200 ms, loading 200 ms (original under Sift 200 ms); fcp 308 ms, dcl 455 ms, load 1757 ms, long tasks before it 1 (50 ms, longest 50 ms)
+medians (5 off, 5 on): original 141 ms (fcp 220 ms); Sift 230 ms, loading 230 ms (fcp 308 ms). Sift - original: 89 ms (1.6x).
+Sift's first content (last run on): "Lula and his running mate Geraldo Alckmin address supporters after winning the presidential runoff i"
+== https://docs.python.org/3/library/pathlib.html | h1 | 5
+ 02:30:05 up 113 days, 16:54,  6 users,  load average: 2.46, 2.56, 2.23
+run 5 off: original 88 ms; fcp 156 ms, dcl 276 ms, load 330 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 159 ms, loading 159 ms (original under Sift 159 ms); fcp 236 ms, dcl 744 ms, load 804 ms, long tasks before it 1 (88 ms, longest 88 ms)
+run 7 on:  sift 192 ms, loading 192 ms (original under Sift 192 ms); fcp 260 ms, dcl 697 ms, load 873 ms, long tasks before it 1 (113 ms, longest 113 ms)
+run 8 off: original 106 ms; fcp 96 ms, dcl 242 ms, load 284 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 98 ms; fcp 96 ms, dcl 306 ms, load 389 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 242 ms, loading 242 ms (original under Sift 242 ms); fcp 304 ms, dcl 422 ms, load 470 ms, long tasks before it 1 (166 ms, longest 166 ms)
+medians (5 off, 5 on): original 88 ms (fcp 156 ms); Sift 198 ms, loading 198 ms (fcp 268 ms). Sift - original: 110 ms (2.3x).
+Sift's first content (last run on): "pathlib — Object-oriented filesystem paths Added in version 3.4. Source code: Lib/pathlib/ This modu"
+== https://www.gov.uk/search/all?keywords=council+tax | .gem-c-document-list__item | 5 --sift li.item
+ 02:30:19 up 113 days, 16:54,  6 users,  load average: 2.77, 2.63, 2.25
+run 5 off: original 66 ms; fcp 120 ms, dcl 80 ms, load 106 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 6 on:  sift 139 ms, loading 51 ms (original under Sift 139 ms); fcp 68 ms, dcl 174 ms, load 200 ms, long tasks before it 1 (83 ms, longest 83 ms)
+run 7 on:  sift 160 ms, loading 61 ms (original under Sift 160 ms); fcp 76 ms, dcl 202 ms, load 229 ms, long tasks before it 1 (70 ms, longest 70 ms)
+run 8 off: original 61 ms; fcp 104 ms, dcl 82 ms, load 112 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 9 off: original 67 ms; fcp 116 ms, dcl 81 ms, load 103 ms, long tasks before it 0 (0 ms, longest 0 ms)
+run 10 on:  sift 138 ms, loading 138 ms (original under Sift 138 ms); fcp 184 ms, dcl 167 ms, load 196 ms, long tasks before it 1 (81 ms, longest 81 ms)
+medians (5 off, 5 on): original 66 ms (fcp 116 ms); Sift 154 ms, loading 80 ms (fcp 104 ms). Sift - original: 88 ms (2.3x).
+Sift's first content (last run on): "Search all content on GOV.UK Filter and sort 16,233 results Sort by Date Topic Type Apply Council Ta"
+DONE

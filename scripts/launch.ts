@@ -9,7 +9,9 @@ const dist = root + (process.env.SIFT_OUT ?? "dist");
 const sfx = process.env.SIFT_OUT && process.env.SIFT_OUT !== "dist" ? "-" + process.env.SIFT_OUT : "";
 const profile = root + ".chrome/profile" + sfx;
 mkdirSync(profile, { recursive: true });
-await Bun.write(root + ".chrome/launch" + sfx + ".pid", String(process.pid));
+// chrome.sh finds this Chrome by the pid file, so a second port needs its own (as chrome.sh names it).
+const port = process.env.SIFT_PORT ?? "9444";
+await Bun.write(root + ".chrome/launch" + sfx + (port === "9444" ? "" : "-" + port) + ".pid", String(process.pid));
 
 // Amazon forbids automated agents, so the test Chrome can never reach it, even when a saved
 // Amazon page's own form or link tries (round 12). Names Amazon serves from fail to resolve.
