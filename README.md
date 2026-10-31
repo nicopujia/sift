@@ -4,6 +4,14 @@ A Chrome extension that turns any website into its essence: only the information
 
 Install page: https://sift.pujia.ar
 
+YouTube search, original and sifted:
+
+![YouTube search: the original page next to Sift's view](docs/compare-yt.png)
+
+A BBC article, original and sifted:
+
+![A BBC article: the original page next to Sift's view](docs/compare-bbc.png)
+
 ## What it does
 
 - Every page opens already sifted. One switch (bottom right corner, the toolbar button, or `Alt+Shift+S`) shows the original page. Switching to the original lasts for the rest of the tab's visit to that site.
