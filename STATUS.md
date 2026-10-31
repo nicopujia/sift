@@ -173,7 +173,7 @@ Pages from round 13's tester reports, measured the same way:
 ## Still open
 
 - Speed: the target pages are within 0.1 s of the original, except YouTube search (+0.16 s; round 14 section above). Wikipedia, a GitHub repo, Python docs, GOV.UK search and the 3000-button test page are still 0.1 to 0.17 s behind.
-- A GitHub repo page with the AI on shows the README's Short version but not the file list or the Code, Issues and Pull requests tabs. Round 15 checks it.
+- A GitHub repo page with the AI on shows the README's Short version but not the file list or the Code, Issues and Pull requests tabs.
 - Amazon was tested only on saved pages and hand-made test pages. Amazon forbids automated agents. Check it by hand in your own Chrome.
 - Gmail was tested only on a test page, because testers may not sign in. Check it in your own Chrome: load the extension and paste your OpenRouter key in Options.
 - AI wording:
