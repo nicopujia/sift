@@ -22,6 +22,11 @@ export interface Adapter {
    * the generic page, such as the site's own top bar controls.
    */
   fallback?(page: Page): void;
+  /**
+   * The selector of the page's content (a results page's entries), or null: while the page loads and Sift shows
+   * none of it, the look that shows it runs as soon as one comes in (Sift's content gate). Pages without one keep their pace.
+   */
+  contentSel?(url: URL): string | null;
 }
 
 import { amazon } from "./amazon";

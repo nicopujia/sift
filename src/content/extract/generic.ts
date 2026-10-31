@@ -235,9 +235,17 @@ export const cutShort = () => lastCut;
  * first, however long finding the page's bars and menus took.
  */
 function pastDeadline(n: number, min = 256, every = 32): boolean {
-  if (!timeCut && n >= min && n % every === 0 && performance.now() > deadline) timeCut = true;
+  if (!timeCut && (firstText >= 3000 || firstRich > 0 || firstItems >= 8 ? n % 8 === 0 : n >= min && n % every === 0) && performance.now() > deadline) timeCut = true;
   return timeCut;
 }
+/**
+ * What a look with a time budget has read of the page's content: article text, a table or code, entries.
+ * Once it has some, a look past its time stops a moment later, not a screenful of other parts later (perf16).
+ */
+let firstText = 0;
+let firstRich = 0;
+let firstItems = 0;
+const FIRST_TEXT = new Set(["p", "li", "dd", "dt", "blockquote", "pre", "figcaption", "h1", "h2", "h3", "h4", "h5", "h6"]);
 
 /**
  * MediaWiki's tools around an article (Wikipedia and other wikis): the
@@ -293,11 +301,13 @@ export class Out {
 
   push(b: Block) {
     this.adds++;
+    if (deadline < Infinity && ((b.t === "table" && b.rows.length >= 3) || (b.t === "pre" && b.text.length >= 200))) firstRich++;
     this.flush();
     this.blocks.push(b);
   }
   item(it: Item) {
     this.adds++;
+    if (deadline < Infinity) firstItems++;
     if (this.links.length) this.flushLinks();
     if (this.fields.length || this.actions.length) this.flushControls();
     if (!this.items.length) this.itemsKey = "ci:" + it.key;
@@ -4350,6 +4360,7 @@ function visitEl(el: Element, out: Out, ctx: Ctx) {
   // Only elements that show count toward the budget: hidden menus and scripts cost little.
   if (++ctx.count > BUDGET) return budgetCut(out, ctx);
   if (pastDeadline(ctx.count)) return;
+  if (deadline < Infinity && ctx.inArticle && FIRST_TEXT.has(tag)) firstText += tlen(el);
   if (tag === "slot") return walk(el, out, ctx);
   if (isAd(el) || ctx.drop?.(el)) return;
   if (el.classList.contains("cnx-main-container") && sitePlaylist(el)) return;
@@ -8240,12 +8251,20 @@ function articleScope(root: Element, articleEl: Element, h1: Element | null): El
   // to fill in, or a section of its own text (a recipe's method, a pricing table,
   // the ticket form beside an event), keeps the scope that wide.
   let scope: Element = lca;
+  // While the HTML still comes in, what shows the story is part of more (a repository's About beside its README)
+  // may not be in yet: a table before it (the repository's files) keeps the scope that wide, as it will be (perf16).
+  const loading = document.readyState === "loading";
   for (let a: Element = lca; a !== root && a.parentElement; a = a.parentElement) {
     const p: Element = a.parentElement;
-    if (Array.from(p.children).some((c) => c !== a && contentBeside(c))) scope = p;
+    if (Array.from(p.children).some((c) => c !== a && (contentBeside(c) || (loading && tableBefore(c, a))))) scope = p;
     if (p === root) break;
   }
   return scope;
+}
+
+/** A table of three rows or more shown before the story (see articleScope). */
+function tableBefore(c: Element, story: Element): boolean {
+  return !!(c.compareDocumentPosition(story) & Node.DOCUMENT_POSITION_FOLLOWING) && Array.from(c.querySelectorAll("table")).some((t) => (t as HTMLTableElement).rows.length >= 3 && visible(t));
 }
 
 /** A part beside the story that is content, not a rail: a form to fill in, or a headed section of its own text. */
@@ -8622,6 +8641,7 @@ function commentsBeside(root: Element, scope: Element): Element[] {
 export function extractGeneric(budget = 0): Page {
   deadline = budget > 0 ? performance.now() + budget : Infinity;
   timeCut = false;
+  firstText = firstRich = firstItems = 0;
   try {
     const page = extractAll();
     if (timeCut) page.partial = true;
@@ -8637,8 +8657,10 @@ function extractAll(): Page {
   const ctx = newCtx({ visited: new WeakSet(), bars: new WeakSet() });
   const search = findSearch(ctx);
   const top = findTop();
+  // A look with a time budget while the HTML still comes in leaves the menu to the look at its end (perf16).
+  const lean = deadline < Infinity && document.readyState === "loading";
   // A menu entry that repeats a top-bar action ("Sign in") is said once, in the bar.
-  const nav = findNav(ctx).filter((n) => !top.some((a) => a.ref === n.ref || (!!a.href && a.href === n.href)));
+  const nav = lean ? [] : findNav(ctx).filter((n) => !top.some((a) => a.ref === n.ref || (!!a.href && a.href === n.href)));
   if (!search) {
     const trig = searchTrigger();
     if (trig && !top.some((a) => a.ref === trig.ref)) top.unshift(trig);
@@ -8663,7 +8685,7 @@ function extractAll(): Page {
   let blocks = walkPage(ctx, root, scope, beside);
   // Pages that are mostly navigation (portals, language pickers): keep their navs
   // as content. Lists, tables, forms and players are content already.
-  if (blocksText(blocks).length < 200 && !hasRichBlocks(blocks)) {
+  if (!lean && blocksText(blocks).length < 200 && !hasRichBlocks(blocks)) {
     // A fresh pass: only the search box and its button stay taken, so players found in pass one come back.
     const used = new WeakSet<Element>();
     if (ctx.searchEl) used.add(ctx.searchEl);

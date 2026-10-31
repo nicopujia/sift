@@ -25,11 +25,14 @@ import { processAi, resetAi, setAiReady } from "./ai";
 import { setLang, t } from "./i18n";
 import { armRecent, noteMutations, clearRecent, noteEntered, pageChangedAt } from "./recent";
 import { askConsent, consentWallUp, cutShort, findToast } from "./extract/generic";
+import { pageUrl as siteUrl } from "./extract";
 
 const MODE_KEY = "sift:mode";
 const isHtml = document.contentType === "text/html" && document.documentElement?.localName === "html";
 
 type PortalBlock = Extract<Block, { t: "portal" }>;
+/** A page's bars, menus and hidden parts (a folded filter's options), whose text is not its content (the content gate, perf16). */
+const GATE_CHROME = "nav, [role=navigation], [role=banner], [role=contentinfo], [role=complementary], [role=menu], [role=menubar], [role=dialog], dialog, [hidden], template, noscript, script, style, select, details:not([open]) > :not(summary)";
 
 if (isHtml && window.top === window && !(window as any).__siftLoaded) {
   (window as any).__siftLoaded = true;
@@ -183,6 +186,32 @@ function boot() {
   store.mode = mode;
   hostStyle(mode);
   attach();
+
+  // A fresh YouTube list (search, home, a feed) has nothing for Sift to show before YouTube draws it. A look before
+  // YouTube's own first paint (its layout of the half-parsed page) let Chrome draw a frame just before YouTube's
+  // long startup task, and YouTube's results (so Sift's list) then came 300-900 ms later. Looks wait for that
+  // paint, a switch, or 4 s (perf16).
+  let ytHold = mode === "sift" && /(^|\.)youtube\.com$/.test(location.hostname) && location.hostname !== "music.youtube.com" && /^\/(results|feed\/.*)?$/.test(location.pathname);
+  let ytRelease = () => {};
+  if (ytHold) {
+    let po: PerformanceObserver | null = null;
+    const holdTimer = setTimeout(() => ytRelease(), 4000);
+    ytRelease = () => {
+      ytRelease = () => {};
+      ytHold = false;
+      po?.disconnect();
+      clearTimeout(holdTimer);
+      schedule(0);
+    };
+    try {
+      po = new PerformanceObserver((l) => {
+        if (l.getEntries().some((e) => e.name === "first-contentful-paint")) ytRelease();
+      });
+      po.observe({ type: "paint", buffered: true });
+    } catch {
+      ytHold = false;
+    }
+  }
 
   let scale = 1.125;
   const fontSize = () => {
@@ -1579,6 +1608,17 @@ function boot() {
 
   /** When the pending run is due, so a sooner request can move it earlier. */
   let pendingDue = 0;
+  /**
+   * The content gate: while the page loads and Sift shows none of its content, the text the page added
+   * outside its bars since the last look. Once it reaches gateMin, the look runs at once, in the change
+   * that brought the content: no wait behind a look that found only the page's header (perf16).
+   */
+  let contentAdded = 0;
+  let gateMin = 200;
+  /** The look under way was started by the gate. */
+  let byGate = false;
+  /** How the gate sees content: "" by its text (a page with no adapter), an adapter's selector for its entries, null not at all (other adapter pages). */
+  let gateSel: string | null = "";
   /** A run waiting for an idle moment. */
   let idleRun = 0;
   /** When this page started loading (or the last single-page navigation). */
@@ -1608,14 +1648,46 @@ function boot() {
   const thinView = (bs: Block[]) =>
     blocksText(bs).length < 200 &&
     bs.every((b) => b.t === "h" || b.t === "p" || b.t === "note" || (bs.length > 3 && (b.t === "ul" || b.t === "actions")));
+  /**
+   * None of the page's content: no entries, table, code, facts, picture, player, article text or grid of
+   * controls (a picker's 3000 buttons), and under 200 characters outside folded sections (a title with its
+   * sort and count, a repository's header and tabs, perf16).
+   */
+  const noContent = (bs: Block[]): boolean => {
+    const rich = (xs: Block[]): boolean =>
+      xs.some((b) => (b.t === "items" && b.items.length > 0) || (b.t === "actions" && b.actions.length >= 40) || b.t === "table" || b.t === "pre" || b.t === "portal" || b.t === "facts" || b.t === "img" || (b.t === "article" && blocksText(b.blocks).length >= 100) || (b.t === "section" && !b.collapsed && rich(b.blocks)));
+    return !rich(bs) && blocksText(bs.filter((b) => !(b.t === "section" && b.collapsed))).length < 200;
+  };
   /** Sift shows none of the page's content yet: nothing, or only a title and a line (see thinView). Asked on every change while loading: kept per page read. */
   const emptyViews = new WeakMap<Page, boolean>();
   const viewEmpty = () => {
     const p = store.page;
     if (!p?.blocks.length) return true;
     let e = emptyViews.get(p);
-    if (e === undefined) emptyViews.set(p, (e = thinView(p.blocks)));
+    if (e === undefined) emptyViews.set(p, (e = thinView(p.blocks) || (gateSel !== null && noContent(p.blocks))));
     return e;
+  };
+  /** The gate is open: a page it sees content on, still loading, with none of its content shown (perf16). */
+  const gateOpen = () => gateSel !== null && document.readyState !== "complete" && viewEmpty();
+  /** A view that fills the screen (a screenful of text, entries, a table or code): while the HTML comes in, read again less often (perf16). */
+  const fullViews = new WeakMap<Page, boolean>();
+  const fullView = (p: Page | null) => {
+    if (!p) return false;
+    let f = fullViews.get(p);
+    if (f === undefined) {
+      let n = 0;
+      let rich = false;
+      const walk = (bs: Block[]) => {
+        for (const b of bs) {
+          if (b.t === "items") n += b.items.length;
+          else if (b.t === "table" || b.t === "pre") rich = true;
+          else if (b.t === "section" || b.t === "article") walk(b.blocks);
+        }
+      };
+      walk(p.blocks);
+      fullViews.set(p, (f = rich || n >= 8 || blocksText(p.blocks).length >= 1500));
+    }
+    return f;
   };
 
   /**
@@ -1625,6 +1697,11 @@ function boot() {
    */
   const schedule = (delay?: number, minor = false, grew = false) => {
     if (store.mode !== "sift") return;
+    // The page's content came in while Sift shows none of it: the look that shows it runs now (perf16).
+    if (delay === undefined && contentAdded >= gateMin && gateOpen()) {
+      byGate = true;
+      return run();
+    }
     let d: number;
     let idle = false;
     if (delay !== undefined) d = delay;
@@ -1638,8 +1715,11 @@ function boot() {
       // After a long look (over 300 ms), the pause is three times its length (F1220).
       // While the HTML still comes in and Sift shows none of its content, a quick look (the page's first bytes)
       // holds the next back only by three times its length: the first view comes as soon as the content is in (F1300).
+      // Where the gate sees the content come in, a look at the page's header waits longer: the gate runs the next (perf16).
+      // A view that already fills the screen is read again less often while the HTML comes in: each look holds up the page's parser (perf16).
       const soon = document.readyState === "loading" && viewEmpty();
-      const wait = lastRunAt + (lastDur > 300 ? lastDur * 4 : Math.max(soon ? 16 : 100, lastDur * 3)) - performance.now();
+      const full = !activeAdapter() && document.readyState === "loading" && fullView(store.page);
+      const wait = lastRunAt + (full ? Math.max(300, lastDur * 4) : lastDur > 300 ? lastDur * 4 : Math.max(soon ? (gateSel !== null ? 300 : 16) : 100, lastDur * 3)) - performance.now();
       if (wait <= 0) return run();
       d = Math.max(16, wait);
     } else {
@@ -2320,16 +2400,19 @@ function boot() {
     pending = 0;
     if (idleRun) cancelIdleCallback(idleRun);
     idleRun = 0;
-    if (store.mode !== "sift" || !document.body) return;
+    if (store.mode !== "sift" || !document.body || ytHold) return;
     // Only a look that read the page counts for spacing the next: one before <body> exists read nothing (F1300).
     lastRunAt = performance.now();
+    const gated = byGate;
+    byGate = false;
+    contentAdded = 0;
     if (checkUrl()) fillTries = lastCount = 0;
     const s = performance.now();
     let page: Page;
     // Until Sift shows this page, a look stops after a moment and shows what it read (a long list's first
     // part), and the next look reads it all: the first view never waits on the whole page (F1220).
     // Shown means some of its content: while the HTML comes in, a first look that found only a title (its first bytes) is no view yet (F1300).
-    const budget = (!firstPaint || (document.readyState === "loading" && viewEmpty())) && !cutLast ? 50 : 0;
+    const budget = (!firstPaint || (document.readyState !== "complete" && viewEmpty())) && !cutLast ? 50 : 0;
     try {
       page = extract(budget);
       failures = 0;
@@ -2345,8 +2428,13 @@ function boot() {
     lastDur = performance.now() - s;
     host.dataset.ms = String(Math.round(lastDur));
     cutLast = budget > 0 && page.source === "generic" && cutShort();
-    // The rest of the page is read once this first part has shown, spaced like any look while the page loads.
-    if (cutLast) schedule(Math.max(16, lastRunAt + Math.max(100, lastDur * 3) - performance.now()));
+    const ad = activeAdapter();
+    gateSel = !ad ? "" : (ad.contentSel?.(siteUrl()) ?? null);
+    // The gate opened on text that was not the content (a menu, a title alone): it waits for more next time.
+    if (gated && noContent(page.blocks)) gateMin = Math.min(gateMin * 2, 3200);
+    // The rest of the page is read once this first part has shown, spaced like any look while the page loads
+    // (a first part that fills the screen while the HTML comes in: as any look at a full view then, perf16).
+    if (cutLast) schedule(Math.max(16, lastRunAt + (!ad && document.readyState === "loading" && fullView(page) ? Math.max(300, lastDur * 4) : Math.max(100, lastDur * 3)) - performance.now()));
     watchShadows();
     const runs = +(host.dataset.runs ?? 0) + 1;
     host.dataset.runs = String(runs);
@@ -2354,6 +2442,9 @@ function boot() {
     if (runs % 50 === 0) sweepRefs();
     // An adapter can say its page is still loading (YouTube renders lists late).
     page.partial = page.partial || document.readyState === "loading";
+    // A fresh YouTube page shows only its loading line at first: drawn before YouTube's own first paint, it put
+    // YouTube's results off by about half a second. Sift's boot line stays until entries, a player or a dialog come (perf16).
+    if (!store.page && !firstPaint && page.source === "youtube" && page.partial && !page.dialog && performance.now() - loadStart < 4000 && ytWaiting(page.blocks)) return;
     updateToast();
     // The list a field the user types in controls (Google Maps' suggestions grid).
     // It wins over a popup found around that field (Maps' directions panel, which
@@ -2500,9 +2591,25 @@ function boot() {
     if (held && focusLost()) portalFocus = { el: held, at: Date.now() };
     restorePortalFocus();
     // A page read in part is read whole in a moment: its text is shortened then, once (F1220).
-    if (!cutLast) processAi(page);
-    fillScreen(page);
-    openAtPost();
+    // While the page loads, the view's reads of its own size wait for the frame, before its paint, and its text
+    // to shorten waits until after it: the first view is drawn first (perf16).
+    if (document.readyState !== "complete") {
+      const cut = cutLast;
+      afterFrame(
+        () => {
+          if (store.page !== page) return;
+          fillScreen(page);
+          openAtPost();
+        },
+        () => {
+          if (!cut && store.page === page) processAi(page);
+        },
+      );
+    } else {
+      if (!cutLast) processAi(page);
+      fillScreen(page);
+      openAtPost();
+    }
     toEnd();
     if (!firstPaint && page.blocks.length) {
       firstPaint = performance.now() - t0;
@@ -2512,6 +2619,34 @@ function boot() {
       const a = document.activeElement;
       if (!a || a === document.body || a === document.documentElement || (portalOf(a) && !enteredPortal())) main()?.focus({ preventScroll: true });
     }
+  }
+
+  /** Runs `inFrame` in the next frame, before its paint, and `after` once that frame is drawn; a timer stands in for a hidden tab's frames. */
+  function afterFrame(inFrame: () => void, after: () => void) {
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      inFrame();
+      setTimeout(after, 0);
+    };
+    const timer = window.setTimeout(go, 100);
+    requestAnimationFrame(go);
+  }
+  /** YouTube's view has only its loading line (and its chips): no entries, player or panel yet (perf16). */
+  function ytWaiting(bs: Block[]): boolean {
+    let loading = false;
+    let real = false;
+    const walk = (xs: Block[]) => {
+      for (const b of xs) {
+        if (b.key === "yt-loading") loading = true;
+        if ((b.t === "items" && b.items.length > 0) || b.t === "portal") real = true;
+        if (b.t === "section" || b.t === "article") walk(b.blocks);
+      }
+    };
+    walk(bs);
+    return loading && !real;
   }
 
   /** Kinds of history changes since the last check (the Navigation API tells push from replace). */
@@ -2588,6 +2723,7 @@ function boot() {
     host.scrollTop = 0;
     sweepRefs();
     firstPaint = 0;
+    gateMin = 200;
     loadStart = performance.now();
     // What the reader last had: the next page is not named by it, however long the page keeps it.
     if (!navPending) titleFrom = { title: store.page?.title ?? "", head: headOf(store.page) };
@@ -2666,8 +2802,41 @@ function boot() {
         grew += (n.textContent ?? "").length;
         if (grew >= 400) break;
       }
+    if (contentAdded < gateMin && gateOpen()) countContent(added);
     schedule(undefined, minor, grew >= 400);
   });
+  /**
+   * Adds the page's new content to contentAdded (see the gate): the text of each new element's own text nodes,
+   * outside the page's bars, menus and hidden parts; a new h1 opens the gate. On an adapter's page, its entries.
+   */
+  function countContent(added: Node[]) {
+    const memo = new Map<Element, boolean>();
+    const bar = (el: Element | null): boolean => {
+      if (!el || el === document.body || el === document.documentElement) return false;
+      let c = memo.get(el);
+      if (c === undefined) {
+        c = el.matches(GATE_CHROME) || (el.matches("header, footer, aside") && !el.closest("main, article, [role=main]")) || bar(el.parentElement);
+        memo.set(el, c);
+      }
+      return c;
+    };
+    let n = 0;
+    for (const x of added) {
+      if (++n > 3000 || contentAdded >= gateMin) break;
+      const el = x as Element;
+      if (gateSel) {
+        if (el.matches(gateSel) || el.querySelector(gateSel)) contentAdded = gateMin;
+        continue;
+      }
+      if (bar(el)) continue;
+      // A title inside a form is a search page's, over its filters and results (GOV.UK): its text counts as any.
+      if (el.localName === "h1" && !el.closest("form")) {
+        contentAdded += gateMin;
+        continue;
+      }
+      for (let c = el.firstChild; c; c = c.nextSibling) if (c.nodeType === 3) contentAdded += (c.nodeValue ?? "").trim().length;
+    }
+  }
   let listTimer = 0;
   /**
    * The page changed while the user types in a field with suggestions: its new list shows
@@ -2711,7 +2880,8 @@ function boot() {
   mo.observe(document, moOpts);
   observeRoot = (r) => mo.observe(r, moOpts);
   const nav = (window as any).navigation;
-  nav?.addEventListener?.("navigatesuccess", () => schedule(0));
+  // The page wrote its own address again (GitHub's replaceState as it loads): read at the pace of its changes (perf16).
+  nav?.addEventListener?.("navigatesuccess", () => schedule(pageUrl() === lastUrl ? undefined : 0));
   nav?.addEventListener?.("navigate", (e: any) => navKinds.add(String(e.navigationType)));
   addEventListener("popstate", () => schedule(0));
   // Back/forward cache restores the page without any DOM change.
@@ -2727,7 +2897,9 @@ function boot() {
     schedule(Math.max(0, lastDur > 300 ? lastRunAt + lastDur * 4 - performance.now() : cutLast ? lastRunAt + Math.max(100, lastDur * 3) - performance.now() : 0));
   document.addEventListener("DOMContentLoaded", () => {
     attach();
-    loadedAgain();
+    // A page whose content the gate did not see (in pictures, in a bar) is read now, not after a timer its own scripts hold up (perf16).
+    if (gateOpen() && !cutLast && lastDur <= 300) run();
+    else loadedAgain();
   });
   addEventListener("load", loadedAgain);
   // Inputs change without DOM mutations; catch up after the user acts.
@@ -2999,6 +3171,7 @@ function boot() {
 
   // ---------- mode switching ----------
   function setMode(next: "sift" | "original", remember = true) {
+    ytRelease();
     // Leaving Sift: what the user typed in a rich editor's Sift field reaches the
     // page now. Kept for later, it would overwrite what they type in the original.
     if (next === "original" && store.mode === "sift") {

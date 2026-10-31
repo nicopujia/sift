@@ -516,6 +516,8 @@ export const amazon: Adapter = {
     try {
       const p = u.pathname;
       let page: Page | null = null;
+      // While the HTML of a results page comes in, before its results: only the header, not a full generic read of half a page (perf16).
+      if ((p === "/s" || p.startsWith("/s/")) && document.readyState === "loading" && !q(".s-main-slot")) return { ...base([], document.title), partial: true };
       if (p === "/s" || p.startsWith("/s/")) page = results();
       else if (/\/(dp|gp\/product|gp\/aw\/d)\//.test(p)) page = product();
       else if (p.startsWith("/gp/cart") || p.startsWith("/cart")) page = cart();
@@ -536,4 +538,5 @@ export const amazon: Adapter = {
     }
   },
   quiet: () => qa("#nav-flyout-anchor, .a-popover-preload"),
+  contentSel: (u) => (u.pathname === "/s" || u.pathname.startsWith("/s/") ? '[data-component-type="s-search-result"]' : null),
 };
